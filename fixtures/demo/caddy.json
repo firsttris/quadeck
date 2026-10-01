@@ -1,0 +1,218 @@
+{
+ "apps": {
+  "http": {
+   "servers": {
+    "srv0": {
+     "listen": [
+      ":443"
+     ],
+     "routes": [
+      {
+       "match": [
+        {
+         "host": [
+          "jellyfin.home.example"
+         ]
+        }
+       ],
+       "handle": [
+        {
+         "handler": "subroute",
+         "routes": [
+          {
+           "handle": [
+            {
+             "handler": "reverse_proxy",
+             "upstreams": [
+              {
+               "dial": "jellyfin:8096"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ],
+       "terminal": true
+      },
+      {
+       "match": [
+        {
+         "host": [
+          "fotos.home.example"
+         ]
+        }
+       ],
+       "handle": [
+        {
+         "handler": "subroute",
+         "routes": [
+          {
+           "handle": [
+            {
+             "handler": "reverse_proxy",
+             "upstreams": [
+              {
+               "dial": "immich-server:2283"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ],
+       "terminal": true
+      },
+      {
+       "match": [
+        {
+         "host": [
+          "namarr.home.example"
+         ]
+        }
+       ],
+       "handle": [
+        {
+         "handler": "subroute",
+         "routes": [
+          {
+           "handle": [
+            {
+             "handler": "reverse_proxy",
+             "upstreams": [
+              {
+               "dial": "localhost:3000"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ],
+       "terminal": true
+      },
+      {
+       "match": [
+        {
+         "host": [
+          "dl.home.example"
+         ]
+        }
+       ],
+       "handle": [
+        {
+         "handler": "subroute",
+         "routes": [
+          {
+           "handle": [
+            {
+             "handler": "reverse_proxy",
+             "upstreams": [
+              {
+               "dial": "downloader:8080"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ],
+       "terminal": true
+      },
+      {
+       "match": [
+        {
+         "host": [
+          "qbt.home.example"
+         ]
+        }
+       ],
+       "handle": [
+        {
+         "handler": "subroute",
+         "routes": [
+          {
+           "handle": [
+            {
+             "handler": "reverse_proxy",
+             "upstreams": [
+              {
+               "dial": "127.0.0.1:8080"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ],
+       "terminal": true
+      },
+      {
+       "match": [
+        {
+         "host": [
+          "ha.home.example"
+         ]
+        }
+       ],
+       "handle": [
+        {
+         "handler": "subroute",
+         "routes": [
+          {
+           "handle": [
+            {
+             "handler": "reverse_proxy",
+             "upstreams": [
+              {
+               "dial": "192.168.1.30:8123"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ],
+       "terminal": true
+      },
+      {
+       "match": [
+        {
+         "host": [
+          "vault.home.example"
+         ]
+        }
+       ],
+       "handle": [
+        {
+         "handler": "subroute",
+         "routes": [
+          {
+           "handle": [
+            {
+             "handler": "reverse_proxy",
+             "upstreams": [
+              {
+               "dial": "192.168.1.31:80"
+              }
+             ]
+            }
+           ]
+          }
+         ]
+        }
+       ],
+       "terminal": true
+      }
+     ]
+    }
+   }
+  }
+ }
+}

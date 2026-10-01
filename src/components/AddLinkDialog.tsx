@@ -1,0 +1,75 @@
+import { useState } from 'react'
+import { api } from '~/lib/api'
+import { Modal } from './Modal'
+import { useToast } from './Toast'
+
+/** "Link hinzufügen": manual links to devices and services without Quadlet (router, printer, other hosts). */
+export function AddLinkDialog({ open, onClose, groups }: { open: boolean; onClose: () => void; groups: string[] }) {
+  const say = useToast()
+  const [error, setError] = useState('')
+  const [saving, setSaving] = useState(false)
+  return (
+    <Modal open={open} onClose={onClose} title="Link hinzufügen">
+      <form
+        className="flex flex-col gap-3"
+        onSubmit={async (e) => {
+          e.preventDefault()
+          const f = new FormData(e.currentTarget)
+          setSaving(true)
+          setError('')
+          try {
+            await api('/api/links', {
+              body: { name: f.get('name'), url: f.get('url'), group: f.get('group'), icon: f.get('icon'), healthCheck: f.get('health') === 'on' },
+            })
+            say(`${f.get('name')} hinzugefügt`)
+            onClose()
+          } catch (err) {
+            setError((err as Error).message)
+          } finally {
+            setSaving(false)
+          }
+        }}
+      >
+        <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
+          Name
+          <input name="name" required maxLength={60} className="field" placeholder="Router" autoFocus />
+        </label>
+        <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
+          URL
+          <input name="url" required type="url" className="field font-mono" placeholder="http://192.168.1.1" />
+        </label>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
+            Gruppe
+            <input name="group" maxLength={40} className="field" placeholder="Links" list="link-groups" />
+            <datalist id="link-groups">
+              {groups.map((g) => (
+                <option key={g} value={g} />
+              ))}
+            </datalist>
+          </label>
+          <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
+            Icon (optional)
+            <input name="icon" maxLength={80} pattern="[a-z0-9][a-z0-9\-]*" className="field font-mono" placeholder="home-assistant" />
+          </label>
+        </div>
+        <label className="flex items-center gap-2 text-[13px]">
+          <input name="health" type="checkbox" defaultChecked /> Erreichbarkeit alle 60 s prüfen
+        </label>
+        {error && (
+          <p role="alert" className="m-0 text-[13px] text-[#ff8a80]">
+            {error}
+          </p>
+        )}
+        <div className="flex justify-end gap-2">
+          <button type="button" className="btn" onClick={onClose}>
+            Abbrechen
+          </button>
+          <button type="submit" className="btn primary" disabled={saving}>
+            Hinzufügen
+          </button>
+        </div>
+      </form>
+    </Modal>
+  )
+}

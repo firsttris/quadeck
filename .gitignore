@@ -1,0 +1,9 @@
+node_modules
+dist
+build
+release
+.data
+test-results
+playwright-report
+*.db
+.e2e-data

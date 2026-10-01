@@ -1,0 +1,45 @@
+{
+  "admin": { "listen": "localhost:2019" },
+  "apps": {
+    "http": {
+      "servers": {
+        "srv0": {
+          "listen": [":443"],
+          "routes": [
+            {
+              "match": [{ "host": ["jellyfin.example.de"] }],
+              "handle": [{ "handler": "subroute", "routes": [{ "handle": [{ "handler": "reverse_proxy", "upstreams": [{ "dial": "jellyfin:8096" }] }] }] }],
+              "terminal": true
+            },
+            {
+              "match": [{ "host": ["fotos.example.de"] }],
+              "handle": [
+                {
+                  "handler": "subroute",
+                  "routes": [
+                    { "match": [{ "path": ["/api/*"] }], "handle": [{ "handler": "reverse_proxy", "upstreams": [{ "dial": "immich-server:2283" }] }] },
+                    { "handle": [{ "handler": "reverse_proxy", "upstreams": [{ "dial": "immich-server:2283" }] }] }
+                  ]
+                }
+              ],
+              "terminal": true
+            },
+            {
+              "match": [{ "host": ["namarr.example.de", "*.wild.example.de"] }],
+              "handle": [{ "handler": "subroute", "routes": [{ "handle": [{ "handler": "reverse_proxy", "upstreams": [{ "dial": "localhost:3000" }] }] }] }],
+              "terminal": true
+            },
+            {
+              "match": [{ "host": ["static.example.de"] }],
+              "handle": [{ "handler": "file_server", "root": "/srv" }]
+            }
+          ]
+        },
+        "srv1": {
+          "listen": [":8081"],
+          "routes": [{ "match": [{ "host": ["lan.box"] }], "handle": [{ "handler": "reverse_proxy", "upstreams": [{ "dial": "10.89.0.7:80" }] }] }]
+        }
+      }
+    }
+  }
+}

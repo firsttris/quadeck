@@ -1,0 +1,57 @@
+# global options
+{
+	email admin@example.de
+}
+
+(common) {
+	encode gzip
+}
+
+jellyfin.example.de {
+	import common
+	reverse_proxy jellyfin:8096
+}
+
+fotos.example.de, photos.example.de {
+	reverse_proxy /api/* immich-server:2283
+	reverse_proxy immich-server:2283 {
+		header_up X-Real-IP {remote_host}
+	}
+}
+
+http://router.lan:8080 {
+	reverse_proxy http://192.168.1.1:80
+}
+
+apps.example.de {
+	handle_path /ha* {
+		reverse_proxy homeassistant:8123
+	}
+	handle {
+		respond "nope" 404
+	}
+}
+
+*.wild.example.de {
+	reverse_proxy something:1
+}
+
+bar.example.com {
+	handle /api/* { reverse_proxy api:3000 }
+	reverse_proxy web:80
+}
+
+*.home.example {
+	@nc host cloud.home.example
+	handle @nc {
+		reverse_proxy nextcloud:80
+	}
+}
+
+{$QD_TEST_DOMAIN} {
+	reverse_proxy envapp:1
+}
+
+{$QD_UNSET_DOMAIN} {
+	reverse_proxy nope:1
+}

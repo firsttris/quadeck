@@ -1,0 +1,46 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run test
+      - name: E2E (production build against fixtures)
+        run: |
+          bunx playwright install --with-deps chromium
+          bun run test:e2e
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces
+          path: test-results/
+      - name: Binary builds
+        run: bun scripts/compile.ts bun-linux-x64-baseline bun-linux-arm64 bun-linux-x64-musl bun-linux-arm64-musl
+      - name: Smoke test (glibc)
+        run: ./release/quadeck-linux-x64-baseline version
+
+  smoke-musl:
+    needs: check
+    runs-on: ubuntu-latest
+    container: alpine:3.20
+    steps:
+      - uses: actions/checkout@v4
+      - run: apk add --no-cache bash curl libstdc++ libgcc unzip
+      - run: curl -fsSL https://bun.sh/install | bash
+      - run: |
+          export PATH="$HOME/.bun/bin:$PATH"
+          bun install --frozen-lockfile
+          bun scripts/compile.ts bun-linux-x64-musl
+          ./release/quadeck-linux-x64-musl version
+          QUADECK_DATA_DIR=/tmp/qd QUADECK_PORT=8484 ./release/quadeck-linux-x64-musl serve &
+          sleep 3
+          curl -fsS http://127.0.0.1:8484/api/health

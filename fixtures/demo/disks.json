@@ -1,0 +1,52 @@
+[
+ {
+  "dev": "nvme0n1",
+  "path": "/dev/nvme0n1p3",
+  "mount": "/",
+  "fstype": "btrfs",
+  "size": 1000000000000,
+  "used": 312000000000,
+  "tempC": 41,
+  "role": "System"
+ },
+ {
+  "dev": "sda",
+  "path": "/dev/sda1",
+  "mount": "/mnt/disk1",
+  "fstype": "xfs",
+  "size": 12000000000000,
+  "used": 10100000000000,
+  "tempC": 34,
+  "role": "Daten"
+ },
+ {
+  "dev": "sdb",
+  "path": "/dev/sdb1",
+  "mount": "/mnt/disk2",
+  "fstype": "xfs",
+  "size": 12000000000000,
+  "used": 8699999999999,
+  "tempC": 35,
+  "role": "Daten"
+ },
+ {
+  "dev": "sdc",
+  "path": "/dev/sdc1",
+  "mount": "/mnt/disk3",
+  "fstype": "xfs",
+  "size": 14000000000000,
+  "used": 12600000000000,
+  "tempC": 36,
+  "role": "Daten"
+ },
+ {
+  "dev": "sdd",
+  "path": "/dev/sdd1",
+  "mount": "/mnt/parity1",
+  "fstype": "xfs",
+  "size": 14000000000000,
+  "used": 12600000000000,
+  "tempC": 33,
+  "role": "Parität"
+ }
+]

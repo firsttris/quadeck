@@ -1,0 +1,8 @@
+{
+ "hostname": "nas-01",
+ "os": "Fedora Linux 42 (Server Edition)",
+ "systemdVersion": "257",
+ "podmanVersion": "5.6.1",
+ "uptimeSec": 2001600,
+ "generatedAt": 1790880338731
+}

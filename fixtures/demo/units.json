@@ -1,0 +1,273 @@
+[
+ {
+  "name": "caddy.service",
+  "description": "caddy.service",
+  "load": "loaded",
+  "active": "active",
+  "sub": "running",
+  "kind": "quadlet",
+  "type": "notify",
+  "result": "success",
+  "exitStatus": 0,
+  "since": 1788893798731,
+  "unitFileState": "generated",
+  "quadlet": {
+   "file": "caddy.container",
+   "type": "container"
+  },
+  "memory": 39845888
+ },
+ {
+  "name": "immich.service",
+  "description": "Immich Server",
+  "load": "loaded",
+  "active": "active",
+  "sub": "running",
+  "kind": "quadlet",
+  "type": "notify",
+  "result": "success",
+  "exitStatus": 0,
+  "since": 1790362598731,
+  "unitFileState": "generated",
+  "quadlet": {
+   "file": "immich.container",
+   "type": "container"
+  },
+  "memory": 721420288
+ },
+ {
+  "name": "immich-ml.service",
+  "description": "Immich Machine Learning",
+  "load": "loaded",
+  "active": "failed",
+  "sub": "failed",
+  "kind": "quadlet",
+  "type": "notify",
+  "result": "oom-kill",
+  "exitStatus": 137,
+  "since": 1790880278731,
+  "unitFileState": "generated",
+  "quadlet": {
+   "file": "immich-ml.container",
+   "type": "container"
+  },
+  "memoryMax": 2147483648
+ },
+ {
+  "name": "immich-network.service",
+  "description": "immich-network.service",
+  "load": "loaded",
+  "active": "active",
+  "sub": "exited",
+  "kind": "quadlet",
+  "type": "oneshot",
+  "result": "success",
+  "exitStatus": 0,
+  "since": 1790362598731,
+  "unitFileState": "generated",
+  "quadlet": {
+   "file": "immich.network",
+   "type": "network"
+  }
+ },
+ {
+  "name": "jellyfin.service",
+  "description": "Jellyfin",
+  "load": "loaded",
+  "active": "active",
+  "sub": "running",
+  "kind": "quadlet",
+  "type": "notify",
+  "result": "success",
+  "exitStatus": 0,
+  "since": 1790708198731,
+  "unitFileState": "generated",
+  "quadlet": {
+   "file": "jellyfin.container",
+   "type": "container"
+  },
+  "memory": 432013312
+ },
+ {
+  "name": "namarr.service",
+  "description": "namarr.service",
+  "load": "loaded",
+  "active": "active",
+  "sub": "running",
+  "kind": "quadlet",
+  "type": "notify",
+  "result": "success",
+  "exitStatus": 0,
+  "since": 1790708198731,
+  "unitFileState": "generated",
+  "quadlet": {
+   "file": "namarr.container",
+   "type": "container"
+  },
+  "memory": 100663296
+ },
+ {
+  "name": "downloader.service",
+  "description": "downloader.service",
+  "load": "loaded",
+  "active": "active",
+  "sub": "running",
+  "kind": "quadlet",
+  "type": "notify",
+  "result": "success",
+  "exitStatus": 0,
+  "since": 1790708198731,
+  "unitFileState": "generated",
+  "quadlet": {
+   "file": "downloader.container",
+   "type": "container"
+  },
+  "memory": 220200960
+ },
+ {
+  "name": "qbittorrent.service",
+  "description": "qbittorrent.service",
+  "load": "loaded",
+  "active": "inactive",
+  "sub": "dead",
+  "kind": "quadlet",
+  "type": "notify",
+  "result": "success",
+  "exitStatus": 0,
+  "since": 1790794598731,
+  "unitFileState": "generated",
+  "quadlet": {
+   "file": "qbittorrent.container",
+   "type": "container"
+  }
+ },
+ {
+  "name": "smb.service",
+  "description": "Samba SMB Daemon",
+  "load": "loaded",
+  "active": "active",
+  "sub": "running",
+  "kind": "service",
+  "type": "notify",
+  "result": "success",
+  "exitStatus": 0,
+  "since": 1788893798731,
+  "unitFileState": "enabled",
+  "memory": 25165824
+ },
+ {
+  "name": "restic-backup.service",
+  "description": "Restic Backup",
+  "load": "loaded",
+  "active": "inactive",
+  "sub": "dead",
+  "kind": "service",
+  "type": "oneshot",
+  "result": "success",
+  "exitStatus": 0,
+  "since": 1790841398731,
+  "unitFileState": "static"
+ },
+ {
+  "name": "restic-backup.timer",
+  "description": "restic-backup.timer",
+  "load": "loaded",
+  "active": "active",
+  "sub": "waiting",
+  "kind": "timer",
+  "type": null,
+  "result": "success",
+  "exitStatus": 0,
+  "since": 1788893798731,
+  "unitFileState": "enabled",
+  "timer": {
+   "calendar": "*-*-* 03:30:00",
+   "next": 1790931398731,
+   "last": 1790844998731,
+   "unit": "restic-backup.service"
+  }
+ },
+ {
+  "name": "snapraid-sync.service",
+  "description": "snapraid-sync.service",
+  "load": "loaded",
+  "active": "inactive",
+  "sub": "dead",
+  "kind": "service",
+  "type": "oneshot",
+  "result": "success",
+  "exitStatus": 0,
+  "since": 1790844998731,
+  "unitFileState": "static"
+ },
+ {
+  "name": "snapraid-sync.timer",
+  "description": "snapraid-sync.timer",
+  "load": "loaded",
+  "active": "active",
+  "sub": "waiting",
+  "kind": "timer",
+  "type": null,
+  "result": "success",
+  "exitStatus": 0,
+  "since": 1788893798731,
+  "unitFileState": "enabled",
+  "timer": {
+   "calendar": "*-*-* 03:00:00",
+   "next": 1790927798731,
+   "last": 1790841398731,
+   "unit": "snapraid-sync.service"
+  }
+ },
+ {
+  "name": "podman-auto-update.timer",
+  "description": "podman-auto-update.timer",
+  "load": "loaded",
+  "active": "active",
+  "sub": "waiting",
+  "kind": "timer",
+  "type": null,
+  "result": "success",
+  "exitStatus": 0,
+  "since": 1788893798731,
+  "unitFileState": "enabled",
+  "timer": {
+   "calendar": "daily",
+   "next": 1790920598731,
+   "last": 1790834198731,
+   "unit": "podman-auto-update.service"
+  }
+ },
+ {
+  "name": "backup-offsite.service",
+  "description": "Offsite-Backup",
+  "load": "loaded",
+  "active": "failed",
+  "sub": "failed",
+  "kind": "service",
+  "type": "oneshot",
+  "result": "exit-code",
+  "exitStatus": 1,
+  "since": 1790621798731,
+  "unitFileState": "static"
+ },
+ {
+  "name": "backup-offsite.timer",
+  "description": "backup-offsite.timer",
+  "load": "loaded",
+  "active": "active",
+  "sub": "waiting",
+  "kind": "timer",
+  "type": null,
+  "result": "success",
+  "exitStatus": 0,
+  "since": 1788893798731,
+  "unitFileState": "enabled",
+  "timer": {
+   "calendar": "Sun *-*-* 04:00:00",
+   "next": 1791140198731,
+   "last": 1790535398731,
+   "unit": "backup-offsite.service"
+  }
+ }
+]
