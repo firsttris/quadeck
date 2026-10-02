@@ -7,6 +7,7 @@ import { HttpError } from '../auth'
 import { PACKAGE_NAME } from '~/shared/packages'
 import { parseJobSpec } from '../packages/job'
 import type { PodmanConfigName } from '~/shared/quadlets'
+import { parseShareChange } from '../shares/backend'
 import { UNIT_ACTIONS, type Privileged, type UnitAction } from './actions'
 
 type Handler = (body: Record<string, unknown>, p: Privileged) => Promise<unknown>
@@ -73,6 +74,14 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/podman/autoupdate-default': async (b, p) => {
     await p.setAutoUpdateDefault(str(b.token), b.enabled === true)
     return { ok: true }
+  },
+  '/shares/state': (_b, p) => p.sharesState(),
+  '/shares/preview': (b, p) => p.previewShare(parseShareChange(b.change)),
+  '/shares/apply': (b, p) => p.applyShare(str(b.token), parseShareChange(b.change)),
+  '/shares/service': (b, p) => {
+    if (b.kind !== 'smb' && b.kind !== 'nfs') throw new HttpError(400, 'kind muss smb oder nfs sein')
+    if (!['start', 'stop', 'restart', 'enable'].includes(str(b.action) ?? '')) throw new HttpError(400, 'Ungültige Aktion')
+    return p.shareService(str(b.token), b.kind, b.action as 'start')
   },
   '/podman/config': async (b, p) => {
     await p.writePodmanConfig(str(b.token), str(b.name) as PodmanConfigName, str(b.content) ?? '')

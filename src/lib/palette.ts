@@ -1,7 +1,7 @@
 import type { Snapshot } from '~/shared/types'
 
 export type PaletteAction =
-  | { kind: 'navigate'; to: '/' | '/units' | '/journal' | '/system' | '/quadlets'; search?: Record<string, string> }
+  | { kind: 'navigate'; to: '/' | '/units' | '/journal' | '/system' | '/quadlets' | '/shares'; search?: Record<string, string> }
   | { kind: 'open'; url: string }
   | { kind: 'unit'; action: 'start' | 'stop' | 'restart'; name: string }
 
@@ -23,6 +23,7 @@ export function paletteItems(s: Snapshot, readonly: boolean): PaletteItem[] {
     { id: 'p:/journal', section: 'Seiten', label: 'Journal', keywords: 'logs journalctl', action: { kind: 'navigate', to: '/journal' } },
     { id: 'p:/quadlets', section: 'Seiten', label: 'Quadlets bearbeiten', keywords: 'editor container datei compose import', action: { kind: 'navigate', to: '/quadlets' } },
     { id: 'p:/quadlets?settings', section: 'Seiten', label: 'Podman-Einstellungen', keywords: 'auto-update timer registries containers.conf', action: { kind: 'navigate', to: '/quadlets', search: { tab: 'settings' } } },
+    { id: 'p:/shares', section: 'Seiten', label: 'Freigaben', keywords: 'shares smb samba nfs exports netzlaufwerk', action: { kind: 'navigate', to: '/shares' } },
     { id: 'p:/system', section: 'Seiten', label: 'Updates', keywords: 'system pakete upgrade pacman apt dnf aur images auto-update', action: { kind: 'navigate', to: '/system' } },
     { id: 'p:/system?packages', section: 'Seiten', label: 'Installierte Pakete', keywords: 'system pakete deinstallieren entfernen verwaist orphans', action: { kind: 'navigate', to: '/system', search: { tab: 'packages' } } },
   ]

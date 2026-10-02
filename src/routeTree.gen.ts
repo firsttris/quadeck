@@ -15,6 +15,7 @@ import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppJournalRouteImport } from './routes/_app/journal'
 import { Route as AppQuadletsRouteImport } from './routes/_app/quadlets'
+import { Route as AppSharesRouteImport } from './routes/_app/shares'
 import { Route as AppSystemRouteImport } from './routes/_app/system'
 import { Route as AppUnitsRouteImport } from './routes/_app/units'
 import { Route as ApiContainersRouteImport } from './routes/api/containers'
@@ -43,6 +44,7 @@ import { Route as ApiQuadletsFileRouteImport } from './routes/api/quadlets/file'
 import { Route as ApiQuadletsRevisionRouteImport } from './routes/api/quadlets/revision'
 import { Route as ApiQuadletsValidateRouteImport } from './routes/api/quadlets/validate'
 import { Route as ApiServicesOverrideRouteImport } from './routes/api/services/override'
+import { Route as ApiSharesIndexRouteImport } from './routes/api/shares/index'
 import { Route as ApiSystemImagesRouteImport } from './routes/api/system/images'
 import { Route as ApiSystemOverviewRouteImport } from './routes/api/system/overview'
 import { Route as ApiSystemRemovePreviewRouteImport } from './routes/api/system/remove-preview'
@@ -77,6 +79,11 @@ const AppJournalRoute = AppJournalRouteImport.update({
 const AppQuadletsRoute = AppQuadletsRouteImport.update({
   id: '/quadlets',
   path: '/quadlets',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSharesRoute = AppSharesRouteImport.update({
+  id: '/shares',
+  path: '/shares',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSystemRoute = AppSystemRouteImport.update({
@@ -219,6 +226,11 @@ const ApiServicesOverrideRoute = ApiServicesOverrideRouteImport.update({
   path: '/api/services/override',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSharesIndexRoute = ApiSharesIndexRouteImport.update({
+  id: '/api/shares/',
+  path: '/api/shares/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSystemImagesRoute = ApiSystemImagesRouteImport.update({
   id: '/api/system/images',
   path: '/api/system/images',
@@ -256,6 +268,7 @@ export interface FileRoutesByFullPath {
   '/setup': typeof SetupRoute
   '/journal': typeof AppJournalRoute
   '/quadlets': typeof AppQuadletsRoute
+  '/shares': typeof AppSharesRoute
   '/system': typeof AppSystemRoute
   '/units': typeof AppUnitsRoute
   '/api/containers': typeof ApiContainersRoute
@@ -288,6 +301,7 @@ export interface FileRoutesByFullPath {
   '/api/layout/': typeof ApiLayoutIndexRoute
   '/api/links/': typeof ApiLinksIndexRoute
   '/api/quadlets/': typeof ApiQuadletsIndexRoute
+  '/api/shares/': typeof ApiSharesIndexRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages/': typeof ApiSystemPackagesIndexRoute
 }
@@ -296,6 +310,7 @@ export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
   '/journal': typeof AppJournalRoute
   '/quadlets': typeof AppQuadletsRoute
+  '/shares': typeof AppSharesRoute
   '/system': typeof AppSystemRoute
   '/units': typeof AppUnitsRoute
   '/api/containers': typeof ApiContainersRoute
@@ -329,6 +344,7 @@ export interface FileRoutesByTo {
   '/api/layout': typeof ApiLayoutIndexRoute
   '/api/links': typeof ApiLinksIndexRoute
   '/api/quadlets': typeof ApiQuadletsIndexRoute
+  '/api/shares': typeof ApiSharesIndexRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages': typeof ApiSystemPackagesIndexRoute
 }
@@ -339,6 +355,7 @@ export interface FileRoutesById {
   '/setup': typeof SetupRoute
   '/_app/journal': typeof AppJournalRoute
   '/_app/quadlets': typeof AppQuadletsRoute
+  '/_app/shares': typeof AppSharesRoute
   '/_app/system': typeof AppSystemRoute
   '/_app/units': typeof AppUnitsRoute
   '/api/containers': typeof ApiContainersRoute
@@ -372,6 +389,7 @@ export interface FileRoutesById {
   '/api/layout/': typeof ApiLayoutIndexRoute
   '/api/links/': typeof ApiLinksIndexRoute
   '/api/quadlets/': typeof ApiQuadletsIndexRoute
+  '/api/shares/': typeof ApiSharesIndexRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages/': typeof ApiSystemPackagesIndexRoute
 }
@@ -383,6 +401,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/journal'
     | '/quadlets'
+    | '/shares'
     | '/system'
     | '/units'
     | '/api/containers'
@@ -415,6 +434,7 @@ export interface FileRouteTypes {
     | '/api/layout/'
     | '/api/links/'
     | '/api/quadlets/'
+    | '/api/shares/'
     | '/api/system/packages/$name'
     | '/api/system/packages/'
   fileRoutesByTo: FileRoutesByTo
@@ -423,6 +443,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/journal'
     | '/quadlets'
+    | '/shares'
     | '/system'
     | '/units'
     | '/api/containers'
@@ -456,6 +477,7 @@ export interface FileRouteTypes {
     | '/api/layout'
     | '/api/links'
     | '/api/quadlets'
+    | '/api/shares'
     | '/api/system/packages/$name'
     | '/api/system/packages'
   id:
@@ -465,6 +487,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/_app/journal'
     | '/_app/quadlets'
+    | '/_app/shares'
     | '/_app/system'
     | '/_app/units'
     | '/api/containers'
@@ -498,6 +521,7 @@ export interface FileRouteTypes {
     | '/api/layout/'
     | '/api/links/'
     | '/api/quadlets/'
+    | '/api/shares/'
     | '/api/system/packages/$name'
     | '/api/system/packages/'
   fileRoutesById: FileRoutesById
@@ -536,6 +560,7 @@ export interface RootRouteChildren {
   ApiLayoutIndexRoute: typeof ApiLayoutIndexRoute
   ApiLinksIndexRoute: typeof ApiLinksIndexRoute
   ApiQuadletsIndexRoute: typeof ApiQuadletsIndexRoute
+  ApiSharesIndexRoute: typeof ApiSharesIndexRoute
   ApiSystemPackagesNameRoute: typeof ApiSystemPackagesNameRoute
   ApiSystemPackagesIndexRoute: typeof ApiSystemPackagesIndexRoute
 }
@@ -582,6 +607,13 @@ declare module '@tanstack/react-router' {
       path: '/quadlets'
       fullPath: '/quadlets'
       preLoaderRoute: typeof AppQuadletsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/shares': {
+      id: '/_app/shares'
+      path: '/shares'
+      fullPath: '/shares'
+      preLoaderRoute: typeof AppSharesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/system': {
@@ -780,6 +812,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiServicesOverrideRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/shares/': {
+      id: '/api/shares/'
+      path: '/api/shares'
+      fullPath: '/api/shares/'
+      preLoaderRoute: typeof ApiSharesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/system/images': {
       id: '/api/system/images'
       path: '/api/system/images'
@@ -828,6 +867,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppJournalRoute: typeof AppJournalRoute
   AppQuadletsRoute: typeof AppQuadletsRoute
+  AppSharesRoute: typeof AppSharesRoute
   AppSystemRoute: typeof AppSystemRoute
   AppUnitsRoute: typeof AppUnitsRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -836,6 +876,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppJournalRoute: AppJournalRoute,
   AppQuadletsRoute: AppQuadletsRoute,
+  AppSharesRoute: AppSharesRoute,
   AppSystemRoute: AppSystemRoute,
   AppUnitsRoute: AppUnitsRoute,
   AppIndexRoute: AppIndexRoute,
@@ -877,6 +918,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiLayoutIndexRoute: ApiLayoutIndexRoute,
   ApiLinksIndexRoute: ApiLinksIndexRoute,
   ApiQuadletsIndexRoute: ApiQuadletsIndexRoute,
+  ApiSharesIndexRoute: ApiSharesIndexRoute,
   ApiSystemPackagesNameRoute: ApiSystemPackagesNameRoute,
   ApiSystemPackagesIndexRoute: ApiSystemPackagesIndexRoute,
 }

@@ -1,0 +1,116 @@
+// SMB shares and NFS exports: types and validation shared by the form, the
+// web app and the root helper.
+
+export interface SmbShareSpec {
+  name: string
+  path: string
+  comment: string
+  readOnly: boolean
+  guestOk: boolean
+  /** "alice @family" – empty = everyone who can log in. */
+  validUsers: string
+  browseable: boolean
+}
+
+export interface SmbShareInfo extends SmbShareSpec {
+  /** Other keys in the section (create mask, vfs objects …) – kept as they are. */
+  extraKeys: string[]
+  connections: number
+}
+
+export const NFS_OPTIONS = ['rw', 'ro', 'sync', 'async', 'no_subtree_check', 'subtree_check', 'root_squash', 'no_root_squash', 'all_squash', 'insecure', 'secure', 'crossmnt', 'nohide', 'no_wdelay'] as const
+
+export interface NfsClient {
+  host: string
+  options: string[]
+}
+
+export interface NfsExportSpec {
+  path: string
+  clients: NfsClient[]
+}
+
+export interface NfsExportInfo extends NfsExportSpec {
+  file: string
+  line: number
+  /** Written by Quadeck (/etc/exports.d/quadeck.exports) or by hand elsewhere. */
+  managed: boolean
+}
+
+export interface ShareService {
+  unit: string
+  exists: boolean
+  active: boolean
+  enabled: boolean
+}
+
+export interface ShareConnection {
+  share: string
+  client: string
+  since?: number
+}
+
+export interface SharesState {
+  smb: { file: string; exists: boolean; installed: boolean; shares: SmbShareInfo[]; services: ShareService[]; connections: ShareConnection[]; error?: string }
+  nfs: { files: string[]; managedFile: string; installed: boolean; exports: NfsExportInfo[]; services: ShareService[]; clients: string[]; error?: string }
+}
+
+export type ShareChange = { kind: 'smb'; original?: string; spec: SmbShareSpec | null } | { kind: 'nfs'; original?: { file: string; path: string }; spec: NfsExportSpec | null }
+
+export interface SharePreview {
+  file: string
+  before: string
+  after: string
+  warnings: string[]
+}
+
+export type ShareServiceAction = 'start' | 'stop' | 'restart' | 'enable'
+
+const RESERVED_SMB = new Set(['global', 'homes', 'printers', 'print$', 'ipc$'])
+const SMB_NAME = /^[A-Za-z0-9][A-Za-z0-9 _.$-]{0,79}$/
+const USER_TOKEN = /^[@+&]?[A-Za-z0-9_.\\-]{1,64}$/
+const NFS_HOST = /^[A-Za-z0-9.*?:/[\]@_-]{1,253}$/
+const NFS_VALUE_OPTION = /^(fsid=(\d{1,10}|root|[0-9a-f-]{36})|anonuid=\d{1,10}|anongid=\d{1,10}|sec=(sys|krb5|krb5i|krb5p)(:(sys|krb5|krb5i|krb5p))*)$/
+
+/** Paths that must never be shared (or anything below them). */
+const FORBIDDEN = ['/etc', '/root', '/boot', '/proc', '/sys', '/dev', '/run', '/var/lib/quadeck', '/var/lib/quadeck-helper', '/var/lib/containers']
+
+// eslint-disable-next-line no-control-regex
+const CONTROL = /[\x00-\x1f\x7f]/
+
+export function validateSharePath(path: string): string | undefined {
+  if (!path.startsWith('/')) return 'Pfad muss absolut sein (/mnt/…)'
+  if (CONTROL.test(path) || path.includes('"')) return 'Pfad enthält unerlaubte Zeichen'
+  if (path.split('/').includes('..')) return 'Pfad darf kein „..“ enthalten'
+  const clean = path.replace(/\/+$/, '') || '/'
+  if (clean === '/') return 'Das Wurzelverzeichnis kann nicht freigegeben werden'
+  const bad = FORBIDDEN.find((f) => clean === f || clean.startsWith(f + '/'))
+  if (bad) return `${bad} kann nicht freigegeben werden`
+  return undefined
+}
+
+export function validateSmb(s: SmbShareSpec): string[] {
+  const e: string[] = []
+  if (!SMB_NAME.test(s.name)) e.push('Name: Buchstaben, Ziffern, Leerzeichen, „_ . - $“, max. 80 Zeichen')
+  else if (RESERVED_SMB.has(s.name.toLowerCase())) e.push(`„${s.name}“ ist ein reservierter Abschnitt`)
+  const p = validateSharePath(s.path)
+  if (p) e.push(p)
+  if (CONTROL.test(s.comment) || s.comment.length > 200) e.push('Kommentar: eine Zeile, max. 200 Zeichen')
+  const users = s.validUsers.split(/[\s,]+/).filter(Boolean)
+  if (CONTROL.test(s.validUsers) || users.some((u) => !USER_TOKEN.test(u))) e.push('Benutzer: Namen oder @gruppe, durch Leerzeichen getrennt')
+  return e
+}
+
+export function validateNfs(s: NfsExportSpec): string[] {
+  const e: string[] = []
+  const p = validateSharePath(s.path)
+  if (p) e.push(p)
+  if (!s.clients.length) e.push('Mindestens ein Client (z. B. 192.168.1.0/24)')
+  if (s.clients.length > 50) e.push('Zu viele Clients')
+  for (const c of s.clients) {
+    if (!NFS_HOST.test(c.host)) e.push(`Client „${c.host}“: IP, Netz (192.168.1.0/24), Hostname oder *`)
+    for (const o of c.options) if (!(NFS_OPTIONS as readonly string[]).includes(o) && !NFS_VALUE_OPTION.test(o)) e.push(`Option „${o}“ ist nicht erlaubt`)
+    if (c.options.includes('rw') && c.options.includes('ro')) e.push(`${c.host}: rw und ro gleichzeitig`)
+  }
+  return e
+}

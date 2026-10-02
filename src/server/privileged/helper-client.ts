@@ -3,6 +3,7 @@ import type { Privileged, UnitAction } from './actions'
 import type { ImageUpdatesReport, InstalledPackage, JobInfo, JobSpec, JobState, PackageDetail, PackageOverview, RemovePreview, UpdatesReport } from '~/shared/packages'
 import type { PodmanConfigName, PodmanSettings, QuadletFile, Revision, ValidateResult } from '~/shared/quadlets'
 import type { WriteResult } from '../quadlets/backend'
+import type { ShareChange, SharePreview, ShareServiceAction, SharesState } from '~/shared/shares'
 import type { UnlockInfo } from './gate'
 
 /** Privileged over the root helper's Unix socket. */
@@ -117,5 +118,18 @@ export class HelperClient implements Privileged {
   }
   async writePodmanConfig(token: string | undefined, name: PodmanConfigName, content: string) {
     await this.call('POST', '/podman/config', { token, name, content })
+  }
+
+  sharesState() {
+    return this.call<SharesState>('POST', '/shares/state', {})
+  }
+  previewShare(change: ShareChange) {
+    return this.call<SharePreview>('POST', '/shares/preview', { change }, 60_000)
+  }
+  applyShare(token: string | undefined, change: ShareChange) {
+    return this.call<SharesState>('POST', '/shares/apply', { token, change }, 120_000)
+  }
+  shareService(token: string | undefined, kind: 'smb' | 'nfs', action: ShareServiceAction) {
+    return this.call<SharesState>('POST', '/shares/service', { token, kind, action }, 120_000)
   }
 }

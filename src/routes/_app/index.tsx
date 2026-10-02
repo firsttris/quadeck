@@ -460,7 +460,9 @@ function Shares({ shares, error }: { shares: Share[]; error?: string }) {
     <section className="pt-[18px] pb-1.5" aria-label="Freigaben">
       <div className="flex items-baseline justify-between px-[18px] pb-2">
         <h2 className="h2">Freigaben</h2>
-        <span className="text-[12px] text-muted">SMB und NFS</span>
+        <Link to="/shares" className="btn sm no-drag">
+          Verwalten
+        </Link>
       </div>
       {shares.length === 0 && (
         <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{error ? `Nicht lesbar: ${error}` : 'Keine Freigaben in smb.conf oder /etc/exports.'}</p>
