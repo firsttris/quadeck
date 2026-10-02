@@ -1,0 +1,297 @@
+{
+ "dmi": {
+  "sys_vendor": "ASRock",
+  "product_name": "To Be Filled By O.E.M.",
+  "board_vendor": "ASRock",
+  "board_name": "B660M Pro RS",
+  "bios_vendor": "American Megatrends International, LLC.",
+  "bios_version": "14.03",
+  "bios_date": "08/24/2022",
+  "chassis_type": "3"
+ },
+ "virt": "none",
+ "lscpu": "{\"lscpu\": [{\"field\": \"Architecture:\", \"data\": \"x86_64\"}, {\"field\": \"CPU(s):\", \"data\": \"12\"}, {\"field\": \"Vendor ID:\", \"data\": \"GenuineIntel\", \"children\": [{\"field\": \"Model name:\", \"data\": \"12th Gen Intel(R) Core(TM) i5-12500\", \"children\": [{\"field\": \"Thread(s) per core:\", \"data\": \"2\"}, {\"field\": \"Core(s) per socket:\", \"data\": \"6\"}, {\"field\": \"Socket(s):\", \"data\": \"1\"}, {\"field\": \"CPU max MHz:\", \"data\": \"4600.0000\"}, {\"field\": \"CPU min MHz:\", \"data\": \"800.0000\"}]}]}, {\"field\": \"Virtualization features:\", \"data\": null, \"children\": [{\"field\": \"Virtualization:\", \"data\": \"VT-x\"}]}, {\"field\": \"Caches (sum of all):\", \"data\": null, \"children\": [{\"field\": \"L3:\", \"data\": \"18 MiB (1 instance)\"}]}]}",
+ "cpuinfo": "processor\t: 0\nvendor_id\t: GenuineIntel\nmodel name\t: 12th Gen Intel(R) Core(TM) i5-12500\nflags\t\t: fpu vme de pse vmx\n",
+ "meminfo": "MemTotal:       32617636 kB\nMemFree:         1234567 kB\n",
+ "dmidecode": "# dmidecode 3.6\nGetting SMBIOS data from sysfs.\nSMBIOS 3.4.0 present.\n\nHandle 0x0010, DMI type 16, 23 bytes\nPhysical Memory Array\n\tLocation: System Board Or Motherboard\n\tUse: System Memory\n\tError Correction Type: None\n\tMaximum Capacity: 128 GB\n\tNumber Of Devices: 4\n\nHandle 0x0012, DMI type 17, 92 bytes\nMemory Device\n\tSize: No Module Installed\n\tLocator: Controller0-DIMMA1\n\tBank Locator: BANK 0\n\tType: Unknown\n\nHandle 0x0013, DMI type 17, 92 bytes\nMemory Device\n\tSize: 16 GB\n\tLocator: Controller0-DIMMA2\n\tBank Locator: BANK 0\n\tType: DDR4\n\tSpeed: 3200 MT/s\n\tManufacturer: Kingston\n\tPart Number: KF432C16BB/16\n\tConfigured Memory Speed: 3200 MT/s\n\nHandle 0x0014, DMI type 17, 92 bytes\nMemory Device\n\tSize: No Module Installed\n\tLocator: Controller1-DIMMB1\n\tBank Locator: BANK 0\n\tType: Unknown\n\nHandle 0x0015, DMI type 17, 92 bytes\nMemory Device\n\tSize: 16 GB\n\tLocator: Controller1-DIMMB2\n\tBank Locator: BANK 0\n\tType: DDR4\n\tSpeed: 3200 MT/s\n\tManufacturer: Kingston\n\tPart Number: KF432C16BB/16\n\tConfigured Memory Speed: 3200 MT/s\n",
+ "edac": false,
+ "pci": [
+  {
+   "address": "0000:00:02.0",
+   "class": "0x030000",
+   "vendor": "8086",
+   "device": "4692",
+   "vendorName": "Intel Corporation",
+   "deviceName": "AlderLake-S GT1 [UHD Graphics 770]",
+   "driver": "i915",
+   "names": [],
+   "className": "VGA compatible controller"
+  },
+  {
+   "address": "0000:00:14.0",
+   "class": "0x0c0330",
+   "vendor": "8086",
+   "device": "7ae0",
+   "vendorName": "Intel Corporation",
+   "deviceName": "Alder Lake-S PCH USB 3.2 Gen 2x2 XHCI Controller",
+   "className": "USB controller",
+   "driver": "xhci_hcd",
+   "names": []
+  },
+  {
+   "address": "0000:00:17.0",
+   "class": "0x010601",
+   "vendor": "8086",
+   "device": "7ae2",
+   "vendorName": "Intel Corporation",
+   "deviceName": "Alder Lake-S PCH SATA Controller [AHCI Mode]",
+   "className": "SATA controller",
+   "driver": "ahci",
+   "names": []
+  },
+  {
+   "address": "0000:00:1f.3",
+   "class": "0x040300",
+   "vendor": "8086",
+   "device": "7ad0",
+   "vendorName": "Intel Corporation",
+   "deviceName": "Alder Lake-S HD Audio Controller",
+   "className": "Audio device",
+   "driver": "snd_hda_intel",
+   "names": []
+  },
+  {
+   "address": "0000:01:00.0",
+   "class": "0x010802",
+   "vendor": "144d",
+   "device": "a80a",
+   "vendorName": "Samsung Electronics Co Ltd",
+   "deviceName": "NVMe SSD Controller PM9A1/PM9A3/980PRO",
+   "className": "Non-Volatile memory controller",
+   "driver": "nvme",
+   "linkSpeed": "16.0 GT/s PCIe",
+   "linkWidth": 4,
+   "maxLinkSpeed": "16.0 GT/s PCIe",
+   "maxLinkWidth": 4,
+   "names": [
+    "nvme0"
+   ]
+  },
+  {
+   "address": "0000:03:00.0",
+   "class": "0x030000",
+   "vendor": "8086",
+   "device": "56a5",
+   "vendorName": "Intel Corporation",
+   "deviceName": "DG2 [Arc A380]",
+   "className": "VGA compatible controller",
+   "driver": "i915",
+   "linkSpeed": "2.5 GT/s PCIe",
+   "linkWidth": 1,
+   "maxLinkSpeed": "2.5 GT/s PCIe",
+   "maxLinkWidth": 1,
+   "names": []
+  },
+  {
+   "address": "0000:04:00.0",
+   "class": "0x010601",
+   "vendor": "1b21",
+   "device": "1166",
+   "vendorName": "ASMedia Technology Inc.",
+   "deviceName": "ASM1166 Serial ATA Controller",
+   "className": "SATA controller",
+   "driver": "ahci",
+   "linkSpeed": "8.0 GT/s PCIe",
+   "linkWidth": 1,
+   "maxLinkSpeed": "8.0 GT/s PCIe",
+   "maxLinkWidth": 2,
+   "names": []
+  },
+  {
+   "address": "0000:05:00.0",
+   "class": "0x020000",
+   "vendor": "8086",
+   "device": "125c",
+   "vendorName": "Intel Corporation",
+   "deviceName": "Ethernet Controller I226-V",
+   "className": "Ethernet controller",
+   "driver": "igc",
+   "linkSpeed": "5.0 GT/s PCIe",
+   "linkWidth": 1,
+   "maxLinkSpeed": "5.0 GT/s PCIe",
+   "maxLinkWidth": 1,
+   "names": [
+    "enp5s0"
+   ]
+  }
+ ],
+ "usb": [
+  {
+   "path": "1-1",
+   "vendor": "05e3",
+   "product": "0610",
+   "manufacturer": "GenesysLogic",
+   "name": "USB2.1 Hub",
+   "speed": 480,
+   "driver": "hub",
+   "serial": [],
+   "hub": true
+  },
+  {
+   "path": "1-1.2",
+   "vendor": "10c4",
+   "product": "ea60",
+   "manufacturer": "ITead",
+   "name": "Sonoff Zigbee 3.0 USB Dongle Plus",
+   "speed": 12,
+   "driver": "cp210x",
+   "serial": [
+    "/dev/serial/by-id/usb-ITead_Sonoff_Zigbee_3.0_USB_Dongle_Plus_4c004e9c53c9ec11bf0e0b6e4b7d5d1a-if00-port0"
+   ]
+  },
+  {
+   "path": "1-4",
+   "vendor": "051d",
+   "product": "0002",
+   "manufacturer": "American Power Conversion",
+   "name": "Back-UPS ES 700G FW:871.O3 .I USB FW:O3",
+   "speed": 1.5,
+   "driver": "usbhid",
+   "serial": []
+  },
+  {
+   "path": "2-3",
+   "vendor": "0781",
+   "product": "5583",
+   "manufacturer": "SanDisk",
+   "name": "Ultra Fit",
+   "speed": 5000,
+   "driver": "usb-storage",
+   "serial": []
+  }
+ ],
+ "drm": [
+  {
+   "node": "/dev/dri/card0",
+   "pci": "0000:00:02.0"
+  },
+  {
+   "node": "/dev/dri/renderD128",
+   "pci": "0000:00:02.0"
+  },
+  {
+   "node": "/dev/dri/card1",
+   "pci": "0000:03:00.0"
+  },
+  {
+   "node": "/dev/dri/renderD129",
+   "pci": "0000:03:00.0"
+  }
+ ],
+ "ata": [
+  {
+   "link": "ata1",
+   "disk": "sda",
+   "model": "ST12000VN0008-2YS101",
+   "speed": "6.0 Gbps",
+   "limit": "6.0 Gbps"
+  },
+  {
+   "link": "ata2",
+   "disk": "sdb",
+   "model": "WDC WD120EFBX-68B0EN0",
+   "speed": "6.0 Gbps",
+   "limit": "6.0 Gbps"
+  },
+  {
+   "link": "ata5",
+   "disk": "sdc",
+   "model": "TOSHIBA MG08ACA14TE",
+   "speed": "3.0 Gbps",
+   "limit": "6.0 Gbps"
+  },
+  {
+   "link": "ata6",
+   "disk": "sdd",
+   "model": "ST14000NM001G-2KJ103",
+   "speed": "6.0 Gbps",
+   "limit": "6.0 Gbps"
+  }
+ ],
+ "sensors": [
+  {
+   "chip": "coretemp",
+   "label": "Package id 0",
+   "kind": "temp",
+   "value": 48,
+   "max": 80,
+   "crit": 100
+  },
+  {
+   "chip": "coretemp",
+   "label": "Core 0",
+   "kind": "temp",
+   "value": 45,
+   "max": 80,
+   "crit": 100
+  },
+  {
+   "chip": "coretemp",
+   "label": "Core 4",
+   "kind": "temp",
+   "value": 47,
+   "max": 80,
+   "crit": 100
+  },
+  {
+   "chip": "nct6798",
+   "label": "CPU-Lüfter",
+   "kind": "fan",
+   "value": 820
+  },
+  {
+   "chip": "nct6798",
+   "label": "Gehäuse vorne",
+   "kind": "fan",
+   "value": 640
+  },
+  {
+   "chip": "nct6798",
+   "label": "Gehäuse hinten",
+   "kind": "fan",
+   "value": 0
+  },
+  {
+   "chip": "nct6798",
+   "label": "Vcore",
+   "kind": "in",
+   "value": 0.88
+  },
+  {
+   "chip": "nct6798",
+   "label": "+12V",
+   "kind": "in",
+   "value": 12.1
+  },
+  {
+   "chip": "nvme",
+   "label": "Composite",
+   "kind": "temp",
+   "value": 41,
+   "max": 82,
+   "crit": 84
+  },
+  {
+   "chip": "i915",
+   "label": "Temperatur 1",
+   "kind": "temp",
+   "value": 52
+  },
+  {
+   "chip": "i915",
+   "label": "Leistung 1",
+   "kind": "power",
+   "value": 14.2
+  }
+ ]
+}

@@ -124,6 +124,7 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/fstab/state': (_b, p) => p.fstabState(),
   '/boot/state': (_b, p) => p.bootState(),
   '/users/state': (_b, p) => p.usersState(),
+  '/hardware': (_b, p) => p.hardware(),
   '/users/apply': (b, p) => p.applyUser(str(b.token), parseUserChange(b.change)),
   '/boot/default': (b, p) => p.setBootDefault(str(b.token), str(b.id) ?? ''),
   '/boot/timeout': (b, p) => p.setBootTimeout(str(b.token), str(b.value) ?? ''),

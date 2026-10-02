@@ -11,6 +11,7 @@ disks, shares and the host itself, with the actions you need day to day.
 | [Units and Quadlets](quadlets.md) | units page, actions, journal, Quadlet editor, validation, history, templates, compose import, Podman settings |
 | [systemd editor and timers](systemd.md) | unit files and overrides, form and text, verification, history, new units, timers, schedule builder, cron import |
 | [Updates and packages](updates.md) | package managers, AUR, reboot hints, jobs, installed packages, removal, container images, boot and reboot (systemd-boot) |
+| [Hardware](hardware.md) | CPU, memory slots, GPUs, USB paths, sensors, PCIe and SATA links, warnings |
 | [Users](users.md) | accounts, groups, passwords, lock, Samba password, keys, login history, lock-out guard |
 | [Disks and files](disks.md) | SMART verdicts and advice, history, self-tests, fstab configurator and its checks, file explorer, data areas |
 | [Shares](shares.md) | SMB shares, NFS exports, services, what is checked, what is never touched |
@@ -47,6 +48,7 @@ and the unlock countdown in reach.
 
 | Page | Group | Content |
 |---|---|---|
+| **Hardware** | host card in the sidebar | CPU, memory, GPUs, USB, sensors, PCIe/SATA links |
 | **Übersicht** (overview) | | gauges with history, failed units, services, storage, timers, shares |
 | **Units** | Dienste | services, timers and containers with actions; the *Timer* filter is the schedule editor; from here the Quadlet and systemd editors open |
 | **Journal** | Dienste | `journalctl` live, per unit and priority, searchable |

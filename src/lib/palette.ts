@@ -1,7 +1,7 @@
 import type { Snapshot } from '~/shared/types'
 
 export type PaletteAction =
-  | { kind: 'navigate'; to: '/' | '/units' | '/journal' | '/system' | '/quadlets' | '/shares' | '/ssh' | '/disks' | '/files' | '/users'; search?: Record<string, string> }
+  | { kind: 'navigate'; to: '/' | '/units' | '/journal' | '/system' | '/quadlets' | '/shares' | '/ssh' | '/disks' | '/files' | '/users' | '/hardware'; search?: Record<string, string> }
   | { kind: 'open'; url: string }
   | { kind: 'unit'; action: 'start' | 'stop' | 'restart'; name: string }
 
@@ -29,6 +29,7 @@ export function paletteItems(s: Snapshot, readonly: boolean): PaletteItem[] {
     { id: 'p:/disks', section: 'Seiten', label: 'Festplatten (SMART)', keywords: 'smart smartctl platten disks hdd ssd nvme selbsttest sektoren', action: { kind: 'navigate', to: '/disks' } },
     { id: 'p:/disks?mounts', section: 'Seiten', label: 'Platten einhängen (fstab)', keywords: 'fstab mount einhängen mounten platte festplatte nofail uuid', action: { kind: 'navigate', to: '/disks', search: { tab: 'mounts' } } },
     { id: 'p:/files', section: 'Seiten', label: 'Dateien', keywords: 'dateien explorer ordner kopieren verschieben umbenennen löschen files', action: { kind: 'navigate', to: '/files' } },
+    { id: 'p:/hardware', section: 'Seiten', label: 'Hardware', keywords: 'hardware cpu prozessor ram arbeitsspeicher steckplatz mainboard bios gpu grafik usb pcie sata sensoren lüfter temperatur zigbee', action: { kind: 'navigate', to: '/hardware' } },
     { id: 'p:/users', section: 'Seiten', label: 'Benutzer', keywords: 'benutzer konten user account passwort gruppen sudo wheel admin sperren samba useradd', action: { kind: 'navigate', to: '/users' } },
     { id: 'p:/ssh', section: 'Seiten', label: 'SSH', keywords: 'ssh schlüssel authorized_keys sshd passwort login fingerprint', action: { kind: 'navigate', to: '/ssh' } },
     { id: 'p:/system', section: 'Seiten', label: 'Updates', keywords: 'system pakete upgrade pacman apt dnf aur images auto-update', action: { kind: 'navigate', to: '/system' } },

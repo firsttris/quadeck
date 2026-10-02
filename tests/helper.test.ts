@@ -1,3 +1,4 @@
+import { FixtureHardware } from '../src/server/hardware/collect'
 import { FixtureUsers } from '../src/server/users/backend'
 import { FixtureBoot } from '../src/server/boot/backend'
 import { FixtureFstabHost, FstabManager } from '../src/server/fstab/backend'
@@ -78,7 +79,7 @@ describe('gate', () => {
 describe('helper over a Unix socket', () => {
   const dir = mkdtempSync(join(tmpdir(), 'quadeck-helper-'))
   const socket = join(dir, 'helper.sock')
-  const server = serveHelper(socket, new LocalPrivileged(new Gate('system', 15, { authFiles: () => files }), join(dir, 'no-podman.sock'), new FixtureMaintenance('fixtures/demo'), new FixturePodmanAdmin('fixtures/demo'), new FixtureShares('fixtures/demo'), new FixtureSsh('fixtures/demo'), new FixtureSmart('fixtures/demo'), new FixtureFiles(), new FixtureTimers('fixtures/demo'), new FixtureUnitEditor('fixtures/demo'), new FixtureNetwork('fixtures/demo'), new FstabManager(new FixtureFstabHost('fixtures/demo')), new FixtureBoot('fixtures/demo'), new FixtureUsers('fixtures/demo')))
+  const server = serveHelper(socket, new LocalPrivileged(new Gate('system', 15, { authFiles: () => files }), join(dir, 'no-podman.sock'), new FixtureMaintenance('fixtures/demo'), new FixturePodmanAdmin('fixtures/demo'), new FixtureShares('fixtures/demo'), new FixtureSsh('fixtures/demo'), new FixtureSmart('fixtures/demo'), new FixtureFiles(), new FixtureTimers('fixtures/demo'), new FixtureUnitEditor('fixtures/demo'), new FixtureNetwork('fixtures/demo'), new FstabManager(new FixtureFstabHost('fixtures/demo')), new FixtureBoot('fixtures/demo'), new FixtureUsers('fixtures/demo'), new FixtureHardware('fixtures/demo')))
   const client = new HelperClient(socket)
   afterAll(() => server.stop(true))
 

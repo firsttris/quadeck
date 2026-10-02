@@ -15,6 +15,7 @@ import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppDisksRouteImport } from './routes/_app/disks'
 import { Route as AppFilesRouteImport } from './routes/_app/files'
+import { Route as AppHardwareRouteImport } from './routes/_app/hardware'
 import { Route as AppJournalRouteImport } from './routes/_app/journal'
 import { Route as AppNetworkRouteImport } from './routes/_app/network'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
@@ -39,6 +40,7 @@ import { Route as ApiDisksSmartRouteImport } from './routes/api/disks/smart'
 import { Route as ApiFaviconKeyRouteImport } from './routes/api/favicon/$key'
 import { Route as ApiFilesIndexRouteImport } from './routes/api/files/index'
 import { Route as ApiFstabIndexRouteImport } from './routes/api/fstab/index'
+import { Route as ApiHardwareIndexRouteImport } from './routes/api/hardware/index'
 import { Route as ApiIconsSlugRouteImport } from './routes/api/icons/$slug'
 import { Route as ApiIconsSearchRouteImport } from './routes/api/icons/search'
 import { Route as ApiJobsIndexRouteImport } from './routes/api/jobs/index'
@@ -96,6 +98,11 @@ const AppDisksRoute = AppDisksRouteImport.update({
 const AppFilesRoute = AppFilesRouteImport.update({
   id: '/files',
   path: '/files',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppHardwareRoute = AppHardwareRouteImport.update({
+  id: '/hardware',
+  path: '/hardware',
   getParentRoute: () => AppRoute,
 } as any)
 const AppJournalRoute = AppJournalRouteImport.update({
@@ -216,6 +223,11 @@ const ApiFilesIndexRoute = ApiFilesIndexRouteImport.update({
 const ApiFstabIndexRoute = ApiFstabIndexRouteImport.update({
   id: '/api/fstab/',
   path: '/api/fstab/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiHardwareIndexRoute = ApiHardwareIndexRouteImport.update({
+  id: '/api/hardware/',
+  path: '/api/hardware/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiIconsSlugRoute = ApiIconsSlugRouteImport.update({
@@ -370,6 +382,7 @@ export interface FileRoutesByFullPath {
   '/setup': typeof SetupRoute
   '/disks': typeof AppDisksRoute
   '/files': typeof AppFilesRoute
+  '/hardware': typeof AppHardwareRoute
   '/journal': typeof AppJournalRoute
   '/network': typeof AppNetworkRoute
   '/notifications': typeof AppNotificationsRoute
@@ -410,6 +423,7 @@ export interface FileRoutesByFullPath {
   '/api/boot/': typeof ApiBootIndexRoute
   '/api/files/': typeof ApiFilesIndexRoute
   '/api/fstab/': typeof ApiFstabIndexRoute
+  '/api/hardware/': typeof ApiHardwareIndexRoute
   '/api/jobs/': typeof ApiJobsIndexRoute
   '/api/layout/': typeof ApiLayoutIndexRoute
   '/api/links/': typeof ApiLinksIndexRoute
@@ -429,6 +443,7 @@ export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
   '/disks': typeof AppDisksRoute
   '/files': typeof AppFilesRoute
+  '/hardware': typeof AppHardwareRoute
   '/journal': typeof AppJournalRoute
   '/network': typeof AppNetworkRoute
   '/notifications': typeof AppNotificationsRoute
@@ -470,6 +485,7 @@ export interface FileRoutesByTo {
   '/api/boot': typeof ApiBootIndexRoute
   '/api/files': typeof ApiFilesIndexRoute
   '/api/fstab': typeof ApiFstabIndexRoute
+  '/api/hardware': typeof ApiHardwareIndexRoute
   '/api/jobs': typeof ApiJobsIndexRoute
   '/api/layout': typeof ApiLayoutIndexRoute
   '/api/links': typeof ApiLinksIndexRoute
@@ -491,6 +507,7 @@ export interface FileRoutesById {
   '/setup': typeof SetupRoute
   '/_app/disks': typeof AppDisksRoute
   '/_app/files': typeof AppFilesRoute
+  '/_app/hardware': typeof AppHardwareRoute
   '/_app/journal': typeof AppJournalRoute
   '/_app/network': typeof AppNetworkRoute
   '/_app/notifications': typeof AppNotificationsRoute
@@ -532,6 +549,7 @@ export interface FileRoutesById {
   '/api/boot/': typeof ApiBootIndexRoute
   '/api/files/': typeof ApiFilesIndexRoute
   '/api/fstab/': typeof ApiFstabIndexRoute
+  '/api/hardware/': typeof ApiHardwareIndexRoute
   '/api/jobs/': typeof ApiJobsIndexRoute
   '/api/layout/': typeof ApiLayoutIndexRoute
   '/api/links/': typeof ApiLinksIndexRoute
@@ -554,6 +572,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/disks'
     | '/files'
+    | '/hardware'
     | '/journal'
     | '/network'
     | '/notifications'
@@ -594,6 +613,7 @@ export interface FileRouteTypes {
     | '/api/boot/'
     | '/api/files/'
     | '/api/fstab/'
+    | '/api/hardware/'
     | '/api/jobs/'
     | '/api/layout/'
     | '/api/links/'
@@ -613,6 +633,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/disks'
     | '/files'
+    | '/hardware'
     | '/journal'
     | '/network'
     | '/notifications'
@@ -654,6 +675,7 @@ export interface FileRouteTypes {
     | '/api/boot'
     | '/api/files'
     | '/api/fstab'
+    | '/api/hardware'
     | '/api/jobs'
     | '/api/layout'
     | '/api/links'
@@ -674,6 +696,7 @@ export interface FileRouteTypes {
     | '/setup'
     | '/_app/disks'
     | '/_app/files'
+    | '/_app/hardware'
     | '/_app/journal'
     | '/_app/network'
     | '/_app/notifications'
@@ -715,6 +738,7 @@ export interface FileRouteTypes {
     | '/api/boot/'
     | '/api/files/'
     | '/api/fstab/'
+    | '/api/hardware/'
     | '/api/jobs/'
     | '/api/layout/'
     | '/api/links/'
@@ -764,6 +788,7 @@ export interface RootRouteChildren {
   ApiBootIndexRoute: typeof ApiBootIndexRoute
   ApiFilesIndexRoute: typeof ApiFilesIndexRoute
   ApiFstabIndexRoute: typeof ApiFstabIndexRoute
+  ApiHardwareIndexRoute: typeof ApiHardwareIndexRoute
   ApiJobsIndexRoute: typeof ApiJobsIndexRoute
   ApiLayoutIndexRoute: typeof ApiLayoutIndexRoute
   ApiLinksIndexRoute: typeof ApiLinksIndexRoute
@@ -821,6 +846,13 @@ declare module '@tanstack/react-router' {
       path: '/files'
       fullPath: '/files'
       preLoaderRoute: typeof AppFilesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/hardware': {
+      id: '/_app/hardware'
+      path: '/hardware'
+      fullPath: '/hardware'
+      preLoaderRoute: typeof AppHardwareRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/journal': {
@@ -989,6 +1021,13 @@ declare module '@tanstack/react-router' {
       path: '/api/fstab'
       fullPath: '/api/fstab/'
       preLoaderRoute: typeof ApiFstabIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/hardware/': {
+      id: '/api/hardware/'
+      path: '/api/hardware'
+      fullPath: '/api/hardware/'
+      preLoaderRoute: typeof ApiHardwareIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/icons/$slug': {
@@ -1200,6 +1239,7 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppDisksRoute: typeof AppDisksRoute
   AppFilesRoute: typeof AppFilesRoute
+  AppHardwareRoute: typeof AppHardwareRoute
   AppJournalRoute: typeof AppJournalRoute
   AppNetworkRoute: typeof AppNetworkRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
@@ -1216,6 +1256,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppDisksRoute: AppDisksRoute,
   AppFilesRoute: AppFilesRoute,
+  AppHardwareRoute: AppHardwareRoute,
   AppJournalRoute: AppJournalRoute,
   AppNetworkRoute: AppNetworkRoute,
   AppNotificationsRoute: AppNotificationsRoute,
@@ -1265,6 +1306,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiBootIndexRoute: ApiBootIndexRoute,
   ApiFilesIndexRoute: ApiFilesIndexRoute,
   ApiFstabIndexRoute: ApiFstabIndexRoute,
+  ApiHardwareIndexRoute: ApiHardwareIndexRoute,
   ApiJobsIndexRoute: ApiJobsIndexRoute,
   ApiLayoutIndexRoute: ApiLayoutIndexRoute,
   ApiLinksIndexRoute: ApiLinksIndexRoute,
