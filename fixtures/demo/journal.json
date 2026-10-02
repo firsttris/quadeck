@@ -1,0 +1,50 @@
+[
+ {
+  "ts": 1790880398731,
+  "unit": "immich-ml",
+  "priority": 6,
+  "message": "Loading visual model ViT-B-32__openai"
+ },
+ {
+  "ts": 1790880408731,
+  "unit": "immich-ml",
+  "priority": 4,
+  "message": "Memory usage at 1.9 GiB of 2.0 GiB limit"
+ },
+ {
+  "ts": 1790880410731,
+  "unit": "immich-ml",
+  "priority": 3,
+  "message": "immich-ml.service: A process of this unit has been killed by the OOM killer."
+ },
+ {
+  "ts": 1790880411731,
+  "unit": "immich-ml",
+  "priority": 3,
+  "message": "immich-ml.service: Failed with result 'oom-kill'."
+ },
+ {
+  "ts": 1790880418731,
+  "unit": "immich",
+  "priority": 4,
+  "message": "Machine learning service unreachable at http://immich-ml:3003"
+ },
+ {
+  "ts": 1790880598731,
+  "unit": "caddy",
+  "priority": 6,
+  "message": "handled request GET /api/server/ping 200 2ms"
+ },
+ {
+  "ts": 1790880698731,
+  "unit": "jellyfin",
+  "priority": 6,
+  "message": "Playback started on Living room TV"
+ },
+ {
+  "ts": 1790880898731,
+  "unit": "jellyfin",
+  "priority": 6,
+  "message": "Library scan completed in 41s, 3 new items"
+ }
+]

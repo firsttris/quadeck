@@ -1,0 +1,15 @@
+{
+  "blockdevices": [
+    {"name":"nvme0n1","path":"/dev/nvme0n1","type":"disk","size":1000204886016,"fstype":null,"mountpoints":[null],"pkname":null,
+      "children":[
+        {"name":"nvme0n1p1","path":"/dev/nvme0n1p1","type":"part","size":629145600,"fstype":"vfat","mountpoints":["/boot/efi"],"pkname":"nvme0n1"},
+        {"name":"nvme0n1p2","path":"/dev/nvme0n1p2","type":"part","size":1073741824,"fstype":"ext4","mountpoints":["/boot"],"pkname":"nvme0n1"},
+        {"name":"nvme0n1p3","path":"/dev/nvme0n1p3","type":"part","size":998500000000,"fstype":"btrfs","mountpoints":["/home","/","/var"],"pkname":"nvme0n1"}
+      ]},
+    {"name":"sda","path":"/dev/sda","type":"disk","size":12000138625024,"fstype":null,"mountpoints":[null],"pkname":null,
+      "children":[{"name":"sda1","path":"/dev/sda1","type":"part","size":12000136527872,"fstype":"xfs","mountpoints":["/mnt/disk1"],"pkname":"sda"}]},
+    {"name":"sdd","path":"/dev/sdd","type":"disk","size":14000519643136,"fstype":"xfs","mountpoints":["/mnt/parity1"],"pkname":null},
+    {"name":"zram0","path":"/dev/zram0","type":"disk","size":8589934592,"fstype":"swap","mountpoints":["[SWAP]"],"pkname":null},
+    {"name":"loop0","path":"/dev/loop0","type":"loop","size":1000,"fstype":"squashfs","mountpoints":["/snap/core/1"],"pkname":null}
+  ]
+}

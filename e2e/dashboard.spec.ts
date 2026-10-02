@@ -1,0 +1,132 @@
+import { expect, test, type Page } from '@playwright/test'
+import { readFileSync } from 'node:fs'
+
+const PASSWORD = 'e2e-password-123'
+
+async function login(page: Page) {
+  await page.goto('/login')
+  await page.getByLabel('Passwort').fill(PASSWORD)
+  await page.getByRole('button', { name: 'Anmelden' }).click()
+  await expect(page).toHaveURL('/')
+}
+
+test.describe.serial('Quadeck', () => {
+  test('first start: setup with token, then the dashboard is filled', async ({ page }) => {
+    await page.goto('/')
+    await expect(page).toHaveURL(/\/setup/)
+    await page.getByLabel('Setup-Token').fill('wrong-token')
+    await page.getByLabel('Neues Passwort (mind. 10 Zeichen)').fill(PASSWORD)
+    await page.getByLabel('Passwort wiederholen').fill(PASSWORD)
+    await page.getByRole('button', { name: 'Passwort festlegen' }).click()
+    await expect(page.getByRole('alert')).toHaveText('Setup-Token ist falsch')
+
+    const token = readFileSync('.e2e-data/setup-token', 'utf8').trim()
+    await page.getByLabel('Setup-Token').fill(token)
+    await page.getByRole('button', { name: 'Passwort festlegen' }).click()
+    await expect(page).toHaveURL('/')
+
+    await expect(page.getByRole('heading', { name: 'Übersicht' })).toBeVisible()
+    // Alarm card for the OOM-killed Quadlet
+    const alarm = page.getByRole('region', { name: 'Fehlgeschlagen: immich-ml.service' })
+    await expect(alarm).toContainText('OOM-Kill: Speicherlimit MemoryMax=2G erreicht')
+    // Services discovered from Caddy and matched to containers
+    const tiles = page.getByTestId('service-tile')
+    await expect(tiles.filter({ hasText: 'Jellyfin' })).toHaveAttribute('href', 'https://jellyfin.home.example')
+    await expect(tiles.filter({ hasText: 'Home Assistant' })).toBeVisible()
+    await expect(tiles.filter({ hasText: 'qBittorrent' })).toContainText('qbt.home.example')
+    // Containers, disks, gauges
+    await expect(page.getByTestId('container-row')).toHaveCount(8)
+    await expect(page.getByTestId('container-row').filter({ hasText: 'scratch' })).toContainText('Podman')
+    await expect(page.getByTestId('disk')).toHaveCount(5)
+    await expect(page.getByTestId('gauge-cpu')).toBeVisible()
+    await expect(page.getByRole('region', { name: 'Nächste Timer' })).toContainText('podman-auto-update.timer')
+  })
+
+  test('the setup page is closed once a password exists', async ({ page }) => {
+    await page.goto('/setup')
+    await expect(page).toHaveURL('/login')
+  })
+
+  test('wrong password is rejected; logout ends the session', async ({ page }) => {
+    await page.goto('/login')
+    await page.getByLabel('Passwort').fill('nope-nope-nope')
+    await page.getByRole('button', { name: 'Anmelden' }).click()
+    await expect(page.getByRole('alert')).toHaveText('Passwort ist falsch')
+    await login(page)
+    await page.getByRole('button', { name: 'Abmelden' }).click()
+    await expect(page).toHaveURL('/login')
+    await page.goto('/units')
+    await expect(page).toHaveURL('/login')
+  })
+
+  test('restart a failed unit from the alarm card goes through systemd after confirmation', async ({ page }) => {
+    await login(page)
+    const alarm = page.getByRole('region', { name: 'Fehlgeschlagen: immich-ml.service' })
+    await alarm.getByRole('button', { name: 'Neu starten' }).click()
+    const dialog = page.getByRole('dialog')
+    await expect(dialog).toContainText('systemctl restart immich-ml.service')
+    await dialog.getByRole('button', { name: 'Neu starten' }).click()
+    await expect(page.getByRole('status')).toContainText('immich-ml.service neu gestartet (systemctl restart)')
+    await expect(alarm).toHaveCount(0) // pushed via SSE
+  })
+
+  test('container with Quadlet unit is stopped via systemd, container without unit via Podman', async ({ page }) => {
+    await login(page)
+    await page.getByRole('button', { name: 'scratch stoppen' }).click()
+    await expect(page.getByRole('dialog')).toContainText('Podman-API: stop scratch')
+    await page.getByRole('dialog').getByRole('button', { name: 'Stoppen' }).click()
+    await expect(page.getByRole('status')).toContainText('scratch gestoppt (Podman-API)')
+    await expect(page.getByRole('button', { name: 'scratch starten' })).toBeVisible()
+
+    await page.getByRole('button', { name: 'jellyfin stoppen' }).click()
+    await expect(page.getByRole('dialog')).toContainText('systemctl stop jellyfin.service')
+    await page.getByRole('dialog').getByRole('button', { name: 'Abbrechen' }).click()
+    await expect(page.getByRole('dialog')).toBeHidden()
+  })
+
+  test('add and remove a manual link', async ({ page }) => {
+    await login(page)
+    await page.getByRole('button', { name: 'Link hinzufügen' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Link hinzufügen' })
+    await dialog.getByLabel('Name').fill('Router')
+    await dialog.getByLabel('URL').fill('http://192.168.1.1')
+    await dialog.getByLabel('Erreichbarkeit alle 60 s prüfen').uncheck()
+    await dialog.getByRole('button', { name: 'Hinzufügen' }).click()
+    const tile = page.getByTestId('service-tile').filter({ hasText: 'Router' })
+    await expect(tile).toHaveAttribute('href', 'http://192.168.1.1/')
+    await expect(page.getByText('manuell angelegt')).toBeVisible()
+
+    await tile.hover()
+    await page.getByRole('button', { name: 'Link Router entfernen' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Entfernen' }).click()
+    await expect(tile).toHaveCount(0)
+  })
+
+  test('units filter and journal', async ({ page }) => {
+    await login(page)
+    await page.getByRole('link', { name: /Units/ }).click()
+    await expect(page.getByTestId('unit-row')).toHaveCount(16)
+    await page.getByRole('link', { name: /Fehlgeschlagen/ }).click()
+    await expect(page).toHaveURL(/filter=failed/)
+    await expect(page.getByTestId('unit-row')).toHaveCount(1) // immich-ml was restarted above
+    await expect(page.getByTestId('unit-row')).toContainText('Prozess endete mit Exit 1')
+
+    await page.getByTestId('unit-row').getByRole('link', { name: 'Journal' }).click()
+    await expect(page).toHaveURL(/\/journal\?unit=backup-offsite.service/)
+    await page.getByRole('button', { name: 'Alle Units' }).click()
+    await expect(page.getByTestId('journal')).toContainText("Failed with result 'oom-kill'")
+    await page.getByRole('button', { name: 'Fehler' }).click()
+    await expect(page.getByTestId('journal')).not.toContainText('Playback started')
+  })
+
+  test('API refuses anonymous and cross-site requests', async ({ request, page }) => {
+    expect((await request.get('/api/events')).status()).toBe(401)
+    expect((await request.post('/api/units', { data: { name: 'jellyfin.service', action: 'stop' } })).status()).toBe(401)
+    await login(page)
+    const res = await page.request.post('/api/units', { data: { name: 'jellyfin.service', action: 'stop' }, headers: { origin: 'http://evil.example' } })
+    expect(res.status()).toBe(403)
+    const noCsrf = await page.request.post('/api/units', { data: { name: 'jellyfin.service', action: 'stop' } })
+    expect(noCsrf.status()).toBe(403)
+    expect(await noCsrf.json()).toEqual({ error: 'CSRF-Token fehlt oder ist ungültig' })
+  })
+})

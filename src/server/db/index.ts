@@ -1,0 +1,45 @@
+import { Database } from 'bun:sqlite'
+import { drizzle, type BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite'
+import { chmodSync, mkdirSync } from 'node:fs'
+import { join } from 'node:path'
+import { config } from '../config'
+import { migrations } from './migrations.gen'
+import * as schema from './schema'
+
+export type DB = BunSQLiteDatabase<typeof schema>
+
+let instance: { db: DB; sqlite: Database } | undefined
+
+export function migrate(sqlite: Database) {
+  sqlite.run('CREATE TABLE IF NOT EXISTS __quadeck_migrations (tag TEXT PRIMARY KEY, applied_at INTEGER NOT NULL)')
+  const done = new Set(sqlite.query<{ tag: string }, []>('SELECT tag FROM __quadeck_migrations').all().map((r) => r.tag))
+  for (const m of migrations) {
+    if (done.has(m.tag)) continue
+    sqlite.transaction(() => {
+      for (const s of m.statements) sqlite.run(s)
+      sqlite.run('INSERT INTO __quadeck_migrations (tag, applied_at) VALUES (?, ?)', [m.tag, Date.now()])
+    })()
+  }
+}
+
+export function openDb(path: string) {
+  const sqlite = new Database(path, { create: true })
+  // Password hash and session hashes live here: root only.
+  if (path !== ':memory:') chmodSync(path, 0o600)
+  sqlite.run('PRAGMA busy_timeout = 5000') // CLI and service share the file
+  sqlite.run('PRAGMA journal_mode = WAL')
+  sqlite.run('PRAGMA foreign_keys = ON')
+  migrate(sqlite)
+  return { db: drizzle(sqlite, { schema }), sqlite }
+}
+
+export function db(): DB {
+  if (!instance) {
+    const dir = config().dataDir
+    mkdirSync(dir, { recursive: true, mode: 0o700 })
+    instance = openDb(join(dir, 'quadeck.db'))
+  }
+  return instance.db
+}
+
+export { schema }
