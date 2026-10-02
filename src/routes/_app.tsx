@@ -31,7 +31,7 @@ function AppLayout() {
         <ActionsProvider readonly={readonly}>
           <div className="grid min-h-screen grid-cols-1 md:grid-cols-[232px_minmax(0,1fr)]">
             <Sidebar />
-            <main className="box-border flex w-full max-w-[1400px] min-w-0 flex-col gap-[18px] px-4 pt-[22px] pb-12 md:px-7">
+            <main className="box-border flex w-full min-w-0 flex-col gap-[18px] px-4 pt-[22px] pb-12 md:px-7">
               <Outlet />
             </main>
           </div>
