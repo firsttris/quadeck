@@ -1,3 +1,4 @@
+import { tr } from '~/shared/i18n'
 import { createFileRoute } from '@tanstack/react-router'
 import { beginAttempt, createSession, HttpError, sessionCookie, verifyPassword } from '~/server/auth'
 import { errorResponse, readJson } from '~/server/http'
@@ -15,7 +16,7 @@ export const Route = createFileRoute('/api/auth/login')({
           } finally {
             finish(ok)
           }
-          if (!ok) throw new HttpError(401, 'Passwort ist falsch')
+          if (!ok) throw new HttpError(401, tr('Passwort ist falsch', 'Wrong password'))
           const { token } = createSession()
           return Response.json({ ok: true }, { headers: { 'set-cookie': sessionCookie(request, token) } })
         } catch (e) {

@@ -1,14 +1,16 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useState } from 'react'
 import { AuthCard, useHydrated } from '~/components/AuthCard'
+import { useT } from '~/i18n'
 import { api } from '~/lib/api'
+import { tr } from '~/shared/i18n'
 
 export const Route = createFileRoute('/setup')({
   validateSearch: (s: Record<string, unknown>): { token?: string } => ({ token: typeof s.token === 'string' ? s.token : undefined }),
   beforeLoad: ({ context }) => {
     if (context.auth.state !== 'setup') throw redirect({ to: '/login' })
   },
-  head: () => ({ meta: [{ title: 'Einrichten · Quadeck' }] }),
+  head: () => ({ meta: [{ title: tr('Einrichten · Quadeck', 'Setup · Quadeck') }] }),
   component: Setup,
 })
 
@@ -17,8 +19,9 @@ function Setup() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const hydrated = useHydrated()
+  const t = useT().shell.setup
   return (
-    <AuthCard title="Quadeck einrichten" subtitle="Lege das Admin-Passwort fest. Den Setup-Token zeigt das Installationsskript an; als root jederzeit mit „quadeck setup-token“.">
+    <AuthCard title={t.title} subtitle={t.subtitle}>
       <form
         method="post"
         className="flex flex-col gap-3"
@@ -26,7 +29,7 @@ function Setup() {
           e.preventDefault()
           const f = new FormData(e.currentTarget)
           if (f.get('password') !== f.get('password2')) {
-            setError('Die Passwörter stimmen nicht überein')
+            setError(t.mismatch)
             return
           }
           setBusy(true)
@@ -41,15 +44,15 @@ function Setup() {
         }}
       >
         <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-          Setup-Token
+          {t.token}
           <input name="token" required defaultValue={token} autoComplete="off" spellCheck={false} className="field font-mono" />
         </label>
         <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-          Neues Passwort (mind. 10 Zeichen)
+          {t.password}
           <input name="password" type="password" required minLength={10} autoComplete="new-password" className="field" />
         </label>
         <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-          Passwort wiederholen
+          {t.repeat}
           <input name="password2" type="password" required minLength={10} autoComplete="new-password" className="field" />
         </label>
         {error && (
@@ -58,7 +61,7 @@ function Setup() {
           </p>
         )}
         <button type="submit" className="btn primary justify-center" disabled={busy || !hydrated}>
-          Passwort festlegen
+          {t.submit}
         </button>
       </form>
     </AuthCard>

@@ -1,3 +1,4 @@
+import { tr } from '~/shared/i18n'
 import { createFileRoute } from '@tanstack/react-router'
 import { HttpError } from '~/server/auth'
 import { authed } from '~/server/http'
@@ -7,10 +8,10 @@ export const Route = createFileRoute('/api/jobs/$id')({
   server: {
     handlers: {
       GET: authed(async ({ request, params }: { request: Request; params: { id: string } }) => {
-        if (!/^[a-z0-9-]{1,40}$/.test(params.id)) throw new HttpError(400, 'Ungültige Job-ID')
+        if (!/^[a-z0-9-]{1,40}$/.test(params.id)) throw new HttpError(400, tr('Ungültige Job-ID', 'Invalid job ID'))
         const from = Number(new URL(request.url).searchParams.get('from')) || 0
         const job = await privileged().job(params.id, from)
-        if (!job) throw new HttpError(404, 'Job nicht gefunden (Quadeck neu gestartet?)')
+        if (!job) throw new HttpError(404, tr('Job nicht gefunden (Quadeck neu gestartet?)', 'Job not found (Quadeck restarted?)'))
         return Response.json(job)
       }),
     },

@@ -1,6 +1,7 @@
 // HTTP health checks: HEAD on each service URL, every 60 s. Used when the
 // container has no Podman healthcheck, and for manual links.
 
+import { tr } from '~/shared/i18n'
 import type { HttpHealth } from './registry'
 
 const SLOW_MS = 2000
@@ -17,11 +18,12 @@ export async function checkUrl(url: string): Promise<HttpHealth> {
     }
     const ms = Math.round(performance.now() - started)
     if (res.status >= 500) return { health: 'bad', note: `HTTP ${res.status}` }
-    if (ms > SLOW_MS) return { health: 'warn', note: `langsam (${ms} ms)` }
+    if (ms > SLOW_MS) return { health: 'warn', note: tr(`langsam (${ms} ms)`, `slow (${ms} ms)`) }
     return { health: 'ok', note: `HTTP ${res.status} · ${ms} ms` }
   } catch (e) {
-    const msg = (e as Error).name === 'TimeoutError' ? 'Zeitüberschreitung' : (e as Error).message
-    return { health: 'bad', note: `nicht erreichbar: ${msg}` }
+    if ((e as Error).name === 'TimeoutError') return { health: 'bad', note: tr('nicht erreichbar: Zeitüberschreitung', 'unreachable: timeout') }
+    const msg = (e as Error).message
+    return { health: 'bad', note: tr(`nicht erreichbar: ${msg}`, `unreachable: ${msg}`) }
   }
 }
 
@@ -39,8 +41,13 @@ export async function checkTarget(t: HealthTarget, check = checkUrl): Promise<Ht
   const direct = await check(t.url)
   if (direct.health !== 'bad' || !t.probe) return direct
   const viaUpstream = await check(t.probe)
-  if (viaUpstream.health === 'bad') return { health: 'bad', note: `${direct.note}; Upstream ${t.probe}: ${viaUpstream.note?.replace(/^nicht erreichbar: /, '')}` }
-  return { health: viaUpstream.health, note: `Upstream ${t.probe} · ${viaUpstream.note} (URL vom Server aus nicht erreichbar)` }
+  if (viaUpstream.health === 'bad') return { health: 'bad', note: `${direct.note}; Upstream ${t.probe}: ${stripUnreachable(viaUpstream.note ?? '')}` }
+  return { health: viaUpstream.health, note: `Upstream ${t.probe} · ${viaUpstream.note} ${tr('(URL vom Server aus nicht erreichbar)', '(URL not reachable from the server)')}` }
+}
+
+/** Drops the "unreachable: " prefix – in plain text and in both halves of bilingual text (see tr()). */
+function stripUnreachable(note: string) {
+  return note.replace(/(^|\u0002)nicht erreichbar: /, '$1').replace(/(^|\u001f)unreachable: /, '$1')
 }
 
 export class HealthChecker {

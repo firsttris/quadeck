@@ -7,6 +7,7 @@
 // - CSRF: every unsafe request must be same-origin, and every authenticated
 //   write must echo the session's CSRF token in X-CSRF-Token.
 
+import { tr } from '~/shared/i18n'
 import { and, eq, gt, lt } from 'drizzle-orm'
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -45,7 +46,7 @@ export function hasPassword() {
 export const MIN_PASSWORD_LENGTH = 10
 
 export async function setPassword(password: string) {
-  if (password.length < MIN_PASSWORD_LENGTH) throw new Error(`Passwort muss mindestens ${MIN_PASSWORD_LENGTH} Zeichen haben`)
+  if (password.length < MIN_PASSWORD_LENGTH) throw new Error(tr(`Passwort muss mindestens ${MIN_PASSWORD_LENGTH} Zeichen haben`, `Password must have at least ${MIN_PASSWORD_LENGTH} characters`))
   setSetting(PASSWORD_KEY, await Bun.password.hash(password, { algorithm: 'argon2id' }))
   // A new password ends all existing sessions.
   db().delete(schema.sessions).run()
@@ -100,7 +101,10 @@ function clearSetupToken() {
 export function createSession(): { token: string; session: Session } {
   const token = randomToken()
   const session = { id: sha256(token), csrf: randomToken(), expiresAt: Date.now() + SESSION_TTL_MS }
-  db().insert(schema.sessions).values({ ...session, createdAt: Date.now() }).run()
+  db()
+    .insert(schema.sessions)
+    .values({ ...session, createdAt: Date.now() })
+    .run()
   db().delete(schema.sessions).where(lt(schema.sessions.expiresAt, Date.now())).run()
   return { token, session }
 }
@@ -179,11 +183,11 @@ export class HttpError extends Error {
 /** Throws HttpError unless the request carries a valid session (and CSRF token for writes). */
 export function requireSession(request: Request): Session {
   const session = getSession(request)
-  if (!session) throw new HttpError(401, 'Nicht angemeldet')
+  if (!session) throw new HttpError(401, tr('Nicht angemeldet', 'Not logged in'))
   if (!SAFE_METHODS.has(request.method)) {
-    if (!isSameOrigin(request)) throw new HttpError(403, 'Fremde Herkunft')
+    if (!isSameOrigin(request)) throw new HttpError(403, tr('Fremde Herkunft', 'Foreign origin'))
     const sent = request.headers.get('x-csrf-token') ?? ''
-    if (!timingSafeEqualStr(sent, session.csrf)) throw new HttpError(403, 'CSRF-Token fehlt oder ist ungültig')
+    if (!timingSafeEqualStr(sent, session.csrf)) throw new HttpError(403, tr('CSRF-Token fehlt oder ist ungültig', 'CSRF token missing or invalid'))
   }
   return session
 }
@@ -208,7 +212,10 @@ export function clientKey(request: Request) {
   const peer = request.headers.get(PEER_HEADER) ?? 'unknown'
   // X-Forwarded-For only from a trusted reverse proxy, and only its own (last) hop.
   if (trustedProxies().some((p) => peer.startsWith(p))) {
-    const hops = (request.headers.get('x-forwarded-for') ?? '').split(',').map((h) => h.trim()).filter(Boolean)
+    const hops = (request.headers.get('x-forwarded-for') ?? '')
+      .split(',')
+      .map((h) => h.trim())
+      .filter(Boolean)
     return hops[hops.length - 1] || peer
   }
   return peer
@@ -244,8 +251,8 @@ export function recordLoginSuccess(key: string) {
 export function beginAttempt(request: Request): (success: boolean) => void {
   const key = clientKey(request)
   const wait = loginBlockedFor(key)
-  if (wait) throw new HttpError(429, `Zu viele Fehlversuche. Bitte ${wait} s warten.`)
-  if (verifying >= MAX_VERIFYING) throw new HttpError(429, 'Zu viele gleichzeitige Anmeldeversuche. Bitte gleich erneut versuchen.')
+  if (wait) throw new HttpError(429, tr(`Zu viele Fehlversuche. Bitte ${wait} s warten.`, `Too many failed attempts. Please wait ${wait} s.`))
+  if (verifying >= MAX_VERIFYING) throw new HttpError(429, tr('Zu viele gleichzeitige Anmeldeversuche. Bitte gleich erneut versuchen.', 'Too many simultaneous login attempts. Please try again shortly.'))
   verifying++
   const before = failures.get(key)
   const snapshot = before ? { ...before } : undefined

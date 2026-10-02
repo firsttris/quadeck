@@ -3,6 +3,7 @@
 // It lives where the root actions run — in the helper when there is one —
 // so a compromised web app cannot act without the password.
 
+import { tr } from '~/shared/i18n'
 import { HttpError } from '../auth'
 import { readAuthFiles, suggestedUser, verifySystemPassword, type SystemAuthFiles } from './crypt'
 
@@ -17,7 +18,7 @@ export interface UnlockInfo {
 
 export class LockedError extends HttpError {
   constructor() {
-    super(423, 'Gesperrt – bitte zuerst entsperren')
+    super(423, tr('Gesperrt – bitte zuerst entsperren', 'Locked – please unlock first'))
   }
 }
 
@@ -49,7 +50,8 @@ export class Gate {
   async unlock(user: string, password: string): Promise<{ token: string; expiresAt: number }> {
     if (this.mode === 'none') return { token: 'none', expiresAt: Number.MAX_SAFE_INTEGER }
     const now = Date.now()
-    if (this.blockedUntil > now) throw new HttpError(429, `Zu viele Fehlversuche. Bitte ${Math.ceil((this.blockedUntil - now) / 1000)} s warten.`)
+    if (this.blockedUntil > now)
+      throw new HttpError(429, tr(`Zu viele Fehlversuche. Bitte ${Math.ceil((this.blockedUntil - now) / 1000)} s warten.`, `Too many failed attempts. Please wait ${Math.ceil((this.blockedUntil - now) / 1000)} s.`))
     // Count before verifying, so parallel attempts cannot all slip through.
     this.failures++
     if (this.failures >= 5) this.blockedUntil = now + Math.min(15 * 60_000, 30_000 * 2 ** (this.failures - 5))
@@ -58,12 +60,12 @@ export class Gate {
       ok = !!(await this.opts.verifyQuadeck?.(password))
     } else {
       const r = verifySystemPassword((this.opts.authFiles ?? readAuthFiles)(), user.trim(), password)
-      if (r === 'not-admin') throw new HttpError(403, `${user} ist kein Administrator (root oder Gruppe wheel/sudo)`)
-      if (r === 'no-password') throw new HttpError(403, `${user} hat kein Passwort gesetzt – anderes Konto verwenden`)
-      if (r === 'unsupported') throw new HttpError(501, 'Passwort-Hash kann nicht geprüft werden (crypt(3) nicht verfügbar)')
+      if (r === 'not-admin') throw new HttpError(403, tr(`${user} ist kein Administrator (root oder Gruppe wheel/sudo)`, `${user} is not an administrator (root or group wheel/sudo)`))
+      if (r === 'no-password') throw new HttpError(403, tr(`${user} hat kein Passwort gesetzt – anderes Konto verwenden`, `${user} has no password set – use another account`))
+      if (r === 'unsupported') throw new HttpError(501, tr('Passwort-Hash kann nicht geprüft werden (crypt(3) nicht verfügbar)', 'Cannot verify the password hash (crypt(3) not available)'))
       ok = r === 'ok'
     }
-    if (!ok) throw new HttpError(401, 'Passwort ist falsch')
+    if (!ok) throw new HttpError(401, tr('Passwort ist falsch', 'Wrong password'))
     this.failures = 0
     this.blockedUntil = 0
     const token = randomToken()

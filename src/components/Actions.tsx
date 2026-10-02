@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
+import { useT } from '~/i18n'
 import { api, ApiError } from '~/lib/api'
 import { useUnlock } from './Unlock'
 import { ConfirmDialog } from './Modal'
@@ -6,9 +7,6 @@ import { useToast } from './Toast'
 
 type Action = 'start' | 'stop' | 'restart'
 type Target = { kind: 'unit'; name: string } | { kind: 'container'; name: string; unit?: string }
-
-const LABEL: Record<Action, string> = { start: 'Starten', stop: 'Stoppen', restart: 'Neu starten' }
-const DONE: Record<Action, string> = { start: 'gestartet', stop: 'gestoppt', restart: 'neu gestartet' }
 
 interface Ctx {
   run: (action: Action, target: Target) => void | Promise<void>
@@ -24,6 +22,7 @@ const ActionCtx = createContext<Ctx>({ run: () => {}, busy: null, readonly: fals
  */
 export function ActionsProvider({ readonly, children }: { readonly: boolean; children: ReactNode }) {
   const say = useToast()
+  const t = useT().shell.actions
   const unlock = useUnlock()
   const [busy, setBusy] = useState<string | null>(null)
   const [pending, setPending] = useState<{ action: Action; target: Target } | null>(null)
@@ -44,14 +43,14 @@ export function ActionsProvider({ readonly, children }: { readonly: boolean; chi
           r = await call()
         }
         const what = target.kind === 'container' && target.unit ? target.unit : target.name
-        say(`${what} ${DONE[action]} (${r.via === 'podman' ? `Podman-API` : `systemctl ${action}`})`)
+        say(`${what} ${t.done[action]} (${r.via === 'podman' ? `Podman-API` : `systemctl ${action}`})`)
       } catch (e) {
         say((e as Error).message, 'bad')
       } finally {
         setBusy(null)
       }
     },
-    [say, unlock],
+    [say, unlock, t],
   )
 
   const run = useCallback(
@@ -70,13 +69,13 @@ export function ActionsProvider({ readonly, children }: { readonly: boolean; chi
       {children}
       <ConfirmDialog
         open={!!p}
-        title={p ? `${p.target.name} ${LABEL[p.action].toLowerCase()}?` : ''}
+        title={p ? t.confirmTitle(p.target.name, t.label[p.action]) : ''}
         danger={p?.action === 'stop'}
-        confirm={p ? LABEL[p.action] : ''}
+        confirm={p ? t.label[p.action] : ''}
         body={
           <p className="m-0">
-            Ausgeführt wird <span className="rounded bg-[#0e1319] px-1.5 py-0.5 font-mono text-[12px]">{via}</span>.
-            {p?.action === 'stop' && ' Der Dienst ist danach nicht mehr erreichbar.'}
+            {t.runs}
+            <span className="rounded bg-[#0e1319] px-1.5 py-0.5 font-mono text-[12px]">{via}</span>.{p?.action === 'stop' && t.stopHint}
           </p>
         }
         onConfirm={() => p && void exec(p.action, p.target)}

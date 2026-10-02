@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useT } from '~/i18n'
 import { FEATURES, installCommand, type Feature, type ManagerId } from '~/shared/packages'
 import { useActions } from './Actions'
 import { Glyph } from './Glyph'
@@ -10,6 +11,7 @@ import { useJobs } from './Jobs'
  */
 export function InstallHint({ feature, what, onInstalled }: { feature: Feature; what: string; onInstalled: () => void }) {
   const jobs = useJobs()
+  const t = useT().shell.install
   const { readonly } = useActions()
   const [manager, setManager] = useState<ManagerId | null>(null)
   const [jobId, setJobId] = useState<string | null>(null)
@@ -45,16 +47,23 @@ export function InstallHint({ feature, what, onInstalled }: { feature: Feature; 
                 if (job) setJobId(job.id)
               }}
             >
-              <Glyph name="download" size={14} /> {f.packages[manager].join(', ')} installieren
+              <Glyph name="download" size={14} /> {t.install(f.packages[manager].join(', '))}
             </button>
           )}
           <div className="text-[12px] text-muted">
-            oder auf der Konsole: <code className="rounded bg-[#0e1319] px-1.5 py-0.5 font-mono text-[12px] text-fg select-all">{installCommand(manager, feature)}</code>
+            {t.console}
+            <code className="rounded bg-[#0e1319] px-1.5 py-0.5 font-mono text-[12px] text-fg select-all">{installCommand(manager, feature)}</code>
           </div>
-          {manager === 'rpm-ostree' && <div className="text-[12px] text-[#e3b341]">rpm-ostree: das Paket ist erst nach einem Neustart aktiv.</div>}
+          {manager === 'rpm-ostree' && <div className="text-[12px] text-[#e3b341]">{t.ostree}</div>}
         </>
       ) : (
-        <div className="text-[12px] text-muted">Paket: {Object.values(f.packages).flat().filter((v, i, a) => a.indexOf(v) === i).join(' bzw. ')}</div>
+        <div className="text-[12px] text-muted">
+          {t.pkg(
+            Object.values(f.packages)
+              .flat()
+              .filter((v, i, a) => a.indexOf(v) === i),
+          )}
+        </div>
       )}
     </div>
   )

@@ -21,12 +21,12 @@ export function authed<C extends { request: Request }>(fn: (ctx: C, session: Ses
 }
 
 export async function readJson<T>(request: Request): Promise<T> {
-  if (!(request.headers.get('content-type') ?? '').includes('application/json')) throw new HttpError(415, 'JSON erwartet')
+  if (!(request.headers.get('content-type') ?? '').includes('application/json')) throw new HttpError(415, tr('JSON erwartet', 'JSON expected'))
   const text = await request.text()
-  if (text.length > 64 * 1024) throw new HttpError(413, 'Anfrage zu groß')
+  if (text.length > 64 * 1024) throw new HttpError(413, tr('Anfrage zu groß', 'Request too large'))
   try {
     return JSON.parse(text) as T
   } catch {
-    throw new HttpError(400, 'Ungültiges JSON')
+    throw new HttpError(400, tr('Ungültiges JSON', 'Invalid JSON'))
   }
 }

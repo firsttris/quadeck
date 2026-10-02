@@ -1,3 +1,4 @@
+import { tr } from '~/shared/i18n'
 import { createMiddleware, createStart } from '@tanstack/react-start'
 import { isSameOrigin } from './server/auth'
 
@@ -5,7 +6,7 @@ import { isSameOrigin } from './server/auth'
 // must come from our own origin. Authenticated writes additionally check the
 // session's CSRF token (see requireSession).
 const sameOrigin = createMiddleware().server(async ({ next, request }) => {
-  if (!isSameOrigin(request)) return Response.json({ error: 'Fremde Herkunft' }, { status: 403 }) as never
+  if (!isSameOrigin(request)) return Response.json({ error: tr('Fremde Herkunft', 'Foreign origin') }, { status: 403 }) as never
   return next()
 })
 

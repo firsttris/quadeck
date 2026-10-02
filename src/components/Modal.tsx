@@ -1,4 +1,5 @@
 import { useEffect, useId, useRef, type ReactNode } from 'react'
+import { useT } from '~/i18n'
 
 /** Native <dialog> (focus trap, Esc, backdrop handled by the browser). */
 export function Modal({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean }) {
@@ -25,12 +26,13 @@ export function Modal({ open, onClose, title, children, wide }: { open: boolean;
 }
 
 export function ConfirmDialog(props: { open: boolean; title: string; body: ReactNode; confirm: string; danger?: boolean; onConfirm: () => void; onClose: () => void }) {
+  const t = useT().common
   return (
     <Modal open={props.open} onClose={props.onClose} title={props.title}>
       <div className="text-[#c9d1d9]">{props.body}</div>
       <div className="flex justify-end gap-2">
         <button type="button" className="btn" onClick={props.onClose}>
-          Abbrechen
+          {t.cancel}
         </button>
         <button
           type="button"

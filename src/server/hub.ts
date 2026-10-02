@@ -1,6 +1,7 @@
 // The hub runs all collectors on their own intervals, merges the result into
 // one Snapshot and pushes changes to SSE subscribers.
 
+import { tr } from '~/shared/i18n'
 import { asc } from 'drizzle-orm'
 import { readFileSync } from 'node:fs'
 import { hostname, networkInterfaces } from 'node:os'
@@ -252,14 +253,21 @@ export class Hub {
   async collectSmart(refresh = false) {
     try {
       const report = await this.priv.smartReport(refresh)
-      if (this.fixtures) seedSmartHistory(db(), report.disks.map((d) => ({ id: d.id, samples: smartSamples(d) })))
+      if (this.fixtures)
+        seedSmartHistory(
+          db(),
+          report.disks.map((d) => ({ id: d.id, samples: smartSamples(d) })),
+        )
       if (Date.now() - this.lastSmartSampleAt >= 55 * 60_000) {
         const rows = report.disks.flatMap((d) => smartSamples(d).map((r) => ({ ts: report.checkedAt, metric: `smart:${d.id}:${r.key}`, value: r.value })))
         if (rows.length) db().insert(schema.metricSamples).values(rows).run()
         this.lastSmartSampleAt = Date.now()
       }
       // CRC counters are judged by their growth, so against the history (written above first).
-      const base = smartBaselines(db(), report.disks.map((d) => d.id))
+      const base = smartBaselines(
+        db(),
+        report.disks.map((d) => d.id),
+      )
       this.smart = report.disks.map((d) => ({ name: d.name, level: assessSmart(d, base[d.id]).level, supported: d.supported, standby: d.standby }))
       if (report.installed) this.ok('smart')
       else this.sources.smart = { ok: false, updatedAt: Date.now() } // not an error: see the disks page
@@ -313,7 +321,12 @@ export class Hub {
       containers: this.containers,
       manual: d.select().from(schema.manualServices).all(),
       overrides: d.select().from(schema.serviceOverrides).all(),
-      groupOrder: d.select().from(schema.groups).orderBy(asc(schema.groups.order)).all().map((g) => g.name),
+      groupOrder: d
+        .select()
+        .from(schema.groups)
+        .orderBy(asc(schema.groups.order))
+        .all()
+        .map((g) => g.name),
       httpHealth: this.health.results,
       iconIndex: iconIndex(),
       localHosts: localHostSet(localNames),
@@ -383,7 +396,7 @@ export class Hub {
   // ---------- actions ----------
 
   assertWritable() {
-    if (config().readonly) throw new ActionError(403, 'Read-only-Modus: Aktionen sind deaktiviert (QUADECK_READONLY)')
+    if (config().readonly) throw new ActionError(403, tr('Read-only-Modus: Aktionen sind deaktiviert (QUADECK_READONLY)', 'Read-only mode: actions are disabled (QUADECK_READONLY)'))
   }
 
   /** token: the session's unlock token (see /api/unlock). */
@@ -396,12 +409,10 @@ export class Hub {
       throw new ActionError(400, (e as Error).message)
     }
     // Only units we actually know about (fixed action list, no arbitrary targets).
-    if (!this.units.some((u) => u.name === name) && !this.containers.some((c) => c.unit === name)) throw new ActionError(404, `Unbekannte Unit: ${name}`)
+    if (!this.units.some((u) => u.name === name) && !this.containers.some((c) => c.unit === name)) throw new ActionError(404, tr(`Unbekannte Unit: ${name}`, `Unknown unit: ${name}`))
     if (this.fixtures) {
       await this.priv.check(token)
-      this.fixtures.units = (this.fixtures.units ?? []).map((u) =>
-        u.name === name ? { ...u, active: action === 'stop' ? 'inactive' : 'active', sub: action === 'stop' ? 'dead' : 'running', result: 'success', since: Date.now() } : u,
-      )
+      this.fixtures.units = (this.fixtures.units ?? []).map((u) => (u.name === name ? { ...u, active: action === 'stop' ? 'inactive' : 'active', sub: action === 'stop' ? 'dead' : 'running', result: 'success', since: Date.now() } : u))
     } else {
       await this.priv.unit(token, action, name)
     }
@@ -420,7 +431,7 @@ export class Hub {
     this.assertWritable()
     await this.priv.check(token)
     const c = this.containers.find((x) => x.name === name)
-    if (!c) throw new ActionError(404, `Unbekannter Container: ${name}`)
+    if (!c) throw new ActionError(404, tr(`Unbekannter Container: ${name}`, `Unknown container: ${name}`))
     if (c.unit) {
       await this.unitAction(action, c.unit, token)
       return 'systemd'
