@@ -3,26 +3,37 @@
 ## Units page
 
 **Units** lists everything systemd runs for you: Quadlet units with their container, plain
-services, timers and containers without a unit. Filters: *Alle*, *Container*, *Services*, *Timer*
-(this one opens the [timer editor](systemd.md#timers)) and *Fehlgeschlagen* (failed).
+services, timers, sockets and containers without a unit. Filters: *Alle*, *Container*,
+*Services*, *Timer* (this one opens the [timer editor](systemd.md#timers)), *Sockets* and
+*Fehlgeschlagen* (failed).
 
-Per row: name and description, type (`quadlet · container`, `service`, `oneshot`, `timer`), status
-(for a container with a healthcheck its health, otherwise the systemd state), CPU over the last
-15 minutes as a sparkline, memory, time since the last state change, whether the unit starts at
-boot, and the actions.
+Per row: name and description (for a socket: what it listens on and which service it starts),
+status (for a container with a healthcheck its health, otherwise the systemd state), memory and
+time since the last state change. On wider screens also CPU over the last 15 minutes as a
+sparkline, the type (`container`, `pod`, `service`, `oneshot`, `timer`, `socket`, `podman` for
+containers without a unit; Quadlets are highlighted) and whether the unit starts at boot.
 
 ### Actions
 
-- **Starten / Stopp / Neu starten** go through systemd over D-Bus (`StartUnit`, `StopUnit`,
+Each row has one button for the likely next step – **Starten** for a stopped unit, **Neu
+starten** for a running or failed one – and a **⋯** menu with the rest. The unit name itself
+opens the journal.
+
+- **Starten / Stoppen / Neu starten** go through systemd over D-Bus (`StartUnit`, `StopUnit`,
   `RestartUnit`). A container with a Quadlet unit is always controlled through its unit: stopping
   the container directly would only make systemd restart it, and `--rm` containers would vanish.
   Only containers without a unit are started and stopped through the Podman API.
-- Stop and restart ask for a confirmation that names the exact command. All three need the
+- Stop and restart ask for a confirmation that names the exact command. All of them need the
   [unlock](security.md#unlock).
 - **Journal** opens the journal filtered to the unit.
-- **Bearbeiten** opens the Quadlet file for Quadlet units and the [systemd editor](systemd.md)
-  for everything else.
+- **Quadlet bearbeiten / Unit bearbeiten** opens the Quadlet file for Quadlet units and the
+  [systemd editor](systemd.md) for everything else.
+- **Beim Booten starten** enables or disables the unit (`systemctl enable/disable`); only shown
+  for units that have an install section.
 - **+ Neue Unit** creates a plain systemd unit from a template.
+
+The timer view uses the same pattern: **Jetzt ausführen** plus a menu for changing the schedule,
+the journal and the unit files.
 
 Unit names are validated before anything is sent to systemd, and only units Quadeck has seen in
 its own list can be acted on.

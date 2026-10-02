@@ -269,5 +269,36 @@
    "last": 1790535398731,
    "unit": "backup-offsite.service"
   }
+ },
+ {
+  "name": "podman.socket",
+  "description": "Podman API Socket",
+  "load": "loaded",
+  "active": "active",
+  "sub": "listening",
+  "kind": "socket",
+  "since": 1788800000000,
+  "unitFileState": "enabled",
+  "socket": {
+   "listen": [
+    "/run/podman/podman.sock (Stream)"
+   ],
+   "triggers": "podman.service"
+  }
+ },
+ {
+  "name": "avahi-daemon.socket",
+  "description": "Avahi mDNS/DNS-SD Stack Activation Socket",
+  "load": "loaded",
+  "active": "inactive",
+  "sub": "dead",
+  "kind": "socket",
+  "unitFileState": "disabled",
+  "socket": {
+   "listen": [
+    "/run/avahi-daemon/socket (Stream)"
+   ],
+   "triggers": "avahi-daemon.service"
+  }
  }
 ]

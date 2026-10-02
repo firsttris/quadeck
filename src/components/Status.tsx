@@ -27,7 +27,7 @@ export function unitTone(u: Pick<Unit, 'active' | 'sub'>): Tone {
 }
 
 export function unitState(u: Pick<Unit, 'active' | 'sub'>): string {
-  if (u.active === 'active') return u.sub === 'running' || u.sub === 'waiting' || u.sub === 'exited' ? u.sub : 'active'
+  if (u.active === 'active') return u.sub === 'running' || u.sub === 'waiting' || u.sub === 'exited' || u.sub === 'listening' ? u.sub : 'active'
   return u.active
 }
 

@@ -105,7 +105,8 @@ test.describe.serial('Quadeck', () => {
   test('cancelling the unlock leaves everything as it is', async ({ page }) => {
     await login(page)
     await page.goto('/units')
-    await page.getByRole('button', { name: 'caddy.service stoppen' }).click()
+    await page.getByRole('button', { name: 'Aktionen für caddy.service' }).click()
+    await page.getByRole('menuitem', { name: 'Stoppen …' }).click()
     const dialog = page.getByRole('dialog', { name: 'Aktionen entsperren' })
     await dialog.getByRole('button', { name: 'Abbrechen' }).click()
     await expect(dialog).toBeHidden()
@@ -133,15 +134,17 @@ test.describe.serial('Quadeck', () => {
     const jf = page.getByTestId('unit-row').filter({ hasText: 'jellyfin.service' })
     await expect(jf).toContainText('healthy')
     await expect(jf).toContainText('12 %')
-    await expect(page.getByTestId('unit-row').filter({ hasText: 'scratch' })).toContainText('podman · container')
-    await page.getByRole('button', { name: 'scratch stoppen' }).click()
+    await expect(page.getByTestId('unit-row').filter({ hasText: 'scratch' })).toContainText('podman')
+    await page.getByRole('button', { name: 'Aktionen für scratch' }).click()
+    await page.getByRole('menuitem', { name: 'Stoppen …' }).click()
     await unlock(page)
     await expect(page.getByRole('dialog')).toContainText('Podman-API: stop scratch')
     await page.getByRole('dialog').getByRole('button', { name: 'Stoppen' }).click()
     await expect(page.getByRole('status')).toContainText('scratch gestoppt (Podman-API)')
     await expect(page.getByRole('button', { name: 'scratch starten' })).toBeVisible()
 
-    await page.getByRole('button', { name: 'jellyfin.service stoppen' }).click()
+    await page.getByRole('button', { name: 'Aktionen für jellyfin.service' }).click()
+    await page.getByRole('menuitem', { name: 'Stoppen …' }).click()
     await expect(page.getByRole('dialog')).toContainText('systemctl stop jellyfin.service')
     await page.getByRole('dialog').getByRole('button', { name: 'Abbrechen' }).click()
     await expect(page.getByRole('dialog')).toBeHidden()
@@ -280,13 +283,13 @@ test.describe.serial('Quadeck', () => {
     await page.getByRole('link', { name: /Units/ }).click()
     await expect(page.getByTestId('unit-row')).toHaveCount(8) // default filter: containers
     await page.getByRole('link', { name: /^Alle/ }).click()
-    await expect(page.getByTestId('unit-row')).toHaveCount(17) // 16 units + 1 container without unit
+    await expect(page.getByTestId('unit-row')).toHaveCount(19) // 18 units (2 of them sockets) + 1 container without unit
     await page.getByRole('link', { name: /Fehlgeschlagen/ }).click()
     await expect(page).toHaveURL(/filter=failed/)
     await expect(page.getByTestId('unit-row')).toHaveCount(1) // immich-ml was restarted above
     await expect(page.getByTestId('unit-row')).toContainText('Prozess endete mit Exit 1')
 
-    await page.getByTestId('unit-row').getByRole('link', { name: 'Journal' }).click()
+    await page.getByTestId('unit-row').getByRole('link', { name: 'backup-offsite.service' }).click() // the name opens the journal
     await expect(page).toHaveURL(/\/journal\?unit=backup-offsite.service/)
     await page.getByRole('button', { name: 'Alle Units' }).click()
     await expect(page.getByTestId('journal')).toContainText("Failed with result 'oom-kill'")

@@ -341,6 +341,10 @@ function fixtureFragment(u: FixtureUnit): { path: string; content: string } {
       content: `[Unit]\nDescription=${u.description}\n\n[Timer]\nOnCalendar=${u.timer.calendar ?? 'daily'}\nPersistent=true\n\n[Install]\nWantedBy=timers.target\n`,
     }
   }
+  if (u.name.endsWith('.socket')) {
+    const listen = (u as FixtureUnit & { socket?: { listen: string[] } }).socket?.listen[0]?.replace(/ \(.*\)$/, '') ?? '/run/x.sock'
+    return { path: `/usr/lib/systemd/system/${u.name}`, content: `[Unit]\nDescription=${u.description}\n\n[Socket]\nListenStream=${listen}\nSocketMode=0660\n\n[Install]\nWantedBy=sockets.target\n` }
+  }
   const vendor = u.name === 'smb.service'
   return {
     path: `${vendor ? '/usr/lib/systemd/system' : UNIT_DIR}/${u.name}`,

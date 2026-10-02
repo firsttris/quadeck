@@ -1,6 +1,9 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useActions } from '~/components/Actions'
 import { PageHeader } from '~/components/PageHeader'
+import { RowMenu, type MenuItem } from '~/components/RowMenu'
+import { useToast } from '~/components/Toast'
+import { useGuardedApi } from '~/components/Unlock'
 import { Sparkline } from '~/components/Sparkline'
 import { TimersView } from '~/components/Timers'
 import { containerState, Pill, unitState, unitTone, type Tone } from '~/components/Status'
@@ -8,7 +11,6 @@ import { age, bytes, num } from '~/lib/format'
 import { useLive } from '~/lib/live'
 import { failureReason } from '~/shared/units'
 import { buildRows, FILTERS, failed, matches, type Filter, type Row } from '~/lib/unit-rows'
-
 
 export const Route = createFileRoute('/_app/units')({
   validateSearch: (s: Record<string, unknown>): { filter?: Filter } => ({
@@ -20,9 +22,10 @@ export const Route = createFileRoute('/_app/units')({
 
 function kindLabel(r: Row) {
   const u = r.unit
-  if (!u) return 'podman · container'
-  if (u.quadlet) return `quadlet · ${u.quadlet.type}`
+  if (!u) return 'podman'
+  if (u.quadlet) return u.quadlet.type
   if (u.kind === 'timer') return 'timer'
+  if (u.kind === 'socket') return 'socket'
   return u.type === 'oneshot' ? 'oneshot' : 'service'
 }
 
@@ -46,12 +49,7 @@ function Units() {
   const { run, busy, readonly } = useActions()
   const shown = rows.filter((r) => matches(r, filter))
   // Failed first, then containers, then by name.
-  shown.sort(
-    (a, b) =>
-      Number(!!failed(b)) - Number(!!failed(a)) ||
-      Number(!!b.container) - Number(!!a.container) ||
-      (a.unit?.name ?? a.container!.name).localeCompare(b.unit?.name ?? b.container!.name),
-  )
+  shown.sort((a, b) => Number(!!failed(b)) - Number(!!failed(a)) || Number(!!b.container) - Number(!!a.container) || (a.unit?.name ?? a.container!.name).localeCompare(b.unit?.name ?? b.container!.name))
   const counts = Object.fromEntries(FILTERS.map(([k]) => [k, rows.filter((r) => matches(r, k)).length]))
   return (
     <>
@@ -88,12 +86,12 @@ function Units() {
             <thead>
               <tr>
                 <th>Unit</th>
-                <th className="hidden md:table-cell">Typ</th>
+                <th className="hidden 2xl:table-cell">Typ</th>
                 <th>Status</th>
-                <th className="hidden lg:table-cell">CPU · 15 min</th>
+                <th className="hidden xl:table-cell">CPU · 15 min</th>
                 <th>RAM</th>
                 <th className="hidden sm:table-cell">Seit</th>
-                <th className="hidden xl:table-cell">Boot</th>
+                <th className="hidden 2xl:table-cell">Boot</th>
                 <th>
                   <span className="sr-only">Aktionen</span>
                 </th>
@@ -119,30 +117,71 @@ function Units() {
 }
 
 function UnitRow({ row, run, busy, readonly }: { row: Row; run: ReturnType<typeof useActions>['run']; busy: string | null; readonly: boolean }) {
+  const navigate = useNavigate()
+  const guarded = useGuardedApi()
+  const say = useToast()
   const { unit: u, container: c } = row
   const name = u?.name ?? c!.name
   const st = status(row)
-  const why = u ? (failureReason(u) ?? [u.quadlet?.file, c?.image].filter(Boolean).join(' · ') ?? '') : c!.image
+  const listen = u?.socket?.listen.length ? `lauscht auf ${u.socket.listen.map((l) => l.replace(/ \((Stream|Datagram|SequentialPacket)\)$/, '')).join(', ')}${u.socket.triggers ? ` → ${u.socket.triggers}` : ''}` : ''
+  const why = u ? (failureReason(u) ?? listen ?? '') || [u.quadlet?.file, c?.image].filter(Boolean).join(' · ') : c!.image
   const detail = why || (u && u.description !== u.name ? u.description : '')
   const target = u ? { kind: 'unit' as const, name: u.name } : { kind: 'container' as const, name: c!.name }
   const active = u ? u.active === 'active' || u.active === 'activating' : c!.state === 'running'
   const memory = u?.memory ?? c?.memUsage
+  // One button for what is usually wanted; everything else in the menu.
+  const primary: 'restart' | 'start' = active || u?.active === 'failed' ? 'restart' : 'start'
+  const bootable = u && (u.unitFileState === 'enabled' || u.unitFileState === 'disabled')
+  const setBoot = async (enabled: boolean) => {
+    try {
+      const r = await guarded('/api/systemd', { body: { enable: { unit: u!.name, enabled } } })
+      if (r) say(enabled ? `${u!.name} startet beim Booten` : `${u!.name} startet nicht mehr beim Booten`)
+    } catch (e) {
+      say((e as Error).message, 'bad')
+    }
+  }
+  const items: MenuItem[] = [
+    ...(u ? [{ label: 'Journal', onSelect: () => void navigate({ to: '/journal', search: { unit: u.name } }) }] : []),
+    ...(u?.quadlet
+      ? [{ label: 'Quadlet bearbeiten', onSelect: () => void navigate({ to: '/quadlets', search: { file: u.quadlet!.file } }) }]
+      : u
+        ? [{ label: 'Unit bearbeiten', onSelect: () => void navigate({ to: '/systemd', search: { unit: u.name } }) }]
+        : []),
+    ...(readonly
+      ? []
+      : [
+          ...(active ? [{ label: 'Stoppen …', onSelect: () => run('stop', target), danger: true, disabled: busy === name, separator: true }] : []),
+          ...(bootable ? [{ label: 'Beim Booten starten', checked: u!.unitFileState === 'enabled', onSelect: () => void setBoot(u!.unitFileState !== 'enabled'), separator: true }] : []),
+        ]),
+  ]
   return (
     <tr data-testid="unit-row">
-      <td className="max-w-[420px]">
-        <div className="flex items-center gap-2">
-          <span className="font-mono text-[13px] font-medium">{name}</span>
+      <td>
+        <div className="flex max-w-[13rem] min-w-0 items-center gap-2 lg:max-w-[22rem] 2xl:max-w-[28rem]">
+          {u ? (
+            <Link to="/journal" search={{ unit: u.name }} className="truncate font-mono text-[13px] font-medium text-fg hover:text-accent" title={`Journal öffnen: ${name}`}>
+              {name}
+            </Link>
+          ) : (
+            <span className="font-mono text-[13px] font-medium">{name}</span>
+          )}
           {c && u && c.name !== u.name.replace(/\.service$/, '') && <span className="chip">{c.name}</span>}
         </div>
-        {detail && <div className={`truncate text-[12px] ${u?.active === 'failed' ? 'text-[#ff8a80]' : 'text-muted'}`}>{detail}</div>}
+        {detail && (
+          <div title={detail} className={`max-w-[13rem] truncate text-[12px] lg:max-w-[22rem] 2xl:max-w-[28rem] ${u?.active === 'failed' ? 'text-[#ff8a80]' : 'text-muted'}`}>
+            {detail}
+          </div>
+        )}
       </td>
-      <td className="hidden md:table-cell">
-        <span className={u?.kind === 'quadlet' ? 'chip q' : 'chip'}>{kindLabel(row)}</span>
+      <td className="hidden 2xl:table-cell">
+        <span className={u?.kind === 'quadlet' ? 'chip q' : 'chip'} title={u?.quadlet ? `Quadlet (.${u.quadlet.type})` : u ? undefined : 'Container ohne Unit'}>
+          {kindLabel(row)}
+        </span>
       </td>
       <td>
         <Pill tone={st.tone}>{st.label}</Pill>
       </td>
-      <td className="hidden lg:table-cell">
+      <td className="hidden xl:table-cell">
         {c && c.state === 'running' ? (
           <div className="flex items-center gap-2">
             <Sparkline values={c.cpuHistory} />
@@ -156,44 +195,15 @@ function UnitRow({ row, run, busy, readonly }: { row: Row; run: ReturnType<typeo
       <td className="hidden sm:table-cell" suppressHydrationWarning>
         {u ? age(u.since) : '–'}
       </td>
-      <td className="hidden text-subtle xl:table-cell">{u?.unitFileState ?? (c ? 'ohne Unit' : '–')}</td>
+      <td className="hidden text-subtle 2xl:table-cell">{u?.unitFileState ?? (c ? 'ohne Unit' : '–')}</td>
       <td>
         <div className="flex justify-end gap-1.5">
-          {u && (
-            <Link to="/journal" search={{ unit: u.name }} className="btn sm">
-              Journal
-            </Link>
+          {!readonly && (
+            <button type="button" className="btn sm" disabled={busy === name} onClick={() => run(primary, target)} aria-label={`${name} ${primary === 'restart' ? 'neu starten' : 'starten'}`}>
+              {primary === 'restart' ? 'Neu starten' : 'Starten'}
+            </button>
           )}
-          {u?.quadlet ? (
-            <Link to="/quadlets" search={{ file: u.quadlet.file }} className="btn sm" aria-label={`${u.quadlet.file} bearbeiten`}>
-              Bearbeiten
-            </Link>
-          ) : u ? (
-            <Link to="/systemd" search={{ unit: u.name }} className="btn sm" aria-label={`${u.name} bearbeiten`}>
-              Bearbeiten
-            </Link>
-          ) : null}
-          {!readonly &&
-            (active ? (
-              <>
-                <button type="button" className="btn sm" disabled={busy === name} onClick={() => run('restart', target)} aria-label={`${name} neu starten`}>
-                  Neu starten
-                </button>
-                <button type="button" className="btn sm danger" disabled={busy === name} onClick={() => run('stop', target)} aria-label={`${name} stoppen`}>
-                  Stopp
-                </button>
-              </>
-            ) : (
-              <button
-                type="button"
-                className="btn sm"
-                disabled={busy === name}
-                onClick={() => run(u?.active === 'failed' ? 'restart' : 'start', target)}
-                aria-label={`${name} ${u?.active === 'failed' ? 'neu starten' : 'starten'}`}
-              >
-                {u?.active === 'failed' ? 'Neu starten' : 'Starten'}
-              </button>
-            ))}
+          {items.length > 0 && <RowMenu label={`Aktionen für ${name}`} items={items} />}
         </div>
       </td>
     </tr>

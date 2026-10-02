@@ -28,7 +28,10 @@ export function parseShow(text: string): Record<string, string>[] {
       const o: Record<string, string> = {}
       for (const line of block.split('\n')) {
         const i = line.indexOf('=')
-        if (i > 0) o[line.slice(0, i)] = line.slice(i + 1)
+        if (i <= 0) continue
+        const k = line.slice(0, i)
+        // Listen= appears once per address of a socket.
+        o[k] = k === 'Listen' && o[k] ? `${o[k]}\n${line.slice(i + 1)}` : line.slice(i + 1)
       }
       return o
     })
@@ -67,7 +70,8 @@ export function calendarOf(timersCalendar: string | undefined): string | undefin
 export function buildUnit(l: ListedUnit, p: Record<string, string>): Unit {
   const quadlet = quadletOf(p.SourcePath)
   const isTimer = l.name.endsWith('.timer')
-  const kind: UnitKind = quadlet ? 'quadlet' : isTimer ? 'timer' : l.name.endsWith('.service') ? 'service' : 'other'
+  const isSocket = l.name.endsWith('.socket')
+  const kind: UnitKind = quadlet ? 'quadlet' : isTimer ? 'timer' : isSocket ? 'socket' : l.name.endsWith('.service') ? 'service' : 'other'
   const exit = Number(p.ExecMainStatus)
   return {
     name: l.name,
@@ -92,13 +96,14 @@ export function buildUnit(l: ListedUnit, p: Record<string, string>): Unit {
           unit: p.Unit || undefined,
         }
       : undefined,
+    socket: isSocket ? { listen: (p.Listen ?? '').split('\n').filter(Boolean), triggers: p.Triggers?.split(/\s+/)[0] || undefined } : undefined,
   }
 }
 
-const PROPS = ['Id', 'Type', 'Result', 'ExecMainStatus', 'MemoryCurrent', 'MemoryMax', 'StateChangeTimestamp', 'UnitFileState', 'SourcePath', 'TimersCalendar', 'NextElapseUSecRealtime', 'LastTriggerUSec', 'Unit']
+const PROPS = ['Id', 'Type', 'Result', 'ExecMainStatus', 'MemoryCurrent', 'MemoryMax', 'StateChangeTimestamp', 'UnitFileState', 'SourcePath', 'TimersCalendar', 'NextElapseUSecRealtime', 'LastTriggerUSec', 'Unit', 'Listen', 'Triggers']
 
-/** Which units are worth showing: services, timers and anything generated from a Quadlet. */
-const relevant = (u: ListedUnit) => u.load !== 'not-found' && (u.name.endsWith('.service') || u.name.endsWith('.timer'))
+/** Which units are worth showing: services, timers, sockets and anything generated from a Quadlet. */
+const relevant = (u: ListedUnit) => u.load !== 'not-found' && /\.(service|timer|socket)$/.test(u.name)
 
 export async function listUnits(): Promise<ListedUnit[]> {
   const out = await runOk(['busctl', '--json=short', 'call', 'org.freedesktop.systemd1', '/org/freedesktop/systemd1', 'org.freedesktop.systemd1.Manager', 'ListUnits'])

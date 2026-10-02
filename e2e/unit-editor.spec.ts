@@ -24,7 +24,8 @@ test.describe.serial('Unit-Editor', () => {
   test('vendor unit: read-only file, edit the override in the form, diff, history, remove', async ({ page }) => {
     await login(page)
     await page.goto('/units?filter=service')
-    await page.getByRole('link', { name: 'smb.service bearbeiten' }).click()
+    await page.getByRole('button', { name: 'Aktionen für smb.service' }).click()
+    await page.getByRole('menuitem', { name: 'Unit bearbeiten' }).click()
     await expect(page).toHaveURL(/\/systemd\?unit=smb\.service/)
     const files = page.getByRole('region', { name: 'Dateien' })
     await files.getByRole('button', { name: /\/usr\/lib\/systemd\/system\/smb\.service/ }).click()
