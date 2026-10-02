@@ -10,7 +10,7 @@ disks, shares and the host itself, with the actions you need day to day.
 | [Overview and services](dashboard.md) | how services are discovered, labels, overrides, manual links, icons, health, layout editing, metrics history, GPU, command palette |
 | [Units and Quadlets](quadlets.md) | units page, actions, journal, Quadlet editor, validation, history, templates, compose import, Podman settings |
 | [systemd editor and timers](systemd.md) | unit files and overrides, form and text, verification, history, new units, timers, schedule builder, cron import |
-| [Updates and packages](updates.md) | package managers, AUR, reboot hints, jobs, installed packages, removal, container images |
+| [Updates and packages](updates.md) | package managers, AUR, reboot hints, jobs, installed packages, removal, container images, boot and reboot (systemd-boot) |
 | [Disks and files](disks.md) | SMART verdicts and advice, history, self-tests, fstab configurator and its checks, file explorer, data areas |
 | [Shares](shares.md) | SMB shares, NFS exports, services, what is checked, what is never touched |
 | [SSH](ssh.md) | keys, hardening, lock-out guard, logins, connecting a new device |
@@ -54,7 +54,7 @@ and the unlock countdown in reach.
 | **Freigaben** (shares) | Speicher | SMB and NFS |
 | **Netzwerk** (network) | Server | interfaces, ports, firewall |
 | **SSH** | Server | keys, hardening, logins |
-| **System** | Server | updates, installed packages, Podman settings |
+| **System** | Server | updates, installed packages, Podman settings, boot and reboot |
 | **Benachrichtigungen** (notifications) | Server | channels and rules |
 
 The UI is in German; the documentation names the German labels where you need to find them.

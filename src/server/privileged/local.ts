@@ -11,6 +11,7 @@ import type { TimersBackend } from '../timers/backend'
 import type { UnitEditorBackend } from '../systemd/editor'
 import type { NetworkAdmin } from '../network/collect'
 import type { FstabBackend } from '../fstab/backend'
+import type { BootBackend } from '../boot/backend'
 import type { FstabChange } from '~/shared/fstab'
 import type { TimerAction, TimerSpec } from '~/shared/timers'
 import type { SshChange } from '~/shared/ssh'
@@ -44,6 +45,7 @@ export class LocalPrivileged implements Privileged {
     private editor: UnitEditorBackend,
     private network: NetworkAdmin,
     private fstab: FstabBackend,
+    private boot: BootBackend,
   ) {}
 
   async info() {
@@ -318,5 +320,31 @@ export class LocalPrivileged implements Privileged {
   async mountAction(token: string | undefined, target: string, action: 'mount' | 'unmount') {
     this.gate.check(token)
     return this.fstab.mountAction(target, action)
+  }
+
+  // ---------- boot ----------
+
+  bootState() {
+    return this.boot.bootState()
+  }
+  async setBootDefault(token: string | undefined, id: string) {
+    this.gate.check(token)
+    return this.boot.setBootDefault(id)
+  }
+  async setBootTimeout(token: string | undefined, value: string) {
+    this.gate.check(token)
+    return this.boot.setBootTimeout(value)
+  }
+  async cancelOneshot(token: string | undefined) {
+    this.gate.check(token)
+    return this.boot.cancelOneshot()
+  }
+  async updateBootLoader(token: string | undefined) {
+    this.gate.check(token)
+    return this.boot.updateBootLoader()
+  }
+  async reboot(token: string | undefined, opts: { entry?: string; firmware?: boolean }) {
+    this.gate.check(token)
+    return this.boot.reboot(opts)
   }
 }

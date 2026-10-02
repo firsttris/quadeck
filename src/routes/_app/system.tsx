@@ -6,6 +6,7 @@ import { STATUS_LABEL, statusTone, useJobs } from '~/components/Jobs'
 import { ConfirmDialog, Modal } from '~/components/Modal'
 import { PageHeader } from '~/components/PageHeader'
 import { PodmanSettingsView } from '~/components/PodmanSettings'
+import { BootView } from '~/components/Boot'
 import { Pill } from '~/components/Status'
 import { api } from '~/lib/api'
 import { bytes, relative } from '~/lib/format'
@@ -22,10 +23,10 @@ import {
   type UpdatesReport,
 } from '~/shared/packages'
 
-type Tab = 'updates' | 'packages' | 'podman'
+type Tab = 'updates' | 'packages' | 'podman' | 'boot'
 
 export const Route = createFileRoute('/_app/system')({
-  validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({ tab: s.tab === 'packages' || s.tab === 'podman' ? s.tab : undefined }),
+  validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({ tab: s.tab === 'packages' || s.tab === 'podman' || s.tab === 'boot' ? s.tab : undefined }),
   head: () => ({ meta: [{ title: 'System · Quadeck' }] }),
   component: SystemPage,
 })
@@ -74,18 +75,24 @@ function SystemPage() {
         <Link to="/system" search={{ tab: 'podman' }} role="tab" aria-selected={tab === 'podman'} className={`seg ${tab === 'podman' ? 'on' : ''}`}>
           Podman
         </Link>
+        <Link to="/system" search={{ tab: 'boot' }} role="tab" aria-selected={tab === 'boot'} className={`seg ${tab === 'boot' ? 'on' : ''}`}>
+          Boot und Neustart
+        </Link>
       </div>
       {overview.error && <p className="m-0 text-[13px] text-[#e3b341]">{overview.error}</p>}
-      {o?.rebootRequired && (
+      {o?.rebootRequired && tab !== 'boot' && (
         <section className="panel alertcard flex flex-wrap items-center gap-3 px-[18px] py-3" aria-label="Neustart nötig">
           <Glyph name="restart" />
           <div className="grow">
             <div className="font-medium">Neustart empfohlen</div>
             <div className="text-[13px] text-muted">{o.rebootReason}</div>
           </div>
+          <Link to="/system" search={{ tab: 'boot' }} className="btn sm">
+            Neu starten …
+          </Link>
         </section>
       )}
-      {tab === 'updates' ? <Updates overview={o} /> : tab === 'packages' ? <Packages overview={o} /> : <PodmanSettingsView />}
+      {tab === 'updates' ? <Updates overview={o} /> : tab === 'packages' ? <Packages overview={o} /> : tab === 'boot' ? <BootView rebootReason={o?.rebootReason} /> : <PodmanSettingsView />}
     </>
   )
 }

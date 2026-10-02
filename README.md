@@ -61,7 +61,8 @@ on it. That is Quadeck.
 - **Updates**: pacman (with AUR), apt, dnf, zypper, apk and rpm-ostree; reboot hints, Arch news,
   leftover `.pacnew` files; installed packages with safe removal; container image updates through
   `podman auto-update`. Jobs run as transient systemd units with live output and survive a restart
-  of Quadeck itself
+  of Quadeck itself; reboot, also once into another systemd-boot entry, with warnings about a full
+  `/boot`, missing kernel files and an outdated boot loader, and the kernel parameters explained
 - **Disks**: SMART health with a verdict and advice per disk (replace it, check the cable, cool it),
   one year of temperature and error-counter history, self-tests; an `/etc/fstab` configurator that
   explains the options and checks every change (device, driver, `findmnt --verify`, systemd's
@@ -165,7 +166,7 @@ More in the [documentation](docs/README.md).
 | [Overview and services](docs/dashboard.md) | how services are discovered, labels, overrides, manual links, icons, health, layout editing, metrics history, GPU, command palette |
 | [Units and Quadlets](docs/quadlets.md) | units page, actions, journal, Quadlet editor, validation, history, templates, compose import, Podman settings |
 | [systemd editor and timers](docs/systemd.md) | unit files and overrides, form and text, verification, history, new units, timers, schedule builder, cron import |
-| [Updates and packages](docs/updates.md) | package managers, AUR, reboot hints, jobs, installed packages, removal, container images |
+| [Updates and packages](docs/updates.md) | package managers, AUR, reboot hints, jobs, installed packages, removal, container images, boot and reboot (systemd-boot) |
 | [Disks and files](docs/disks.md) | SMART verdicts and advice, history, self-tests, fstab configurator and its checks, file explorer, data areas |
 | [Shares](docs/shares.md) | SMB shares, NFS exports, services, what is checked, what is never touched |
 | [SSH](docs/ssh.md) | keys, hardening, lock-out guard, logins, connecting a new device |
