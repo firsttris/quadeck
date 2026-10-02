@@ -7,6 +7,8 @@ import type { SharesBackend } from '../shares/backend'
 import type { SshBackend } from '../ssh/backend'
 import type { SelfTestType, SmartBackend } from '../smart/backend'
 import type { FilesBackend } from '../files/backend'
+import type { TimersBackend } from '../timers/backend'
+import type { TimerAction, TimerSpec } from '~/shared/timers'
 import type { SshChange } from '~/shared/ssh'
 import type { ShareChange, ShareServiceAction } from '~/shared/shares'
 import { HttpError } from '../auth'
@@ -34,6 +36,7 @@ export class LocalPrivileged implements Privileged {
     private ssh: SshBackend,
     private smart: SmartBackend,
     private files: FilesBackend,
+    private timers: TimersBackend,
   ) {}
 
   async info() {
@@ -225,5 +228,33 @@ export class LocalPrivileged implements Privileged {
   async renamePath(token: string | undefined, path: string, newName: string) {
     this.gate.check(token)
     return this.files.renamePath(path, newName)
+  }
+
+  // ---------- timers ----------
+
+  timersState() {
+    return this.timers.timersState()
+  }
+  previewCalendar(expr: string) {
+    return this.timers.previewCalendar(expr)
+  }
+  timerFiles(name: string) {
+    return this.timers.timerFiles(name)
+  }
+  async saveTimer(token: string | undefined, spec: TimerSpec, previous: string | undefined, enable: boolean) {
+    this.gate.check(token)
+    return this.timers.saveTimer(spec, previous, enable)
+  }
+  async deleteTimer(token: string | undefined, name: string) {
+    this.gate.check(token)
+    return this.timers.deleteTimer(name)
+  }
+  async setTimerSchedule(token: string | undefined, name: string, calendar: string) {
+    this.gate.check(token)
+    return this.timers.setTimerSchedule(name, calendar)
+  }
+  async timerAction(token: string | undefined, name: string, action: TimerAction) {
+    this.gate.check(token)
+    return this.timers.timerAction(name, action)
   }
 }

@@ -13,6 +13,8 @@ import type { SharesAdmin } from '../shares/backend'
 import type { SshAdmin } from '../ssh/backend'
 import type { SelfTestType, SmartAdmin } from '../smart/backend'
 import type { FilesAdmin } from '../files/backend'
+import type { TimersAdmin } from '../timers/backend'
+import type { TimerAction, TimerSpec, TimersState } from '~/shared/timers'
 import type { SmartReport } from '~/shared/smart'
 import type { SshChange, SshState } from '~/shared/ssh'
 import type { ShareChange, ShareServiceAction, SharesState } from '~/shared/shares'
@@ -22,7 +24,7 @@ export type UnitAction = 'start' | 'stop' | 'restart'
 export const UNIT_ACTIONS: readonly UnitAction[] = ['start', 'stop', 'restart']
 
 /** Package/image reads need no unlock (they change nothing); jobs do. */
-export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAdmin, SmartAdmin, FilesAdmin {
+export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAdmin, SmartAdmin, FilesAdmin, TimersAdmin {
   readonly kind: 'local' | 'helper'
   info(): Promise<UnlockInfo>
   unlock(user: string, password: string): Promise<{ token: string; expiresAt: number }>
@@ -48,6 +50,10 @@ export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAd
   smartSelfTest(token: string | undefined, disk: string, type: SelfTestType): Promise<SmartReport>
   makeDir(token: string | undefined, path: string): Promise<void>
   renamePath(token: string | undefined, path: string, newName: string): Promise<void>
+  saveTimer(token: string | undefined, spec: TimerSpec, previous: string | undefined, enable: boolean): Promise<TimersState>
+  deleteTimer(token: string | undefined, name: string): Promise<TimersState>
+  setTimerSchedule(token: string | undefined, name: string, calendar: string): Promise<TimersState>
+  timerAction(token: string | undefined, name: string, action: TimerAction): Promise<TimersState>
 }
 
 const UNIT_NAME = /^[A-Za-z0-9:_.\\@-]{1,240}\.(service|timer)$/

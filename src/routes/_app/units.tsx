@@ -2,6 +2,7 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { useActions } from '~/components/Actions'
 import { PageHeader } from '~/components/PageHeader'
 import { Sparkline } from '~/components/Sparkline'
+import { TimersView } from '~/components/Timers'
 import { containerState, Pill, unitState, unitTone, type Tone } from '~/components/Status'
 import { age, bytes, num } from '~/lib/format'
 import { useLive } from '~/lib/live'
@@ -65,36 +66,40 @@ function Units() {
       </div>
       {snapshot.sources.systemd.error && <p className="m-0 text-[13px] text-[#e3b341]">systemd nicht erreichbar: {snapshot.sources.systemd.error}</p>}
       {snapshot.sources.podman.error && <p className="m-0 text-[13px] text-[#e3b341]">Podman nicht erreichbar: {snapshot.sources.podman.error}</p>}
-      <div className="panel relative overflow-x-auto">
-        <table className="tbl">
-          <thead>
-            <tr>
-              <th>Unit</th>
-              <th className="hidden md:table-cell">Typ</th>
-              <th>Status</th>
-              <th className="hidden lg:table-cell">CPU · 15 min</th>
-              <th>RAM</th>
-              <th className="hidden sm:table-cell">Seit</th>
-              <th className="hidden xl:table-cell">Boot</th>
-              <th>
-                <span className="sr-only">Aktionen</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {shown.length === 0 && (
+      {filter === 'timer' ? (
+        <TimersView />
+      ) : (
+        <div className="panel relative overflow-x-auto">
+          <table className="tbl">
+            <thead>
               <tr>
-                <td colSpan={8} className="text-muted">
-                  Keine Einträge in diesem Filter.
-                </td>
+                <th>Unit</th>
+                <th className="hidden md:table-cell">Typ</th>
+                <th>Status</th>
+                <th className="hidden lg:table-cell">CPU · 15 min</th>
+                <th>RAM</th>
+                <th className="hidden sm:table-cell">Seit</th>
+                <th className="hidden xl:table-cell">Boot</th>
+                <th>
+                  <span className="sr-only">Aktionen</span>
+                </th>
               </tr>
-            )}
-            {shown.map((r) => (
-              <UnitRow key={r.key} row={r} run={run} busy={busy} readonly={readonly} />
-            ))}
-          </tbody>
-        </table>
-      </div>
+            </thead>
+            <tbody>
+              {shown.length === 0 && (
+                <tr>
+                  <td colSpan={8} className="text-muted">
+                    Keine Einträge in diesem Filter.
+                  </td>
+                </tr>
+              )}
+              {shown.map((r) => (
+                <UnitRow key={r.key} row={r} run={run} busy={busy} readonly={readonly} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
     </>
   )
 }

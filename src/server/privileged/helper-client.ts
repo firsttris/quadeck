@@ -8,6 +8,7 @@ import type { SshChange, SshPreview, SshState } from '~/shared/ssh'
 import type { SmartReport } from '~/shared/smart'
 import type { SelfTestType } from '../smart/backend'
 import type { DirListing, FileRoot } from '~/shared/files'
+import type { CalendarPreview, TimerAction, TimerSpec, TimersState } from '~/shared/timers'
 import type { UnlockInfo } from './gate'
 
 /** Privileged over the root helper's Unix socket. */
@@ -168,5 +169,27 @@ export class HelperClient implements Privileged {
   }
   async renamePath(token: string | undefined, path: string, newName: string) {
     await this.call('POST', '/files/rename', { token, path, newName })
+  }
+
+  timersState() {
+    return this.call<TimersState>('POST', '/timers/state', {})
+  }
+  previewCalendar(calendar: string) {
+    return this.call<CalendarPreview>('POST', '/timers/preview', { calendar })
+  }
+  async timerFiles(name: string) {
+    return (await this.call<{ data: string }>('POST', '/timers/files', { name })).data
+  }
+  saveTimer(token: string | undefined, spec: TimerSpec, previous: string | undefined, enable: boolean) {
+    return this.call<TimersState>('POST', '/timers/save', { token, spec, previous, enable }, 120_000)
+  }
+  deleteTimer(token: string | undefined, name: string) {
+    return this.call<TimersState>('POST', '/timers/delete', { token, name }, 120_000)
+  }
+  setTimerSchedule(token: string | undefined, name: string, calendar: string) {
+    return this.call<TimersState>('POST', '/timers/schedule', { token, name, calendar }, 120_000)
+  }
+  timerAction(token: string | undefined, name: string, action: TimerAction) {
+    return this.call<TimersState>('POST', '/timers/action', { token, name, action }, 120_000)
   }
 }

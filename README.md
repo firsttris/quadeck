@@ -165,6 +165,16 @@ Die Seite **SSH** hilft beim Zugang zum Server:
 - **Anmeldungen:** letzte Logins (Benutzer, IP, Schlüssel oder Passwort) und fehlgeschlagene Versuche pro IP der letzten 24 Stunden.
 - **Neues Gerät verbinden:** fertige Befehle für `ssh-keygen`, `ssh-copy-id` und `ssh`.
 
+## Zeitpläne (Timer)
+
+Statt cron nutzt Quadeck **systemd-Timer**: Unter **Units → Timer** stehen alle Timer mit Zeitplan („täglich 03:30“, „Mo–Fr 07:00“), nächstem und letztem Lauf, Ergebnis (inklusive Exit-Code) und dem Befehl, den sie starten.
+
+- **Neuer Zeitplan:** Name, Befehl (läuft mit `/bin/sh`, mehrere Zeilen erlaubt), Zeitplan per Baukasten (alle N Minuten, stündlich, täglich, Wochentage, monatlich oder eigener `OnCalendar=`-Ausdruck), Benutzer, Arbeitsverzeichnis sowie Optionen wie verpasste Läufe nachholen, auf Netzwerk warten, niedrige Priorität und zufällige Verzögerung. Vorlagen für Skript, rsync-Backup, Podman aufräumen, SnapRAID und Healthcheck-Ping. Quadeck schreibt `<name>.service` + `<name>.timer` nach `/etc/systemd/system`, prüft sie mit `systemd-analyze verify` (bei Fehlern wird zurückgerollt), lädt systemd neu und aktiviert den Timer. Die erzeugten Dateien sind vorher im Reiter „Unit-Dateien“ zu sehen.
+- **Vorschau:** Die nächsten fünf Ausführungszeiten berechnet `systemd-analyze calendar` live beim Tippen.
+- **Von cron übernehmen:** Eine Crontab-Zeile wie `30 3 * * 1-5` wird in `OnCalendar=` übersetzt (inklusive `@daily` & Co.; bei Tag *und* Wochentag gibt es einen Hinweis, weil cron dann „oder“ meint).
+- **Andere Timer** (aus Paketen oder von Hand angelegt) behalten ihre Dateien: Ein geänderter Zeitplan kommt als Drop-in `<timer>.d/50-quadeck.conf`, „Standard wiederherstellen“ entfernt ihn wieder.
+- **Jetzt ausführen**, Timer aktivieren/deaktivieren, Journal des Service und die Unit-Dateien (`systemctl cat`) sind direkt in der Liste. Gelöscht werden nur Timer, die Quadeck selbst angelegt hat.
+
 ## Layout anpassen
 
 Das Dashboard ist beim ersten Start fertig angeordnet. Mit **Bearbeiten** (oder Taste `E`) lässt es sich auf zwei Ebenen ändern:
@@ -183,7 +193,7 @@ Das Layout wird pro Bildschirmbreite (Desktop, Tablet, Handy) in SQLite gespeich
 Quadeck besteht aus zwei Diensten:
 
 - **`quadeck.service`** – die Web-App, als eigener Systembenutzer `quadeck` **ohne Root-Rechte**. Sie liest alles, was ohne root geht (systemd über D-Bus, Journal über die Gruppe `systemd-journal`, Platten, Freigaben).
-- **`quadeck-helper.service`** – ein kleiner **Root-Helfer** mit fester Aktionsliste (Units starten/stoppen/neu starten, Podman lesen und Container ohne Unit steuern, Pakete und Images prüfen, Update-/Entfernen-Jobs starten, Quadlet-Dateien, Podman-Einstellungen, Freigaben und SSH-Einstellungen schreiben). Er lauscht nur auf `/run/quadeck/helper.sock`, den ausschließlich die Gruppe `quadeck` öffnen kann.
+- **`quadeck-helper.service`** – ein kleiner **Root-Helfer** mit fester Aktionsliste (Units starten/stoppen/neu starten, Podman lesen und Container ohne Unit steuern, Pakete und Images prüfen, Update-/Entfernen-Jobs starten, Quadlet-Dateien, Podman-Einstellungen, Freigaben, SSH-Einstellungen und Timer schreiben). Er lauscht nur auf `/run/quadeck/helper.sock`, den ausschließlich die Gruppe `quadeck` öffnen kann.
 
 **Entsperren:** Aktionen am Server sind gesperrt, bis man sie mit dem Passwort eines Administrators (root oder Mitglied von `wheel`/`sudo`) freischaltet – dann für 15 Minuten, mit Countdown in der Seitenleiste. Die Prüfung (gegen `/etc/shadow` mit dem System-`crypt(3)`) und die Sperre sitzen im Helfer: Selbst eine übernommene Web-App kann ohne dieses Passwort nichts verändern.
 
