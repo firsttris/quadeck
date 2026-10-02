@@ -102,10 +102,53 @@ test.describe.serial('Quadeck', () => {
     await expect(tile).toHaveAttribute('href', 'http://192.168.1.1/')
     await expect(page.getByText('manuell angelegt')).toBeVisible()
 
-    await tile.hover()
+    await tile.focus() // the remove button shows on hover and on keyboard focus
     await page.getByRole('button', { name: 'Link Router entfernen' }).click()
     await page.getByRole('dialog').getByRole('button', { name: 'Entfernen' }).click()
     await expect(tile).toHaveCount(0)
+  })
+
+  test('edit the layout: resize a tile, hide and restore a card, persists across reloads, reset', async ({ page }) => {
+    await login(page)
+    await page.getByRole('img', { name: 'live verbunden' }).waitFor() // hydrated, grid measured
+    const tile = page.getByTestId('grid-item-ct:jellyfin')
+    await expect(tile.locator('.react-resizable-handle')).toBeHidden() // not editable outside edit mode
+
+    await page.keyboard.press('e')
+    await expect(page.getByRole('button', { name: 'Fertig' })).toBeVisible()
+    // Resize the Jellyfin tile to 2×2 (scrolled into view, so the mouse reaches the handle)
+    await tile.evaluate((el) => el.scrollIntoView({ block: 'center' }))
+    await page.waitForTimeout(300) // let the grid finish its transition
+    const before = (await tile.boundingBox())!
+    const handle = (await tile.locator('.react-resizable-handle').boundingBox())!
+    await page.mouse.move(handle.x + 4, handle.y + 4)
+    await page.mouse.down()
+    await page.mouse.move(handle.x + before.width + 20, handle.y + before.height + 20, { steps: 12 })
+    await page.mouse.up()
+    // Hide the timers card
+    await page.getByRole('button', { name: 'Nächste Timer ausblenden' }).click()
+    await expect(page.getByRole('region', { name: 'Nächste Timer' })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Fertig' }).click()
+
+    await page.reload()
+    await page.getByRole('img', { name: 'live verbunden' }).waitFor()
+    // Compare with a 1×1 neighbour in the same render (column width depends on the window)
+    const ratio = async (dim: 'width' | 'height') =>
+      (await page.getByTestId('grid-item-ct:jellyfin').boundingBox())![dim] / (await page.getByTestId('grid-item-ct:immich-server').boundingBox())![dim]
+    await expect.poll(() => ratio('width')).toBeGreaterThan(1.8) // the grid animates into place
+    await expect.poll(() => ratio('height')).toBeGreaterThan(1.8)
+    await expect(page.getByRole('region', { name: 'Nächste Timer' })).toHaveCount(0)
+    // In view mode tiles are links again
+    await expect(page.getByTestId('service-tile').filter({ hasText: 'Jellyfin' })).toHaveAttribute('href', 'https://jellyfin.home.example')
+
+    await page.getByRole('button', { name: 'Bearbeiten' }).click()
+    await page.getByRole('button', { name: 'Nächste Timer einblenden' }).click()
+    await expect(page.getByRole('region', { name: 'Nächste Timer' })).toBeVisible()
+    await page.getByRole('button', { name: 'Auf Auto-Layout zurücksetzen' }).click()
+    await expect(page.getByRole('status').filter({ hasText: 'Auto-Layout wiederhergestellt' })).toBeVisible()
+    await expect
+      .poll(async () => Math.abs((await page.getByTestId('grid-item-ct:jellyfin').boundingBox())!.width - (await page.getByTestId('grid-item-ct:immich-server').boundingBox())!.width))
+      .toBeLessThan(2)
   })
 
   test('units filter and journal', async ({ page }) => {

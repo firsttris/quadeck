@@ -1,11 +1,11 @@
 const C = 2 * Math.PI * 34
 
 /** Ring gauge with glow; turns yellow above 70 % and red above 85 %, glides to new values. */
-export function Gauge({ id, label, value, sub, p }: { id: string; label: string; value: string; sub: string; p: number }) {
+export function Gauge({ id, label, value, sub, p, bare }: { id: string; label: string; value: string; sub: string; p: number; bare?: boolean }) {
   const clamped = Math.max(0, Math.min(1, p || 0))
   const color = clamped > 0.85 ? '#f85149' : clamped > 0.7 ? '#d29922' : '#7cc4b8'
   return (
-    <div className="panel flex items-center gap-4 p-4" data-testid={`gauge-${id}`}>
+    <div className={`${bare ? '' : 'panel'} flex items-center gap-4 p-4`} data-testid={`gauge-${id}`}>
       <svg width="84" height="84" viewBox="0 0 84 84" className="shrink-0" role="img" aria-label={`${label} ${Math.round(clamped * 100)} %`}>
         <defs>
           <filter id={`glow-${id}`} x="-50%" y="-50%" width="200%" height="200%">
