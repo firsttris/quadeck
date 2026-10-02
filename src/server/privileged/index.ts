@@ -17,7 +17,7 @@ import { FixtureFstabHost, FstabManager, SystemFstabHost } from '../fstab/backen
 import { FixtureBoot, SystemBoot } from '../boot/backend'
 import { FixtureUsers, SystemUsers } from '../users/backend'
 import { FixtureHardware, SystemHardware } from '../hardware/collect'
-import { outsideRequest } from '../lang'
+import { bilingual } from '../lang'
 
 export function unlockMode(helperProcess: boolean): UnlockMode {
   const m = (process.env.QUADECK_UNLOCK ?? '').trim().toLowerCase()
@@ -46,7 +46,8 @@ export function privileged(): Privileged {
   const maint = fixtures ? new FixtureMaintenance(fixtures, files as FixtureFiles) : new SystemMaintenance()
   instance =
     isRoot || fixtures
-      ? likeHelper(new LocalPrivileged(
+      ? // In one process, privileged work runs as if it were the helper (see bilingual()).
+        bilingual(new LocalPrivileged(
           createGate(false),
           config().podmanSocket,
           maint,
@@ -67,16 +68,3 @@ export function privileged(): Privileged {
   return instance
 }
 
-/**
- * In one process, privileged work runs as if it were the helper: without the
- * viewer's language, so texts carry both languages (and caches stay valid for
- * every viewer) and the response picks one – exactly as with the helper.
- */
-function likeHelper(p: Privileged): Privileged {
-  return new Proxy(p, {
-    get(target, prop, receiver) {
-      const v = Reflect.get(target, prop, receiver) as unknown
-      return typeof v === 'function' ? (...args: unknown[]) => outsideRequest(() => (v as (...a: unknown[]) => unknown).apply(target, args)) : v
-    },
-  })
-}

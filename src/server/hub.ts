@@ -27,7 +27,7 @@ import { CaddyProvider, candidatesFromConfig } from './providers/caddy'
 import type { ServiceCandidate } from './providers/types'
 import { localHostSet, mergeServices } from './registry'
 import { notifier } from './notify'
-import { outsideRequest } from './lang'
+import { bilingual, outsideRequest } from './lang'
 
 type Source = keyof Snapshot['sources']
 export type HubEvent = { type: 'system'; data: SystemMetrics } | { type: 'state'; data: Snapshot }
@@ -455,7 +455,7 @@ export function hub(): Hub {
   if (!g.__quadeckHub) {
     // Collectors run for every viewer: their texts keep both languages (see src/shared/i18n.ts).
     outsideRequest(() => {
-      g.__quadeckHub = new Hub()
+      g.__quadeckHub = bilingual(new Hub())
       g.__quadeckHubStarted = g.__quadeckHub.start()
     })
   }

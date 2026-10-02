@@ -26,6 +26,20 @@ export function outsideRequest<T>(fn: () => T): T {
   return store.exit(fn)
 }
 
+/**
+ * Objects that keep or broadcast what they produce (hub, notifier, privileged
+ * backends): every method runs without the caller's language, so stored texts
+ * keep both languages and each viewer gets theirs at the response.
+ */
+export function bilingual<T extends object>(obj: T): T {
+  return new Proxy(obj, {
+    get(target, prop, receiver) {
+      const v = Reflect.get(target, prop, receiver) as unknown
+      return typeof v === 'function' ? (...args: unknown[]) => store.exit(() => (v as (...a: unknown[]) => unknown).apply(target, args)) : v
+    },
+  })
+}
+
 /** JSON responses: texts from the helper or the background carry both languages – pick the viewer's. */
 export async function localizeResponse(res: Response, lang: Lang = currentLang()): Promise<Response> {
   if (!(res.headers.get('content-type') ?? '').includes('application/json')) return res

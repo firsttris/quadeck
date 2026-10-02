@@ -10,6 +10,7 @@ import type { Snapshot } from '~/shared/types'
 import { sendMail, type Mail } from './mail'
 import { isLang, localizeDeep, tr, type Lang } from '~/shared/i18n'
 import { DELAY_MS, buildMail, buildRequest, currentAlerts, defaultSettings, problemNotice, recoveryNotice, type Alert, type Channel, type Notice, type NotifySettings, type NotifyState, type SentNotice } from '~/shared/notify'
+import { bilingual } from './lang'
 
 const KEY = 'notifications'
 const ACTIVE = 'notifications-active'
@@ -174,6 +175,6 @@ export class Notifier {
 
 let instance: Notifier | undefined
 export function notifier() {
-  instance ??= new Notifier()
+  if (!instance) instance = bilingual(new Notifier())
   return instance
 }
