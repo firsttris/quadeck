@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useState } from 'react'
-import { AuthCard } from '~/components/AuthCard'
+import { AuthCard, useHydrated } from '~/components/AuthCard'
 import { api } from '~/lib/api'
 
 export const Route = createFileRoute('/login')({
@@ -15,9 +15,11 @@ export const Route = createFileRoute('/login')({
 function Login() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const hydrated = useHydrated()
   return (
     <AuthCard title="Anmelden" subtitle="Quadeck verwaltet Dienste mit Root-Rechten. Bitte melde dich an.">
       <form
+        method="post"
         className="flex flex-col gap-3"
         onSubmit={async (e) => {
           e.preventDefault()
@@ -41,7 +43,7 @@ function Login() {
             {error}
           </p>
         )}
-        <button type="submit" className="btn primary justify-center" disabled={busy}>
+        <button type="submit" className="btn primary justify-center" disabled={busy || !hydrated}>
           Anmelden
         </button>
       </form>

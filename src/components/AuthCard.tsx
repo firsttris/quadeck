@@ -1,4 +1,4 @@
-import type { ReactNode } from 'react'
+import { useEffect, useState, type ReactNode } from 'react'
 import { Logo } from './Glyph'
 
 export function AuthCard({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
@@ -17,4 +17,15 @@ export function AuthCard({ title, subtitle, children }: { title: string; subtitl
       </div>
     </main>
   )
+}
+
+/**
+ * False until React has taken over the server-rendered page. Login and setup
+ * keep their submit button disabled until then: a click before hydration
+ * would let the browser submit the form itself (password in the URL).
+ */
+export function useHydrated() {
+  const [hydrated, setHydrated] = useState(false)
+  useEffect(() => setHydrated(true), [])
+  return hydrated
 }

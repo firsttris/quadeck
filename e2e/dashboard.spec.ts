@@ -58,6 +58,20 @@ test.describe.serial('Quadeck', () => {
     await expect(page).toHaveURL('/login')
   })
 
+  test('a click before the page is interactive never submits the password natively', async ({ page }) => {
+    // Slow client bundle (busy CI runner): the button must wait for React, otherwise the
+    // browser submits the form itself and the password ends up in the URL.
+    await page.route('**/*.js', async (r) => {
+      await new Promise((res) => setTimeout(res, 1500))
+      await r.continue()
+    })
+    await page.goto('/login', { waitUntil: 'commit' })
+    await page.getByLabel('Passwort').fill(PASSWORD)
+    await page.getByRole('button', { name: 'Anmelden' }).click()
+    await expect(page).toHaveURL('/')
+    expect(page.url()).not.toContain('password')
+  })
+
   test('wrong password is rejected; logout ends the session', async ({ page }) => {
     await page.goto('/login')
     await page.getByLabel('Passwort').fill('nope-nope-nope')
