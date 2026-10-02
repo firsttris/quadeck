@@ -11,7 +11,7 @@ disks, shares and the host itself, with the actions you need day to day.
 | [Units and Quadlets](quadlets.md) | units page, actions, journal, Quadlet editor, validation, history, templates, compose import, Podman settings |
 | [systemd editor and timers](systemd.md) | unit files and overrides, form and text, verification, history, new units, timers, schedule builder, cron import |
 | [Updates and packages](updates.md) | package managers, AUR, reboot hints, jobs, installed packages, removal, container images |
-| [Disks and files](disks.md) | SMART verdicts and advice, history, self-tests, file explorer, data areas |
+| [Disks and files](disks.md) | SMART verdicts and advice, history, self-tests, fstab configurator and its checks, file explorer, data areas |
 | [Shares](shares.md) | SMB shares, NFS exports, services, what is checked, what is never touched |
 | [SSH](ssh.md) | keys, hardening, lock-out guard, logins, connecting a new device |
 | [Network](network.md) | interfaces, ports, firewall verdicts, routes and DNS |
@@ -49,7 +49,7 @@ and the unlock countdown in reach.
 | **Übersicht** (overview) | | gauges with history, failed units, services, storage, timers, shares |
 | **Units** | Dienste | services, timers and containers with actions; the *Timer* filter is the schedule editor; from here the Quadlet and systemd editors open |
 | **Journal** | Dienste | `journalctl` live, per unit and priority, searchable |
-| **Festplatten** (disks) | Speicher | SMART verdicts, history, self-tests |
+| **Festplatten** (disks) | Speicher | SMART verdicts, history, self-tests; mounting disks via `/etc/fstab` |
 | **Dateien** (files) | Speicher | file explorer for the data areas |
 | **Freigaben** (shares) | Speicher | SMB and NFS |
 | **Netzwerk** (network) | Server | interfaces, ports, firewall |

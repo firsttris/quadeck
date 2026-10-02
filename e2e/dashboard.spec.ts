@@ -177,7 +177,7 @@ test.describe.serial('Quadeck', () => {
     await dialog.getByRole('button', { name: 'Hinzufügen' }).click()
     const tile = page.getByTestId('service-tile').filter({ hasText: 'Router' })
     await expect(tile).toHaveAttribute('href', 'http://192.168.1.1/')
-    await expect(tile.locator('img')).toHaveAttribute('src', '/api/icons/openwrt')
+    await expect(tile.locator('[data-icon]')).toHaveAttribute('data-icon', 'openwrt') // offline the image itself falls back to a glyph
     await expect(page.getByText('manuell angelegt')).toBeVisible()
 
     await tile.focus() // the remove button shows on hover and on keyboard focus

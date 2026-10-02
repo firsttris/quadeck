@@ -1,4 +1,5 @@
-import { createFileRoute, redirect } from '@tanstack/react-router'
+import { Link, createFileRoute, redirect } from '@tanstack/react-router'
+import { MountsView } from '~/components/Mounts'
 import { useCallback, useEffect, useState } from 'react'
 import { useActions } from '~/components/Actions'
 import { Glyph } from '~/components/Glyph'
@@ -15,8 +16,8 @@ import { assessSmart, attributeLevel, describeReason, HINT_TEXT, smartHints, typ
 
 export const Route = createFileRoute('/_app/disks')({
   // The file explorer used to be a tab here; old links land on its own page.
-  validateSearch: (s: Record<string, unknown>): { tab?: 'files'; path?: string } => ({
-    tab: s.tab === 'files' ? 'files' : undefined,
+  validateSearch: (s: Record<string, unknown>): { tab?: 'files' | 'mounts'; path?: string } => ({
+    tab: s.tab === 'files' || s.tab === 'mounts' ? s.tab : undefined,
     path: typeof s.path === 'string' && s.path.startsWith('/') ? s.path : undefined,
   }),
   beforeLoad: ({ search }) => {
@@ -42,10 +43,20 @@ function kind(d: SmartDisk) {
 const years = (h: number) => (h >= 8760 ? `${num(h / 8760, 1)} Jahre` : h >= 720 ? `${Math.round(h / 720)} Monate` : `${h} h`)
 
 function DisksPage() {
+  const { tab } = Route.useSearch()
+  const mounts = tab === 'mounts'
   return (
     <>
-      <PageHeader title="Festplatten" subtitle="SMART-Zustand aller Laufwerke – Verlauf, Selbsttests, was zu tun ist" />
-      <Smart />
+      <PageHeader title="Festplatten" subtitle={mounts ? 'Einhängen über /etc/fstab – geprüft, bevor etwas geschrieben wird' : 'SMART-Zustand aller Laufwerke – Verlauf, Selbsttests, was zu tun ist'} />
+      <div role="tablist" aria-label="Bereich" className="flex flex-wrap gap-1.5">
+        <Link to="/disks" search={{}} role="tab" aria-selected={!mounts} className={`seg ${!mounts ? 'on' : ''}`}>
+          SMART
+        </Link>
+        <Link to="/disks" search={{ tab: 'mounts' }} role="tab" aria-selected={mounts} className={`seg ${mounts ? 'on' : ''}`}>
+          Einhängen
+        </Link>
+      </div>
+      {mounts ? <MountsView /> : <Smart />}
     </>
   )
 }

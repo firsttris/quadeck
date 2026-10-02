@@ -265,6 +265,12 @@ export class Hub {
     }
   }
 
+  /** After a change on the mounts page. */
+  async refreshDisks() {
+    await this.collectDisks()
+    this.publish()
+  }
+
   /** After a change on the shares page. */
   async refreshShares() {
     await this.collectShares()

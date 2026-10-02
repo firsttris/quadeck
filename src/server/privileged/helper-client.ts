@@ -11,6 +11,7 @@ import type { DirListing, FileRoot } from '~/shared/files'
 import type { CalendarPreview, TimerAction, TimerSpec, TimersState } from '~/shared/timers'
 import type { UnitDetail, UnitValidateResult, UnitWriteResult } from '~/shared/unit-files'
 import type { NetworkState } from '~/shared/network'
+import type { FstabChange, FstabCheck, FstabState } from '~/shared/fstab'
 import type { UnlockInfo } from './gate'
 
 /** Privileged over the root helper's Unix socket. */
@@ -221,5 +222,21 @@ export class HelperClient implements Privileged {
   }
   async setUnitEnabled(token: string | undefined, unit: string, enabled: boolean) {
     await this.call('POST', '/units/enable', { token, unit, enabled }, 60_000)
+  }
+
+  fstabState() {
+    return this.call<FstabState>('POST', '/fstab/state', {})
+  }
+  validateFstab(change: FstabChange) {
+    return this.call<FstabCheck>('POST', '/fstab/validate', { change }, 60_000)
+  }
+  async fstabRevision(id: string) {
+    return (await this.call<{ data: string }>('POST', '/fstab/revision', { id })).data
+  }
+  applyFstab(token: string | undefined, change: FstabChange, confirm: boolean) {
+    return this.call<FstabState>('POST', '/fstab/apply', { token, change, confirm }, 300_000)
+  }
+  mountAction(token: string | undefined, target: string, action: 'mount' | 'unmount') {
+    return this.call<FstabState>('POST', '/fstab/mount', { token, target, action }, 180_000)
   }
 }

@@ -54,7 +54,8 @@ test.describe.serial('Benachrichtigungen', () => {
     const count = received.length
     await page.reload()
     await page.waitForTimeout(6000) // a few hub rounds: nothing repeated
-    expect(received.length).toBe(count)
+    // The daily update summary may arrive whenever the update check finishes; problems must not repeat.
+    expect(received.slice(count).filter((r) => !r.title.includes('Updates verfügbar')).map((r) => `${r.title}: ${r.message}`)).toEqual([])
   })
 
   test('rules can be switched off', async ({ page }) => {
