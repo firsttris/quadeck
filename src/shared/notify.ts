@@ -1,24 +1,33 @@
 // Notifications: settings, the problems worth a message (derived from the
-// snapshot) and how a message is sent to ntfy, Gotify, Telegram or a webhook.
+// snapshot) and how a message is sent to ntfy, Gotify, Telegram, a webhook or by e-mail.
 // Pure functions, shared by the server and the settings page.
 
 import type { Snapshot } from './types'
 
-export type ChannelKind = 'ntfy' | 'gotify' | 'telegram' | 'webhook'
+export type ChannelKind = 'ntfy' | 'gotify' | 'telegram' | 'webhook' | 'email'
+
+export type SmtpSecurity = 'tls' | 'starttls' | 'none'
 
 export interface Channel {
   id: string
   kind: ChannelKind
   name: string
   enabled: boolean
-  /** Server (ntfy, Gotify) or webhook URL; unused for Telegram. */
+  /** Server (ntfy, Gotify) or webhook URL; unused for Telegram and e-mail. */
   url: string
   /** ntfy topic. */
   topic?: string
-  /** ntfy access token, Gotify app token, Telegram bot token. */
+  /** ntfy access token, Gotify app token, Telegram bot token, SMTP password. */
   token?: string
   /** Telegram chat id. */
   chatId?: string
+  /** E-mail: SMTP server, port, encryption, login, sender and recipients (comma-separated). */
+  host?: string
+  port?: number
+  security?: SmtpSecurity
+  user?: string
+  from?: string
+  to?: string
 }
 
 export type RuleKey = 'unit-failed' | 'service-down' | 'container-unhealthy' | 'smart' | 'disk-full' | 'updates'
@@ -79,7 +88,28 @@ export const CHANNEL_KINDS: { kind: ChannelKind; label: string; help: string }[]
   { kind: 'gotify', label: 'Gotify', help: 'Eigener Gotify-Server: in Gotify eine App anlegen und deren Token eintragen.' },
   { kind: 'telegram', label: 'Telegram', help: 'Bot bei @BotFather anlegen, Token eintragen, dem Bot schreiben und die Chat-ID (z. B. über @userinfobot) eintragen.' },
   { kind: 'webhook', label: 'Webhook', help: 'POST mit JSON an eine URL – passt für Discord, Slack, Mattermost, Home Assistant oder eigene Skripte.' },
+  { kind: 'email', label: 'E-Mail', help: 'Über den SMTP-Server deines Mail-Anbieters. Bei Gmail, GMX, web.de und Co. ist dafür oft ein eigenes App-Passwort nötig, nicht das normale Passwort.' },
 ]
+
+/** Common mail providers: server and port to start from. */
+export const SMTP_PRESETS: { label: string; host: string; port: number; security: SmtpSecurity; note?: string }[] = [
+  { label: 'Gmail', host: 'smtp.gmail.com', port: 465, security: 'tls', note: 'App-Passwort unter myaccount.google.com → Sicherheit (2-Faktor muss an sein)' },
+  { label: 'GMX', host: 'mail.gmx.net', port: 587, security: 'starttls', note: 'In den GMX-Einstellungen „POP3/IMAP/SMTP“ erlauben' },
+  { label: 'web.de', host: 'smtp.web.de', port: 587, security: 'starttls', note: 'In den WEB.DE-Einstellungen „POP3/IMAP/SMTP“ erlauben' },
+  { label: 'Posteo', host: 'posteo.de', port: 465, security: 'tls' },
+  { label: 'mailbox.org', host: 'smtp.mailbox.org', port: 465, security: 'tls' },
+  { label: 'iCloud', host: 'smtp.mail.me.com', port: 587, security: 'starttls', note: 'App-spezifisches Passwort unter appleid.apple.com' },
+  { label: 'Outlook', host: 'smtp-mail.outlook.com', port: 587, security: 'starttls' },
+  { label: 'Eigener Server', host: '', port: 587, security: 'starttls' },
+]
+
+const EMAIL = /^[^\s@<>",;]+@[^\s@<>",;]+\.[^\s@<>",;]+$/
+const HOSTNAME = /^(?=.{1,253}$)[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)*$|^\[?[0-9a-fA-F:.]+\]?$/
+export const recipients = (to: string | undefined) =>
+  (to ?? '')
+    .split(/[,;\s]+/)
+    .map((x) => x.trim())
+    .filter(Boolean)
 
 export const defaultSettings = (): NotifySettings => ({
   channels: [],
@@ -101,10 +131,21 @@ const HTTP_URL = /^https?:\/\/[^\s/?#]+(?::\d+)?(\/[^\s]*)?$/
 export function channelErrors(c: Channel): string[] {
   const out: string[] = []
   if (!c.name.trim() || c.name.length > 60 || CONTROL.test(c.name)) out.push('Name fehlt oder ist zu lang')
-  if (c.kind !== 'telegram' && (!HTTP_URL.test(c.url) || c.url.length > 500)) out.push('URL muss mit http:// oder https:// beginnen')
+  if (c.kind !== 'telegram' && c.kind !== 'email' && (!HTTP_URL.test(c.url) || c.url.length > 500)) out.push('URL muss mit http:// oder https:// beginnen')
+  if (c.kind === 'email') {
+    if (!HOSTNAME.test(c.host ?? '')) out.push('SMTP-Server fehlt')
+    if (!Number.isInteger(c.port) || c.port! < 1 || c.port! > 65535) out.push('Port 1–65535')
+    if (!['tls', 'starttls', 'none'].includes(c.security ?? '')) out.push('Verschlüsselung wählen')
+    if (c.user && (c.user.length > 200 || CONTROL.test(c.user))) out.push('Benutzername ungültig')
+    if (c.user && !c.token) out.push('Passwort fehlt')
+    if (c.token && c.security === 'none') out.push('Ein Passwort nur mit Verschlüsselung (SSL/TLS oder STARTTLS) senden')
+    if (!EMAIL.test(c.from ?? '')) out.push('Absender: eine E-Mail-Adresse')
+    const to = recipients(c.to)
+    if (!to.length || to.length > 10 || !to.every((x) => EMAIL.test(x))) out.push('Empfänger: eine oder mehrere E-Mail-Adressen (mit Komma getrennt)')
+  }
   if (c.kind === 'ntfy' && !/^[A-Za-z0-9_-]{1,64}$/.test(c.topic ?? '')) out.push('Thema: Buchstaben, Ziffern, - und _')
   if ((c.kind === 'gotify' || c.kind === 'telegram') && !c.token) out.push('Token fehlt')
-  if (c.token && (c.token.length > 300 || /\s/.test(c.token) || CONTROL.test(c.token))) out.push('Token ungültig')
+  if (c.token && (c.token.length > 300 || (c.kind !== 'email' && /\s/.test(c.token)) || CONTROL.test(c.token))) out.push(c.kind === 'email' ? 'Passwort ungültig' : 'Token ungültig')
   if (c.kind === 'telegram' && !/^(-?\d{1,20}|@[A-Za-z0-9_]{4,64})$/.test(c.chatId ?? '')) out.push('Chat-ID: Zahl (z. B. 123456789) oder @kanalname')
   return out
 }
@@ -127,10 +168,20 @@ export function parseSettings(v: unknown, previous: NotifySettings): NotifySetti
       kind,
       name: str(c.name) || CHANNEL_KINDS.find((k) => k.kind === kind)!.label,
       enabled: c.enabled !== false,
-      url: kind === 'telegram' ? 'https://api.telegram.org' : str(c.url).replace(/\/+$/, ''),
+      url: kind === 'telegram' ? 'https://api.telegram.org' : kind === 'email' ? '' : str(c.url).replace(/\/+$/, ''),
       topic: kind === 'ntfy' ? str(c.topic) : undefined,
       token,
       chatId: kind === 'telegram' ? str(c.chatId) : undefined,
+      ...(kind === 'email'
+        ? {
+            host: str(c.host),
+            port: Number(c.port),
+            security: (['tls', 'starttls', 'none'].includes(str(c.security)) ? str(c.security) : 'starttls') as SmtpSecurity,
+            user: str(c.user) || undefined,
+            from: str(c.from),
+            to: recipients(str(c.to)).join(', '),
+          }
+        : {}),
     }
     const errors = channelErrors(ch)
     if (errors.length) throw new Error(`${ch.name}: ${errors.join(' · ')}`)
@@ -246,6 +297,20 @@ export function buildRequest(c: Channel, n: Notice): { url: string; init: Reques
       // "content" for Discord, "text" for Slack/Mattermost, the rest for scripts.
       return { url: c.url, init: json({ title: n.title, message: n.body, severity: n.severity, text, content: text }) }
     }
+    case 'email':
+      throw new Error('E-Mail geht über SMTP, nicht über HTTP')
+  }
+}
+
+const SUBJECT_MARK: Record<Severity, string> = { critical: '🔴 ', warning: '🟠 ', info: '', ok: '✅ ' }
+
+/** The e-mail for a notice: subject and plain-text body. */
+export function buildMail(c: Channel, n: Notice): { from: string; to: string[]; subject: string; text: string } {
+  return {
+    from: c.from ?? '',
+    to: recipients(c.to),
+    subject: `${SUBJECT_MARK[n.severity]}${n.title}`.replace(/[\r\n]+/g, ' '),
+    text: `${n.body || n.title}\n\n-- \nGesendet von Quadeck. Benachrichtigungen ändern: Quadeck → Benachrichtigungen.\n`,
   }
 }
 
@@ -253,5 +318,6 @@ export function buildRequest(c: Channel, n: Notice): { url: string; init: Reques
 export function channelTarget(c: Channel): string {
   if (c.kind === 'ntfy') return `${c.url}/${c.topic}`
   if (c.kind === 'telegram') return `Chat ${c.chatId}`
+  if (c.kind === 'email') return `${c.to} über ${c.host}`
   return c.url.replace(/^(https?:\/\/[^/]+)\/.{12,}$/, '$1/…')
 }

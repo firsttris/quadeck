@@ -196,3 +196,84 @@ describe('Notifier retries', () => {
     expect(titles).toHaveLength(2)
   })
 })
+
+describe('e-mail', () => {
+  const mail: Channel = { id: 'mail', kind: 'email', name: 'Mail', enabled: true, url: '', host: 'smtp.gmail.com', port: 465, security: 'tls', user: 'ich@gmail.com', token: 'abcd efgh ijkl mnop', from: 'ich@gmail.com', to: 'ich@gmail.com; partner@example.org' }
+
+  it('validates the SMTP settings and keeps the password masked', async () => {
+    const { channelErrors, recipients } = await import('~/shared/notify')
+    const s = parseSettings({ ...defaultSettings(), channels: [mail] }, defaultSettings())
+    expect(s.channels[0]).toMatchObject({ kind: 'email', url: '', host: 'smtp.gmail.com', port: 465, security: 'tls', to: 'ich@gmail.com, partner@example.org', token: 'abcd efgh ijkl mnop' })
+    expect(maskSettings(s).channels[0]!.token).toBe(MASK)
+    expect(parseSettings({ ...defaultSettings(), channels: [{ ...mail, token: MASK }] }, s).channels[0]!.token).toBe('abcd efgh ijkl mnop')
+    expect(recipients('a@b.de, c@d.de;e@f.de')).toEqual(['a@b.de', 'c@d.de', 'e@f.de'])
+    const err = (c: Partial<Channel>) => channelErrors({ ...mail, ...c }).join(' · ')
+    expect(err({})).toBe('')
+    expect(err({ security: 'none' })).toMatch(/nur mit Verschlüsselung/)
+    expect(err({ security: 'none', user: undefined, token: undefined })).toBe('') // relay in the own network
+    expect(err({ token: undefined })).toMatch(/Passwort fehlt/)
+    expect(err({ host: 'smtp example' })).toMatch(/SMTP-Server/)
+    expect(err({ port: 70000 })).toMatch(/Port/)
+    expect(err({ to: 'kein-mail' })).toMatch(/Empfänger/)
+    expect(err({ from: 'Server <a@b.de>' })).toMatch(/Absender/)
+  })
+
+  it('builds subject and body and is sent through the mailer, not HTTP', async () => {
+    const { buildMail } = await import('~/shared/notify')
+    const m = buildMail(mail, { title: 'nas-01: 1 Problem', body: '• backup.service ist fehlgeschlagen', severity: 'critical' })
+    expect(m).toMatchObject({ from: 'ich@gmail.com', to: ['ich@gmail.com', 'partner@example.org'], subject: '🔴 nas-01: 1 Problem' })
+    expect(m.text).toMatch(/^• backup.service ist fehlgeschlagen\n\n-- \nGesendet von Quadeck/)
+    const sent: string[] = []
+    const n = new Notifier(
+      async () => new Response('', { status: 500 }),
+      async (_c, msg) => void sent.push(msg.subject),
+    )
+    const r = await n.deliver({ title: 'Test', body: '', severity: 'info' }, [mail], true)
+    expect(r.results).toEqual([{ channel: 'Mail', ok: true }])
+    expect(sent).toEqual(['Test'])
+    const failing = new Notifier(undefined, async () => {
+      throw new Error('Anmeldung abgelehnt')
+    })
+    expect((await failing.deliver({ title: 'x', body: '', severity: 'info' }, [mail])).results[0]).toEqual({ channel: 'Mail', ok: false, error: 'Anmeldung abgelehnt' })
+  })
+
+  it('talks SMTP to a real server (local test server, no TLS)', async () => {
+    const { createServer } = await import('node:net')
+    const { sendMail, smtpError } = await import('~/server/mail')
+    let data = ''
+    const rcpt: string[] = []
+    const server = createServer((sock) => {
+      let inData = false
+      sock.write('220 test ESMTP\r\n')
+      sock.on('data', (buf) => {
+        for (const line of buf.toString().split('\r\n')) {
+          if (inData) {
+            if (line === '.') {
+              inData = false
+              sock.write('250 queued\r\n')
+            } else data += line + '\n'
+            continue
+          }
+          if (/^(EHLO|HELO)/i.test(line)) sock.write('250-test\r\n250 8BITMIME\r\n')
+          else if (/^MAIL FROM/i.test(line)) sock.write('250 ok\r\n')
+          else if (/^RCPT TO:<(.*)>/i.test(line)) rcpt.push(line.match(/<(.*)>/)![1]!), sock.write('250 ok\r\n')
+          else if (/^DATA/i.test(line)) (inData = true), sock.write('354 go\r\n')
+          else if (/^QUIT/i.test(line)) sock.end('221 bye\r\n')
+        }
+      })
+    })
+    await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
+    const port = (server.address() as { port: number }).port
+    try {
+      await sendMail({ ...mail, host: '127.0.0.1', port, security: 'none', user: undefined, token: undefined }, { from: 'nas@example.org', to: ['ich@example.org', 'du@example.org'], subject: '🔴 nas-01: Probleme', text: 'backup.service ist fehlgeschlagen\n' })
+    } finally {
+      server.close()
+    }
+    expect(rcpt).toEqual(['ich@example.org', 'du@example.org'])
+    expect(data).toMatch(/Subject: =\?UTF-8\?/)
+    expect(data).toMatch(/backup.service ist fehlgeschlagen/)
+    expect(smtpError({ message: 'Invalid login', code: 'EAUTH', response: '535 5.7.8 Username and Password not accepted' })).toMatch(/App-Passwort/)
+    expect(smtpError({ message: 'connect ECONNREFUSED', code: 'ECONNREFUSED' })).toMatch(/Server und Port/)
+    expect(smtpError({ message: 'routines:ssl3_get_record:wrong version number', code: 'ESOCKET' })).toMatch(/465.*SSL\/TLS.*587.*STARTTLS/)
+  })
+})

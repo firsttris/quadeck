@@ -1,7 +1,7 @@
 # Notifications
 
 **Benachrichtigungen** makes the server report problems instead of waiting for you to look at the
-dashboard. Messages go to your phone or your chat; each problem is reported once, and an all-clear
+dashboard. Messages go to your phone, your chat or your inbox; each problem is reported once, and an all-clear
 follows when it is resolved.
 
 <img src="screenshot-notifications.png" alt="Notifications: an ntfy channel, the rules, the currently reported problems and the last messages" width="900">
@@ -14,6 +14,14 @@ follows when it is resolved.
 | **Gotify** | the server URL and an application token from Gotify |
 | **Telegram** | a bot token from @BotFather and your chat ID (write to the bot once, then ask @userinfobot or look at `getUpdates`) |
 | **Webhook** | a URL that accepts `POST` with JSON. The body contains `title`, `message`, `severity`, and `text`/`content` with both combined, so Discord, Slack, Mattermost and Home Assistant work without a template |
+| **E-Mail** | the SMTP server of your mail provider: server, port, encryption, login, sender and one or more recipients. Buttons fill in server and port for Gmail, GMX, web.de, Posteo, mailbox.org, iCloud and Outlook. Most providers need an *app password* for this, not your normal password, and the sender must be your own address |
+
+E-mail encryption: **SSL/TLS** (port 465) encrypts from the first byte, **STARTTLS** (port 587)
+upgrades the connection and is required – Quadeck never falls back to plain text. **None** is only
+for a relay in your own network (for example a local Postfix) and works only without a password;
+a password is never sent unencrypted. The subject carries the hostname and 🔴/🟠/✅ by severity,
+the body is plain text. Errors are translated: a rejected login points to the app password, a TLS
+mismatch to the port/encryption pair.
 
 Up to ten channels; each can be paused and has a **Test** button that sends a test message and
 shows the result. Tokens are stored in Quadeck's database (readable only by the `quadeck` user)
