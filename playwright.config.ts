@@ -19,6 +19,6 @@ export default defineConfig({
     url: `http://127.0.0.1:${PORT}/api/health`,
     reuseExistingServer: false,
     timeout: 180_000,
-    env: { QUADECK_PORT: String(PORT), QUADECK_HOST: '127.0.0.1', QUADECK_DATA_DIR: '.e2e-data', QUADECK_FIXTURES: 'fixtures/demo' },
+    env: { QUADECK_PORT: String(PORT), QUADECK_HOST: '127.0.0.1', QUADECK_DATA_DIR: '.e2e-data', QUADECK_FIXTURES: 'fixtures/demo', QUADECK_UNLOCK: 'quadeck' },
   },
 })

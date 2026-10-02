@@ -1,5 +1,6 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
-import { api } from '~/lib/api'
+import { api, ApiError } from '~/lib/api'
+import { useUnlock } from './Unlock'
 import { ConfirmDialog } from './Modal'
 import { useToast } from './Toast'
 
@@ -10,7 +11,7 @@ const LABEL: Record<Action, string> = { start: 'Starten', stop: 'Stoppen', resta
 const DONE: Record<Action, string> = { start: 'gestartet', stop: 'gestoppt', restart: 'neu gestartet' }
 
 interface Ctx {
-  run: (action: Action, target: Target) => void
+  run: (action: Action, target: Target) => void | Promise<void>
   busy: string | null
   readonly: boolean
 }
@@ -23,14 +24,25 @@ const ActionCtx = createContext<Ctx>({ run: () => {}, busy: null, readonly: fals
  */
 export function ActionsProvider({ readonly, children }: { readonly: boolean; children: ReactNode }) {
   const say = useToast()
+  const unlock = useUnlock()
   const [busy, setBusy] = useState<string | null>(null)
   const [pending, setPending] = useState<{ action: Action; target: Target } | null>(null)
 
   const exec = useCallback(
     async (action: Action, target: Target) => {
       setBusy(target.name)
+      const call = () => api<{ via: string }>(target.kind === 'unit' ? '/api/units' : '/api/containers', { body: { action, name: target.name } })
       try {
-        const r = await api<{ via: string }>(target.kind === 'unit' ? '/api/units' : '/api/containers', { body: { action, name: target.name } })
+        let r
+        try {
+          r = await call()
+        } catch (e) {
+          // The unlock ran out (or the helper restarted): unlock again and retry once.
+          if (!(e instanceof ApiError && e.status === 423)) throw e
+          unlock.markLocked()
+          if (!(await unlock.ensure())) return
+          r = await call()
+        }
         const what = target.kind === 'container' && target.unit ? target.unit : target.name
         say(`${what} ${DONE[action]} (${r.via === 'podman' ? `Podman-API` : `systemctl ${action}`})`)
       } catch (e) {
@@ -39,15 +51,16 @@ export function ActionsProvider({ readonly, children }: { readonly: boolean; chi
         setBusy(null)
       }
     },
-    [say],
+    [say, unlock],
   )
 
   const run = useCallback(
-    (action: Action, target: Target) => {
+    async (action: Action, target: Target) => {
+      if (!(await unlock.ensure())) return
       if (action === 'start') void exec(action, target)
       else setPending({ action, target })
     },
-    [exec],
+    [exec, unlock],
   )
 
   const p = pending

@@ -10,6 +10,15 @@ async function login(page: Page) {
   await expect(page).toHaveURL('/')
 }
 
+/** Actions ask for the unlock first (in E2E: the Quadeck password). */
+async function unlock(page: Page) {
+  const dialog = page.getByRole('dialog', { name: 'Aktionen entsperren' })
+  await expect(dialog).toBeVisible()
+  await dialog.getByLabel('Passwort').fill(PASSWORD)
+  await dialog.getByRole('button', { name: 'Entsperren' }).click()
+  await expect(dialog).toBeHidden()
+}
+
 test.describe.serial('Quadeck', () => {
   test('first start: setup with token, then the dashboard is filled', async ({ page }) => {
     await page.goto('/')
@@ -61,10 +70,40 @@ test.describe.serial('Quadeck', () => {
     await expect(page).toHaveURL('/login')
   })
 
+  test('privileged actions are locked until unlocked with the password; the lock runs out and can be set again', async ({ page }) => {
+    await login(page)
+    await page.getByRole('img', { name: 'live verbunden' }).waitFor()
+    const state = await page.evaluate(() => fetch('/api/unlock').then((r) => r.json()))
+    expect(state).toMatchObject({ mode: 'quadeck', until: null })
+    await page.getByRole('button', { name: /Gesperrt/ }).click()
+    const dialog = page.getByRole('dialog', { name: 'Aktionen entsperren' })
+    await dialog.getByLabel('Passwort').fill('falsch-falsch')
+    await dialog.getByRole('button', { name: 'Entsperren' }).click()
+    await expect(dialog.getByRole('alert')).toHaveText('Passwort ist falsch')
+    await dialog.getByLabel('Passwort').fill(PASSWORD)
+    await dialog.getByRole('button', { name: 'Entsperren' }).click()
+    await expect(page.getByRole('button', { name: /Entsperrt · 1[45]:/ })).toBeVisible()
+    // Lock again
+    await page.getByRole('button', { name: /Entsperrt/ }).click()
+    await expect(page.getByRole('button', { name: /Gesperrt/ })).toBeVisible()
+  })
+
+  test('cancelling the unlock leaves everything as it is', async ({ page }) => {
+    await login(page)
+    await page.goto('/units')
+    await page.getByRole('button', { name: 'caddy.service stoppen' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Aktionen entsperren' })
+    await dialog.getByRole('button', { name: 'Abbrechen' }).click()
+    await expect(dialog).toBeHidden()
+    await expect(page.getByRole('dialog')).toHaveCount(0) // no confirmation, no action
+    await expect(page.getByTestId('unit-row').filter({ hasText: 'caddy.service' })).toContainText('running')
+  })
+
   test('restart a failed unit from the alarm card goes through systemd after confirmation', async ({ page }) => {
     await login(page)
     const alarm = page.getByRole('region', { name: 'Fehlgeschlagen: immich-ml.service' })
     await alarm.getByRole('button', { name: 'Neu starten' }).click()
+    await unlock(page)
     const dialog = page.getByRole('dialog')
     await expect(dialog).toContainText('systemctl restart immich-ml.service')
     await dialog.getByRole('button', { name: 'Neu starten' }).click()
@@ -82,6 +121,7 @@ test.describe.serial('Quadeck', () => {
     await expect(jf).toContainText('12 %')
     await expect(page.getByTestId('unit-row').filter({ hasText: 'scratch' })).toContainText('podman · container')
     await page.getByRole('button', { name: 'scratch stoppen' }).click()
+    await unlock(page)
     await expect(page.getByRole('dialog')).toContainText('Podman-API: stop scratch')
     await page.getByRole('dialog').getByRole('button', { name: 'Stoppen' }).click()
     await expect(page.getByRole('status')).toContainText('scratch gestoppt (Podman-API)')
@@ -195,6 +235,7 @@ test.describe.serial('Quadeck', () => {
     await page.getByRole('button', { name: /Suchen/ }).click()
     await page.getByRole('combobox', { name: 'Suchen' }).fill('caddy neu')
     await page.keyboard.press('Enter')
+    await unlock(page)
     await expect(page.getByRole('dialog')).toContainText('systemctl restart caddy.service')
     await page.getByRole('dialog').getByRole('button', { name: 'Abbrechen' }).click()
   })

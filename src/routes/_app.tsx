@@ -2,6 +2,7 @@ import { Link, Outlet, createFileRoute, redirect, useRouterState } from '@tansta
 import { useEffect, useState } from 'react'
 import { ActionsProvider } from '~/components/Actions'
 import { CommandPalette } from '~/components/CommandPalette'
+import { UnlockChip, UnlockProvider } from '~/components/Unlock'
 import { Glyph, Logo } from '~/components/Glyph'
 import { Dot } from '~/components/Status'
 import { ToastProvider } from '~/components/Toast'
@@ -30,6 +31,7 @@ function AppLayout() {
   return (
     <ToastProvider>
       <LiveProvider initial={initial}>
+        <UnlockProvider>
         <ActionsProvider readonly={readonly}>
           <div className="grid min-h-screen grid-cols-1 md:grid-cols-[232px_minmax(0,1fr)]">
             <Sidebar onSearch={() => setPalette(true)} />
@@ -39,6 +41,7 @@ function AppLayout() {
           </div>
           <CommandPalette open={palette} onOpenChange={setPalette} />
         </ActionsProvider>
+        </UnlockProvider>
       </LiveProvider>
     </ToastProvider>
   )
@@ -79,6 +82,7 @@ function Sidebar({ onSearch }: { onSearch: () => void }) {
         <span className="grow text-left">Suchen</span>
         <kbd className="font-mono rounded border border-[#333a45] px-1.5 py-0.5 text-[11px]">Strg K</kbd>
       </button>
+      <UnlockChip />
       <nav aria-label="Bereiche" className="flex flex-row flex-wrap gap-[2px] md:flex-col">
         {nav.map((n) => (
           <Link key={n.to} to={n.to} className={`navbtn ${path === n.to ? 'on' : ''}`} style={{ width: 'auto' }}>

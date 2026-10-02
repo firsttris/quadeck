@@ -12,6 +12,7 @@ export interface Config {
   caddyAdmin: string
   caddyfile: string
   iconsBase: string
+  helperSocket: string
   smbConf: string
   exports: string
   exportsDir: string
@@ -33,6 +34,7 @@ export function config(): Config {
     caddyAdmin: env('QUADECK_CADDY_ADMIN') ?? 'http://localhost:2019',
     caddyfile: env('QUADECK_CADDYFILE') ?? '/etc/caddy/Caddyfile',
     iconsBase: env('QUADECK_ICONS_BASE') ?? 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons',
+    helperSocket: env('QUADECK_HELPER_SOCKET') ?? '/run/quadeck/helper.sock',
     smbConf: env('QUADECK_SMB_CONF') ?? '/etc/samba/smb.conf',
     exports: env('QUADECK_EXPORTS') ?? '/etc/exports',
     exportsDir: '/etc/exports.d',

@@ -63,6 +63,8 @@ export async function selfUpdate(current: string, force = false) {
   }
   renameSync(tmp, target) // atomic on the same filesystem
   console.log(`Installiert: ${target} → ${check.stdout.trim()}`)
-  const restart = await run(['systemctl', 'try-restart', 'quadeck.service'])
-  console.log(restart.code === 0 ? 'quadeck.service neu gestartet.' : 'Bitte quadeck.service neu starten.')
+  const restart = await run(['systemctl', 'try-restart', 'quadeck-helper.service', 'quadeck.service'])
+  console.log(restart.code === 0 ? 'Quadeck neu gestartet.' : 'Bitte quadeck-helper.service und quadeck.service neu starten.')
+  const helper = await run(['systemctl', 'cat', 'quadeck-helper.service'])
+  if (helper.code !== 0) console.log('Hinweis: Diese Installation läuft noch komplett als root. Für den getrennten Root-Helfer install.sh erneut ausführen.')
 }

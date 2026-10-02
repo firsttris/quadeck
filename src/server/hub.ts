@@ -15,9 +15,9 @@ import { config } from './config'
 import { db, schema } from './db'
 import { HealthChecker } from './health'
 import { iconIndex } from './icons'
-import type { PrivilegedActions, UnitAction } from './privileged/actions'
+import type { UnitAction } from './privileged/actions'
 import { assertUnitName } from './privileged/actions'
-import { DbusActions } from './privileged/dbus'
+import { privileged } from './privileged'
 import { CaddyProvider, candidatesFromConfig } from './providers/caddy'
 import type { ServiceCandidate } from './providers/types'
 import { localHostSet, mergeServices } from './registry'
@@ -43,10 +43,10 @@ interface Fixtures {
 
 export class Hub {
   private systemCollector = new SystemCollector()
-  private podman = new PodmanCollector(config().podmanSocket)
+  private priv = privileged()
+  private podman = new PodmanCollector((path) => this.priv.podmanGet(path), this.priv.kind === 'local' ? config().podmanSocket : undefined)
   private caddy = new CaddyProvider(config().caddyAdmin, config().caddyfile)
   private health = new HealthChecker()
-  private actions: PrivilegedActions = new DbusActions()
   private fixtures?: Fixtures
 
   private host = readHostInfo()
@@ -234,7 +234,7 @@ export class Hub {
 
   private async collectVersions() {
     if (this.fixtures) return
-    const [sd, pm] = await Promise.allSettled([systemdVersion(), this.podman.client.version()])
+    const [sd, pm] = await Promise.allSettled([systemdVersion(), this.podman.version()])
     this.host = {
       ...this.host,
       systemdVersion: sd.status === 'fulfilled' ? sd.value : undefined,
@@ -321,8 +321,10 @@ export class Hub {
     if (config().readonly) throw new ActionError(403, 'Read-only-Modus: Aktionen sind deaktiviert (QUADECK_READONLY)')
   }
 
-  async unitAction(action: UnitAction, name: string) {
+  /** token: the session's unlock token (see /api/unlock). */
+  async unitAction(action: UnitAction, name: string, token: string | undefined) {
     this.assertWritable()
+    await this.priv.check(token) // locked → 423 before anything else
     try {
       assertUnitName(name)
     } catch (e) {
@@ -331,11 +333,12 @@ export class Hub {
     // Only units we actually know about (fixed action list, no arbitrary targets).
     if (!this.units.some((u) => u.name === name) && !this.containers.some((c) => c.unit === name)) throw new ActionError(404, `Unbekannte Unit: ${name}`)
     if (this.fixtures) {
+      await this.priv.check(token)
       this.fixtures.units = (this.fixtures.units ?? []).map((u) =>
         u.name === name ? { ...u, active: action === 'stop' ? 'inactive' : 'active', sub: action === 'stop' ? 'dead' : 'running', result: 'success', since: Date.now() } : u,
       )
     } else {
-      await this.actions.unit(action, name)
+      await this.priv.unit(token, action, name)
     }
     await this.collectSystemd()
     await this.collectPodman()
@@ -348,18 +351,20 @@ export class Hub {
    * and --rm containers do not vanish. Only containers without unit go to the
    * Podman API.
    */
-  async containerAction(action: UnitAction, name: string): Promise<'systemd' | 'podman'> {
+  async containerAction(action: UnitAction, name: string, token: string | undefined): Promise<'systemd' | 'podman'> {
     this.assertWritable()
+    await this.priv.check(token)
     const c = this.containers.find((x) => x.name === name)
     if (!c) throw new ActionError(404, `Unbekannter Container: ${name}`)
     if (c.unit) {
-      await this.unitAction(action, c.unit)
+      await this.unitAction(action, c.unit, token)
       return 'systemd'
     }
     if (this.fixtures) {
+      await this.priv.check(token)
       this.fixtures.containers = (this.fixtures.containers ?? []).map((x) => (x.name === name ? { ...x, state: action === 'stop' ? 'exited' : 'running' } : x))
     } else {
-      await this.podman.client.action(c.id, action)
+      await this.priv.podmanContainer(token, c.id, action)
     }
     await this.collectPodman()
     this.publish()
