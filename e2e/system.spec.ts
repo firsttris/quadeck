@@ -35,7 +35,7 @@ test.describe.serial('System', () => {
     await expect(repo.getByTestId('update-row').filter({ hasText: 'linux' })).toContainText('6.10.1.arch1-1 → 6.10.3.arch1-2')
     await expect(repo).toContainText('Danach ist ein Neustart nötig (linux, glibc)')
     await expect(page.getByRole('region', { name: 'AUR' })).toContainText('Baut als tristan mit yay')
-    await expect(page.getByRole('region', { name: 'Konfigurationsdateien' })).toContainText('/etc/pacman.d/mirrorlist.pacnew')
+    await expect(page.getByRole('region', { name: 'Konfigurationsdateien' })).toContainText('/etc/samba/smb.conf.pacnew') // the others are handled in system-config.spec.ts
 
     await repo.getByRole('button', { name: 'Alle aktualisieren (4)' }).click()
     const confirm = page.getByRole('dialog', { name: 'Systemupdate starten?' })

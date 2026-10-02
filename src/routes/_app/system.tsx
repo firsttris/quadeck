@@ -7,6 +7,7 @@ import { ConfirmDialog, Modal } from '~/components/Modal'
 import { PageHeader } from '~/components/PageHeader'
 import { PodmanSettingsView } from '~/components/PodmanSettings'
 import { BootView } from '~/components/Boot'
+import { ConfigFilesPanel } from '~/components/ConfigFiles'
 import { Pill } from '~/components/Status'
 import { api } from '~/lib/api'
 import { bytes, relative } from '~/lib/format'
@@ -92,14 +93,14 @@ function SystemPage() {
           </Link>
         </section>
       )}
-      {tab === 'updates' ? <Updates overview={o} /> : tab === 'packages' ? <Packages overview={o} /> : tab === 'boot' ? <BootView rebootReason={o?.rebootReason} /> : <PodmanSettingsView />}
+      {tab === 'updates' ? <Updates overview={o} onOverviewChanged={() => void overview.reload()} /> : tab === 'packages' ? <Packages overview={o} /> : tab === 'boot' ? <BootView rebootReason={o?.rebootReason} /> : <PodmanSettingsView />}
     </>
   )
 }
 
 // ---------- Updates ----------
 
-function Updates({ overview: o }: { overview: Overview | null }) {
+function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null; onOverviewChanged: () => void }) {
   const jobs = useJobs()
   const { readonly } = useActions()
   const updates = useData<UpdatesReport>('/api/system/updates')
@@ -251,20 +252,7 @@ function Updates({ overview: o }: { overview: Overview | null }) {
         </p>
       </section>
 
-      {o && o.configFiles.length > 0 && (
-        <section className="panel flex flex-col" aria-label="Konfigurationsdateien">
-          <div className="flex items-baseline gap-2 px-[18px] pt-4 pb-2">
-            <h2 className="h2">Neue Konfigurationsdateien</h2>
-            <Pill tone="warn">{o.configFiles.length}</Pill>
-          </div>
-          {o.configFiles.map((f) => (
-            <div key={f} className="border-t border-line px-[18px] py-[7px] font-mono text-[12px]">
-              {f}
-            </div>
-          ))}
-          <p className="m-0 border-t border-line px-[18px] py-2 text-[12px] text-muted">{o.configHint}</p>
-        </section>
-      )}
+      {o && o.configFiles.length > 0 && <ConfigFilesPanel files={o.configFiles} hint={o.configHint} onChanged={onOverviewChanged} />}
 
       {(history.data?.jobs.length ?? 0) > 0 && (
         <section className="panel flex flex-col" aria-label="Letzte Jobs">

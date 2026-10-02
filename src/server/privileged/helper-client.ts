@@ -15,6 +15,7 @@ import type { FstabChange, FstabCheck, FstabState } from '~/shared/fstab'
 import type { BootState } from '~/shared/boot'
 import type { UserChange, UsersState } from '~/shared/users'
 import type { Hardware } from '~/shared/hardware'
+import type { ConfigAction, ConfigFileInfo } from '~/shared/configfiles'
 import type { UnlockInfo } from './gate'
 
 /** Privileged over the root helper's Unix socket. */
@@ -278,5 +279,11 @@ export class HelperClient implements Privileged {
   }
   hardware() {
     return this.call<Hardware>('POST', '/hardware', {}, 60_000)
+  }
+  configFile(path: string) {
+    return this.call<ConfigFileInfo>('POST', '/pkg/config-file', { path })
+  }
+  applyConfigFile(token: string | undefined, path: string, action: ConfigAction, content?: string) {
+    return this.call<{ done: string; after?: ConfigFileInfo['after']; warning?: string }>('POST', '/pkg/config-apply', { token, path, action, content }, 180_000)
   }
 }

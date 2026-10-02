@@ -21,6 +21,7 @@ import type { BootAdmin } from '../boot/backend'
 import type { UsersAdmin } from '../users/backend'
 import type { HardwareAdmin } from '../hardware/collect'
 import type { UserChange, UsersState } from '~/shared/users'
+import type { ConfigAction, ConfigFileInfo } from '~/shared/configfiles'
 import type { BootState } from '~/shared/boot'
 import type { FstabChange, FstabState } from '~/shared/fstab'
 import type { UnitWriteResult } from '~/shared/unit-files'
@@ -78,6 +79,7 @@ export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAd
   createKernelEntry(token: string | undefined, pkg: string): Promise<BootState>
   removeBootEntry(token: string | undefined, id: string): Promise<BootState>
   applyUser(token: string | undefined, change: UserChange): Promise<UsersState>
+  applyConfigFile(token: string | undefined, path: string, action: ConfigAction, content?: string): Promise<{ done: string; after?: ConfigFileInfo['after']; warning?: string }>
 }
 
 const UNIT_NAME = /^[A-Za-z0-9:_.\\@-]{1,240}\.(service|timer)$/

@@ -57,6 +57,12 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/pkg/detail': async (b, p) => ({ data: await p.detail(names([b.name])[0]!) }),
   '/pkg/updates': (b, p) => p.updates(b.refresh === true),
   '/pkg/remove-preview': (b, p) => p.removePreview(names(b.names)),
+  '/pkg/config-file': (b, p) => p.configFile(str(b.path) ?? ''),
+  '/pkg/config-apply': (b, p) => {
+    const a = b.action
+    if (a !== 'replace' && a !== 'keep' && a !== 'merge') throw new HttpError(400, 'action: replace, keep oder merge')
+    return p.applyConfigFile(str(b.token), str(b.path) ?? '', a, str(b.content))
+  },
   '/images/updates': (b, p) => p.imageUpdates(b.refresh === true),
   '/jobs/list': async (_b, p) => ({ data: await p.jobs() }),
   '/jobs/get': async (b, p) => ({ data: await p.job(str(b.id) ?? '', Number(b.from) || 0) }),

@@ -25,7 +25,23 @@ the containers. Quadeck detects the package manager; `QUADECK_PACKAGE_MANAGER` f
 - **Arch news** from the Arch Linux feed, with the ones newer than the last system update
   highlighted, because those are the ones that may need manual intervention.
 - **Leftover config files**: `.pacnew` and `.pacsave` (Arch), `.rpmnew` and `.rpmsave` (Fedora,
-  openSUSE), `.dpkg-dist` and `.dpkg-old` (Debian) that are waiting for a merge.
+  openSUSE), `.dpkg-dist` and `.dpkg-old` (Debian) that are waiting for a merge. A click shows
+  what the file is for and the difference between yours (−) and the package's new one (+), with
+  three ways out:
+  - **Meine behalten**: the new file is deleted, yours stays.
+  - **Neue Fassung übernehmen**: yours is replaced (kept as `<file>.quadeck-bak`, owner and
+    mode stay).
+  - **Zusammenführen**: edit your version next to the diff and save exactly that text.
+
+  `.pacsave` files (your version of a removed package) can only be viewed and deleted. Some
+  files never get the package version: `passwd`, `shadow`, `group`, `gshadow`, `shells`,
+  `fstab`, `crypttab`, `sudoers`, `hosts`, `hostname` – the new one does not know your users,
+  disks or names, so only "keep" is offered. Taking over as it is is also refused when it would
+  break something: a `mkinitcpio.conf` whose `MODULES`/`HOOKS`/`BINARIES`/`FILES` differ from yours
+  (think `sd-encrypt`) and an `smb.conf` that holds your shares – merge instead. `sshd_config` is
+  checked with `sshd -t` and `smb.conf` with `testparm` before writing (nothing changes when they
+  refuse), sshd and Samba reload afterwards, `locale.gen` runs `locale-gen`, and a changed
+  `mkinitcpio.conf` starts `mkinitcpio -P` as a job.
 - **Alle aktualisieren** starts the upgrade as a [job](#jobs). On Arch, AUR packages have their own
   button.
 - **Container images**: `podman auto-update --dry-run` for every container with
