@@ -30,3 +30,11 @@ export function unitState(u: Pick<Unit, 'active' | 'sub'>): string {
   if (u.active === 'active') return u.sub === 'running' || u.sub === 'waiting' || u.sub === 'exited' ? u.sub : 'active'
   return u.active
 }
+
+/** Status pill for a container: health from the Podman healthcheck beats "running". */
+export function containerState(c: { state: string; status: string; health?: 'healthy' | 'unhealthy' | 'starting' }): { tone: Tone; label: string } {
+  if (c.state !== 'running') return { tone: c.state === 'exited' && /Exited \((?!0\))/.test(c.status) ? 'bad' : 'idle', label: c.state === 'exited' ? 'gestoppt' : c.state }
+  if (c.health === 'unhealthy') return { tone: 'bad', label: 'unhealthy' }
+  if (c.health === 'starting') return { tone: 'warn', label: 'startet' }
+  return { tone: 'ok', label: c.health ?? 'running' }
+}

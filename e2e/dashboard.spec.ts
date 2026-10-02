@@ -34,9 +34,8 @@ test.describe.serial('Quadeck', () => {
     await expect(tiles.filter({ hasText: 'Jellyfin' })).toHaveAttribute('href', 'https://jellyfin.home.example')
     await expect(tiles.filter({ hasText: 'Home Assistant' })).toBeVisible()
     await expect(tiles.filter({ hasText: 'qBittorrent' })).toContainText('qbt.home.example')
-    // Containers, disks, gauges
-    await expect(page.getByTestId('container-row')).toHaveCount(8)
-    await expect(page.getByTestId('container-row').filter({ hasText: 'scratch' })).toContainText('Podman')
+    // Disks, gauges; the container table is gone (containers live on the units page)
+    await expect(page.getByRole('region', { name: 'Container' })).toHaveCount(0)
     await expect(page.getByTestId('disk')).toHaveCount(5)
     await expect(page.getByTestId('gauge-cpu')).toBeVisible()
     await expect(page.getByRole('region', { name: 'Nächste Timer' })).toContainText('podman-auto-update.timer')
@@ -72,13 +71,20 @@ test.describe.serial('Quadeck', () => {
 
   test('container with Quadlet unit is stopped via systemd, container without unit via Podman', async ({ page }) => {
     await login(page)
+    await page.getByRole('link', { name: /Units/ }).click()
+    // Containers are the default filter; the Quadlet row carries the container's health and CPU
+    await expect(page.getByRole('link', { name: /Container/ })).toHaveAttribute('aria-current', 'true')
+    const jf = page.getByTestId('unit-row').filter({ hasText: 'jellyfin.service' })
+    await expect(jf).toContainText('healthy')
+    await expect(jf).toContainText('12 %')
+    await expect(page.getByTestId('unit-row').filter({ hasText: 'scratch' })).toContainText('podman · container')
     await page.getByRole('button', { name: 'scratch stoppen' }).click()
     await expect(page.getByRole('dialog')).toContainText('Podman-API: stop scratch')
     await page.getByRole('dialog').getByRole('button', { name: 'Stoppen' }).click()
     await expect(page.getByRole('status')).toContainText('scratch gestoppt (Podman-API)')
     await expect(page.getByRole('button', { name: 'scratch starten' })).toBeVisible()
 
-    await page.getByRole('button', { name: 'jellyfin stoppen' }).click()
+    await page.getByRole('button', { name: 'jellyfin.service stoppen' }).click()
     await expect(page.getByRole('dialog')).toContainText('systemctl stop jellyfin.service')
     await page.getByRole('dialog').getByRole('button', { name: 'Abbrechen' }).click()
     await expect(page.getByRole('dialog')).toBeHidden()
@@ -105,7 +111,9 @@ test.describe.serial('Quadeck', () => {
   test('units filter and journal', async ({ page }) => {
     await login(page)
     await page.getByRole('link', { name: /Units/ }).click()
-    await expect(page.getByTestId('unit-row')).toHaveCount(16)
+    await expect(page.getByTestId('unit-row')).toHaveCount(8) // default filter: containers
+    await page.getByRole('link', { name: /^Alle/ }).click()
+    await expect(page.getByTestId('unit-row')).toHaveCount(17) // 16 units + 1 container without unit
     await page.getByRole('link', { name: /Fehlgeschlagen/ }).click()
     await expect(page).toHaveURL(/filter=failed/)
     await expect(page.getByTestId('unit-row')).toHaveCount(1) // immich-ml was restarted above
