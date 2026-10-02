@@ -1,0 +1,91 @@
+# Security
+
+Quadeck controls a server, so its design starts from the question "what can go wrong when the web
+app is compromised?" and makes sure the answer is "not much".
+
+## Two processes
+
+| | `quadeck.service` | `quadeck-helper.service` |
+|---|---|---|
+| what | the web app: HTTP, UI, collectors, database | a root helper with a fixed list of actions |
+| user | `quadeck`, an unprivileged system user | root |
+| talks to | Podman socket (read), D-Bus (read), journal, `/proc`, `/sys`, config files (read), the helper | systemd, Podman, package managers, the files it edits |
+| reachable | TCP port 8484 | Unix socket `/run/quadeck/helper.sock`, `root:quadeck` 0660 |
+| sandbox | `ProtectSystem=strict`, `ProtectHome=read-only`, `NoNewPrivileges`, `PrivateTmp`, kernel and cgroup protection, `UMask=0077` | `PrivateTmp`, kernel protection |
+
+The web app reads everything that is readable without root. Everything that changes the server
+is a request to the helper over the socket: one fixed route per action (`/unit`, `/jobs/start`,
+`/quadlets/write`, `/shares/apply`, …), each with its own validation of names, paths and
+contents. There is no "run this command" route. Processes are started with argument arrays, never
+through a shell.
+
+A compromised web app can therefore read what you can read in the dashboard and ask the helper
+to do what the dashboard can do, and for the latter it needs the unlock.
+
+## Unlock
+
+Every change on the server (start, stop, save, install, delete) is locked until it is unlocked
+with the password of a **Linux administrator**: root or a member of `wheel` or `sudo`. The check
+happens inside the helper against `/etc/shadow` with the system's `crypt(3)`, so the web app never
+sees the password hash, and the unlock token the helper hands out is bound to the session. The
+unlock lasts 15 minutes (`QUADECK_UNLOCK_MINUTES`) with a countdown in the sidebar; **Sperren**
+ends it early. A failed unlock is rate-limited like a login.
+
+`QUADECK_UNLOCK=none` switches the unlock off (every logged-in user may change everything);
+`QUADECK_UNLOCK=quadeck` uses the Quadeck password instead, which only works when everything runs
+as root in one process (installations from before the helper).
+
+## Login
+
+- One admin password, hashed with argon2id, set on the first start through `/setup` with a token
+  that only root can read (`quadeck setup-token`). `quadeck passwd` resets it.
+- Sessions last 7 days. The cookie is `HttpOnly`, `SameSite=Strict`, `Secure` behind HTTPS; the
+  database stores only a hash of the session token.
+- After 5 failed attempts a client waits 30 seconds, doubling up to 15 minutes. The client address
+  comes from `X-Forwarded-For` only for proxies listed in `QUADECK_TRUSTED_PROXIES`.
+- Logout and a password change end every session, including open live streams.
+
+## Requests
+
+- Every write request must come from Quadeck's own origin and carry the session's CSRF token.
+- Dangerous actions (stop, restart, delete, remove packages, overwrite files) ask for a
+  confirmation that names what will happen.
+- Names and paths are validated at every boundary: unit names against a pattern, Quadlet and unit
+  file paths against their directories, file explorer paths against the data areas after resolving
+  symlinks, package names against the manager's rules, URLs to `http(s)` only.
+- Only Podman API reads from a short allowlist are proxied through the helper; containers are
+  acted on by ID.
+
+## What Quadeck writes and where
+
+| What | Where | Safety net |
+|---|---|---|
+| Quadlet files | `/etc/containers/systemd` | generator dry run, git history in `/var/lib/quadeck-helper/quadlets.git` |
+| own units, timers, overrides | `/etc/systemd/system` | `systemd-analyze verify`, history in `/var/lib/quadeck-helper/unit-history` |
+| Podman config | `/etc/containers/*.conf`, drop-ins | TOML parse, `.quadeck-bak` |
+| Samba | `smb.conf` | `testparm`, `.quadeck-bak`, reload without dropping connections |
+| NFS | `/etc/exports`, `/etc/exports.d/quadeck.exports` | `exportfs -ra` with rollback |
+| SSH | `/etc/ssh/sshd_config.d/01-quadeck.conf`, `authorized_keys` | `sshd -t` with rollback, lock-out guard |
+| packages | the package manager | protected package list, removal preview |
+| files | the data areas only | conflicts refused before the job |
+
+Nothing is written outside these places. Quadeck's own units are read-only in the editor.
+
+## Data and secrets
+
+- `/var/lib/quadeck` (user `quadeck`, 0700): SQLite database with the password hash, sessions,
+  layout, overrides, metric history, notification state and channel tokens; the icon cache; the
+  setup token.
+- `/var/lib/quadeck-helper` (root, 0700): the Quadlet git repository and the unit file history.
+- `/var/cache/quadeck` (root): the copy of the pacman database for update checks.
+- Notification tokens are returned masked by the API and never logged.
+
+## Read-only mode
+
+`QUADECK_READONLY=true` refuses every change on the server in the web app before anything reaches
+the helper. Dashboard layout, links and overrides stay editable.
+
+## Reporting
+
+If you find a security problem, please open an issue on GitHub or contact the maintainer directly
+rather than publishing details first.
