@@ -113,12 +113,15 @@ red dot means the last run of the triggered service failed. **Alle** opens the t
 The overview starts with a finished layout. **Bearbeiten** (or `E`) edits it on two levels:
 
 - **Cards** (CPU, RAM, temperature, network, GPU, services, storage, timers, shares): drag by the
-  handle, resize at the bottom-right corner, hide and show again.
+  handle, resize at the bottom-right corner, hide and show again. The metric cards (CPU, RAM,
+  temperature, network, GPU) can be made as small as two columns and square: the ring and the
+  text get more compact in narrow cards, and the history chart fills whatever height the card has.
 - **Tiles** inside the services card: move and resize within their group, for example Jellyfin
   as a 2×2 tile. The group of a tile is set by the `quadeck.group` label or the override.
 
-The layout is stored per screen width (desktop, tablet, phone) in SQLite. Cards size their height
-to their content until you resize them yourself. **Auf Auto-Layout zurücksetzen** restores the
+The layout is stored per screen width (desktop from 960 px content width with 12 columns, tablet
+with 6, phone with 1) in SQLite. Metric cards start at a fixed height; the other cards size their
+height to their content until you resize them yourself. **Auf Auto-Layout zurücksetzen** restores the
 default.
 
 ## Command palette

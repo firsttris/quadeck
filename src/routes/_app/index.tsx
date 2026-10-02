@@ -41,7 +41,8 @@ const CARDS = [
 type CardId = (typeof CARDS)[number]['id']
 
 // Gauge + one-hour chart; height follows the content.
-const GAUGE = { minW: 2, minH: 6 }
+// Metric cards have a fixed height (the chart fills it) and can be made small and square.
+const GAUGE = { h: 6, minW: 2, minH: 4 }
 
 /** Default card layout per breakpoint (h omitted = height follows the content). */
 const CARD_DEFAULTS: Record<string, Record<CardId, Omit<DefaultItem, 'i'>>> = {
@@ -57,11 +58,11 @@ const CARD_DEFAULTS: Record<string, Record<CardId, Omit<DefaultItem, 'i'>>> = {
     shares: { x: 8, y: 300, w: 4, minW: 2, minH: 3 },
   },
   md: {
-    cpu: { x: 0, y: 0, w: 3, ...GAUGE, minW: 1 },
-    ram: { x: 3, y: 0, w: 3, ...GAUGE, minW: 1 },
-    temp: { x: 0, y: 4, w: 3, ...GAUGE, minW: 1 },
-    net: { x: 3, y: 4, w: 3, ...GAUGE, minW: 1 },
-    gpu: { x: 0, y: 8, w: 3, ...GAUGE, minW: 1 },
+    cpu: { x: 0, y: 0, w: 2, ...GAUGE, minW: 1 },
+    ram: { x: 2, y: 0, w: 2, ...GAUGE, minW: 1 },
+    temp: { x: 4, y: 0, w: 2, ...GAUGE, minW: 1 },
+    net: { x: 0, y: 6, w: 3, ...GAUGE, minW: 1 },
+    gpu: { x: 3, y: 6, w: 3, ...GAUGE, minW: 1 },
     services: { x: 0, y: 12, w: 6, minW: 2, minH: 3 },
     storage: { x: 0, y: 200, w: 3, minW: 2, minH: 3 },
     timers: { x: 3, y: 200, w: 3, minW: 2, minH: 3 },
@@ -80,7 +81,7 @@ const CARD_DEFAULTS: Record<string, Record<CardId, Omit<DefaultItem, 'i'>>> = {
   },
 }
 
-const PAGE_GRID_BASE = { breakpoints: { lg: 1200, md: 700, xs: 0 }, cols: { lg: 12, md: 6, xs: 1 }, rowHeight: 20, margin: [16, 16] as [number, number] }
+const PAGE_GRID_BASE = { breakpoints: { lg: 960, md: 640, xs: 0 }, cols: { lg: 12, md: 6, xs: 1 }, rowHeight: 20, margin: [16, 16] as [number, number] }
 
 // ---------- tile grid (level 2, inside the Services card) ----------
 
