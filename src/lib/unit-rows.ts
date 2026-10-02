@@ -6,6 +6,7 @@ export const FILTERS = [
   ['container', 'Container'],
   ['service', 'Services'],
   ['timer', 'Timer'],
+  ['socket', 'Sockets'],
   ['failed', 'Fehlgeschlagen'],
 ] as const
 export type Filter = (typeof FILTERS)[number][0]

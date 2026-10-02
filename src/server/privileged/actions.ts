@@ -82,7 +82,7 @@ export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAd
   applyConfigFile(token: string | undefined, path: string, action: ConfigAction, content?: string): Promise<{ done: string; after?: ConfigFileInfo['after']; warning?: string }>
 }
 
-const UNIT_NAME = /^[A-Za-z0-9:_.\\@-]{1,240}\.(service|timer)$/
+const UNIT_NAME = /^[A-Za-z0-9:_.\\@-]{1,240}\.(service|timer|socket)$/
 
 export function assertUnitName(name: string) {
   if (!UNIT_NAME.test(name) || name.startsWith('-')) throw new Error(`Ungültiger Unit-Name: ${name}`)

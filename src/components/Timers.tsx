@@ -2,10 +2,11 @@
 // next/last run and result; create and edit Quadeck's own timers; change the
 // schedule of any other timer via drop-in.
 
-import { Link } from '@tanstack/react-router'
+import { Link, useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useActions } from './Actions'
 import { ConfirmDialog, Modal } from './Modal'
+import { RowMenu } from './RowMenu'
 import { Pill, type Tone } from './Status'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
@@ -55,6 +56,7 @@ const schedules = (t: TimerEntry) => [
 ]
 
 export function TimersView() {
+  const navigate = useNavigate()
   const [state, setState] = useState<TimersState | null>(null)
   const [error, setError] = useState('')
   const [editing, setEditing] = useState<{
@@ -207,38 +209,25 @@ export function TimersView() {
                     />
                   </td>
                   <td>
-                    <div className="flex flex-wrap justify-end gap-1.5">
+                    <div className="flex justify-end gap-1.5">
                       {!readonly && t.service && (
                         <button type="button" className="btn sm" disabled={busy === t.name} onClick={() => void act(t, 'run')} aria-label={`${t.name} jetzt ausführen`}>
                           Jetzt ausführen
                         </button>
                       )}
-                      {!readonly &&
-                        (t.managed && !t.modified ? (
-                          <button
-                            type="button"
-                            className="btn sm"
-                            onClick={() =>
-                              setEditing({
-                                spec: t.managed!,
-                                previous: t.managed!.name,
-                                enabled: t.enabled,
-                              })
-                            }
-                            aria-label={`${t.name} bearbeiten`}
-                          >
-                            Bearbeiten
-                          </button>
-                        ) : (
-                          <button type="button" className="btn sm" onClick={() => setScheduling(t)} aria-label={`Zeitplan von ${t.name} ändern`}>
-                            Zeitplan
-                          </button>
-                        ))}
-                      {t.service && (
-                        <Link to="/journal" search={{ unit: t.service }} className="btn sm">
-                          Journal
-                        </Link>
-                      )}
+                      <RowMenu
+                        label={`Aktionen für ${t.name}`}
+                        items={[
+                          ...(readonly
+                            ? []
+                            : t.managed && !t.modified
+                              ? [{ label: 'Bearbeiten …', onSelect: () => setEditing({ spec: t.managed!, previous: t.managed!.name, enabled: t.enabled }) }]
+                              : [{ label: 'Zeitplan ändern …', onSelect: () => setScheduling(t) }]),
+                          ...(t.service ? [{ label: 'Journal', onSelect: () => void navigate({ to: '/journal', search: { unit: t.service! } }) }] : []),
+                          { label: 'Unit-Dateien anzeigen', onSelect: () => void showFiles(t) },
+                          { label: 'Unit bearbeiten', onSelect: () => void navigate({ to: '/systemd', search: { unit: t.name } }), separator: true },
+                        ]}
+                      />
                     </div>
                   </td>
                 </tr>

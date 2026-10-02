@@ -52,3 +52,12 @@ describe('systemd', () => {
     expect(t.timer).toEqual({ calendar: '*-*-* 03:30:00', next: 1_700_003_600_000, last: undefined, unit: 'restic.service' })
   })
 })
+
+describe('sockets', () => {
+  it('reads all Listen= addresses and the triggered unit', () => {
+    const [p] = parseShow('Id=sshd.socket\nListen=[::]:22 (Stream)\nListen=0.0.0.0:2222 (Stream)\nTriggers=sshd@.service\nUnitFileState=enabled\n')
+    const u = buildUnit({ name: 'sshd.socket', description: 'OpenSSH Server Socket', load: 'loaded', active: 'active', sub: 'listening' } as Parameters<typeof buildUnit>[0], p!)
+    expect(u).toMatchObject({ kind: 'socket', socket: { listen: ['[::]:22 (Stream)', '0.0.0.0:2222 (Stream)'], triggers: 'sshd@.service' }, unitFileState: 'enabled' })
+    expect(buildUnit({ name: 'x.service', description: '', load: 'loaded', active: 'active', sub: 'running' } as Parameters<typeof buildUnit>[0], {}).socket).toBeUndefined()
+  })
+})

@@ -56,7 +56,8 @@ test.describe.serial('Timer', () => {
   test('cron import, override a foreign schedule and reset it', async ({ page }) => {
     await login(page)
     await page.goto('/units?filter=timer')
-    await page.getByRole('button', { name: 'Zeitplan von restic-backup.timer ändern' }).click()
+    await page.getByRole('button', { name: 'Aktionen für restic-backup.timer' }).click()
+    await page.getByRole('menuitem', { name: 'Zeitplan ändern …' }).click()
     const dialog = page.getByRole('dialog', { name: 'Zeitplan von restic-backup.timer' })
     await dialog.getByRole('button', { name: 'Eigener' }).click()
     await dialog.getByText('Von cron übernehmen').click()
@@ -71,7 +72,8 @@ test.describe.serial('Timer', () => {
     await expect(row).toContainText('Mo–Fr 02:00')
     await expect(row).toContainText('angepasst')
 
-    await page.getByRole('button', { name: 'Zeitplan von restic-backup.timer ändern' }).click()
+    await page.getByRole('button', { name: 'Aktionen für restic-backup.timer' }).click()
+    await page.getByRole('menuitem', { name: 'Zeitplan ändern …' }).click()
     await dialog.getByRole('button', { name: 'Standard wiederherstellen' }).click()
     await expect(row).toContainText('täglich 03:30')
     await expect(row).not.toContainText('angepasst')
@@ -87,7 +89,8 @@ test.describe.serial('Timer', () => {
     await page.getByRole('switch', { name: 'fotos-sichern.timer aktiv' }).click()
     await expect(page.getByRole('switch', { name: 'fotos-sichern.timer aktiv' })).not.toBeChecked()
 
-    await page.getByRole('button', { name: 'fotos-sichern.timer bearbeiten' }).click()
+    await page.getByRole('button', { name: 'Aktionen für fotos-sichern.timer' }).click()
+    await page.getByRole('menuitem', { name: 'Bearbeiten …' }).click()
     const dialog = page.getByRole('dialog', { name: 'Zeitplan fotos-sichern bearbeiten' })
     await expect(dialog.getByLabel('Name')).toHaveValue('fotos-sichern')
     await expect(dialog.getByRole('button', { name: 'Wöchentlich' })).toHaveAttribute('aria-pressed', 'true')

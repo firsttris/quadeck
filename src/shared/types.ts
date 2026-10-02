@@ -88,7 +88,7 @@ export interface Container {
   cpuHistory: number[] // percent, oldest first
 }
 
-export type UnitKind = 'quadlet' | 'service' | 'timer' | 'other'
+export type UnitKind = 'quadlet' | 'service' | 'timer' | 'socket' | 'other'
 
 export interface Unit {
   name: string
@@ -106,6 +106,8 @@ export interface Unit {
   since?: number // ms epoch of last state change
   unitFileState?: string // enabled, disabled, static …
   timer?: { calendar?: string; next?: number; last?: number; unit?: string }
+  /** Sockets: where they listen ("/run/podman/podman.sock (Stream)", "[::]:22 (Stream)") and the unit they start. */
+  socket?: { listen: string[]; triggers?: string }
 }
 
 export type IconRef =
