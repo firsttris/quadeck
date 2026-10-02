@@ -3,6 +3,8 @@ import type { JobSpec } from '~/shared/packages'
 import type { MaintenanceBackend } from '../packages/maintenance'
 import type { PodmanAdminBackend } from '../quadlets/backend'
 import type { PodmanConfigName } from '~/shared/quadlets'
+import type { SharesBackend } from '../shares/backend'
+import type { ShareChange, ShareServiceAction } from '~/shared/shares'
 import { HttpError } from '../auth'
 import { runOk } from '../exec'
 import { assertContainerId, assertPodmanRead, assertUnitName, type Privileged, type UnitAction } from './actions'
@@ -24,6 +26,7 @@ export class LocalPrivileged implements Privileged {
     private podmanSocket: string,
     private maint: MaintenanceBackend,
     private admin: PodmanAdminBackend,
+    private shares: SharesBackend,
   ) {}
 
   async info() {
@@ -154,5 +157,22 @@ export class LocalPrivileged implements Privileged {
   async writePodmanConfig(token: string | undefined, name: PodmanConfigName, content: string) {
     this.gate.check(token)
     return this.admin.writePodmanConfig(name, content)
+  }
+
+  // ---------- shares ----------
+
+  sharesState() {
+    return this.shares.sharesState()
+  }
+  previewShare(change: ShareChange) {
+    return this.shares.previewShare(change)
+  }
+  async applyShare(token: string | undefined, change: ShareChange) {
+    this.gate.check(token)
+    return this.shares.applyShare(change)
+  }
+  async shareService(token: string | undefined, kind: 'smb' | 'nfs', action: ShareServiceAction) {
+    this.gate.check(token)
+    return this.shares.shareService(kind, action)
   }
 }

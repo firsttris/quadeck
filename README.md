@@ -126,7 +126,14 @@ Im Tab **Podman-Einstellungen** der Quadlets-Seite:
 
 ## Freigaben
 
-Die Karte „Freigaben“ liest SMB-Shares aus `smb.conf` (Pfad, lesen oder lesen/schreiben, Gast, `valid users`) und NFS-Exports aus `/etc/exports` und `/etc/exports.d` (Clients, `ro`). Quadeck liest die Dateien nur.
+Die Karte „Freigaben“ auf der Übersicht zeigt SMB-Shares und NFS-Exporte; **Verwalten** führt zur Seite **Freigaben**:
+
+- **SMB (Samba):** Freigaben anlegen, ändern (auch umbenennen) und löschen – Name, Pfad, Beschreibung, nur lesen oder lesen/schreiben, erlaubte Benutzer/Gruppen, Gastzugang, sichtbar im Netzwerk. Geändert wird nur der jeweilige `[Abschnitt]` in `smb.conf`; `[global]`, Kommentare und Optionen, die das Formular nicht kennt (`create mask`, `vfs objects` …), bleiben. Vor dem Schreiben prüft `testparm`, danach `smbcontrol smbd reload-config` – ohne laufende Verbindungen zu trennen. Aktive Verbindungen aus `smbstatus`.
+- **NFS:** Exporte mit Clients (Rechner oder Netz), Zugriff, root-Behandlung, `sync` und weiteren erlaubten Optionen. Neue Exporte landen in `/etc/exports.d/quadeck.exports`; bestehende werden in ihrer Datei geändert. Danach `exportfs -ra`; lehnt es ab, wird die alte Datei wiederhergestellt.
+- **Dienste** (smb/nmb bzw. smbd/nmbd, nfs-server): Zustand, starten, stoppen, neu starten, beim Booten starten.
+- Jede Änderung zeigt vorher den Diff (mit Warnungen, z. B. Gäste mit Schreibrecht, `*` mit `rw`, `no_root_squash`), braucht das Entsperren und hinterlässt die vorige Fassung als `.quadeck-bak`. Systemverzeichnisse (`/`, `/etc`, `/root`, `/boot`, `/proc`, `/sys`, `/dev`, `/run`, Quadeck- und Podman-Daten) lassen sich nicht freigeben.
+
+Samba-Benutzer brauchen ein eigenes Passwort (`smbpasswd -a name`); das geht noch nicht über die Oberfläche.
 
 ## Layout anpassen
 
@@ -146,7 +153,7 @@ Das Layout wird pro Bildschirmbreite (Desktop, Tablet, Handy) in SQLite gespeich
 Quadeck besteht aus zwei Diensten:
 
 - **`quadeck.service`** – die Web-App, als eigener Systembenutzer `quadeck` **ohne Root-Rechte**. Sie liest alles, was ohne root geht (systemd über D-Bus, Journal über die Gruppe `systemd-journal`, Platten, Freigaben).
-- **`quadeck-helper.service`** – ein kleiner **Root-Helfer** mit fester Aktionsliste (Units starten/stoppen/neu starten, Podman lesen und Container ohne Unit steuern, Pakete und Images prüfen, Update-/Entfernen-Jobs starten, Quadlet-Dateien und Podman-Einstellungen schreiben). Er lauscht nur auf `/run/quadeck/helper.sock`, den ausschließlich die Gruppe `quadeck` öffnen kann.
+- **`quadeck-helper.service`** – ein kleiner **Root-Helfer** mit fester Aktionsliste (Units starten/stoppen/neu starten, Podman lesen und Container ohne Unit steuern, Pakete und Images prüfen, Update-/Entfernen-Jobs starten, Quadlet-Dateien, Podman-Einstellungen und Freigaben schreiben). Er lauscht nur auf `/run/quadeck/helper.sock`, den ausschließlich die Gruppe `quadeck` öffnen kann.
 
 **Entsperren:** Aktionen am Server sind gesperrt, bis man sie mit dem Passwort eines Administrators (root oder Mitglied von `wheel`/`sudo`) freischaltet – dann für 15 Minuten, mit Countdown in der Seitenleiste. Die Prüfung (gegen `/etc/shadow` mit dem System-`crypt(3)`) und die Sperre sitzen im Helfer: Selbst eine übernommene Web-App kann ohne dieses Passwort nichts verändern.
 
@@ -191,6 +198,7 @@ src/server/metrics.ts       Messwert-Verlauf (SQLite, 7 Tage, Buckets je Zeitrau
 src/server/providers/       Discovery (Caddy); Schnittstelle für Traefik u. a.
 src/server/privileged/      Root-Helfer: feste Aktionsliste, Entsperren, Unix-Socket
 src/server/packages/        Paketmanager (pacman/AUR, apt, dnf, zypper, apk, rpm-ostree), Jobs, Image-Updates
+src/server/shares/          SMB/NFS: smb.conf- und exports-Bearbeitung, testparm/exportfs, Dienste
 src/server/quadlets/        Quadlet-Dateien, Generator-Prüfung, git-Verlauf, Podman-Einstellungen, Compose-Import
 src/shared/ini.ts           Unit-Dateien zeilengenau lesen und ändern (Formular ↔ Text)
 src/server/registry.ts      Merge: Caddy-Route → Container → Unit → Labels → Overrides
@@ -206,6 +214,6 @@ v0.2: Bearbeiten-Modus mit react-grid-layout (Karten und Kacheln), Services bear
 
 v0.3: getrennter Root-Helfer mit Entsperren; Updates und Paketverwaltung für sechs Paketmanager inklusive AUR; Container-Image-Updates; Quadlet-Editor (Formular/Text, Generator-Prüfung, Diff, git-Verlauf, Vorlagen, Compose-Import); Podman-Einstellungen.
 
-Danach: Verlauf für CPU, RAM, Temperatur, Netz und GPU; GPU-Karte.
+Danach: Verlauf für CPU, RAM, Temperatur, Netz und GPU; GPU-Karte; Freigaben (SMB/NFS) verwalten.
 
 Noch nicht enthalten: SMART/SnapRAID, Forward-Auth, Timer-Editor, rootless Quadlets.

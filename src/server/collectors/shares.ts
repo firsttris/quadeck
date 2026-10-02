@@ -3,6 +3,7 @@
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
+import type { SharesState } from '~/shared/shares'
 import type { Share } from '~/shared/types'
 
 const SKIP_SECTIONS = new Set(['global', 'homes', 'printers', 'print$'])
@@ -94,4 +95,19 @@ export function collectShares(paths: { smbConf: string; exports: string; exports
     }
   }
   return out
+}
+
+/** Overview-card rows from the full shares state. */
+export function sharesSummary(st: SharesState): Share[] {
+  const smb: Share[] = st.smb.shares.map((s) => {
+    const notes = [s.guestOk ? 'Gast erlaubt' : '', s.validUsers ? `nur ${s.validUsers}` : '', s.browseable ? '' : 'versteckt', s.connections ? `${s.connections} verbunden` : ''].filter(Boolean)
+    return { type: 'SMB', name: s.name, path: s.path, access: s.readOnly ? 'lesen' : 'lesen/schreiben', note: notes.join(' · ') || undefined }
+  })
+  const nfs: Share[] = st.nfs.exports.map((e) => ({
+    type: 'NFS',
+    name: basename(e.path) || e.path,
+    path: e.path,
+    access: e.clients.map((c) => `${c.host}${c.options.includes('rw') ? '' : ' (ro)'}`).join(', '),
+  }))
+  return [...smb, ...nfs]
 }

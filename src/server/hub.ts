@@ -9,7 +9,7 @@ import type { Container, Disk, GpuMetrics, HiddenService, Share, Snapshot, Sourc
 import { collectDisks } from './collectors/disks'
 import { GpuCollector } from './collectors/gpu'
 import { metricRows, pruneHistory, SAMPLE_EVERY_MS, seedFixtureHistory } from './metrics'
-import { collectShares } from './collectors/shares'
+import { collectShares, sharesSummary } from './collectors/shares'
 import { PodmanCollector } from './collectors/podman'
 import { readHostInfo, SystemCollector } from './collectors/system'
 import { collectUnits, systemdVersion } from './collectors/systemd'
@@ -218,16 +218,25 @@ export class Hub {
     }
   }
 
-  private async collectShares() {
+  /** From the helper (same source as the shares page); the files directly if it is not reachable. */
+  async collectShares() {
     try {
-      const dir = config().fixturesDir
-      this.shares = collectShares(
-        dir ? { smbConf: join(dir, 'smb.conf'), exports: join(dir, 'exports'), exportsDir: join(dir, 'exports.d') } : { smbConf: config().smbConf, exports: config().exports, exportsDir: config().exportsDir },
-      )
+      try {
+        this.shares = sharesSummary(await this.priv.sharesState())
+      } catch (e) {
+        if (this.fixtures) throw e
+        this.shares = collectShares({ smbConf: config().smbConf, exports: config().exports, exportsDir: config().exportsDir })
+      }
       this.ok('shares')
     } catch (e) {
       this.fail('shares', e)
     }
+  }
+
+  /** After a change on the shares page. */
+  async refreshShares() {
+    await this.collectShares()
+    this.publish()
   }
 
   private async collectCaddy() {

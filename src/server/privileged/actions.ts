@@ -9,13 +9,15 @@ import type { JobInfo, JobSpec } from '~/shared/packages'
 import type { Maintenance } from '../packages/maintenance'
 import type { PodmanAdmin, WriteResult } from '../quadlets/backend'
 import type { PodmanConfigName } from '~/shared/quadlets'
+import type { SharesAdmin } from '../shares/backend'
+import type { ShareChange, ShareServiceAction, SharesState } from '~/shared/shares'
 import type { UnlockInfo } from './gate'
 
 export type UnitAction = 'start' | 'stop' | 'restart'
 export const UNIT_ACTIONS: readonly UnitAction[] = ['start', 'stop', 'restart']
 
 /** Package/image reads need no unlock (they change nothing); jobs do. */
-export interface Privileged extends Maintenance, PodmanAdmin {
+export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin {
   readonly kind: 'local' | 'helper'
   info(): Promise<UnlockInfo>
   unlock(user: string, password: string): Promise<{ token: string; expiresAt: number }>
@@ -34,6 +36,8 @@ export interface Privileged extends Maintenance, PodmanAdmin {
   setAutoUpdateTimer(token: string | undefined, enabled: boolean, calendar: string): Promise<void>
   setAutoUpdateDefault(token: string | undefined, enabled: boolean): Promise<void>
   writePodmanConfig(token: string | undefined, name: PodmanConfigName, content: string): Promise<void>
+  applyShare(token: string | undefined, change: ShareChange): Promise<SharesState>
+  shareService(token: string | undefined, kind: 'smb' | 'nfs', action: ShareServiceAction): Promise<SharesState>
 }
 
 const UNIT_NAME = /^[A-Za-z0-9:_.\\@-]{1,240}\.(service|timer)$/

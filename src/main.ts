@@ -14,6 +14,7 @@ import { cleanupSudoers } from './server/packages/aur'
 import { runJobCommand } from './server/packages/job'
 import { SystemMaintenance } from './server/packages/maintenance'
 import { SystemPodmanAdmin } from './server/quadlets/backend'
+import { SystemShares } from './server/shares/backend'
 
 export interface StartServer {
   fetch(request: Request): Response | Promise<Response>
@@ -165,7 +166,7 @@ export async function main(argv: string[], opts: MainOptions) {
         process.exit(1)
       }
       cleanupSudoers()
-      serveHelper(config().helperSocket, new LocalPrivileged(createGate(true), config().podmanSocket, new SystemMaintenance(), new SystemPodmanAdmin()))
+      serveHelper(config().helperSocket, new LocalPrivileged(createGate(true), config().podmanSocket, new SystemMaintenance(), new SystemPodmanAdmin(), new SystemShares()))
       return
     }
     case 'job':
