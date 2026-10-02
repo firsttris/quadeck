@@ -50,10 +50,21 @@ if ! command -v systemctl >/dev/null || [ ! -d /run/systemd/system ]; then
   exit 0
 fi
 
-"$BIN_DIR/quadeck" print-unit | sed "s#/usr/local/bin/quadeck#$BIN_DIR/quadeck#" > /etc/systemd/system/quadeck.service
+# The web app runs as the unprivileged system user "quadeck"; only the small
+# helper runs as root (fixed list of actions, unlock with an admin password).
+if ! getent group quadeck >/dev/null; then groupadd --system quadeck; fi
+if ! id quadeck >/dev/null 2>&1; then
+  useradd --system --gid quadeck --home-dir /var/lib/quadeck --no-create-home --shell /usr/sbin/nologin quadeck
+fi
+getent group systemd-journal >/dev/null && usermod -aG systemd-journal quadeck
+# Earlier versions ran everything as root: hand the data over.
+[ -d /var/lib/quadeck ] && chown -R quadeck:quadeck /var/lib/quadeck
+
+"$BIN_DIR/quadeck" print-unit helper | sed "s#/usr/local/bin/quadeck#$BIN_DIR/quadeck#" > /etc/systemd/system/quadeck-helper.service
+"$BIN_DIR/quadeck" print-unit web | sed "s#/usr/local/bin/quadeck#$BIN_DIR/quadeck#" > /etc/systemd/system/quadeck.service
 systemctl daemon-reload
-systemctl enable --now quadeck.service
-systemctl restart quadeck.service
+systemctl enable quadeck-helper.service quadeck.service
+systemctl restart quadeck-helper.service quadeck.service
 
 if ! systemctl is-enabled --quiet podman.socket 2>/dev/null; then
   echo "Hinweis: podman.socket ist nicht aktiv. Für die Container-Ansicht:"

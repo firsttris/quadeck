@@ -5,7 +5,11 @@ import { PEER_HEADER, ensureSetupToken, resetPassword } from './server/auth'
 import { config } from './server/config'
 import { db } from './server/db'
 import { selfUpdate } from './server/update'
-import { UNIT_FILE } from './unit-file'
+import { HELPER_UNIT, WEB_UNIT } from './unit-file'
+import { serveHelper } from './server/privileged/helper-server'
+import { LocalPrivileged } from './server/privileged/local'
+import { createGate } from './server/privileged'
+import { statSync } from 'node:fs'
 
 export interface StartServer {
   fetch(request: Request): Response | Promise<Response>
@@ -94,12 +98,31 @@ const HELP = `quadeck – Dashboard für Podman-Server mit Quadlets
   quadeck [serve]        Server starten (Standard)
   quadeck setup-token    Token für die Ersteinrichtung ausgeben
   quadeck passwd         Passwort zurücksetzen (neue Einrichtung über /setup)
-  quadeck print-unit     systemd-Unit ausgeben (für install.sh)
+  quadeck helper         Root-Helfer starten (als root, Unix-Socket)
+  quadeck print-unit web|helper   systemd-Unit ausgeben (für install.sh)
   quadeck update         Neueste Version von GitHub laden und Dienst neu starten
   quadeck version        Version ausgeben
 
 Umgebung: QUADECK_HOST (0.0.0.0), QUADECK_PORT (8484), QUADECK_DATA_DIR (/var/lib/quadeck),
           QUADECK_READONLY, QUADECK_PODMAN_SOCKET, QUADECK_CADDY_ADMIN, QUADECK_CADDYFILE`
+
+/**
+ * CLI commands that touch the database run as the owner of the data
+ * directory (user "quadeck"), so root never creates files the web app
+ * cannot open (database, WAL, setup token).
+ */
+function dropToDataOwner() {
+  if (process.getuid?.() !== 0) return
+  try {
+    const st = statSync(config().dataDir)
+    if (st.uid !== 0) {
+      process.setgid?.(st.gid)
+      process.setuid?.(st.uid)
+    }
+  } catch {
+    // no data directory yet: stay root (first start creates it)
+  }
+}
 
 export async function main(argv: string[], opts: MainOptions) {
   process.umask(0o077) // database, WAL files, tokens and icon cache: root only
@@ -114,12 +137,14 @@ export async function main(argv: string[], opts: MainOptions) {
       console.log(opts.version)
       return
     case 'setup-token': {
+      dropToDataOwner()
       db()
       const t = ensureSetupToken()
       console.log(t ?? 'Passwort ist bereits gesetzt (zurücksetzen mit: quadeck passwd)')
       return
     }
     case 'passwd': {
+      dropToDataOwner()
       db()
       resetPassword()
       const t = ensureSetupToken()
@@ -127,8 +152,16 @@ export async function main(argv: string[], opts: MainOptions) {
       return
     }
     case 'print-unit':
-      process.stdout.write(UNIT_FILE)
+      process.stdout.write(argv[1] === 'helper' ? HELPER_UNIT : WEB_UNIT)
       return
+    case 'helper': {
+      if (process.getuid?.() !== 0) {
+        console.error('quadeck helper muss als root laufen')
+        process.exit(1)
+      }
+      serveHelper(config().helperSocket, new LocalPrivileged(createGate(true), config().podmanSocket))
+      return
+    }
     case 'update':
       await selfUpdate(opts.version, argv.includes('--force'))
       return

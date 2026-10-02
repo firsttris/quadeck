@@ -95,7 +95,22 @@ Das Layout wird pro Bildschirmbreite (Desktop, Tablet, Handy) in SQLite gespeich
 
 ## Sicherheit
 
-Quadeck läuft als root, damit es Units steuern kann. Deshalb:
+Quadeck besteht aus zwei Diensten:
+
+- **`quadeck.service`** – die Web-App, als eigener Systembenutzer `quadeck` **ohne Root-Rechte**. Sie liest alles, was ohne root geht (systemd über D-Bus, Journal über die Gruppe `systemd-journal`, Platten, Freigaben).
+- **`quadeck-helper.service`** – ein kleiner **Root-Helfer** mit fester Aktionsliste (Units starten/stoppen/neu starten, Podman lesen und Container ohne Unit steuern). Er lauscht nur auf `/run/quadeck/helper.sock`, den ausschließlich die Gruppe `quadeck` öffnen kann.
+
+**Entsperren:** Aktionen am Server sind gesperrt, bis man sie mit dem Passwort eines Administrators (root oder Mitglied von `wheel`/`sudo`) freischaltet – dann für 15 Minuten, mit Countdown in der Seitenleiste. Die Prüfung (gegen `/etc/shadow` mit dem System-`crypt(3)`) und die Sperre sitzen im Helfer: Selbst eine übernommene Web-App kann ohne dieses Passwort nichts verändern.
+
+| Variable | Standard | Bedeutung |
+| --- | --- | --- |
+| `QUADECK_UNLOCK` | `system` | `system`: Linux-Admin-Passwort · `none`: ohne Entsperren · `quadeck`: Quadeck-Passwort (nur wenn alles als root in einem Prozess läuft) |
+| `QUADECK_UNLOCK_MINUTES` | `15` | Dauer der Freischaltung |
+| `QUADECK_HELPER_SOCKET` | `/run/quadeck/helper.sock` | Socket des Helfers |
+
+Ältere Installationen (alles als root in einem Dienst) laufen weiter; `install.sh` erneut ausführen stellt auf die Trennung um.
+
+Außerdem:
 
 - Login ab der ersten Version (argon2id). Die Ersteinrichtung braucht einen Setup-Token, den nur root lesen kann.
 - Sitzungs-Cookie `HttpOnly`, `SameSite=Strict`; gespeichert wird nur ein Hash.

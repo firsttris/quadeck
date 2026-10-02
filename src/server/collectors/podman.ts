@@ -65,45 +65,27 @@ export function mapContainer(c: CompatContainer, inspect?: InspectInfo): Omit<Co
 
 const HISTORY = 60 // 15 min at one sample every 15 s
 
-export class PodmanClient {
-  constructor(private socket: string) {}
-
-  async request(path: string, init: RequestInit = {}): Promise<Response> {
-    return fetch(`http://podman${path}`, { ...init, unix: this.socket, signal: AbortSignal.timeout(10_000) } as RequestInit)
-  }
-
-  async json<T>(path: string): Promise<T> {
-    const res = await this.request(path)
-    if (!res.ok) throw new Error(`Podman-API ${path}: HTTP ${res.status}`)
-    return (await res.json()) as T
-  }
-
-  async version(): Promise<string | undefined> {
-    const v = await this.json<{ Version?: string }>('/version')
-    return v.Version
-  }
-
-  async action(id: string, action: 'start' | 'stop' | 'restart') {
-    const res = await this.request(`/containers/${encodeURIComponent(id)}/${action}`, { method: 'POST' })
-    if (!res.ok && res.status !== 304) throw new Error(`Podman: ${action} fehlgeschlagen (HTTP ${res.status}) ${await res.text()}`)
-  }
-}
+/** Read-only Podman API access (directly or through the root helper). */
+export type PodmanGet = <T>(path: string) => Promise<T>
 
 export class PodmanCollector {
   private inspectCache = new Map<string, InspectInfo>()
   private history = new Map<string, number[]>()
   private lastHistoryAt = 0
-  readonly client: PodmanClient
+  constructor(
+    private get: PodmanGet,
+    /** Only checked when talking to the socket directly. */
+    private socket?: string,
+  ) {}
 
-  constructor(private socket: string) {
-    this.client = new PodmanClient(socket)
+  async version(): Promise<string | undefined> {
+    return (await this.get<{ Version?: string }>('/version')).Version
   }
 
   private async inspect(id: string): Promise<InspectInfo> {
     const hit = this.inspectCache.get(id)
     if (hit) return hit
-    const info = await this.client
-      .json<{ Config?: { Hostname?: string }; NetworkSettings?: { Networks?: Record<string, { Aliases?: string[] | null }> } }>(`/containers/${id}/json`)
+    const info = await this.get<{ Config?: { Hostname?: string }; NetworkSettings?: { Networks?: Record<string, { Aliases?: string[] | null }> } }>(`/containers/${id}/json`)
       .then((r) => ({
         hostname: r.Config?.Hostname,
         aliases: Object.values(r.NetworkSettings?.Networks ?? {}).flatMap((n) => n.Aliases ?? []),
@@ -114,10 +96,9 @@ export class PodmanCollector {
   }
 
   async collect(): Promise<Container[]> {
-    if (!existsSync(this.socket)) throw new Error(`Socket ${this.socket} fehlt – systemctl enable --now podman.socket`)
-    const list = await this.client.json<CompatContainer[]>('/containers/json?all=true')
-    const stats = await this.client
-      .json<LibpodStats>('/v4.0.0/libpod/containers/stats?stream=false')
+    if (this.socket && !existsSync(this.socket)) throw new Error(`Socket ${this.socket} fehlt – systemctl enable --now podman.socket`)
+    const list = await this.get<CompatContainer[]>('/containers/json?all=true')
+    const stats = await this.get<LibpodStats>('/v4.0.0/libpod/containers/stats?stream=false')
       .then((s) => new Map((s.Stats ?? []).map((x) => [x.ContainerID, x])))
       .catch(() => new Map<string, { CPU: number; MemUsage: number }>())
 
