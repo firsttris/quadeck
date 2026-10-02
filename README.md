@@ -1,291 +1,202 @@
-# Quadeck
+<div align="center">
 
-Selbst-konfigurierendes Dashboard für Podman-Server mit Quadlets. Quadeck zeigt Platten, Container, Quadlets und systemd-Units und verlinkt alle Services automatisch aus Caddy. Es wird als **ein einzelnes Binary** ausgeliefert, das als systemd-Service direkt auf dem Host läuft – kein Container-Image, keine Socket-Mounts.
+<img src="docs/banner.png" alt="Quadeck: the dashboard for a Podman home server" width="900">
 
-- **Zero-Config:** Binary installieren, Dienst starten, Dashboard ist befüllt. Konfiguration überschreibt nur.
-- **systemd ist die Wahrheit:** Ein Container mit Quadlet-Unit wird immer über systemd gesteuert (`systemctl start|stop|restart` per D-Bus), nie an systemd vorbei. Nur Container ohne Unit gehen über die Podman-API.
-- **Privilegien gekapselt:** Alle Root-Aktionen laufen über `PrivilegedActions` mit fester Liste (Start, Stopp, Neustart). Keine beliebigen Befehle.
+**The dashboard for a Podman home server.**<br>
+Containers, Quadlets, systemd, disks, shares, SSH and updates in one place.
+One binary on the host, no container, no socket mounts, nothing to configure.
 
-## Installation
+[![CI](https://github.com/firsttris/quadeck/actions/workflows/ci.yml/badge.svg)](https://github.com/firsttris/quadeck/actions/workflows/ci.yml)
+[![Release](https://img.shields.io/github/v/release/firsttris/quadeck?logo=github&label=release)](https://github.com/firsttris/quadeck/releases/latest)
+[![Platforms](https://img.shields.io/badge/platform-x64%20%7C%20arm64%20%7C%20musl-lightgrey)](https://github.com/firsttris/quadeck/releases/latest)
+[![Bun](https://img.shields.io/badge/built%20with-Bun-fbf0df?logo=bun&logoColor=black)](https://bun.sh/)
+[![TypeScript](https://img.shields.io/badge/TypeScript-strict-3178c6?logo=typescript&logoColor=white)](https://www.typescriptlang.org/)
+[![Podman](https://img.shields.io/badge/Podman-Quadlets-892ca0?logo=podman&logoColor=white)](https://docs.podman.io/en/latest/markdown/podman-systemd.unit.5.html)
 
-```sh
+[Features](#-features) •
+[Quick start](#-quick-start) •
+[Screenshots](#-screenshots) •
+[Documentation](docs/README.md) •
+[Development](#️-development)
+
+<img src="docs/screenshot-dashboard.png" alt="Quadeck overview: two failed units with a restart button, CPU, RAM, network and GPU gauges with history, and the service tiles discovered from Caddy" width="900">
+
+</div>
+
+## 💡 Why Quadeck?
+
+Cockpit is a full server console, Portainer wants Docker, and most homelab dashboards are link
+pages that know nothing about the machine behind them. A Podman home server with Quadlets already
+has everything it needs for operations: systemd runs the containers, Caddy publishes them, the
+package manager updates the host. What is missing is one place that shows all of it and lets you act
+on it. That is Quadeck.
+
+- **Zero config**: install the binary, start the service, the dashboard is filled. Services, their
+  URLs and icons come from Caddy, Podman and your Quadlet files. Configuration only overrides.
+- **systemd is the truth**: a container with a Quadlet unit is always started, stopped and restarted
+  through systemd, never behind its back. Only containers without a unit go through the Podman API.
+- **Root is a separate process**: the web app runs as its own unprivileged user. A small root helper
+  with a fixed list of actions does the rest, and every change needs your admin password first.
+  Even a compromised web app cannot change the server on its own.
+
+## ✨ Features
+
+- **Overview**: CPU, RAM, temperature, network and GPU with one hour of history under each gauge and
+  up to seven days in the detail view; storage with SMART dots per disk; failed units with the
+  reason (OOM kill, exit code) and a restart button; the next timers; your shares
+- **Services**: tiles for every container, discovered through Caddy routes and Quadlet labels, with
+  icons from [dashboard-icons](https://github.com/homarr-labs/dashboard-icons), health from the
+  Podman healthcheck or an HTTP probe, groups, pinning, hiding and manual links for the router, the
+  printer or other hosts. The layout is drag-and-drop editable and remembered per screen size
+- **Units**: services, timers and Quadlet units with status, memory, CPU sparklines and journal;
+  start, stop and restart through D-Bus; a command palette (Ctrl+K) for all of it
+- **Quadlet editor**: form and text on the same file, line-exact (comments and unknown keys stay),
+  checked with the real Quadlet generator before saving, diff, git history, templates and
+  docker-compose import. Podman settings: auto-update timer, `containers.conf`, `registries.conf`
+- **systemd editor**: every unit file with its drop-ins, vendor files read-only and changed through
+  overrides (`systemctl edit` style), form with explanations, `systemd-analyze verify` before saving,
+  history, new units from templates
+- **Timers**: the cron replacement. Schedule builder with a live preview of the next runs, cron line
+  import, templates for scripts, rsync backups, Podman cleanup and SnapRAID, run now, last result
+- **Updates**: pacman (with AUR), apt, dnf, zypper, apk and rpm-ostree; reboot hints, Arch news,
+  leftover `.pacnew` files; installed packages with safe removal; container image updates through
+  `podman auto-update`. Jobs run as transient systemd units with live output and survive a restart
+  of Quadeck itself
+- **Disks**: SMART health with a verdict and advice per disk (replace it, check the cable, cool it),
+  one year of temperature and error-counter history, self-tests; a small file explorer for the data
+  areas with copy, move and delete as jobs
+- **Shares**: SMB shares and NFS exports created, edited and removed in place, existing config files
+  included; `testparm` and `exportfs` check every change, with rollback
+- **SSH**: keys per user with last use, hardening through a drop-in with a lock-out guard, recent
+  logins and failed attempts, ready-made commands for a new device
+- **Network**: interfaces, routes, DNS, listening ports with the program, unit or container behind
+  each one, and what firewalld or ufw does with it. Read-only by design
+- **Notifications**: ntfy, Gotify, Telegram or a webhook (Discord, Slack, Home Assistant) when a
+  unit or timer fails, a web service is down, a container is unhealthy, SMART complains, a disk is
+  nearly full or updates are available. Each problem once, with an all-clear when it is resolved
+- **Install what is missing**: smartmontools, Samba, NFS or OpenSSH not installed? The page shows
+  a button and the command for your distribution
+- **Secure by default**: login from the first start, CSRF protection, hardened systemd units, a
+  read-only mode and an unlock that expires after 15 minutes
+
+The UI is in German.
+
+## 🚀 Quick start
+
+Quadeck runs directly on the host as a systemd service. It is one static binary for x64 and arm64,
+glibc and musl, with no runtime to install.
+
+```bash
 sudo systemctl enable --now podman.socket
 curl -fsSL https://raw.githubusercontent.com/firsttris/quadeck/main/install.sh | sudo sh
 ```
 
-Das Skript erkennt Architektur und libc, lädt das passende Binary aus den GitHub Releases nach `/usr/local/bin`, prüft die SHA-256-Summe, richtet `quadeck.service` ein und gibt den Link zur Ersteinrichtung aus (`http://<host>:8484/setup?token=…`). Dort wird das Admin-Passwort festgelegt.
+The script detects architecture and libc, downloads the matching binary from GitHub Releases,
+verifies its SHA-256 checksum, creates the `quadeck` system user and the two services, and prints the
+link for the first setup: **http://\<host\>:8484/setup?token=…**, where you set the admin password.
 
-| Binary | Für |
-| --- | --- |
-| `quadeck-linux-x64-baseline` | alle x86-Server, auch NAS-CPUs ohne AVX2 |
-| `quadeck-linux-arm64` | Raspberry Pi, ARM-Server |
-| `quadeck-linux-x64-musl` | Alpine und andere musl-Distros |
-| `quadeck-linux-arm64-musl` | Alpine auf ARM |
+<details>
+<summary><b>Manual installation</b></summary>
 
-Ohne systemd (Alpine, Void, Artix) läuft das Dashboard, der systemd-Teil bleibt leer.
-
-### Befehle
-
-```
-quadeck [serve]        Server starten (Standard)
-quadeck setup-token    Token für die Ersteinrichtung ausgeben
-quadeck passwd         Passwort zurücksetzen (neue Einrichtung über /setup)
-quadeck update         Neueste Version laden, Prüfsumme prüfen, Dienst neu starten
-quadeck print-unit     systemd-Unit ausgeben
-quadeck version
+```bash
+curl -fsSLo /usr/local/bin/quadeck https://github.com/firsttris/quadeck/releases/latest/download/quadeck-linux-x64-baseline
+chmod +x /usr/local/bin/quadeck
+groupadd --system quadeck && useradd --system -g quadeck -d /var/lib/quadeck -s /usr/sbin/nologin quadeck
+quadeck print-unit helper > /etc/systemd/system/quadeck-helper.service
+quadeck print-unit web > /etc/systemd/system/quadeck.service
+systemctl daemon-reload && systemctl enable --now quadeck-helper quadeck
+quadeck setup-token   # prints the token for http://<host>:8484/setup
 ```
 
-### Konfiguration (optional)
-
-Umgebungsvariablen, z. B. in `/etc/quadeck/quadeck.env`:
-
-| Variable | Standard | Bedeutung |
-| --- | --- | --- |
-| `QUADECK_HOST` / `QUADECK_PORT` | `0.0.0.0` / `8484` | Adresse und Port |
-| `QUADECK_DATA_DIR` | `/var/lib/quadeck` | SQLite-Datenbank, Icon-Cache, Setup-Token |
-| `QUADECK_READONLY` | `false` | Keine Aktionen am Server (Start/Stopp/Neustart); Dashboard-Layout und Links bleiben änderbar |
-| `QUADECK_PODMAN_SOCKET` | `/run/podman/podman.sock` | Podman-API |
-| `QUADECK_CADDY_ADMIN` | `http://localhost:2019` | Caddy-Admin-API |
-| `QUADECK_CADDYFILE` | `/etc/caddy/Caddyfile` | Fallback, wenn die API nicht erreichbar ist |
-| `QUADECK_SMB_CONF` | `/etc/samba/smb.conf` | SMB-Freigaben |
-| `QUADECK_EXPORTS` | `/etc/exports` | NFS-Freigaben (dazu `/etc/exports.d/*.exports`) |
-| `QUADECK_TRUSTED_PROXIES` | `127.,::1` | IP-Präfixe von Reverse-Proxys, deren `X-Forwarded-For` gilt (z. B. `10.88.` für Caddy in rootful Podman) |
-| `QUADECK_PUBLIC_URL` | – | Öffentliche URL, falls ein Proxy den `Host`-Header umschreibt |
-
-## Wie Services erkannt werden
-
-1. **Caddy** liefert die öffentliche URL jedes Service: zuerst über die Admin-API (`GET /config/`), sonst über `caddy adapt`, sonst über einen eingebauten Caddyfile-Leser (für Caddy im Container).
-2. Der **Upstream** (`jellyfin:8096`, `localhost:8096`) wird über Container-Name, Netzwerk-Alias, Container-IP oder veröffentlichten Port einem Podman-Container zugeordnet. Externe Ziele bleiben eigene Kacheln, es wird nie geraten.
-3. Das Label **`PODMAN_SYSTEMD_UNIT`** verbindet den Container mit seiner Quadlet-Unit.
-4. **Labels in der Quadlet-Datei** überschreiben die Erkennung:
-   ```ini
-   [Container]
-   Label=quadeck.name=Jellyfin
-   Label=quadeck.group=Medien
-   Label=quadeck.icon=jellyfin          # Slug aus dashboard-icons, oder glyph:play
-   Label=quadeck.url=https://jf.example.de
-   Label=quadeck.hidden=true
-   ```
-5. **Overrides** aus der Datenbank haben die höchste Priorität.
-
-Eigene Links zu Geräten ohne Quadlet (Router, Drucker, andere Hosts) legt man im Dashboard über „Link hinzufügen“ an; sie stehen in derselben Karte wie die erkannten Services.
-
-Im Bearbeiten-Modus öffnet ein Klick auf eine Kachel den Dialog **Service bearbeiten**: Name, Gruppe, URL und Icon (Suche über die dashboard-icons-Sammlung) überschreiben die Erkennung, leere Felder folgen ihr weiter. Dazu Anpinnen und Ausblenden; ausgeblendete Services lassen sich in der Bearbeiten-Leiste wieder anzeigen. Eigene Links werden im selben Dialog direkt bearbeitet.
-
-## Befehlspalette
-
-**Strg+K** (⌘K) oder „Suchen“ in der Seitenleiste: Services öffnen, zu Seiten springen, Units neu starten oder stoppen (mit der üblichen Bestätigung) und ihr Journal öffnen.
-
-## Verlauf und GPU
-
-Die Karten **CPU**, **RAM**, **CPU-Temperatur**, **Netz** und **GPU** zeigen unter dem Ring die letzte Stunde. Ein Klick öffnet den Verlauf mit 1 h, 6 h, 24 h oder 7 Tagen, Werten unter dem Mauszeiger und Min/Ø/Max. Gespeichert wird alle 30 s in SQLite, sieben Tage lang; Lücken zeigen, wann Quadeck nicht lief.
-
-Die **GPU-Karte** erscheint, sobald eine Grafikkarte erkannt wird – ohne Root-Rechte:
-
-| GPU | Quelle | Werte |
-| --- | --- | --- |
-| NVIDIA | `nvidia-smi` | Auslastung, VRAM, Temperatur, Leistung, Takt |
-| AMD (amdgpu) | sysfs | Auslastung, VRAM, Temperatur, Leistung |
-| Intel (i915, xe) | sysfs | Takt im Verhältnis zum Maximaltakt (eine echte Auslastung gibt Intel nur root preis), VRAM bei Arc |
-
-## Updates und Pakete
-
-Die Seite **System** zeigt verfügbare Updates und alle installierten Pakete – für **pacman** (Arch, inklusive AUR), **apt** (Debian, Ubuntu), **dnf** (Fedora, RHEL), **zypper** (openSUSE), **apk** (Alpine) und **rpm-ostree** (Fedora CoreOS/Atomic). Der Paketmanager wird erkannt; `QUADECK_PACKAGE_MANAGER` erzwingt einen.
-
-- **Updates:** alte → neue Version, Quelle und Downloadgröße; Hinweis, wenn danach ein Neustart nötig ist (Kernel, systemd, glibc …) und wenn der laufende Kernel bereits ersetzt wurde. Auf Arch zusätzlich die **Arch-News** (neue seit dem letzten Update hervorgehoben) und liegengebliebene **.pacnew/.pacsave**-Dateien (bei anderen Distributionen `.rpmnew`, `.dpkg-dist` …). Die Prüfung synchronisiert auf Arch eine *Kopie* der Paketdatenbank (wie `checkupdates`), also nie ein halbes `pacman -Sy`.
-- **Aktualisieren** startet einen Job mit Live-Ausgabe. Jobs laufen als eigene transiente systemd-Unit (`quadeck-job-….service`) und damit weiter, auch wenn das Update Quadeck oder Podman neu startet; die Ausgabe steht zusätzlich im Journal.
-- **AUR:** Updates werden über die AUR-API erkannt. Installiert wird mit `yay` oder `paru` als normaler Benutzer (makepkg verweigert root) – automatisch das erste Mitglied von `wheel`/`sudo`, oder `QUADECK_AUR_USER`. Nur für die Dauer des Jobs darf dieser Benutzer `pacman` per sudo ohne Passwort starten (`/etc/sudoers.d/zz-quadeck-aur`, danach wieder gelöscht). PKGBUILDs werden dabei nicht angezeigt.
-- **Installiert:** Suche und Filter (explizit, Abhängigkeit, fremd/AUR, verwaist), Größe, Details mit Abhängigkeiten und „benötigt von“. **Entfernen** zeigt vorher, was alles mitgeht (nicht mehr benötigte Abhängigkeiten). Systemkritische Pakete (Kernel, systemd, glibc, Paketmanager, sudo, ssh, podman …) sind geschützt – auch der Helfer verweigert sie.
-- **Container-Images:** `podman auto-update --dry-run` für alle Container mit `AutoUpdate=registry`. „Alle aktualisieren“ nutzt `podman auto-update` mit Rollback; einzeln wird das Image gezogen und die Unit neu gestartet.
-
-Alles, was etwas verändert, braucht wie die Unit-Aktionen das Entsperren.
-
-| Variable | Standard | Bedeutung |
-| --- | --- | --- |
-| `QUADECK_PACKAGE_MANAGER` | automatisch | `pacman`, `apt`, `dnf`, `zypper`, `apk` oder `rpm-ostree` |
-| `QUADECK_AUR_USER` | erstes Mitglied von `wheel`/`sudo` | Benutzer für yay/paru |
-| `QUADECK_QUADLET_DIR` | `/etc/containers/systemd` | Verzeichnis der Quadlet-Dateien |
-
-## Quadlets bearbeiten
-
-Die Seite **Quadlets** listet alle Dateien in `/etc/containers/systemd` (`.container`, `.pod`, `.network`, `.volume`, `.kube`, `.image`, `.build`, auch eine Unterverzeichnis-Ebene) mit dem Zustand ihrer Unit.
-
-- **Formular und Text auf derselben Datei:** Das Formular zeigt die wichtigen Schlüssel mit kurzer Hilfe (Image, Ports, Volumes, Umgebung, Netzwerk, AutoUpdate, Healthcheck, Restart, WantedBy …). Geändert wird nur die betroffene Zeile – Kommentare, Reihenfolge und Schlüssel, die das Formular nicht kennt, bleiben unverändert.
-- **Prüfen vor dem Speichern:** eigene Prüfung mit Zeilennummern (unbekannte Schlüssel, doppelte Werte, fehlendes `Image=`, Verweise auf nicht vorhandene `.network`/`.volume`-Dateien) plus Probelauf des echten Quadlet-Generators (`quadlet -dryrun` über eine Kopie des Verzeichnisses). Die erzeugte systemd-Unit lässt sich anzeigen.
-- **Speichern** zeigt vorher den Diff, schreibt über den Root-Helfer, macht `daemon-reload` und startet die Unit auf Wunsch neu. Braucht das Entsperren.
-- **Verlauf:** Jede Änderung wird mit git versioniert (eigenes Repository unter `/var/lib/quadeck-helper/quadlets.git`, das Quadlet-Verzeichnis bleibt sauber). Alte Fassungen lassen sich vergleichen und zurückholen. Ohne git funktioniert alles außer dem Verlauf.
-- **Neu** aus Vorlagen (Webdienst, PostgreSQL, Netzwerk, Volume, Pod) und **Import aus docker-compose.yml**: Dienste werden zu `.container`-Dateien, benannte Volumes zu `.volume`, ein gemeinsames `.network` pro Projekt; was nicht übertragbar ist, steht als Warnung daneben.
-
-## Podman-Einstellungen
-
-Im Tab **Podman-Einstellungen** der Quadlets-Seite:
-
-- **`podman-auto-update.timer`** an/aus und Zeitplan (`OnCalendar`, als Drop-in `/etc/systemd/system/podman-auto-update.timer.d/50-quadeck.conf`, vorher mit `systemd-analyze calendar` geprüft).
-- **Auto-Update für alle Container** (Podman 5+): Quadlet-Drop-in `container.d/50-quadeck-autoupdate.conf` mit `AutoUpdate=registry`.
-- **`containers.conf`** und **`registries.conf`**: Formular für die gängigen Einstellungen plus Texteditor; wird vor dem Schreiben als TOML geprüft, die vorige Fassung bleibt als `.quadeck-bak`. **`storage.conf`** wird nur angezeigt (Änderungen dort können bestehende Container unbrauchbar machen).
-
-## Freigaben
-
-Die Karte „Freigaben“ auf der Übersicht zeigt SMB-Shares und NFS-Exporte; **Verwalten** führt zur Seite **Freigaben**:
-
-- **SMB (Samba):** Freigaben anlegen, ändern (auch umbenennen) und löschen – Name, Pfad, Beschreibung, nur lesen oder lesen/schreiben, erlaubte Benutzer/Gruppen, Gastzugang, sichtbar im Netzwerk. Geändert wird nur der jeweilige `[Abschnitt]` in `smb.conf`; `[global]`, Kommentare und Optionen, die das Formular nicht kennt (`create mask`, `vfs objects` …), bleiben. Vor dem Schreiben prüft `testparm`, danach `smbcontrol smbd reload-config` – ohne laufende Verbindungen zu trennen. Aktive Verbindungen aus `smbstatus`.
-- **NFS:** Exporte mit Clients (Rechner oder Netz), Zugriff, root-Behandlung, `sync` und weiteren erlaubten Optionen. Neue Exporte landen in `/etc/exports.d/quadeck.exports`; bestehende werden in ihrer Datei geändert. Danach `exportfs -ra`; lehnt es ab, wird die alte Datei wiederhergestellt.
-- **Dienste** (smb/nmb bzw. smbd/nmbd, nfs-server): Zustand, starten, stoppen, neu starten, beim Booten starten.
-- Jede Änderung zeigt vorher den Diff (mit Warnungen, z. B. Gäste mit Schreibrecht, `*` mit `rw`, `no_root_squash`), braucht das Entsperren und hinterlässt die vorige Fassung als `.quadeck-bak`. Systemverzeichnisse (`/`, `/etc`, `/root`, `/boot`, `/proc`, `/sys`, `/dev`, `/run`, Quadeck- und Podman-Daten) lassen sich nicht freigeben.
-
-Samba-Benutzer brauchen ein eigenes Passwort (`smbpasswd -a name`); das geht noch nicht über die Oberfläche.
-
-## Festplatten (SMART)
-
-Die Seite **Festplatten** liest alle Laufwerke mit `smartctl --json` (smartmontools) – alle 30 Minuten oder auf Knopfdruck; schlafende Platten werden dabei **nicht geweckt**.
-
-- Pro Platte: Modell, Größe, HDD/SSD/NVMe, Temperatur, Laufzeit, Verschleiß (SSD), ersetzte und wartende Sektoren, Medienfehler, letzter Selbsttest – und eine Ampel.
-- **Bewertung** wie in snapraid-ui: Status aus smartctl, ersetzte/wartende/unlesbare Sektoren, nicht korrigierbare Lesefehler, CRC-Fehler, Verschleiß ab 80 %, Temperatur über 50 °C, fehlgeschlagener Selbsttest. Dazu, was zu tun ist: Ersatz besorgen, Kabel prüfen, besser kühlen.
-- **Verlauf:** Temperatur, Sektor- und Fehlerzähler und Verschleiß werden stündlich gespeichert und ein Jahr aufbewahrt – steigende Zähler sind das eigentliche Warnsignal.
-- **Selbsttests** (kurz/lang) starten, Fortschritt und Protokoll; dafür muss entsperrt sein.
-- Auf der Übersicht zeigt die Speicher-Karte einen SMART-Punkt pro Platte, die Seitenleiste die Zahl der Platten mit Befund.
-- Virtuelle Laufwerke ohne SMART erscheinen neutral; ohne smartmontools gibt es einen Knopf zum **Installieren** (wie bei Samba, NFS und OpenSSH auf ihren Seiten) samt Befehl für die Konsole.
-
-## Dateien
-
-Im Tab **Dateien** der Seite Festplatten gibt es einen kleinen Explorer für die Datenbereiche:
-
-- **Bereiche:** `/mnt`, `/srv`, `/media`, `/home`, `/data` und eingehängte Datenplatten außerhalb davon, mit freiem Platz; eigene Liste per `QUADECK_FILE_ROOTS` (kommagetrennt). Systemordner (`/etc`, `/root`, `/boot`, `/usr`, `/var` …) sind nie erreichbar; Symlinks werden vor der Prüfung aufgelöst, ein Link führt also nicht hinaus.
-- **Ordner öffnen**, Pfadleiste, versteckte Dateien ein-/ausblenden, sortieren nach Name, Datum oder Größe.
-- **Neuer Ordner** (bekommt den Besitzer des Elternordners), **Umbenennen**, **Kopieren / Ausschneiden / Einfügen**, **Löschen** – auch per Strg+C/X/V, Entf und F2. Vor dem Überschreiben wird gefragt; in sich selbst kopieren oder einen Bereich selbst löschen geht nicht.
-- Kopieren, Verschieben und Löschen laufen als **Job mit Live-Ausgabe** (`cp -a --reflink=auto`, `mv`, `rm --one-file-system`) – große Ordner blockieren nichts. Alles Verändernde braucht das Entsperren; einen Papierkorb gibt es nicht.
-
-## SSH
-
-Die Seite **SSH** hilft beim Zugang zum Server:
-
-- **Zugang:** Zustand von `sshd`/`ssh`, Port, starten/neu starten/beim Booten aktivieren (Stoppen gibt es bewusst nicht – man sperrt sich damit aus). Die **Fingerprints** des Servers zum Vergleichen beim ersten Verbinden.
-- **Schlüssel pro Benutzer** (`~/.ssh/authorized_keys`): Typ, Größe, Kommentar, Fingerprint und wann der Schlüssel zuletzt benutzt wurde (aus dem Journal). Neue Schlüssel einfügen – geprüft, Duplikate und DSA abgelehnt, schwache RSA-Schlüssel markiert; `~/.ssh` bekommt dabei automatisch `700`/`600` und den richtigen Besitzer. Falsche Rechte, wegen derer `sshd` Schlüssel ignoriert, werden angezeigt.
-- **Absicherung:** Passwort-Login, root-Login und erlaubte Benutzer als Drop-in `/etc/ssh/sshd_config.d/01-quadeck.conf` (die eigene `sshd_config` bleibt unberührt). Vorher `sshd -t` – lehnt es ab, wird zurückgesetzt –, danach `systemctl reload`; angezeigt werden die tatsächlich wirksamen Werte aus `sshd -T`. **Aussperr-Schutz:** Passwort-Login abschalten oder den letzten Schlüssel entfernen geht nur, wenn danach noch jemand mit einem funktionierenden Schlüssel hereinkommt (sonst nur mit ausdrücklicher Bestätigung).
-- **Anmeldungen:** letzte Logins (Benutzer, IP, Schlüssel oder Passwort) und fehlgeschlagene Versuche pro IP der letzten 24 Stunden.
-- **Neues Gerät verbinden:** fertige Befehle für `ssh-keygen`, `ssh-copy-id` und `ssh`.
-
-## Zeitpläne (Timer)
-
-Statt cron nutzt Quadeck **systemd-Timer**: Unter **Units → Timer** stehen alle Timer mit Zeitplan („täglich 03:30“, „Mo–Fr 07:00“), nächstem und letztem Lauf, Ergebnis (inklusive Exit-Code) und dem Befehl, den sie starten.
-
-- **Neuer Zeitplan:** Name, Befehl (läuft mit `/bin/sh`, mehrere Zeilen erlaubt), Zeitplan per Baukasten (alle N Minuten, stündlich, täglich, Wochentage, monatlich oder eigener `OnCalendar=`-Ausdruck), Benutzer, Arbeitsverzeichnis sowie Optionen wie verpasste Läufe nachholen, auf Netzwerk warten, niedrige Priorität und zufällige Verzögerung. Vorlagen für Skript, rsync-Backup, Podman aufräumen, SnapRAID und Healthcheck-Ping. Quadeck schreibt `<name>.service` + `<name>.timer` nach `/etc/systemd/system`, prüft sie mit `systemd-analyze verify` (bei Fehlern wird zurückgerollt), lädt systemd neu und aktiviert den Timer. Die erzeugten Dateien sind vorher im Reiter „Unit-Dateien“ zu sehen.
-- **Vorschau:** Die nächsten fünf Ausführungszeiten berechnet `systemd-analyze calendar` live beim Tippen.
-- **Von cron übernehmen:** Eine Crontab-Zeile wie `30 3 * * 1-5` wird in `OnCalendar=` übersetzt (inklusive `@daily` & Co.; bei Tag *und* Wochentag gibt es einen Hinweis, weil cron dann „oder“ meint).
-- **Andere Timer** (aus Paketen oder von Hand angelegt) behalten ihre Dateien: Ein geänderter Zeitplan kommt als Drop-in `<timer>.d/50-quadeck.conf`, „Standard wiederherstellen“ entfernt ihn wieder.
-- **Jetzt ausführen**, Timer aktivieren/deaktivieren, Journal des Service und die Unit-Dateien (`systemctl cat`) sind direkt in der Liste. Gelöscht werden nur Timer, die Quadeck selbst angelegt hat.
-
-## systemd-Units bearbeiten
-
-In der Units-Liste führt **Bearbeiten** bei jeder System-Unit zum Editor (Quadlet-Units weiterhin zur Quadlet-Datei):
-
-- **Alle Dateien der Unit** wie bei `systemctl cat`: Hauptdatei und Overrides (Drop-ins) in der Reihenfolge, in der systemd sie anwendet, jeweils mit Herkunft (aus Paket, eigene, generiert).
-- **Paketdateien bleiben unangetastet:** Einstellungen ändert man per **Override** `/etc/systemd/system/<unit>.d/override.conf` – wie `systemctl edit`, Paket-Updates lassen ihn in Ruhe. „Override entfernen“ stellt den Paket-Standard wieder her. Eigene Units in `/etc/systemd/system` werden direkt bearbeitet.
-- **Formular und Text:** gängige Einstellungen (Befehl, Benutzer, Umgebung, Neustart, Speicher-/CPU-Limits, Absicherung wie `ProtectSystem`, Zeitplan bei Timern, `WantedBy`) mit Erklärung; im Override steht dabei, was bisher gilt. Alles andere bleibt im Text unverändert.
-- **Geprüft vor dem Speichern:** Syntax sofort, dann `systemd-analyze verify` mit der geänderten Datei – Fehler mit Zeilennummer verhindern das Speichern (Hinweise wie unbekannte Schlüssel oder fehlende Programme nicht). Ein Override, der `ExecStart=` nur ergänzt statt ersetzt, wird erklärt.
-- **Speichern** zeigt den Diff, danach `daemon-reload` und auf Wunsch Neustart. Jede Fassung landet im **Verlauf** (`/var/lib/quadeck-helper/unit-history`) und lässt sich zurückholen. „Beim Booten starten“ schaltet `systemctl enable/disable`.
-- **Neue Unit** (Units → „+ Neue Unit“) aus Vorlagen: dauerhafter Dienst, einmaliges Skript beim Start, abgesicherter Dienst.
-- Quadecks eigene Units (`quadeck.service`, `quadeck-helper.service`) sind nur lesbar.
-
-## Benachrichtigungen
-
-Unter **Benachrichtigungen** meldet sich der Server, wenn etwas nicht stimmt – über **ntfy** (Push aufs Handy, ntfy.sh oder eigener Server), **Gotify**, **Telegram** oder einen **Webhook** (Discord, Slack, Mattermost, Home Assistant, eigene Skripte).
-
-- **Was gemeldet wird** (einzeln abschaltbar): fehlgeschlagene Dienste und Timer, nicht erreichbare Webdienste der Übersicht, ungesunde oder abgestürzte Container, SMART-Warnungen, fast volle Platten (Schwellwert einstellbar) und einmal am Tag verfügbare Updates (Pakete und Container-Images, nur wenn sich seit der letzten Meldung etwas geändert hat).
-- **Ohne Spam:** jedes Problem wird einmal gemeldet, mehrere gleichzeitig in einer Nachricht; flatternde Checks (Webdienste, Container) erst nach 2 Minuten. Ist es behoben, kommt auf Wunsch eine Entwarnung. Was schon gemeldet wurde, überlebt einen Neustart; ist eine Quelle (z. B. systemd) gerade nicht lesbar, gibt es keine falsche Entwarnung. Erreicht eine Meldung keinen Kanal, wird sie nach 5 Minuten erneut versucht.
-- **Test-Knopf** pro Kanal, Liste der gemeldeten Probleme und der zuletzt gesendeten Nachrichten mit Ergebnis pro Kanal. Tokens werden in der Datenbank gespeichert (nur für Quadeck lesbar) und in der Oberfläche nicht angezeigt.
-
-## Netzwerk
-
-Die Seite **Netzwerk** zeigt nur an, sie ändert nichts:
-
-- **Schnittstellen** mit Art (LAN, WLAN, VPN, Bridge), Zustand, IPv4/IPv6 (DHCP markiert), Gateway, Geschwindigkeit, MAC, MTU und übertragenen Daten; Loopback und Container-Verbindungen auf Wunsch.
-- **Offene Ports** (`ss -tulpn` über den Root-Helfer, dazu die veröffentlichten Ports der Container): wer lauscht (Programm, systemd-Unit mit Link zum Editor, Container) und ob von überall oder nur lokal erreichbar.
-- **Firewall:** firewalld oder ufw werden erkannt, pro Port steht, ob er offen oder blockiert ist – ein Port, auf dem etwas lauscht, der aber blockiert wird, fällt so auf (mit dem passenden Befehl zum Freigeben). Ohne Firewall steht da, was das bedeutet. Podman öffnet veröffentlichte Container-Ports selbst.
-- **Routen und DNS:** Gateway, DNS-Server (auch hinter systemd-resolved), Suchdomänen, alle Routen.
-
-## Layout anpassen
-
-Das Dashboard ist beim ersten Start fertig angeordnet. Mit **Bearbeiten** (oder Taste `E`) lässt es sich auf zwei Ebenen ändern:
-
-- **Karten** (CPU, RAM, Temperatur, Netz, Services, Speicher, Timer): am Griff verschieben, an der Ecke unten rechts vergrößern oder verkleinern, ausblenden und wieder einblenden.
-- **Kacheln** in der Services-Karte: innerhalb ihrer Gruppe verschieben und vergrößern (z. B. Jellyfin als 2×2-Kachel). Die Gruppe einer Kachel legt das Label `quadeck.group` fest.
-
-Das Layout wird pro Bildschirmbreite (Desktop, Tablet, Handy) in SQLite gespeichert. Karten passen ihre Höhe automatisch an den Inhalt an, bis man sie selbst in der Größe ändert. „Auf Auto-Layout zurücksetzen“ stellt den Ausgangszustand wieder her.
-
-**Icons** kommen aus [dashboard-icons](https://github.com/homarr-labs/dashboard-icons) (Kandidaten aus Image-Name, Unit-Name und Caddy-Host, inklusive Aliasen wie `ha` → `home-assistant`) und werden unter `/var/lib/quadeck/icons` zwischengespeichert. Ohne Treffer: Favicon des Service, danach ein neutrales Kategorie-Icon.
-
-**Health:** Podman-Healthcheck, wenn vorhanden; sonst `HEAD` auf die Service-URL alle 60 s.
-
-## Sicherheit
-
-Quadeck besteht aus zwei Diensten:
-
-- **`quadeck.service`** – die Web-App, als eigener Systembenutzer `quadeck` **ohne Root-Rechte**. Sie liest alles, was ohne root geht (systemd über D-Bus, Journal über die Gruppe `systemd-journal`, Platten, Freigaben).
-- **`quadeck-helper.service`** – ein kleiner **Root-Helfer** mit fester Aktionsliste (Units starten/stoppen/neu starten, Podman lesen und Container ohne Unit steuern, Pakete und Images prüfen, Update-/Entfernen-Jobs starten, Quadlet-Dateien, Podman-Einstellungen, Freigaben, SSH-Einstellungen, Timer und Unit-Dateien schreiben). Er lauscht nur auf `/run/quadeck/helper.sock`, den ausschließlich die Gruppe `quadeck` öffnen kann.
-
-**Entsperren:** Aktionen am Server sind gesperrt, bis man sie mit dem Passwort eines Administrators (root oder Mitglied von `wheel`/`sudo`) freischaltet – dann für 15 Minuten, mit Countdown in der Seitenleiste. Die Prüfung (gegen `/etc/shadow` mit dem System-`crypt(3)`) und die Sperre sitzen im Helfer: Selbst eine übernommene Web-App kann ohne dieses Passwort nichts verändern.
-
-| Variable | Standard | Bedeutung |
-| --- | --- | --- |
-| `QUADECK_UNLOCK` | `system` | `system`: Linux-Admin-Passwort · `none`: ohne Entsperren · `quadeck`: Quadeck-Passwort (nur wenn alles als root in einem Prozess läuft) |
-| `QUADECK_UNLOCK_MINUTES` | `15` | Dauer der Freischaltung |
-| `QUADECK_HELPER_SOCKET` | `/run/quadeck/helper.sock` | Socket des Helfers |
-
-Ältere Installationen (alles als root in einem Dienst) laufen weiter; `install.sh` erneut ausführen stellt auf die Trennung um.
-
-Außerdem:
-
-- Login ab der ersten Version (argon2id). Die Ersteinrichtung braucht einen Setup-Token, den nur root lesen kann.
-- Sitzungs-Cookie `HttpOnly`, `SameSite=Strict`; gespeichert wird nur ein Hash.
-- CSRF-Schutz: jede schreibende Anfrage muss von derselben Herkunft kommen und den CSRF-Token der Sitzung mitsenden. Gefährliche Aktionen brauchen eine Bestätigung.
-- Begrenzte Anmeldeversuche; Logout und Passwortwechsel beenden auch offene Live-Streams.
-- Feste Aktionsliste, Unit-Namen werden geprüft; alle Prozesse werden ohne Shell gestartet.
-- Read-only-Modus per `QUADECK_READONLY=true`: keine Eingriffe in systemd oder Podman.
-
-**Nicht ungeschützt ins Internet stellen.** Quadeck ist für das LAN gedacht; von außen nur hinter VPN oder einem Reverse-Proxy mit zusätzlicher Authentifizierung.
-
-## Entwicklung
-
-```sh
+Binaries: `quadeck-linux-x64-baseline` (every x86 server, including NAS CPUs without AVX2),
+`quadeck-linux-arm64` (Raspberry Pi, ARM servers), `quadeck-linux-x64-musl` and
+`quadeck-linux-arm64-musl` (Alpine and other musl distributions).
+
+</details>
+
+<details>
+<summary><b>Updating</b></summary>
+
+```bash
+sudo quadeck update
+```
+
+Downloads the newest release for this machine, verifies the checksum, swaps the binary in and
+restarts the services. Running `install.sh` again does the same and also migrates older
+single-process installations to the separate root helper.
+
+</details>
+
+| Path | Content |
+|---|---|
+| `/usr/local/bin/quadeck` | the binary |
+| `/var/lib/quadeck` | SQLite database, icon cache, setup token (user `quadeck`) |
+| `/var/lib/quadeck-helper` | Quadlet git history, unit file history (root) |
+| `/etc/quadeck/quadeck.env` | optional environment variables |
+
+Everything else, from environment variables to running behind a reverse proxy, is in the
+[installation guide](docs/installation.md).
+
+> [!WARNING]
+> Quadeck is made for your LAN. Do not expose it to the internet without a VPN or a reverse proxy
+> with its own authentication in front of it.
+
+## 📸 Screenshots
+
+<div align="center">
+<img src="docs/screenshot-quadlets.png" alt="Quadlet editor: jellyfin.container as a form with image, ports, volumes, environment and auto-update" width="900">
+<br><br>
+<img src="docs/screenshot-timers.png" alt="Timers: schedule in plain words, next and last run, result, and the command behind each timer" width="900">
+<br><br>
+<img src="docs/screenshot-system.png" alt="System page: Arch news, pacman updates with a reboot hint, AUR updates and container image updates" width="900">
+<br><br>
+<img src="docs/screenshot-network.png" alt="Network page: interfaces, listening ports with the program or container behind them and the firewall verdict" width="900">
+</div>
+
+More in the [documentation](docs/README.md).
+
+## 📚 Documentation
+
+| | |
+|---|---|
+| [Installation](docs/installation.md) | install script, binaries, commands, environment variables, services, updates, reverse proxy, uninstall |
+| [Overview and services](docs/dashboard.md) | how services are discovered, labels, overrides, manual links, icons, health, layout editing, metrics history, GPU, command palette |
+| [Units and Quadlets](docs/quadlets.md) | units page, actions, journal, Quadlet editor, validation, history, templates, compose import, Podman settings |
+| [systemd editor and timers](docs/systemd.md) | unit files and overrides, form and text, verification, history, new units, timers, schedule builder, cron import |
+| [Updates and packages](docs/updates.md) | package managers, AUR, reboot hints, jobs, installed packages, removal, container images |
+| [Disks and files](docs/disks.md) | SMART verdicts and advice, history, self-tests, file explorer, data areas |
+| [Shares](docs/shares.md) | SMB shares, NFS exports, services, what is checked, what is never touched |
+| [SSH](docs/ssh.md) | keys, hardening, lock-out guard, logins, connecting a new device |
+| [Network](docs/network.md) | interfaces, ports, firewall verdicts, routes and DNS |
+| [Notifications](docs/notifications.md) | channels, rules, how spam is avoided, retries |
+| [Security](docs/security.md) | the two processes, unlock, authentication, hardening, data and secrets |
+| [Development](docs/development.md) | setup with demo data, checks, architecture, tests, releases |
+
+## 🛠️ Development
+
+Requires [Bun](https://bun.sh/) 1.3 or newer.
+
+```bash
+git clone https://github.com/firsttris/quadeck
+cd quadeck
 bun install
-QUADECK_DATA_DIR=.data QUADECK_FIXTURES=fixtures/demo bun run dev   # mit Beispieldaten
-bun run typecheck
-bun run test          # Vitest: Parser, Merge-Logik, Auth
-bun run test:e2e      # Playwright gegen den Produktions-Build mit Fixtures
-bun run compile       # Binary für die eigene Plattform nach ./release
+QUADECK_DATA_DIR=.data QUADECK_FIXTURES=fixtures/demo bun run dev   # http://localhost:3000 with demo data
 ```
 
-Stack: Bun, TanStack Start, SQLite (`bun:sqlite`) + Drizzle, Tailwind, Server-Sent Events. Schemaänderungen: `src/server/db/schema.ts` anpassen, dann `bun run db:generate`.
+**Stack**: Bun, TanStack Start (React), Tailwind, SQLite with Drizzle, Server-Sent Events, Vitest and
+Playwright. One binary per platform through `bun build --compile`. More in
+[docs/development.md](docs/development.md).
 
-Aufbau:
+## 🤝 Contributing
 
-```
-src/main.ts                 Binary-Einstieg: CLI, Bun.serve, statische Assets
-src/server/collectors/      system, gpu, disks, podman, systemd, shares
-src/server/metrics.ts       Messwert-Verlauf (SQLite, 7 Tage, Buckets je Zeitraum)
-src/server/providers/       Discovery (Caddy); Schnittstelle für Traefik u. a.
-src/server/privileged/      Root-Helfer: feste Aktionsliste, Entsperren, Unix-Socket
-src/server/packages/        Paketmanager (pacman/AUR, apt, dnf, zypper, apk, rpm-ostree), Jobs, Image-Updates
-src/server/smart/           SMART: smartctl --json, Selbsttests
-src/server/files/           Datei-Explorer: Bereiche, Auflisten, Kopieren/Verschieben/Löschen als Job
-src/server/ssh/             SSH: authorized_keys, sshd-Drop-in, Fingerprints, Logins
-src/server/shares/          SMB/NFS: smb.conf- und exports-Bearbeitung, testparm/exportfs, Dienste
-src/server/quadlets/        Quadlet-Dateien, Generator-Prüfung, git-Verlauf, Podman-Einstellungen, Compose-Import
-src/shared/ini.ts           Unit-Dateien zeilengenau lesen und ändern (Formular ↔ Text)
-src/server/registry.ts      Merge: Caddy-Route → Container → Unit → Labels → Overrides
-src/server/hub.ts           Intervalle, Snapshot, SSE-Push
-src/routes/                 UI (Übersicht, Units, Journal, Quadlets, System) und /api-Routen
-```
+Issues and pull requests are welcome. If your distribution, package manager, GPU or firewall is
+handled wrong, the output of the command Quadeck ran (it is named in the error) is the most useful
+thing to include. Please run `bun run typecheck`, `bun run test` and `bun run test:e2e` before
+opening a pull request.
 
-## Stand
+---
 
-v0.1 (MVP) laut Implementierungsplan: Collectors, Service-Kacheln mit Icons und Health-Checks, manuelle Links, Unit- und Container-Aktionen über systemd, Login und CSRF-Schutz, Standard-Layout, Live-Journal, Installationsskript und `update`-Befehl, CI und Release-Builds für vier Targets.
-
-v0.2: Bearbeiten-Modus mit react-grid-layout (Karten und Kacheln), Services bearbeiten (Overrides, Icon-Picker, Ausblenden), Befehlspalette, Freigaben (SMB/NFS).
-
-v0.3: getrennter Root-Helfer mit Entsperren; Updates und Paketverwaltung für sechs Paketmanager inklusive AUR; Container-Image-Updates; Quadlet-Editor (Formular/Text, Generator-Prüfung, Diff, git-Verlauf, Vorlagen, Compose-Import); Podman-Einstellungen.
-
-Danach: Verlauf für CPU, RAM, Temperatur, Netz und GPU; GPU-Karte; Freigaben (SMB/NFS) verwalten; SSH-Zugang (Schlüssel, Absicherung, Anmeldungen); SMART mit Verlauf und Selbsttests; Installieren fehlender Werkzeuge per Knopf; Datei-Explorer für die Datenbereiche.
-
-Noch nicht enthalten: SMART/SnapRAID, Forward-Auth, Timer-Editor, rootless Quadlets.
+<div align="center">
+<sub>Quadeck is not affiliated with Podman, Red Hat, systemd or Caddy. Icons come from the
+<a href="https://github.com/homarr-labs/dashboard-icons">dashboard-icons</a> collection.</sub>
+</div>
