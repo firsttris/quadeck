@@ -37,6 +37,8 @@ test.describe.serial('Festplatten', () => {
     const advice = page.getByRole('region', { name: 'Handlungsbedarf' })
     await expect(advice).toContainText('Ersatz besorgen')
     await expect(advice).toContainText('SATA-Kabel')
+    // CRC errors count for life; the demo history shows them still growing this week.
+    await expect(page.getByRole('region', { name: 'Platte sdc' }).getByRole('list', { name: 'Befund' })).toContainText(/neue Übertragungsfehler \(CRC\) seit .* insgesamt 14/)
 
     await sdb.getByRole('button', { name: 'Details zu sdb' }).click()
     const dialog = page.getByRole('dialog', { name: /sdb · WDC/ })

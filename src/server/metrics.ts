@@ -1,7 +1,8 @@
 // Metric history: one sample per metric every 30 s in SQLite (kept 7 days),
 // read back averaged into at most ~300 buckets per range.
 
-import { and, asc, gte, lt, sql } from 'drizzle-orm'
+import { and, asc, eq, gte, lt, sql } from 'drizzle-orm'
+import { CRC_WINDOW_DAYS, type SmartBaseline } from '~/shared/smart'
 import { HISTORY_RANGES, METRICS, type HistoryRange, type MetricHistory, type MetricName } from '~/shared/types'
 export { metricRows } from '~/shared/metrics'
 import type { DB } from './db'
@@ -96,6 +97,23 @@ export function seedFixtureHistory(d: DB, now = Date.now()) {
   d.transaction((tx) => {
     for (let i = 0; i < rows.length; i += 500) tx.insert(t).values(rows.slice(i, i + 500)).run()
   })
+}
+
+/** Oldest CRC count of the last days per disk – what today's count is compared with. */
+export function smartBaselines(d: DB, ids: string[], now = Date.now()): Record<string, SmartBaseline> {
+  const t = schema.metricSamples
+  const out: Record<string, SmartBaseline> = {}
+  for (const id of ids) {
+    const row = d
+      .select({ ts: t.ts, v: t.value })
+      .from(t)
+      .where(and(eq(t.metric, `smart:${id}:crc`), gte(t.ts, now - CRC_WINDOW_DAYS * 24 * 3600_000)))
+      .orderBy(asc(t.ts))
+      .limit(1)
+      .get()
+    if (row) out[id] = { crc: { value: row.v, since: row.ts } }
+  }
+  return out
 }
 
 /** Demo: three months of SMART trends (fixtures only, once). */

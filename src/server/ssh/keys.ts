@@ -146,9 +146,9 @@ export function parseAuthLog(out: string, now = Date.now()): { logins: SshLogin[
   for (const line of out.split('\n')) {
     const ts = Number(line.split(' ')[0]) * 1000
     if (!Number.isFinite(ts)) continue
-    const ok = line.match(/Accepted (\S+) for (\S+) from (\S+) port \d+(?: ssh2(?:: \S+ (SHA256:\S+))?)?/)
+    const ok = line.match(/Accepted (\S+) for (\S+) from (\S+) port (\d+)(?: ssh2(?:: \S+ (SHA256:\S+))?)?/)
     if (ok) {
-      logins.push({ ts, method: ok[1]!, user: ok[2]!, from: ok[3]!, fingerprint: ok[4] })
+      logins.push({ ts, method: ok[1]!, user: ok[2]!, from: ok[3]!, port: Number(ok[4]), fingerprint: ok[5] })
       continue
     }
     const bad = line.match(/(?:Failed \S+ for (?:invalid user )?\S+|Invalid user \S* ?) from (\S+)/)
@@ -161,4 +161,25 @@ export function parseAuthLog(out: string, now = Date.now()): { logins: SshLogin[
     logins: logins.sort((a, b) => b.ts - a.ts),
     failed: [...failed].map(([from, f]) => ({ from, ...f })).sort((a, b) => b.count - a.count).slice(0, 10),
   }
+}
+
+/** Normalises an address from ss: brackets and the IPv4-mapped prefix go. */
+const peerAddr = (a: string) => a.replace(/^\[|\]$/g, '').replace(/^::ffff:/i, '')
+
+/**
+ * Open SSH connections from `ss -Htn state established`: "addr:port" of every
+ * client connected to one of sshd's ports.
+ */
+export function parseEstablished(out: string, sshPorts: number[]): Set<string> {
+  const open = new Set<string>()
+  for (const line of out.split('\n')) {
+    const cols = line.trim().split(/\s+/)
+    if (cols.length < 4) continue
+    const [local, peer] = cols.slice(-2) as [string, string]
+    const lp = Number(local.slice(local.lastIndexOf(':') + 1))
+    if (!sshPorts.includes(lp)) continue
+    const i = peer.lastIndexOf(':')
+    open.add(`${peerAddr(peer.slice(0, i))}:${peer.slice(i + 1)}`)
+  }
+  return open
 }

@@ -1,11 +1,11 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { openDb, schema } from '~/server/db'
-import { pruneHistory, querySmartHistory } from '~/server/metrics'
+import { pruneHistory, querySmartHistory, smartBaselines } from '~/server/metrics'
 import { parseJobSpec } from '~/server/packages/job'
 import { parseSmartctl, physicalDisks, statusFromExit } from '~/server/smart/parse'
 import { installCommand } from '~/shared/packages'
-import { assessSmart, attributeLevel, describeReason, smartHints, type SmartDisk } from '~/shared/smart'
+import { assessSmart, attributeLevel, describeNote, describeReason, smartHints, type SmartDisk } from '~/shared/smart'
 import { smartSamples } from '~/shared/smart-metrics'
 
 const fx = (n: string) => parseSmartctl(n, readFileSync(`fixtures/demo/smart/${n}.json`, 'utf8'))
@@ -15,7 +15,7 @@ describe('smartctl --json', () => {
     const d = fx('sda')
     expect(d).toMatchObject({ name: 'sda', status: 'OK', supported: true, model: 'ST12000VN0008-2YS101', rotationRate: 7200, temperature: 34, powerOnHours: 21890, id: 'ST12000VN0008-2YS101-ZRT0A1B2' })
     expect(d.attributes.find((a) => a.id === 5)).toMatchObject({ name: 'Reallocated_Sector_Ct', raw: '0', prefailure: true })
-    expect(assessSmart(d)).toEqual({ level: 'ok', reasons: [] })
+    expect(assessSmart(d)).toEqual({ level: 'ok', reasons: [], notes: [] })
   })
 
   it('flags reallocated and pending sectors and advises replacement', () => {
@@ -25,10 +25,38 @@ describe('smartctl --json', () => {
     expect(smartHints([a])).toEqual(['replace'])
   })
 
-  it('blames the cable for CRC errors', () => {
-    const a = assessSmart(fx('sdc'))
-    expect(a.reasons).toEqual([{ kind: 'errors', attribute: 'crc', count: 14 }])
-    expect(smartHints([a])).toEqual(['cable'])
+  it('CRC errors: a lifetime counter – only growth is a warning, then it blames the cable', () => {
+    const d = fx('sdc') // 14 CRC errors
+    // No history yet, or no new errors since: a note, not a warning.
+    expect(assessSmart(d)).toEqual({ level: 'ok', reasons: [], notes: [{ kind: 'crc-old', count: 14, since: undefined }] })
+    const since = Date.UTC(2026, 8, 25)
+    const stable = assessSmart(d, { crc: { value: 14, since } })
+    expect(stable.level).toBe('ok')
+    expect(describeNote(stable.notes[0]!)).toMatch(/^14 ältere Übertragungsfehler \(CRC\), seit .* keine neuen – der Zähler wird nie zurückgesetzt/)
+    expect(smartHints([stable])).toEqual([])
+    const crcRow = d.attributes.find((a) => a.id === 199)!
+    expect(attributeLevel(crcRow, { crc: { value: 14, since } })).toBe('ok')
+    // Still growing: the connection is not right yet.
+    const growing = assessSmart(d, { crc: { value: 9, since } })
+    expect(growing).toMatchObject({ level: 'warning', reasons: [{ kind: 'crc', count: 14, added: 5, since }] })
+    expect(describeReason(growing.reasons[0]!)).toMatch(/^5 neue Übertragungsfehler \(CRC\) seit .* – insgesamt 14; Kabel oder Backplane prüfen/)
+    expect(smartHints([growing])).toEqual(['cable'])
+    expect(attributeLevel(crcRow, { crc: { value: 9, since } })).toBe('warning')
+  })
+
+  it('takes the CRC baseline from the oldest sample of the last week', () => {
+    const { db: d } = openDb(':memory:')
+    const now = Date.UTC(2026, 9, 2, 12)
+    const h = 3600_000
+    d.insert(schema.metricSamples)
+      .values([
+        { ts: now - 30 * 24 * h, metric: 'smart:disk-a:crc', value: 2 },
+        { ts: now - 6 * 24 * h, metric: 'smart:disk-a:crc', value: 9 },
+        { ts: now - 1 * h, metric: 'smart:disk-a:crc', value: 14 },
+        { ts: now - 1 * h, metric: 'smart:disk-b:temp', value: 30 },
+      ])
+      .run()
+    expect(smartBaselines(d, ['disk-a', 'disk-b'], now)).toEqual({ 'disk-a': { crc: { value: 9, since: now - 6 * 24 * h } } })
   })
 
   it('leaves sleeping disks alone and is not alarmed by them', () => {
@@ -53,7 +81,7 @@ describe('smartctl --json', () => {
   it('treats virtual disks without SMART as unsupported, not as a problem (captured from a VM)', () => {
     const d = parseSmartctl('vda', readFileSync('tests/fixtures/smartctl-virtio.json', 'utf8'))
     expect(d).toMatchObject({ supported: false, status: 'UNKNOWN', message: '/dev/vda: Unable to detect device type' })
-    expect(assessSmart(d)).toEqual({ level: 'ok', reasons: [] })
+    expect(assessSmart(d)).toEqual({ level: 'ok', reasons: [], notes: [] })
     expect(smartSamples(d)).toEqual([])
   })
 
@@ -69,7 +97,7 @@ describe('smartctl --json', () => {
   it('assesses temperature and failing attributes', () => {
     const base = fx('sda')
     const hot: SmartDisk = { ...base, temperature: 61 }
-    expect(assessSmart(hot)).toEqual({ level: 'critical', reasons: [{ kind: 'temperature', celsius: 61 }] })
+    expect(assessSmart(hot)).toEqual({ level: 'critical', reasons: [{ kind: 'temperature', celsius: 61 }], notes: [] })
     expect(smartHints([assessSmart(hot)])).toEqual(['cooling'])
     expect(attributeLevel({ id: 1, name: 'x', value: 1, worst: 1, threshold: 10, raw: '0', whenFailed: 'now', prefailure: true })).toBe('critical')
     expect(attributeLevel({ id: 197, name: 'x', value: 100, worst: 100, threshold: 0, raw: '3', prefailure: false })).toBe('warning')

@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { judgeSettings, keyLoginPossible, loginUsers, parseSshChange, SystemSsh } from '~/server/ssh/backend'
-import { addKey, parseAuthLog, parseAuthorizedKeys, parseDropIn, parseKeyLine, parseSshdT, removeKey, renderDropIn } from '~/server/ssh/keys'
+import { addKey, parseAuthLog, parseAuthorizedKeys, parseEstablished, parseDropIn, parseKeyLine, parseSshdT, removeKey, renderDropIn } from '~/server/ssh/keys'
 import type { SshUser } from '~/shared/ssh'
 
 const demo = JSON.parse(readFileSync('fixtures/demo/ssh.json', 'utf8')) as { users: { keys: string[] }[]; hostKeys: string[] }
@@ -103,13 +103,26 @@ describe('journal', () => {
     ].join('\n')
     const r = parseAuthLog(log, now)
     expect(r.logins).toEqual([
-      { ts: now - 60_000, method: 'publickey', user: 'tristan', from: '192.168.1.31', fingerprint: 'SHA256:1lzw73vp0zALTm+XWgbuhGELqbyFhRtZW5+SRDdsqTE' },
-      { ts: now - 3_600_000, method: 'password', user: 'tristan', from: '10.8.0.2', fingerprint: undefined },
+      { ts: now - 60_000, method: 'publickey', user: 'tristan', from: '192.168.1.31', port: 51234, fingerprint: 'SHA256:1lzw73vp0zALTm+XWgbuhGELqbyFhRtZW5+SRDdsqTE' },
+      { ts: now - 3_600_000, method: 'password', user: 'tristan', from: '10.8.0.2', port: 40000, fingerprint: undefined },
     ])
     expect(r.failed).toEqual([
       { from: '45.155.205.233', count: 2, last: now - 20_000 },
       { from: '103.152.18.40', count: 1, last: now - 10_000 },
     ])
+  })
+})
+
+describe('open connections', () => {
+  it('finds clients connected to sshd in ss output (IPv4, IPv6, mapped)', () => {
+    const out = [
+      '0      0      192.168.1.20:22     192.168.1.31:51234',
+      '0      0      192.168.1.20:8484   192.168.1.31:60000',
+      '0      0      [::ffff:192.168.1.20]:22 [::ffff:10.8.0.2]:40000',
+      '0      52     [2001:db8::20]:2222 [2001:db8::31]:50000',
+      '0      0      192.168.1.20:41000  1.1.1.1:22',
+    ].join('\n')
+    expect([...parseEstablished(out, [22, 2222])].sort()).toEqual(['10.8.0.2:40000', '192.168.1.31:51234', '2001:db8::31:50000'])
   })
 })
 

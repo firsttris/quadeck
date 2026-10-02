@@ -12,7 +12,7 @@ import { useToast } from '~/components/Toast'
 import { useGuardedApi } from '~/components/Unlock'
 import { api } from '~/lib/api'
 import { diskSize, num, relative } from '~/lib/format'
-import { assessSmart, attributeLevel, describeReason, HINT_TEXT, smartHints, type SmartAssessment, type SmartDisk, type SmartLevel, type SmartReport } from '~/shared/smart'
+import { assessSmart, attributeLevel, describeNote, describeReason, HINT_TEXT, smartHints, type SmartAssessment, type SmartBaseline, type SmartDisk, type SmartLevel, type SmartReport } from '~/shared/smart'
 
 export const Route = createFileRoute('/_app/disks')({
   // The file explorer used to be a tab here; old links land on its own page.
@@ -93,7 +93,7 @@ function Smart() {
     }
   }
 
-  const assessed = (report?.disks ?? []).map((d) => ({ disk: d, a: assessSmart(d) }))
+  const assessed = (report?.disks ?? []).map((d) => ({ disk: d, a: assessSmart(d, report?.baselines?.[d.id]) }))
   const hints = smartHints(assessed.map((x) => x.a))
   const problems = assessed.filter((x) => x.a.level !== 'ok')
 
@@ -141,7 +141,7 @@ function Smart() {
           </p>
         </>
       )}
-      <DetailDialog disk={detail} onClose={() => setDetail(null)} />
+      <DetailDialog disk={detail} baseline={detail ? report?.baselines?.[detail.id] : undefined} onClose={() => setDetail(null)} />
     </>
   )
 }
@@ -213,6 +213,15 @@ function DiskCard({ disk: d, a, onDetail, onReport }: { disk: SmartDisk; a: Smar
           ))}
         </ul>
       )}
+      {a.notes.length > 0 && (
+        <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[12px] text-muted" aria-label="Hinweise">
+          {a.notes.map((n, i) => (
+            <li key={i} suppressHydrationWarning>
+              {describeNote(n)}
+            </li>
+          ))}
+        </ul>
+      )}
       {(!d.supported || d.standby) && <p className="m-0 text-[12px] text-muted">{d.standby ? 'Die Platte schläft – sie wird für SMART nicht geweckt. Werte beim nächsten Lesen, wenn sie aktiv ist.' : `${d.message ?? 'Kein SMART'} – bei virtuellen Laufwerken normal; bei USB-Gehäusen hilft oft eines mit SAT-Unterstützung.`}</p>}
       {d.supported && !d.standby && !readonly && (
         <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3 text-[12px] text-muted">
@@ -231,7 +240,7 @@ function DiskCard({ disk: d, a, onDetail, onReport }: { disk: SmartDisk; a: Smar
 
 type Trends = Partial<Record<'temp' | 'realloc' | 'pending' | 'uncorrectable' | 'crc' | 'wear' | 'media', [number, number][]>>
 
-function DetailDialog({ disk: d, onClose }: { disk: SmartDisk | null; onClose: () => void }) {
+function DetailDialog({ disk: d, baseline, onClose }: { disk: SmartDisk | null; baseline?: SmartBaseline; onClose: () => void }) {
   const [days, setDays] = useState(90)
   const [trends, setTrends] = useState<Trends | null>(null)
   useEffect(() => {
@@ -314,7 +323,7 @@ function DetailDialog({ disk: d, onClose }: { disk: SmartDisk | null; onClose: (
                 </thead>
                 <tbody>
                   {d.attributes.map((x) => {
-                    const lvl = attributeLevel(x)
+                    const lvl = attributeLevel(x, baseline)
                     return (
                       <tr key={x.id} className={lvl === 'critical' ? 'text-[#ff8a80]' : lvl === 'warning' ? 'text-[#e3b341]' : ''}>
                         <td className="font-mono text-[12px]">{x.id}</td>

@@ -62,7 +62,20 @@ export interface SmartReport {
   disks: SmartDisk[]
   installed: boolean
   error?: string
+  /** Per disk id: counter values from the history (web app only). */
+  baselines?: Record<string, SmartBaseline>
 }
+
+/**
+ * Lifetime counters never go back to zero – not after a new cable, a reboot or
+ * formatting. What matters is whether they still grow: `crc` is the oldest
+ * value of the last days (CRC_WINDOW_DAYS) from Quadeck's own history.
+ */
+export interface SmartBaseline {
+  crc?: { value: number; since: number }
+}
+
+export const CRC_WINDOW_DAYS = 7
 
 export type SmartLevel = 'ok' | 'warning' | 'critical'
 
@@ -71,6 +84,8 @@ export type SmartReason =
   | { kind: 'unreadable' }
   | { kind: 'sectors'; attribute: SectorAttribute; count: number }
   | { kind: 'errors'; attribute: ErrorAttribute; count: number }
+  /** CRC errors that still occur: `added` since `since`. */
+  | { kind: 'crc'; count: number; added: number; since: number }
   | { kind: 'wear'; percent: number }
   | { kind: 'temperature'; celsius: number }
   | { kind: 'selftest'; status: string }
@@ -81,7 +96,11 @@ export type ErrorAttribute = 'reported_uncorrectable' | 'crc' | 'medium'
 export interface SmartAssessment {
   level: SmartLevel
   reasons: SmartReason[]
+  /** Worth knowing, no reason to act (e.g. old CRC errors that stopped). */
+  notes: SmartNote[]
 }
+
+export type SmartNote = { kind: 'crc-old'; count: number; since?: number }
 
 /** What to do: replace the disk, check its cable, cool it, or make it readable. */
 export type SmartHint = 'replace' | 'cable' | 'cooling' | 'access'
@@ -111,19 +130,26 @@ export const rawCount = (raw: string): number => {
   return Number.isNaN(n) ? 0 : n
 }
 
+/** CRC errors that came after the baseline – the only ones that say something about today. */
+export function crcAdded(count: number, baseline?: SmartBaseline): number {
+  return baseline?.crc ? Math.max(0, count - baseline.crc.value) : 0
+}
+
 /** How alarming one attribute is (row colour in the table). */
-export function attributeLevel(a: SmartAttribute): SmartLevel {
+export function attributeLevel(a: SmartAttribute, baseline?: SmartBaseline): SmartLevel {
   if (a.whenFailed === 'now') return 'critical'
   if (a.whenFailed === 'past') return 'warning'
+  if (a.id === 199) return crcAdded(rawCount(a.raw), baseline) > 0 ? 'warning' : 'ok'
   const watched = SECTOR_ATTRIBUTES[a.id] ?? ERROR_ATTRIBUTES[a.id]
   return watched && rawCount(a.raw) > 0 ? 'warning' : 'ok'
 }
 
 const worst = (levels: SmartLevel[]): SmartLevel => (levels.includes('critical') ? 'critical' : levels.includes('warning') ? 'warning' : 'ok')
 
-export function assessSmart(disk: SmartDisk): SmartAssessment {
+export function assessSmart(disk: SmartDisk, baseline?: SmartBaseline): SmartAssessment {
   const found: { level: SmartLevel; reason: SmartReason }[] = []
-  if (!disk.supported) return { level: 'ok', reasons: [] }
+  const notes: SmartNote[] = []
+  if (!disk.supported) return { level: 'ok', reasons: [], notes }
   const statusLevel = STATUS_LEVEL[disk.status]
   if (statusLevel) found.push({ level: statusLevel, reason: { kind: 'status', status: disk.status } })
   if (disk.status === 'UNKNOWN' && !disk.standby) found.push({ level: 'warning', reason: { kind: 'unreadable' } })
@@ -132,6 +158,12 @@ export function assessSmart(disk: SmartDisk): SmartAssessment {
     if (count === 0) continue
     const sector = SECTOR_ATTRIBUTES[a.id]
     if (sector) found.push({ level: 'warning', reason: { kind: 'sectors', attribute: sector, count } })
+    if (a.id === 199) {
+      const added = crcAdded(count, baseline)
+      if (added > 0) found.push({ level: 'warning', reason: { kind: 'crc', count, added, since: baseline!.crc!.since } })
+      else notes.push({ kind: 'crc-old', count, since: baseline?.crc?.since })
+      continue
+    }
     const error = ERROR_ATTRIBUTES[a.id]
     if (error) found.push({ level: 'warning', reason: { kind: 'errors', attribute: error, count } })
   }
@@ -142,7 +174,7 @@ export function assessSmart(disk: SmartDisk): SmartAssessment {
     found.push({ level: disk.temperature >= CRITICAL_CELSIUS ? 'critical' : 'warning', reason: { kind: 'temperature', celsius: disk.temperature } })
   const lastTest = disk.selfTests[0]
   if (lastTest && !lastTest.passed && disk.status !== 'SELFERR') found.push({ level: 'warning', reason: { kind: 'selftest', status: lastTest.status } })
-  return { level: worst(found.map((f) => f.level)), reasons: found.map((f) => f.reason) }
+  return { level: worst(found.map((f) => f.level)), reasons: found.map((f) => f.reason), notes }
 }
 
 const hintFor = (r: SmartReason): SmartHint => {
@@ -151,6 +183,8 @@ const hintFor = (r: SmartReason): SmartHint => {
       return 'access'
     case 'temperature':
       return 'cooling'
+    case 'crc':
+      return 'cable'
     case 'errors':
       return r.attribute === 'crc' ? 'cable' : 'replace'
     case 'status':
@@ -199,6 +233,8 @@ export function describeReason(r: SmartReason): string {
       return `${r.count} ${SECTOR_TEXT[r.attribute]}`
     case 'errors':
       return `${r.count} ${ERROR_TEXT[r.attribute]}`
+    case 'crc':
+      return `${r.added} neue Übertragungsfehler (CRC) seit ${dateDe(r.since)} – insgesamt ${r.count}; Kabel oder Backplane prüfen`
     case 'wear':
       return `${r.percent} % der vorgesehenen Lebensdauer verbraucht`
     case 'temperature':
@@ -208,9 +244,17 @@ export function describeReason(r: SmartReason): string {
   }
 }
 
+const dateDe = (ts: number) => new Date(ts).toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric' })
+
+export function describeNote(n: SmartNote): string {
+  return n.since
+    ? `${n.count} ältere Übertragungsfehler (CRC), seit ${dateDe(n.since)} keine neuen – der Zähler wird nie zurückgesetzt, nur ein Anstieg wäre ein Problem`
+    : `${n.count} Übertragungsfehler (CRC) seit dem Einbau – der Zähler wird nie zurückgesetzt; Quadeck meldet sich, sobald neue dazukommen`
+}
+
 export const HINT_TEXT: Record<SmartHint, string> = {
   replace: 'Ersatz besorgen und Daten sichern – die Platte zeigt Verschleiß oder Defekte.',
-  cable: 'SATA-Kabel und Stromanschluss prüfen oder tauschen; die Platte selbst ist oft in Ordnung.',
+  cable: 'SATA-Kabel und Stromanschluss prüfen oder tauschen; die Platte selbst ist oft in Ordnung. Der CRC-Zähler bleibt danach stehen, geht aber nicht zurück – steigt er nicht mehr, ist das Problem behoben.',
   cooling: 'Für bessere Kühlung sorgen (Luftstrom, Lüfter, Abstand zwischen den Platten).',
   access: 'smartctl kann die Platte nicht auslesen – USB-Gehäuse ohne SAT-Unterstützung oder fehlende Rechte.',
 }

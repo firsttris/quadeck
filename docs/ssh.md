@@ -45,7 +45,10 @@ the change is refused with the reason, and only an explicit confirmation forces 
 ## Logins
 
 The last successful logins (user, IP, key or password, time) and the failed attempts of the last
-24 hours grouped by IP, both from the journal.
+24 hours grouped by IP, both from the journal. A login counts as **connected** (green dot) only
+while its connection is still open: the client address and port from the journal are matched
+against the established connections to sshd's ports (`ss -Htn state established`). Older logins
+are shown with a grey dot.
 
 ## New device
 
