@@ -490,18 +490,18 @@ const templates = (tx: Tx): { label: string; spec: Partial<TimerSpec> }[] => [
   {
     label: tx.timers.templates.script.label,
     spec: {
-      name: 'mein-skript',
+      name: tr('mein-skript', 'my-script'),
       description: tx.timers.templates.script.description,
-      command: '/usr/local/bin/mein-skript.sh',
+      command: tr('/usr/local/bin/mein-skript.sh', '/usr/local/bin/my-script.sh'),
       calendar: '*-*-* 03:00:00',
     },
   },
   {
     label: tx.timers.templates.rsync.label,
     spec: {
-      name: 'backup-daten',
+      name: tr('backup-daten', 'backup-data'),
       description: tx.timers.templates.rsync.description,
-      command: 'rsync -a --delete /srv/daten/ /mnt/backup/daten/',
+      command: tr('rsync -a --delete /srv/daten/ /mnt/backup/daten/', 'rsync -a --delete /srv/data/ /mnt/backup/data/'),
       calendar: '*-*-* 02:30:00',
       lowPriority: true,
     },
@@ -626,7 +626,7 @@ function TimerEditor({ initial, previous, enabled: initialEnabled, existing, onC
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
               {tx.timers.editor.name}
-              <input className="field font-mono" value={spec.name} onChange={(e) => set('name', e.target.value.trim())} placeholder="backup-fotos" autoFocus={!previous} />
+              <input className="field font-mono" value={spec.name} onChange={(e) => set('name', e.target.value.trim())} placeholder={tr('backup-fotos', 'backup-photos')} autoFocus={!previous} />
               {taken && <span className="font-normal text-[#ff8a80]">{tx.timers.editor.taken(spec.name)}</span>}
             </label>
             <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">

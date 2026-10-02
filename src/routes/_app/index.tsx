@@ -392,6 +392,7 @@ function TileGroup({
   onDelete: (s: Service) => void
   onEdit: (s: Service) => void
 }) {
+  const groupNames = useT().overview.groupNames
   const keys = group.items.map((s) => s.key).join('\n')
   const spec: GridSpec = useMemo(
     () => ({ ...TILE_GRID_BASE, defaults: (_bp, cols) => flowTiles(group.items, cols) }),
@@ -406,7 +407,7 @@ function TileGroup({
   return (
     <div className="flex flex-col gap-[10px]">
       <div className="flex items-center gap-2">
-        <span className="text-[11px] tracking-[.08em] text-muted uppercase">{group.name}</span>
+        <span className="text-[11px] tracking-[.08em] text-muted uppercase">{groupNames[group.name] ?? group.name}</span>
         <span className="text-[11px] text-[#4a525e]">{group.note}</span>
       </div>
       <EditableGrid

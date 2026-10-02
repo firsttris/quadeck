@@ -11,7 +11,7 @@ export default defineConfig({
   use: {
     baseURL: `http://127.0.0.1:${PORT}`,
     trace: 'retain-on-failure',
-    // The specs check the German texts; e2e/i18n.spec.ts switches to English.
+    // The specs check the German texts; e2e/zz-i18n.spec.ts switches to English.
     locale: 'de-DE',
     launchOptions: process.env.CHROMIUM_PATH ? { executablePath: process.env.CHROMIUM_PATH } : undefined,
   },

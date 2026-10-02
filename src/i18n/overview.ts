@@ -1,6 +1,8 @@
 // Texts of the overview area. `de` defines the shape, `en` must match it (checked by tsc).
 
 export const de = {
+  /** Built-in app group names (stored in German, see src/server/icons.ts); shown translated. */
+  groupNames: { Medien: 'Medien', Netzwerk: 'Netzwerk', Produktivität: 'Produktivität' } as Record<string, string>,
   title: 'Übersicht',
   subtitle: (host: string) => `${host} · live über Podman-Socket und D-Bus`,
   cards: {
@@ -127,6 +129,7 @@ export const de = {
 }
 
 export const en: typeof de = {
+  groupNames: { Medien: 'Media', Netzwerk: 'Network', Produktivität: 'Productivity' },
   title: 'Overview',
   subtitle: (host: string) => `${host} · live via Podman socket and D-Bus`,
   cards: {

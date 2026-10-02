@@ -1,5 +1,8 @@
 import { expect, test, type Page } from '@playwright/test'
+import { readFileSync, readdirSync } from 'node:fs'
+import { join } from 'node:path'
 
+// Runs last (zz-): it opens dialogs and menus on every page.
 // English UI: switch the language and walk through every page and tab looking
 // for German that was left behind. Host data from the fixtures (unit
 // descriptions, file names, package descriptions …) may be German – those lines
@@ -9,8 +12,40 @@ const PASSWORD = 'e2e-password-123'
 
 const GERMAN = /[äöüÄÖÜß]|\b(der|die|das|den|dem|und|oder|nicht|wird|werden|keine?n?|mit|für|auf|von|ein|eine|ist|sind|zum|zur|neu|alle|Datei|Dateien|bitte|noch|nur|schon|Benutzer|Speichern|Abbrechen|Schließen|Löschen|Bearbeiten|Starten|Stoppen|Hinzufügen|Übersicht|Einstellungen|Fehler|läuft|gestoppt|Aktionen|Neue?r?|Freigaben?|Festplatten?|Netzwerk|Benachrichtigungen|Zeitplan|jetzt|vor|seit|Sekunden|Minuten|Stunden|Tage)\b/
 
+/**
+ * Words that only occur in the German texts (namespace `de` objects, first
+ * argument of tr()) and never in the English ones: if one shows up in the
+ * English UI, a text was left behind.
+ */
+function germanOnlyWords(): Set<string> {
+  const STR = /'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`/g
+  const words = (t: string) => (t.match(/[A-Za-zÄÖÜäöüß]{4,}/g) ?? []).map((w) => w.toLowerCase())
+  const de = new Set<string>()
+  const en = new Set<string>()
+  const files = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? files(join(dir, e.name)) : /\.tsx?$/.test(e.name) ? [join(dir, e.name)] : []))
+  for (const f of files('src')) {
+    const src = readFileSync(f, 'utf8')
+    if (f.startsWith(join('src', 'i18n')) && !f.endsWith('index.tsx')) {
+      const split = src.indexOf('export const en')
+      for (const m of src.slice(0, split).match(STR) ?? []) words(m).forEach((w) => de.add(w))
+      for (const m of src.slice(split).match(STR) ?? []) words(m).forEach((w) => en.add(w))
+    }
+    const pair = new RegExp(`\\b(?:tr|k)\\(\\s*(${STR.source})\\s*,\\s*(${STR.source})`, 'g')
+    for (const m of src.matchAll(pair)) {
+      words(m[1]!).forEach((w) => de.add(w))
+      words(m[2]!).forEach((w) => en.add(w))
+    }
+  }
+  return new Set([...de].filter((w) => !en.has(w)))
+}
+const GERMAN_ONLY = germanOnlyWords()
+const isGerman = (t: string) => GERMAN.test(t) || (t.match(/[A-Za-zÄÖÜäöüß]{4,}/g) ?? []).some((w) => GERMAN_ONLY.has(w.toLowerCase()))
+
 /** Fixture data that is German on purpose (it is "the server's" data, not UI text). */
-const DATA: RegExp[] = [/^$/]
+const DATA: RegExp[] = [
+  // Fan names the admin gave in the sensor config
+  /^(CPU-Lüfter|Gehäuse vorne|Gehäuse hinten)$/,
+]
 
 async function scan(page: Page, where: string): Promise<string[]> {
   await page.waitForTimeout(300)
@@ -26,7 +61,25 @@ async function scan(page: Page, where: string): Promise<string[]> {
     }
     return out
   })
-  return [...new Set(texts)].filter((t) => GERMAN.test(t) && !DATA.some((d) => d.test(t.replace(/^@[a-z-]+: /, '')))).map((t) => `${where}: ${t}`)
+  return [...new Set(texts)].filter((t) => isGerman(t) && !DATA.some((d) => d.test(t.replace(/^@[a-z-]+: /, '')))).map((t) => `${where}: ${t}`)
+}
+
+/** Opens what only shows on click – dialogs ("… …" buttons) and row menus – scans it, closes it again. */
+async function openers(page: Page, where: string, hits: string[]) {
+  const buttons = page.locator('main button:visible').filter({ hasText: /…\s*$/ }).or(page.locator('main button[aria-haspopup="menu"]:visible'))
+  const n = Math.min(await buttons.count(), 30)
+  for (let i = 0; i < n; i++) {
+    const b = buttons.nth(i)
+    if (!(await b.isVisible().catch(() => false)) || (await b.isDisabled().catch(() => true))) continue
+    const name = ((await b.getAttribute('aria-label')) ?? (await b.innerText())).trim()
+    await b.click({ timeout: 2000 }).catch(() => {})
+    await page.waitForTimeout(250)
+    hits.push(...(await scan(page, `${where} {${name}}`)))
+    for (let k = 0; k < 3 && (await page.locator('[role=dialog]:visible, [role=menu]:visible').count()) > 0; k++) {
+      await page.keyboard.press('Escape')
+      await page.waitForTimeout(150)
+    }
+  }
 }
 
 async function tabs(page: Page, where: string, hits: string[]) {
@@ -38,6 +91,7 @@ async function tabs(page: Page, where: string, hits: string[]) {
     const name = (await tab.innerText()).trim()
     await tab.click()
     hits.push(...(await scan(page, `${where} [${name}]`)))
+    await openers(page, `${where} [${name}]`, hits)
   }
 }
 
@@ -45,13 +99,14 @@ test.describe('English', () => {
   test.use({ locale: 'en-US' })
 
   test('login page follows the browser language', async ({ page }) => {
+    expect(GERMAN_ONLY.size).toBeGreaterThan(500)
     await page.goto('/login')
     await expect(page.locator('html')).toHaveAttribute('lang', 'en')
     expect(await scan(page, '/login')).toEqual([])
   })
 
   test('every page and tab is English', async ({ page }) => {
-    test.setTimeout(180_000)
+    test.setTimeout(600_000)
     await page.goto('/login')
     await page.getByLabel('Password').fill(PASSWORD)
     await page.getByRole('button', { name: /sign in|log in/i }).click()
@@ -62,6 +117,8 @@ test.describe('English', () => {
       await page.goto(p)
       await page.waitForLoadState('networkidle').catch(() => {})
       hits.push(...(await scan(page, p)))
+      await openers(page, p, hits)
+      await page.goto(p)
       await tabs(page, p, hits)
     }
     console.log(hits.join('\n'))

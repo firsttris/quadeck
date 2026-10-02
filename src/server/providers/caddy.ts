@@ -6,6 +6,7 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { run } from '../exec'
 import type { DiscoveryProvider, ServiceCandidate } from './types'
+import { tr } from '~/shared/i18n'
 
 interface CaddyRoute {
   match?: { host?: string[]; path?: string[] }[]
@@ -237,7 +238,7 @@ export class CaddyProvider implements DiscoveryProvider {
       this.lastSource = 'caddyfile'
       return candidatesFromCaddyfile(readFileSync(this.caddyfile, 'utf8'))
     }
-    errors.push(`kein Caddyfile unter ${this.caddyfile}`)
+    errors.push(tr(`kein Caddyfile unter ${this.caddyfile}`, `no Caddyfile at ${this.caddyfile}`))
     this.lastSource = undefined
     throw new Error(errors.join('; '))
   }

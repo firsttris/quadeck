@@ -527,7 +527,7 @@ function NewUnit() {
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
             {t.name}
-            <input className="field w-[280px] font-mono" value={name} placeholder="mein-dienst.service" onChange={(e) => setName(e.target.value.trim())} autoFocus />
+            <input className="field w-[280px] font-mono" value={name} placeholder={tr('mein-dienst.service', 'my-service.service')} onChange={(e) => setName(e.target.value.trim())} autoFocus />
           </label>
           {name && !validName && <span className="pb-2 text-[12px] text-[#ff8a80]">{t.invalidName}</span>}
         </div>

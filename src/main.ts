@@ -26,6 +26,7 @@ import { SystemFiles } from './server/files/backend'
 import { SystemTimers } from './server/timers/backend'
 import { SystemUnitEditor } from './server/systemd/editor'
 import { SystemNetwork } from './server/network/collect'
+import { tr } from '~/shared/i18n'
 
 export interface StartServer {
   fetch(request: Request): Response | Promise<Response>
@@ -98,7 +99,7 @@ export function serve(opts: MainOptions) {
         return withHeaders(await withRequestLang(req, () => opts.server.fetch(forwarded)))
       } catch (e) {
         console.error('[quadeck]', e)
-        return withHeaders(new Response('Interner Fehler', { status: 500 }))
+        return withHeaders(new Response(tr('Interner Fehler', 'Internal error'), { status: 500 }))
       }
     },
   })

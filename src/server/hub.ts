@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs'
 import { hostname, networkInterfaces } from 'node:os'
 import { join } from 'node:path'
 import type { Container, Disk, GpuMetrics, HiddenService, Share, Snapshot, SourceStatus, SystemMetrics, Unit } from '~/shared/types'
-import { collectDisks } from './collectors/disks'
+import { collectDisks, diskRole } from './collectors/disks'
 import { GpuCollector } from './collectors/gpu'
 import { metricRows, pruneHistory, SAMPLE_EVERY_MS, seedFixtureHistory, seedSmartHistory, smartBaselines } from './metrics'
 import { assessSmart } from '~/shared/smart'
@@ -227,7 +227,7 @@ export class Hub {
 
   private async collectDisks() {
     try {
-      this.disks = this.fixtures?.disks ?? (await collectDisks())
+      this.disks = this.fixtures?.disks?.map((d) => ({ ...d, role: diskRole(d.mount) })) ?? (await collectDisks())
       this.ok('disks')
     } catch (e) {
       this.fail('disks', e)

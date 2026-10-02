@@ -126,4 +126,4 @@ generated notes. `quadeck update` and `install.sh` pick the newest release from 
     viewer's language (cookie `qd_lang`, else `Accept-Language`); in the root helper and in
     background work it returns both, marked, and JSON responses, the event stream and
     notifications pick the language at the end. Never call `tr()` at module top level.
-  - `e2e/i18n.spec.ts` walks every page in English and fails on German leftovers.
+  - `e2e/zz-i18n.spec.ts` walks every page in English and fails on German leftovers.
