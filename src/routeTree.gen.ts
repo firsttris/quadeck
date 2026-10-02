@@ -16,6 +16,7 @@ import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppJournalRouteImport } from './routes/_app/journal'
 import { Route as AppQuadletsRouteImport } from './routes/_app/quadlets'
 import { Route as AppSharesRouteImport } from './routes/_app/shares'
+import { Route as AppSshRouteImport } from './routes/_app/ssh'
 import { Route as AppSystemRouteImport } from './routes/_app/system'
 import { Route as AppUnitsRouteImport } from './routes/_app/units'
 import { Route as ApiContainersRouteImport } from './routes/api/containers'
@@ -45,6 +46,7 @@ import { Route as ApiQuadletsRevisionRouteImport } from './routes/api/quadlets/r
 import { Route as ApiQuadletsValidateRouteImport } from './routes/api/quadlets/validate'
 import { Route as ApiServicesOverrideRouteImport } from './routes/api/services/override'
 import { Route as ApiSharesIndexRouteImport } from './routes/api/shares/index'
+import { Route as ApiSshIndexRouteImport } from './routes/api/ssh/index'
 import { Route as ApiSystemImagesRouteImport } from './routes/api/system/images'
 import { Route as ApiSystemOverviewRouteImport } from './routes/api/system/overview'
 import { Route as ApiSystemRemovePreviewRouteImport } from './routes/api/system/remove-preview'
@@ -84,6 +86,11 @@ const AppQuadletsRoute = AppQuadletsRouteImport.update({
 const AppSharesRoute = AppSharesRouteImport.update({
   id: '/shares',
   path: '/shares',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSshRoute = AppSshRouteImport.update({
+  id: '/ssh',
+  path: '/ssh',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSystemRoute = AppSystemRouteImport.update({
@@ -231,6 +238,11 @@ const ApiSharesIndexRoute = ApiSharesIndexRouteImport.update({
   path: '/api/shares/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSshIndexRoute = ApiSshIndexRouteImport.update({
+  id: '/api/ssh/',
+  path: '/api/ssh/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSystemImagesRoute = ApiSystemImagesRouteImport.update({
   id: '/api/system/images',
   path: '/api/system/images',
@@ -269,6 +281,7 @@ export interface FileRoutesByFullPath {
   '/journal': typeof AppJournalRoute
   '/quadlets': typeof AppQuadletsRoute
   '/shares': typeof AppSharesRoute
+  '/ssh': typeof AppSshRoute
   '/system': typeof AppSystemRoute
   '/units': typeof AppUnitsRoute
   '/api/containers': typeof ApiContainersRoute
@@ -302,6 +315,7 @@ export interface FileRoutesByFullPath {
   '/api/links/': typeof ApiLinksIndexRoute
   '/api/quadlets/': typeof ApiQuadletsIndexRoute
   '/api/shares/': typeof ApiSharesIndexRoute
+  '/api/ssh/': typeof ApiSshIndexRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages/': typeof ApiSystemPackagesIndexRoute
 }
@@ -311,6 +325,7 @@ export interface FileRoutesByTo {
   '/journal': typeof AppJournalRoute
   '/quadlets': typeof AppQuadletsRoute
   '/shares': typeof AppSharesRoute
+  '/ssh': typeof AppSshRoute
   '/system': typeof AppSystemRoute
   '/units': typeof AppUnitsRoute
   '/api/containers': typeof ApiContainersRoute
@@ -345,6 +360,7 @@ export interface FileRoutesByTo {
   '/api/links': typeof ApiLinksIndexRoute
   '/api/quadlets': typeof ApiQuadletsIndexRoute
   '/api/shares': typeof ApiSharesIndexRoute
+  '/api/ssh': typeof ApiSshIndexRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages': typeof ApiSystemPackagesIndexRoute
 }
@@ -356,6 +372,7 @@ export interface FileRoutesById {
   '/_app/journal': typeof AppJournalRoute
   '/_app/quadlets': typeof AppQuadletsRoute
   '/_app/shares': typeof AppSharesRoute
+  '/_app/ssh': typeof AppSshRoute
   '/_app/system': typeof AppSystemRoute
   '/_app/units': typeof AppUnitsRoute
   '/api/containers': typeof ApiContainersRoute
@@ -390,6 +407,7 @@ export interface FileRoutesById {
   '/api/links/': typeof ApiLinksIndexRoute
   '/api/quadlets/': typeof ApiQuadletsIndexRoute
   '/api/shares/': typeof ApiSharesIndexRoute
+  '/api/ssh/': typeof ApiSshIndexRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages/': typeof ApiSystemPackagesIndexRoute
 }
@@ -402,6 +420,7 @@ export interface FileRouteTypes {
     | '/journal'
     | '/quadlets'
     | '/shares'
+    | '/ssh'
     | '/system'
     | '/units'
     | '/api/containers'
@@ -435,6 +454,7 @@ export interface FileRouteTypes {
     | '/api/links/'
     | '/api/quadlets/'
     | '/api/shares/'
+    | '/api/ssh/'
     | '/api/system/packages/$name'
     | '/api/system/packages/'
   fileRoutesByTo: FileRoutesByTo
@@ -444,6 +464,7 @@ export interface FileRouteTypes {
     | '/journal'
     | '/quadlets'
     | '/shares'
+    | '/ssh'
     | '/system'
     | '/units'
     | '/api/containers'
@@ -478,6 +499,7 @@ export interface FileRouteTypes {
     | '/api/links'
     | '/api/quadlets'
     | '/api/shares'
+    | '/api/ssh'
     | '/api/system/packages/$name'
     | '/api/system/packages'
   id:
@@ -488,6 +510,7 @@ export interface FileRouteTypes {
     | '/_app/journal'
     | '/_app/quadlets'
     | '/_app/shares'
+    | '/_app/ssh'
     | '/_app/system'
     | '/_app/units'
     | '/api/containers'
@@ -522,6 +545,7 @@ export interface FileRouteTypes {
     | '/api/links/'
     | '/api/quadlets/'
     | '/api/shares/'
+    | '/api/ssh/'
     | '/api/system/packages/$name'
     | '/api/system/packages/'
   fileRoutesById: FileRoutesById
@@ -561,6 +585,7 @@ export interface RootRouteChildren {
   ApiLinksIndexRoute: typeof ApiLinksIndexRoute
   ApiQuadletsIndexRoute: typeof ApiQuadletsIndexRoute
   ApiSharesIndexRoute: typeof ApiSharesIndexRoute
+  ApiSshIndexRoute: typeof ApiSshIndexRoute
   ApiSystemPackagesNameRoute: typeof ApiSystemPackagesNameRoute
   ApiSystemPackagesIndexRoute: typeof ApiSystemPackagesIndexRoute
 }
@@ -614,6 +639,13 @@ declare module '@tanstack/react-router' {
       path: '/shares'
       fullPath: '/shares'
       preLoaderRoute: typeof AppSharesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/ssh': {
+      id: '/_app/ssh'
+      path: '/ssh'
+      fullPath: '/ssh'
+      preLoaderRoute: typeof AppSshRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/system': {
@@ -819,6 +851,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSharesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/ssh/': {
+      id: '/api/ssh/'
+      path: '/api/ssh'
+      fullPath: '/api/ssh/'
+      preLoaderRoute: typeof ApiSshIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/system/images': {
       id: '/api/system/images'
       path: '/api/system/images'
@@ -868,6 +907,7 @@ interface AppRouteChildren {
   AppJournalRoute: typeof AppJournalRoute
   AppQuadletsRoute: typeof AppQuadletsRoute
   AppSharesRoute: typeof AppSharesRoute
+  AppSshRoute: typeof AppSshRoute
   AppSystemRoute: typeof AppSystemRoute
   AppUnitsRoute: typeof AppUnitsRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -877,6 +917,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppJournalRoute: AppJournalRoute,
   AppQuadletsRoute: AppQuadletsRoute,
   AppSharesRoute: AppSharesRoute,
+  AppSshRoute: AppSshRoute,
   AppSystemRoute: AppSystemRoute,
   AppUnitsRoute: AppUnitsRoute,
   AppIndexRoute: AppIndexRoute,
@@ -919,6 +960,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiLinksIndexRoute: ApiLinksIndexRoute,
   ApiQuadletsIndexRoute: ApiQuadletsIndexRoute,
   ApiSharesIndexRoute: ApiSharesIndexRoute,
+  ApiSshIndexRoute: ApiSshIndexRoute,
   ApiSystemPackagesNameRoute: ApiSystemPackagesNameRoute,
   ApiSystemPackagesIndexRoute: ApiSystemPackagesIndexRoute,
 }

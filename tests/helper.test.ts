@@ -10,6 +10,7 @@ import { LocalPrivileged } from '~/server/privileged/local'
 import { FixtureMaintenance } from '~/server/packages/maintenance'
 import { FixturePodmanAdmin } from '~/server/quadlets/backend'
 import { FixtureShares } from '~/server/shares/backend'
+import { FixtureSsh } from '~/server/ssh/backend'
 
 // sha512-crypt of "geheim-123"
 const HASH = '$6$quadeckt$pgIhFnbK6xs46yd0LWpDYqO6iRlF44QJuqBQ7i2j0gU.Rxvby3N1AG9aVgJxVbQQawFROmuIr9MJ9V3/.cG9w.'
@@ -69,7 +70,7 @@ describe('gate', () => {
 describe('helper over a Unix socket', () => {
   const dir = mkdtempSync(join(tmpdir(), 'quadeck-helper-'))
   const socket = join(dir, 'helper.sock')
-  const server = serveHelper(socket, new LocalPrivileged(new Gate('system', 15, { authFiles: () => files }), join(dir, 'no-podman.sock'), new FixtureMaintenance('fixtures/demo'), new FixturePodmanAdmin('fixtures/demo'), new FixtureShares('fixtures/demo')))
+  const server = serveHelper(socket, new LocalPrivileged(new Gate('system', 15, { authFiles: () => files }), join(dir, 'no-podman.sock'), new FixtureMaintenance('fixtures/demo'), new FixturePodmanAdmin('fixtures/demo'), new FixtureShares('fixtures/demo'), new FixtureSsh('fixtures/demo')))
   const client = new HelperClient(socket)
   afterAll(() => server.stop(true))
 

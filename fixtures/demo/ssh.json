@@ -1,0 +1,62 @@
+{
+ "users": [
+  {
+   "name": "root",
+   "uid": 0,
+   "home": "/root",
+   "keys": []
+  },
+  {
+   "name": "tristan",
+   "uid": 1000,
+   "home": "/home/tristan",
+   "keys": [
+    "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA2vBQ/IMGRDjntTzCHjHPXPhxVt7vzJsuwXt32ebPIO tristan@laptop",
+    "ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABAQDq9buh8ecJQBtPyguMQSv95xJxgFWAx9XImDQ4NG0pj2ZQo15zAcx2KCuSxmwhuJUWRMCazXerSo/fqmVJHs174Nmk86uwxcJ1bx0ToIR4pdwTF/gGpFi3RIk8fKcwAdFwn4I3jRkOuqaKOe58GwCHdWb2pL1fi3VL14Dz4PKtOxxXGsMNE2JJCdVIjC/u1J9+7ktnlGt7zNCoQTaWOnZvZTkjQ+6NwXnU+bUmMSX5UktTTL6huEpvs2SKVxZw43HAmrQ6BtWaerlR2LUUOBV3P4AtcDZerjMCS9NZOOJ/wwsR/25l30ezvzPpLPpCLJGE3Vf+I97GqQJ5f4Ke/p21 tristan@altes-handy"
+   ]
+  }
+ ],
+ "hostKeys": [
+  "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIPX0xm39B/lEI80X0FPGwASyjhHbub0+TVYBkQ006VgH root@nas-01",
+  "ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBNMgMsSgUakHqkVIZWn4CPqIb/Zl3iBKt3kFvH0fwW7PwouWG4S/Z+PpOriR1B7dWx4a9q74bqbcJ/btZRH8gTA= root@nas-01"
+ ],
+ "settings": {
+  "passwordAuthentication": true,
+  "permitRootLogin": "prohibit-password",
+  "allowUsers": []
+ },
+ "logins": [
+  {
+   "minutesAgo": 12,
+   "user": "tristan",
+   "from": "192.168.1.31",
+   "method": "publickey",
+   "key": 0
+  },
+  {
+   "minutesAgo": 1500,
+   "user": "tristan",
+   "from": "192.168.1.31",
+   "method": "publickey",
+   "key": 0
+  },
+  {
+   "minutesAgo": 4300,
+   "user": "tristan",
+   "from": "10.8.0.2",
+   "method": "password"
+  }
+ ],
+ "failed": [
+  {
+   "from": "45.155.205.233",
+   "count": 214,
+   "minutesAgo": 3
+  },
+  {
+   "from": "103.152.18.40",
+   "count": 37,
+   "minutesAgo": 51
+  }
+ ]
+}
