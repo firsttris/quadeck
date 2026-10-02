@@ -1,12 +1,14 @@
 // The hub runs all collectors on their own intervals, merges the result into
 // one Snapshot and pushes changes to SSE subscribers.
 
-import { asc, lt } from 'drizzle-orm'
+import { asc } from 'drizzle-orm'
 import { readFileSync } from 'node:fs'
 import { hostname, networkInterfaces } from 'node:os'
 import { join } from 'node:path'
-import type { Container, Disk, HiddenService, Share, Snapshot, SourceStatus, SystemMetrics, Unit } from '~/shared/types'
+import type { Container, Disk, GpuMetrics, HiddenService, Share, Snapshot, SourceStatus, SystemMetrics, Unit } from '~/shared/types'
 import { collectDisks } from './collectors/disks'
+import { GpuCollector } from './collectors/gpu'
+import { metricRows, pruneHistory, SAMPLE_EVERY_MS, seedFixtureHistory } from './metrics'
 import { collectShares } from './collectors/shares'
 import { PodmanCollector } from './collectors/podman'
 import { readHostInfo, SystemCollector } from './collectors/system'
@@ -39,10 +41,13 @@ interface Fixtures {
   units?: Unit[]
   disks?: Disk[]
   caddy?: unknown
+  gpus?: GpuMetrics[]
 }
 
 export class Hub {
   private systemCollector = new SystemCollector()
+  private gpuCollector = new GpuCollector()
+  private gpus: GpuMetrics[] = []
   private priv = privileged()
   private podman = new PodmanCollector((path) => this.priv.podmanGet(path), this.priv.kind === 'local' ? config().podmanSocket : undefined)
   private caddy = new CaddyProvider(config().caddyAdmin, config().caddyfile)
@@ -89,7 +94,7 @@ export class Hub {
         since: shift(u.since),
         timer: u.timer && { ...u.timer, next: shift(u.timer.next), last: shift(u.timer.last) },
       }))
-      this.fixtures = { containers: load('containers.json'), units, disks: load('disks.json'), caddy: load('caddy.json') }
+      this.fixtures = { containers: load('containers.json'), units, disks: load('disks.json'), caddy: load('caddy.json'), gpus: load('gpus.json') }
       delete host.generatedAt
       this.host = { ...this.host, ...host }
     }
@@ -134,11 +139,12 @@ export class Hub {
       if (!this.fixtures) this.host = { ...this.host, uptimeSec: readHostInfo().uptimeSec }
       this.publish()
     })
-    every(3600_000, async () => {
-      db().delete(schema.metricSamples).where(lt(schema.metricSamples.ts, Date.now() - 24 * 3600_000)).run()
-    })
+    const gpu = every(5000, async () => this.collectGpus())
+    every(3600_000, async () => pruneHistory(db()))
+    if (this.fixtures) seedFixtureHistory(db())
     // First round right away (timers are already registered, so a failure here
     // does not leave the hub dead).
+    await gpu()
     this.collectSystem()
     await Promise.allSettled([fast(), slow(), this.collectVersions()])
     void health()
@@ -161,22 +167,27 @@ export class Hub {
 
   private collectSystem() {
     try {
-      this.system = this.systemCollector.sample()
+      this.system = { ...this.systemCollector.sample(), gpus: this.gpus.length ? this.gpus : undefined }
       this.ok('system')
-      if (Date.now() - this.lastSampleAt >= 30_000 && this.system.memTotal) {
+      if (Date.now() - this.lastSampleAt >= SAMPLE_EVERY_MS && this.system.memTotal) {
         this.lastSampleAt = Date.now()
-        const s = this.system
-        const rows = [
-          { metric: 'cpu', value: s.cpu },
-          { metric: 'ram', value: s.memUsed / s.memTotal },
-          { metric: 'net_rx', value: s.net.rx },
-          { metric: 'net_tx', value: s.net.tx },
-          ...(s.temp ? [{ metric: 'temp', value: s.temp.celsius }] : []),
-        ].map((r) => ({ ...r, ts: s.ts }))
-        db().insert(schema.metricSamples).values(rows).run()
+        const rows = metricRows(this.system)
+        if (rows.length) db().insert(schema.metricSamples).values(rows).run()
       }
     } catch (e) {
       this.fail('system', e)
+    }
+  }
+
+  private async collectGpus() {
+    try {
+      if (this.fixtures) {
+        // Demo: a little movement around the fixture values.
+        this.gpus = (this.fixtures.gpus ?? []).map((g) => ({ ...g, util: g.util !== undefined ? Math.min(1, Math.max(0, g.util + (Math.random() - 0.5) * 0.1)) : undefined }))
+      } else this.gpus = await this.gpuCollector.collect()
+    } catch (e) {
+      console.warn('[quadeck] gpu:', (e as Error).message)
+      this.gpus = []
     }
   }
 

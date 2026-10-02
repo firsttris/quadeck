@@ -3,7 +3,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useActions } from '~/components/Actions'
 import { AddLinkDialog } from '~/components/AddLinkDialog'
 import { EditableGrid, recentlyDragged, type DefaultItem, type GridSpec } from '~/components/EditableGrid'
-import { Gauge } from '~/components/Gauge'
+import { MetricCard, MetricDialog, type MetricCardId } from '~/components/MetricCards'
 import { Glyph } from '~/components/Glyph'
 import { ConfirmDialog } from '~/components/Modal'
 import { PageHeader } from '~/components/PageHeader'
@@ -12,7 +12,8 @@ import { ServiceTile } from '~/components/ServiceTile'
 import { Dot, Pill } from '~/components/Status'
 import { useToast } from '~/components/Toast'
 import { api } from '~/lib/api'
-import { bytes, calendarLabel, diskSize, num, pct, rate, relative } from '~/lib/format'
+import { calendarLabel, diskSize, pct, relative } from '~/lib/format'
+import { useMetricHistory } from '~/lib/history'
 import { useLive } from '~/lib/live'
 import { getDashboardLayout } from '~/lib/server-fns'
 import type { DashboardLayout, GridItem, LayoutScope } from '~/shared/layout'
@@ -35,10 +36,12 @@ const CARDS = [
   { id: 'ram', label: 'RAM' },
   { id: 'temp', label: 'CPU-Temp' },
   { id: 'net', label: 'Netz' },
+  { id: 'gpu', label: 'GPU' },
 ] as const
 type CardId = (typeof CARDS)[number]['id']
 
-const GAUGE = { h: 4, minW: 2, minH: 4, maxH: 8 }
+// Gauge + one-hour chart; height follows the content.
+const GAUGE = { minW: 2, minH: 6 }
 
 /** Default card layout per breakpoint (h omitted = height follows the content). */
 const CARD_DEFAULTS: Record<string, Record<CardId, Omit<DefaultItem, 'i'>>> = {
@@ -47,8 +50,9 @@ const CARD_DEFAULTS: Record<string, Record<CardId, Omit<DefaultItem, 'i'>>> = {
     ram: { x: 3, y: 0, w: 3, ...GAUGE },
     temp: { x: 6, y: 0, w: 3, ...GAUGE },
     net: { x: 9, y: 0, w: 3, ...GAUGE },
-    services: { x: 0, y: 4, w: 8, minW: 3, minH: 3 },
-    storage: { x: 8, y: 4, w: 4, minW: 2, minH: 3 },
+    services: { x: 0, y: 8, w: 8, minW: 3, minH: 3 },
+    gpu: { x: 8, y: 8, w: 4, ...GAUGE },
+    storage: { x: 8, y: 100, w: 4, minW: 2, minH: 3 },
     timers: { x: 8, y: 200, w: 4, minW: 2, minH: 3 },
     shares: { x: 8, y: 300, w: 4, minW: 2, minH: 3 },
   },
@@ -57,7 +61,8 @@ const CARD_DEFAULTS: Record<string, Record<CardId, Omit<DefaultItem, 'i'>>> = {
     ram: { x: 3, y: 0, w: 3, ...GAUGE, minW: 1 },
     temp: { x: 0, y: 4, w: 3, ...GAUGE, minW: 1 },
     net: { x: 3, y: 4, w: 3, ...GAUGE, minW: 1 },
-    services: { x: 0, y: 8, w: 6, minW: 2, minH: 3 },
+    gpu: { x: 0, y: 8, w: 3, ...GAUGE, minW: 1 },
+    services: { x: 0, y: 12, w: 6, minW: 2, minH: 3 },
     storage: { x: 0, y: 200, w: 3, minW: 2, minH: 3 },
     timers: { x: 3, y: 200, w: 3, minW: 2, minH: 3 },
     shares: { x: 0, y: 300, w: 3, minW: 2, minH: 3 },
@@ -68,6 +73,7 @@ const CARD_DEFAULTS: Record<string, Record<CardId, Omit<DefaultItem, 'i'>>> = {
     ram: { x: 0, y: 104, w: 1, ...GAUGE, minW: 1 },
     temp: { x: 0, y: 108, w: 1, ...GAUGE, minW: 1 },
     net: { x: 0, y: 112, w: 1, ...GAUGE, minW: 1 },
+    gpu: { x: 0, y: 116, w: 1, ...GAUGE, minW: 1 },
     storage: { x: 0, y: 200, w: 1, minH: 3 },
     timers: { x: 0, y: 300, w: 1, minH: 3 },
     shares: { x: 0, y: 400, w: 1, minH: 3 },
@@ -134,7 +140,12 @@ function Overview() {
     }
   }
 
-  const visible = CARDS.filter((c) => !layout.hidden.includes(c.id))
+  // The GPU card only exists when there is a GPU.
+  const hasGpu = !!snapshot.system?.gpus?.length
+  const visible = CARDS.filter((c) => !layout.hidden.includes(c.id) && (c.id !== 'gpu' || hasGpu))
+  const history = useMetricHistory('1h')
+  const [detail, setDetail] = useState<MetricCardId | null>(null)
+  const metric = (id: MetricCardId) => <MetricCard id={id} snapshot={snapshot} history={history.series} now={history.now} onOpen={editing ? () => {} : setDetail} />
   const pageSpec: GridSpec = useMemo(
     () => ({ ...PAGE_GRID_BASE, defaults: (bp) => visible.map((c) => ({ i: c.id, ...CARD_DEFAULTS[bp]![c.id] })) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -146,7 +157,11 @@ function Overview() {
     storage: <Storage disks={snapshot.disks} />,
     timers: <Timers units={snapshot.units} />,
     shares: <Shares shares={snapshot.shares} error={snapshot.sources.shares?.error} />,
-    ...gaugeNodes(snapshot),
+    cpu: metric('cpu'),
+    ram: metric('ram'),
+    temp: metric('temp'),
+    net: metric('net'),
+    gpu: metric('gpu'),
   }
 
   return (
@@ -219,6 +234,7 @@ function Overview() {
           )
         }}
       />
+      <MetricDialog id={detail} snapshot={snapshot} onClose={() => setDetail(null)} />
     </>
   )
 }
@@ -254,31 +270,6 @@ function AlertCard({ unit, snapshot }: { unit: Unit; snapshot: Snapshot }) {
       </div>
     </section>
   )
-}
-
-// ---------- gauges ----------
-
-function gaugeNodes(snapshot: Snapshot): Record<'cpu' | 'ram' | 'temp' | 'net', React.ReactNode> {
-  const s = snapshot.system
-  const h = snapshot.host
-  const netMax = s?.net.speedMbps ? (s.net.speedMbps * 1e6) / 8 : 125e6
-  const net = s ? Math.max(s.net.rx, s.net.tx) / netMax : 0
-  const temp = s?.temp
-  return {
-    cpu: <Gauge bare id="cpu" label="CPU" p={s?.cpu ?? 0} value={s ? pct(s.cpu) : '–'} sub={`${h.cpuCores} Kerne · Load ${s ? num(s.load[0], 2) : '–'}`} />,
-    ram: <Gauge bare id="ram" label="RAM" p={s ? s.memUsed / s.memTotal : 0} value={s ? bytes(s.memUsed) : '–'} sub={s ? `von ${bytes(s.memTotal, 0)}` : ''} />,
-    temp: <Gauge bare id="temp" label="CPU-Temp" p={temp ? Math.min(1, Math.max(0, (temp.celsius - 30) / 60)) : 0} value={temp ? `${Math.round(temp.celsius)} °C` : '–'} sub={temp?.sensor ?? 'kein Sensor'} />,
-    net: (
-      <Gauge
-        bare
-        id="net"
-        label="Netz"
-        p={net}
-        value={s ? `↓ ${rate(s.net.rx)}` : '–'}
-        sub={s ? `↑ ${rate(s.net.tx)} · ${s.net.iface}${s.net.speedMbps ? ` · ${s.net.speedMbps >= 1000 ? `${s.net.speedMbps / 1000} GbE` : `${s.net.speedMbps} Mbit`}` : ''}` : ''}
-      />
-    ),
-  }
 }
 
 // ---------- storage ----------

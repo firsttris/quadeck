@@ -27,7 +27,30 @@ export interface SystemMetrics {
   memUsed: number // bytes
   temp?: { celsius: number; sensor: string }
   net: { rx: number; tx: number; iface: string; speedMbps?: number } // bytes/s
+  gpus?: GpuMetrics[]
 }
+
+export interface GpuMetrics {
+  id: string // card0, nvidia0
+  name: string
+  vendor: 'nvidia' | 'amd' | 'intel' | 'other'
+  /** Load 0..1; for Intel iGPUs the current/maximum clock (no load counter without root). */
+  util?: number
+  utilKind: 'load' | 'clock'
+  memUsed?: number // bytes
+  memTotal?: number
+  tempC?: number
+  powerW?: number
+  freqMhz?: number
+}
+
+/** Stored metrics (metric_samples.metric). */
+export const METRICS = ['cpu', 'ram', 'temp', 'net_rx', 'net_tx', 'gpu_util', 'gpu_mem', 'gpu_temp'] as const
+export type MetricName = (typeof METRICS)[number]
+export const HISTORY_RANGES = { '1h': 3600_000, '6h': 6 * 3600_000, '24h': 24 * 3600_000, '7d': 7 * 24 * 3600_000 } as const
+export type HistoryRange = keyof typeof HISTORY_RANGES
+/** [ts, value] pairs per metric, averaged into buckets. */
+export type MetricHistory = Partial<Record<MetricName, [number, number][]>>
 
 export interface Disk {
   dev: string
