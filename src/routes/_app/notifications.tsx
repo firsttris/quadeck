@@ -6,7 +6,7 @@ import { Pill, type Tone } from '~/components/Status'
 import { useToast } from '~/components/Toast'
 import { api } from '~/lib/api'
 import { relative } from '~/lib/format'
-import { CHANNEL_KINDS, RULES, channelErrors, channelTarget, type Channel, type ChannelKind, type NotifySettings, type NotifyState, type SentNotice, type Severity } from '~/shared/notify'
+import { CHANNEL_KINDS, RULES, SMTP_PRESETS, channelErrors, channelTarget, type Channel, type ChannelKind, type NotifySettings, type NotifyState, type SentNotice, type Severity } from '~/shared/notify'
 
 export const Route = createFileRoute('/_app/notifications')({
   head: () => ({ meta: [{ title: 'Benachrichtigungen · Quadeck' }] }),
@@ -251,6 +251,65 @@ const DEFAULTS: Record<ChannelKind, Partial<Channel>> = {
   gotify: { name: 'Gotify', url: 'https://' },
   telegram: { name: 'Telegram', url: 'https://api.telegram.org', chatId: '' },
   webhook: { name: 'Webhook', url: 'https://' },
+  email: { name: 'E-Mail', url: '', host: '', port: 587, security: 'starttls', user: '', from: '', to: '' },
+}
+
+const SECURITY_LABEL = { tls: 'SSL/TLS (meist Port 465)', starttls: 'STARTTLS (meist Port 587)', none: 'keine (nur Relay im eigenen Netz)' } as const
+
+function EmailFields({ c, set }: { c: Channel; set: (p: Partial<Channel>) => void }) {
+  const field = 'flex flex-col gap-1 text-[12px] font-medium text-muted'
+  const preset = SMTP_PRESETS.find((p) => p.host === c.host && p.host)
+  return (
+    <>
+      <div role="group" aria-label="Anbieter" className="flex flex-wrap gap-1.5">
+        {SMTP_PRESETS.map((p) => (
+          <button key={p.label} type="button" className={`seg ${(preset ? preset.label === p.label : !p.host) ? 'on' : ''}`} aria-pressed={preset ? preset.label === p.label : !p.host} onClick={() => set({ host: p.host, port: p.port, security: p.security })}>
+            {p.label}
+          </button>
+        ))}
+      </div>
+      {preset?.note && <p className="m-0 text-[12px] text-muted">{preset.note}</p>}
+      <div className="grid grid-cols-[1fr_96px] gap-3">
+        <label className={field}>
+          SMTP-Server
+          <input className="field font-mono" value={c.host ?? ''} onChange={(e) => set({ host: e.target.value.trim() })} placeholder="smtp.example.org" />
+        </label>
+        <label className={field}>
+          Port
+          <input className="field font-mono" inputMode="numeric" value={c.port ?? ''} onChange={(e) => set({ port: Number(e.target.value) || undefined })} />
+        </label>
+      </div>
+      <label className={field}>
+        Verschlüsselung
+        <select className="field" value={c.security ?? 'starttls'} onChange={(e) => set({ security: e.target.value as Channel['security'] })}>
+          {(['tls', 'starttls', 'none'] as const).map((s) => (
+            <option key={s} value={s}>
+              {SECURITY_LABEL[s]}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="grid grid-cols-2 gap-3">
+        <label className={field}>
+          Benutzer (meist die Adresse)
+          <input className="field font-mono" autoComplete="off" value={c.user ?? ''} onChange={(e) => set({ user: e.target.value.trim() })} onBlur={() => !c.from && c.user?.includes('@') && set({ from: c.user })} />
+        </label>
+        <label className={field}>
+          Passwort
+          <input className="field font-mono" type="password" autoComplete="new-password" value={c.token ?? ''} onChange={(e) => set({ token: e.target.value || undefined })} />
+        </label>
+      </div>
+      <label className={field}>
+        Absender
+        <input className="field font-mono" value={c.from ?? ''} onChange={(e) => set({ from: e.target.value.trim() })} placeholder="server@example.org" />
+        <span className="font-normal">Die meisten Anbieter verlangen hier die eigene Adresse.</span>
+      </label>
+      <label className={field}>
+        Empfänger
+        <input className="field font-mono" value={c.to ?? ''} onChange={(e) => set({ to: e.target.value })} placeholder="ich@example.org, partner@example.org" />
+      </label>
+    </>
+  )
 }
 
 function ChannelDialog({ channel, onClose, onSave }: { channel: Channel; onClose: () => void; onSave: (c: Channel) => Promise<void> }) {
@@ -282,7 +341,8 @@ function ChannelDialog({ channel, onClose, onSave }: { channel: Channel; onClose
         Name
         <input className="field" value={c.name} onChange={(e) => set({ name: e.target.value })} />
       </label>
-      {c.kind !== 'telegram' && (
+      {c.kind === 'email' && <EmailFields c={c} set={set} />}
+      {c.kind !== 'telegram' && c.kind !== 'email' && (
         <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
           {c.kind === 'webhook' ? 'Webhook-URL' : 'Server'}
           <input className="field font-mono" value={c.url} onChange={(e) => set({ url: e.target.value.trim() })} placeholder={c.kind === 'ntfy' ? 'https://ntfy.sh' : 'https://…'} />
@@ -295,7 +355,7 @@ function ChannelDialog({ channel, onClose, onSave }: { channel: Channel; onClose
           <span className="font-normal">Auf ntfy.sh kann jeder ein Thema abonnieren, der den Namen kennt – also einen schwer zu ratenden Namen wählen.</span>
         </label>
       )}
-      {c.kind !== 'webhook' && (
+      {c.kind !== 'webhook' && c.kind !== 'email' && (
         <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
           {tokenLabel}
           <input className="field font-mono" type="password" autoComplete="off" value={c.token ?? ''} onChange={(e) => set({ token: e.target.value.trim() || undefined })} />

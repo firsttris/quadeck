@@ -73,7 +73,7 @@ on it. That is Quadeck.
   logins and failed attempts, ready-made commands for a new device
 - **Network**: interfaces, routes, DNS, listening ports with the program, unit or container behind
   each one, and what firewalld or ufw does with it. Read-only by design
-- **Notifications**: ntfy, Gotify, Telegram or a webhook (Discord, Slack, Home Assistant) when a
+- **Notifications**: ntfy, Gotify, Telegram, e-mail (SMTP) or a webhook (Discord, Slack, Home Assistant) when a
   unit or timer fails, a web service is down, a container is unhealthy, SMART complains, a disk is
   nearly full or updates are available. Each problem once, with an all-clear when it is resolved
 - **Install what is missing**: smartmontools, Samba, NFS or OpenSSH not installed? The page shows

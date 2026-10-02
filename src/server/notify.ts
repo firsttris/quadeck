@@ -7,7 +7,8 @@ import { createHash } from 'node:crypto'
 import { getSetting, setSetting } from './settings'
 import type { ImageUpdatesReport, UpdatesReport } from '~/shared/packages'
 import type { Snapshot } from '~/shared/types'
-import { DELAY_MS, buildRequest, currentAlerts, defaultSettings, problemNotice, recoveryNotice, type Alert, type Channel, type Notice, type NotifySettings, type NotifyState, type SentNotice } from '~/shared/notify'
+import { sendMail, type Mail } from './mail'
+import { DELAY_MS, buildMail, buildRequest, currentAlerts, defaultSettings, problemNotice, recoveryNotice, type Alert, type Channel, type Notice, type NotifySettings, type NotifyState, type SentNotice } from '~/shared/notify'
 
 const KEY = 'notifications'
 const ACTIVE = 'notifications-active'
@@ -31,7 +32,10 @@ export class Notifier {
   /** After a delivery that reached no channel: wait before the next attempt. */
   private retryAt = 0
 
-  constructor(private send: Send = (url, init) => fetch(url, { ...init, signal: AbortSignal.timeout(10_000) })) {
+  constructor(
+    private send: Send = (url, init) => fetch(url, { ...init, signal: AbortSignal.timeout(10_000) }),
+    private mail: Mail = sendMail,
+  ) {
     this.active = new Map((getSetting<Active[]>(ACTIVE) ?? []).map((a) => [a.key, a]))
     this.log = getSetting<SentNotice[]>(LOG) ?? []
   }
@@ -65,6 +69,10 @@ export class Notifier {
     const results = await Promise.all(
       channels.map(async (c) => {
         try {
+          if (c.kind === 'email') {
+            await this.mail(c, buildMail(c, n))
+            return { channel: c.name, ok: true }
+          }
           const { url, init } = buildRequest(c, n)
           const res = await this.send(url, init)
           if (!res.ok) return { channel: c.name, ok: false, error: `HTTP ${res.status} ${(await res.text().catch(() => '')).slice(0, 200)}`.trim() }
