@@ -104,6 +104,7 @@ export type JobSpec =
   | { kind: 'fs-delete'; paths: string[] }
   | { kind: 'kernel-install'; flavor: KernelFlavor }
   | { kind: 'kernel-remove'; flavor: KernelFlavor }
+  | { kind: 'mkinitcpio' }
 
 export type JobStatus = 'running' | 'ok' | 'failed'
 

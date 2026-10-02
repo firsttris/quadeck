@@ -33,6 +33,7 @@ export function parseJobSpec(v: unknown): JobSpec {
     case 'upgrade':
     case 'aur-upgrade':
     case 'images-update':
+    case 'mkinitcpio':
       return { kind: o.kind }
     case 'remove': {
       const names = Array.isArray(o.names) ? o.names : []
@@ -84,6 +85,8 @@ export function jobTitle(spec: JobSpec): string {
       return `Image aktualisieren: ${spec.unit}`
     case 'install':
       return `Installieren: ${FEATURES[spec.feature].label}`
+    case 'mkinitcpio':
+      return 'initramfs neu bauen'
     case 'kernel-install':
       return `Kernel installieren: ${spec.flavor}`
     case 'kernel-remove':
@@ -160,6 +163,9 @@ async function execute(spec: JobSpec): Promise<number> {
       }
       return 0
     }
+    case 'mkinitcpio':
+      if (!Bun.which('mkinitcpio')) throw new Error('mkinitcpio ist nicht installiert')
+      return exec(['mkinitcpio', '-P'])
     case 'kernel-install': {
       if (detectProvider()?.id !== 'pacman') throw new Error('Kernel-Varianten gibt es hier nur für Arch (pacman)')
       // DKMS modules (NVIDIA, ZFS …) are built for every kernel that has its headers.

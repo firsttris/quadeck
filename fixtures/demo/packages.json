@@ -9,8 +9,12 @@
   },
   "rebootRequired": false,
   "configFiles": [
+   "/etc/mkinitcpio.conf.pacnew",
    "/etc/pacman.d/mirrorlist.pacnew",
-   "/etc/samba/smb.conf.pacnew"
+   "/etc/pam.d/kde.pacsave",
+   "/etc/passwd.pacnew",
+   "/etc/samba/smb.conf.pacnew",
+   "/etc/ssh/sshd_config.pacnew"
   ],
   "configHint": "Mit „pacdiff“ (pacman-contrib) vergleichen und zusammenführen.",
   "lastUpgrade": 1722330000000,
@@ -362,5 +366,18 @@
    "policy": "registry",
    "updated": "false"
   }
- ]
+ ],
+ "configContents": {
+  "/etc/mkinitcpio.conf": "# vim:set ft=sh\nMODULES=(i915 btrfs)\nBINARIES=()\nFILES=()\nHOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck)\n#COMPRESSION=\"zstd\"\n",
+  "/etc/mkinitcpio.conf.pacnew": "# vim:set ft=sh\n# MODULES\n# The following modules are loaded before any boot hooks are run.\nMODULES=()\n\nBINARIES=()\n\nFILES=()\n\n# HOOKS\nHOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block filesystems fsck)\n\n#COMPRESSION=\"zstd\"\n#COMPRESSION_OPTIONS=()\n",
+  "/etc/pacman.d/mirrorlist": "## Germany\nServer = https://mirror.example.de/archlinux/$repo/os/$arch\nServer = https://ftp.halifax.rwth-aachen.de/archlinux/$repo/os/$arch\n",
+  "/etc/pacman.d/mirrorlist.pacnew": "##\n## Arch Linux repository mirrorlist\n## Generated on 2026-09-28\n##\n\n## Worldwide\n#Server = https://geo.mirror.pkgbuild.com/$repo/os/$arch\n#Server = https://mirror.rackspace.com/archlinux/$repo/os/$arch\n\n## Germany\n#Server = https://ftp.halifax.rwth-aachen.de/archlinux/$repo/os/$arch\n#Server = https://mirror.netcologne.de/archlinux/$repo/os/$arch\n",
+  "/etc/pam.d/kde.pacsave": "#%PAM-1.0\nauth       include      system-local-login\naccount    include      system-local-login\npassword   include      system-local-login\nsession    include      system-local-login\n",
+  "/etc/passwd": "root:x:0:0::/root:/bin/bash\nbin:x:1:1::/:/usr/bin/nologin\ntristan:x:1000:1000:Tristan:/home/tristan:/bin/bash\nanna:x:1001:1001:Anna:/home/anna:/usr/bin/zsh\n",
+  "/etc/passwd.pacnew": "root:x:0:0::/root:/usr/bin/bash\nbin:x:1:1::/:/usr/bin/nologin\ndaemon:x:2:2::/:/usr/bin/nologin\n",
+  "/etc/samba/smb.conf": "[global]\n   workgroup = WORKGROUP\n   server string = nas-01\n\n[homes]\n   browseable = no\n\n[Medien]\n   path = /mnt/storage/media\n   read only = yes\n   guest ok = yes\n\n[Fotos]\n   path = /mnt/storage/photos\n   writable = yes\n   valid users = @family\n\n[printers]\n   path = /var/spool/samba\n   printable = yes\n",
+  "/etc/samba/smb.conf.pacnew": "# This is the main Samba configuration file. See smb.conf(5).\n[global]\n   workgroup = MYGROUP\n   server string = Samba Server\n   log file = /var/log/samba/%m.log\n",
+  "/etc/ssh/sshd_config": "Include /etc/ssh/sshd_config.d/*.conf\nPort 22\nPermitRootLogin prohibit-password\nAuthorizedKeysFile .ssh/authorized_keys\nKbdInteractiveAuthentication no\nUsePAM yes\nPrintMotd no\nSubsystem sftp /usr/lib/ssh/sftp-server\n",
+  "/etc/ssh/sshd_config.pacnew": "# This is the sshd server system-wide configuration file.\nInclude /etc/ssh/sshd_config.d/*.conf\n#Port 22\n#PermitRootLogin prohibit-password\nAuthorizedKeysFile .ssh/authorized_keys\nKbdInteractiveAuthentication no\nUsePAM yes\nPrintMotd no\nSubsystem sftp /usr/lib/ssh/sftp-server\n"
+ }
 }

@@ -15,6 +15,7 @@ import type { BootBackend } from '../boot/backend'
 import type { UsersBackend } from '../users/backend'
 import type { HardwareAdmin } from '../hardware/collect'
 import type { UserChange } from '~/shared/users'
+import type { ConfigAction } from '~/shared/configfiles'
 import type { FstabChange } from '~/shared/fstab'
 import type { TimerAction, TimerSpec } from '~/shared/timers'
 import type { SshChange } from '~/shared/ssh'
@@ -136,6 +137,13 @@ export class LocalPrivileged implements Privileged {
   }
   job(id: string, from: number) {
     return this.maint.job(id, from)
+  }
+  configFile(path: string) {
+    return this.maint.configFile(path)
+  }
+  async applyConfigFile(token: string | undefined, path: string, action: ConfigAction, content?: string) {
+    this.gate.check(token)
+    return this.maint.applyConfigFile(path, action, content)
   }
   async startJob(token: string | undefined, spec: JobSpec) {
     this.gate.check(token)

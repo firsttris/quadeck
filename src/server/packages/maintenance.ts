@@ -25,6 +25,8 @@ import { prepareFsJob, systemFsOps } from '../files/transfer'
 import { imageUpdates } from './images'
 import { defaultLauncher, JobManager, type JobSink, type Launcher } from './jobs'
 import { detectProvider, type Provider } from './providers'
+import { FixtureConfigFs, SystemConfigFs, applyConfigAction, configFileInfo } from './configfiles'
+import type { ConfigAction, ConfigFileInfo } from '~/shared/configfiles'
 
 export interface Maintenance {
   overview(): Promise<PackageOverview>
@@ -35,11 +37,14 @@ export interface Maintenance {
   imageUpdates(refresh: boolean): Promise<ImageUpdatesReport>
   jobs(): Promise<JobInfo[]>
   job(id: string, from: number): Promise<JobState | null>
+  /** A .pacnew/.rpmnew/… file of the current list with the live file next to it. */
+  configFile(path: string): Promise<ConfigFileInfo>
 }
 
 /** Maintenance plus starting jobs (the caller has checked the unlock). */
 export interface MaintenanceBackend extends Maintenance {
   startJob(spec: JobSpec): Promise<JobInfo>
+  applyConfigFile(path: string, action: ConfigAction, content?: string): Promise<{ done: string; after?: ConfigFileInfo['after']; warning?: string }>
 }
 
 const MIN_REFRESH_MS = 30_000
@@ -91,8 +96,20 @@ export class SystemMaintenance implements MaintenanceBackend {
   /** Bumped when a job ends: a check that started before must not store its (old) result. */
   private gen = { updates: 0, images: 0 }
 
+  private conf = new SystemConfigFs(() => (this.provider ? findConfigFiles('/etc', this.provider.configFiles) : []))
+
   constructor(launcher: Launcher = defaultLauncher()) {
     this.jobsMgr = new JobManager(launcher, (job) => this.jobEnded(job.spec))
+  }
+
+  configFile(path: string) {
+    return configFileInfo(this.conf, path)
+  }
+
+  async applyConfigFile(path: string, action: ConfigAction, content?: string) {
+    const r = await applyConfigAction(this.conf, path, action, content)
+    this.overviewCache = undefined
+    return r
   }
 
   /**
@@ -228,6 +245,8 @@ interface PackageFixtures {
   installed: (InstalledPackage & { depends?: string[]; requiredBy?: string[] })[]
   updates: { repo: PackageUpdate[]; aur: PackageUpdate[] }
   images: ImageUpdatesReport['items']
+  /** Contents of the config files (.pacnew and live) for the demo. */
+  configContents?: Record<string, string>
 }
 
 /** Demo data; jobs print a few lines and then change the data like the real thing would. */
@@ -235,18 +254,28 @@ export class FixtureMaintenance implements MaintenanceBackend {
   private data: PackageFixtures
   private jobsMgr: JobManager
   private checkedAt = Date.now()
+  private conf: FixtureConfigFs
 
   constructor(
     dir: string,
     private files?: FixtureFiles,
   ) {
     this.data = JSON.parse(readFileSync(join(dir, 'packages.json'), 'utf8')) as PackageFixtures
+    this.conf = new FixtureConfigFs(this.data.configContents ?? {}, this.data.overview)
     const self = this
     this.jobsMgr = new JobManager({
       async start(_id, spec, sink) {
         void self.simulate(spec, sink)
       },
     })
+  }
+
+  configFile(path: string) {
+    return configFileInfo(this.conf, path)
+  }
+
+  applyConfigFile(path: string, action: ConfigAction, content?: string) {
+    return applyConfigAction(this.conf, path, action, content)
   }
 
   private async simulate(spec: JobSpec, sink: JobSink) {
@@ -291,6 +320,10 @@ export class FixtureMaintenance implements MaintenanceBackend {
         await say(`Fehler: ${(e as Error).message}`)
         return sink.exit(1)
       }
+    } else if (spec.kind === 'mkinitcpio') {
+      await say('$ mkinitcpio -P')
+      await say("==> Building image from preset: /etc/mkinitcpio.d/linux.preset: 'default'")
+      await say('==> Image generation successful')
     } else if (spec.kind === 'kernel-install') {
       await say(`$ pacman -S --needed --noconfirm --noprogressbar --color never -- ${spec.flavor}`)
       await say(`installing ${spec.flavor}...`)
