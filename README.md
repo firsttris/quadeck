@@ -92,6 +92,25 @@ Alles, was etwas verändert, braucht wie die Unit-Aktionen das Entsperren.
 | --- | --- | --- |
 | `QUADECK_PACKAGE_MANAGER` | automatisch | `pacman`, `apt`, `dnf`, `zypper`, `apk` oder `rpm-ostree` |
 | `QUADECK_AUR_USER` | erstes Mitglied von `wheel`/`sudo` | Benutzer für yay/paru |
+| `QUADECK_QUADLET_DIR` | `/etc/containers/systemd` | Verzeichnis der Quadlet-Dateien |
+
+## Quadlets bearbeiten
+
+Die Seite **Quadlets** listet alle Dateien in `/etc/containers/systemd` (`.container`, `.pod`, `.network`, `.volume`, `.kube`, `.image`, `.build`, auch eine Unterverzeichnis-Ebene) mit dem Zustand ihrer Unit.
+
+- **Formular und Text auf derselben Datei:** Das Formular zeigt die wichtigen Schlüssel mit kurzer Hilfe (Image, Ports, Volumes, Umgebung, Netzwerk, AutoUpdate, Healthcheck, Restart, WantedBy …). Geändert wird nur die betroffene Zeile – Kommentare, Reihenfolge und Schlüssel, die das Formular nicht kennt, bleiben unverändert.
+- **Prüfen vor dem Speichern:** eigene Prüfung mit Zeilennummern (unbekannte Schlüssel, doppelte Werte, fehlendes `Image=`, Verweise auf nicht vorhandene `.network`/`.volume`-Dateien) plus Probelauf des echten Quadlet-Generators (`quadlet -dryrun` über eine Kopie des Verzeichnisses). Die erzeugte systemd-Unit lässt sich anzeigen.
+- **Speichern** zeigt vorher den Diff, schreibt über den Root-Helfer, macht `daemon-reload` und startet die Unit auf Wunsch neu. Braucht das Entsperren.
+- **Verlauf:** Jede Änderung wird mit git versioniert (eigenes Repository unter `/var/lib/quadeck-helper/quadlets.git`, das Quadlet-Verzeichnis bleibt sauber). Alte Fassungen lassen sich vergleichen und zurückholen. Ohne git funktioniert alles außer dem Verlauf.
+- **Neu** aus Vorlagen (Webdienst, PostgreSQL, Netzwerk, Volume, Pod) und **Import aus docker-compose.yml**: Dienste werden zu `.container`-Dateien, benannte Volumes zu `.volume`, ein gemeinsames `.network` pro Projekt; was nicht übertragbar ist, steht als Warnung daneben.
+
+## Podman-Einstellungen
+
+Im Tab **Podman-Einstellungen** der Quadlets-Seite:
+
+- **`podman-auto-update.timer`** an/aus und Zeitplan (`OnCalendar`, als Drop-in `/etc/systemd/system/podman-auto-update.timer.d/50-quadeck.conf`, vorher mit `systemd-analyze calendar` geprüft).
+- **Auto-Update für alle Container** (Podman 5+): Quadlet-Drop-in `container.d/50-quadeck-autoupdate.conf` mit `AutoUpdate=registry`.
+- **`containers.conf`** und **`registries.conf`**: Formular für die gängigen Einstellungen plus Texteditor; wird vor dem Schreiben als TOML geprüft, die vorige Fassung bleibt als `.quadeck-bak`. **`storage.conf`** wird nur angezeigt (Änderungen dort können bestehende Container unbrauchbar machen).
 
 ## Freigaben
 
@@ -115,7 +134,7 @@ Das Layout wird pro Bildschirmbreite (Desktop, Tablet, Handy) in SQLite gespeich
 Quadeck besteht aus zwei Diensten:
 
 - **`quadeck.service`** – die Web-App, als eigener Systembenutzer `quadeck` **ohne Root-Rechte**. Sie liest alles, was ohne root geht (systemd über D-Bus, Journal über die Gruppe `systemd-journal`, Platten, Freigaben).
-- **`quadeck-helper.service`** – ein kleiner **Root-Helfer** mit fester Aktionsliste (Units starten/stoppen/neu starten, Podman lesen und Container ohne Unit steuern, Pakete und Images prüfen, Update-/Entfernen-Jobs starten). Er lauscht nur auf `/run/quadeck/helper.sock`, den ausschließlich die Gruppe `quadeck` öffnen kann.
+- **`quadeck-helper.service`** – ein kleiner **Root-Helfer** mit fester Aktionsliste (Units starten/stoppen/neu starten, Podman lesen und Container ohne Unit steuern, Pakete und Images prüfen, Update-/Entfernen-Jobs starten, Quadlet-Dateien und Podman-Einstellungen schreiben). Er lauscht nur auf `/run/quadeck/helper.sock`, den ausschließlich die Gruppe `quadeck` öffnen kann.
 
 **Entsperren:** Aktionen am Server sind gesperrt, bis man sie mit dem Passwort eines Administrators (root oder Mitglied von `wheel`/`sudo`) freischaltet – dann für 15 Minuten, mit Countdown in der Seitenleiste. Die Prüfung (gegen `/etc/shadow` mit dem System-`crypt(3)`) und die Sperre sitzen im Helfer: Selbst eine übernommene Web-App kann ohne dieses Passwort nichts verändern.
 
@@ -159,9 +178,11 @@ src/server/collectors/      system, disks, podman, systemd
 src/server/providers/       Discovery (Caddy); Schnittstelle für Traefik u. a.
 src/server/privileged/      Root-Helfer: feste Aktionsliste, Entsperren, Unix-Socket
 src/server/packages/        Paketmanager (pacman/AUR, apt, dnf, zypper, apk, rpm-ostree), Jobs, Image-Updates
+src/server/quadlets/        Quadlet-Dateien, Generator-Prüfung, git-Verlauf, Podman-Einstellungen, Compose-Import
+src/shared/ini.ts           Unit-Dateien zeilengenau lesen und ändern (Formular ↔ Text)
 src/server/registry.ts      Merge: Caddy-Route → Container → Unit → Labels → Overrides
 src/server/hub.ts           Intervalle, Snapshot, SSE-Push
-src/routes/                 UI (Übersicht, Units, Journal, System) und /api-Routen
+src/routes/                 UI (Übersicht, Units, Journal, Quadlets, System) und /api-Routen
 ```
 
 ## Stand
@@ -170,6 +191,6 @@ v0.1 (MVP) laut Implementierungsplan: Collectors, Service-Kacheln mit Icons und 
 
 v0.2: Bearbeiten-Modus mit react-grid-layout (Karten und Kacheln), Services bearbeiten (Overrides, Icon-Picker, Ausblenden), Befehlspalette, Freigaben (SMB/NFS).
 
-Danach: getrennter Root-Helfer mit Entsperren; Updates und Paketverwaltung für sechs Paketmanager inklusive AUR; Container-Image-Updates.
+v0.3: getrennter Root-Helfer mit Entsperren; Updates und Paketverwaltung für sechs Paketmanager inklusive AUR; Container-Image-Updates; Quadlet-Editor (Formular/Text, Generator-Prüfung, Diff, git-Verlauf, Vorlagen, Compose-Import); Podman-Einstellungen.
 
-Noch nicht enthalten: Podman-Einstellungen, Quadlet-Editor, SMART/SnapRAID, Forward-Auth, Timer-Editor, rootless Quadlets.
+Noch nicht enthalten: SMART/SnapRAID, Forward-Auth, Timer-Editor, rootless Quadlets.
