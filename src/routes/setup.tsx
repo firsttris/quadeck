@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useState } from 'react'
-import { AuthCard } from '~/components/AuthCard'
+import { AuthCard, useHydrated } from '~/components/AuthCard'
 import { api } from '~/lib/api'
 
 export const Route = createFileRoute('/setup')({
@@ -16,9 +16,11 @@ function Setup() {
   const { token } = Route.useSearch()
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const hydrated = useHydrated()
   return (
     <AuthCard title="Quadeck einrichten" subtitle="Lege das Admin-Passwort fest. Den Setup-Token zeigt das Installationsskript an; als root jederzeit mit „quadeck setup-token“.">
       <form
+        method="post"
         className="flex flex-col gap-3"
         onSubmit={async (e) => {
           e.preventDefault()
@@ -55,7 +57,7 @@ function Setup() {
             {error}
           </p>
         )}
-        <button type="submit" className="btn primary justify-center" disabled={busy}>
+        <button type="submit" className="btn primary justify-center" disabled={busy || !hydrated}>
           Passwort festlegen
         </button>
       </form>
