@@ -135,6 +135,16 @@ Die Karte „Freigaben“ auf der Übersicht zeigt SMB-Shares und NFS-Exporte; *
 
 Samba-Benutzer brauchen ein eigenes Passwort (`smbpasswd -a name`); das geht noch nicht über die Oberfläche.
 
+## SSH
+
+Die Seite **SSH** hilft beim Zugang zum Server:
+
+- **Zugang:** Zustand von `sshd`/`ssh`, Port, starten/neu starten/beim Booten aktivieren (Stoppen gibt es bewusst nicht – man sperrt sich damit aus). Die **Fingerprints** des Servers zum Vergleichen beim ersten Verbinden.
+- **Schlüssel pro Benutzer** (`~/.ssh/authorized_keys`): Typ, Größe, Kommentar, Fingerprint und wann der Schlüssel zuletzt benutzt wurde (aus dem Journal). Neue Schlüssel einfügen – geprüft, Duplikate und DSA abgelehnt, schwache RSA-Schlüssel markiert; `~/.ssh` bekommt dabei automatisch `700`/`600` und den richtigen Besitzer. Falsche Rechte, wegen derer `sshd` Schlüssel ignoriert, werden angezeigt.
+- **Absicherung:** Passwort-Login, root-Login und erlaubte Benutzer als Drop-in `/etc/ssh/sshd_config.d/01-quadeck.conf` (die eigene `sshd_config` bleibt unberührt). Vorher `sshd -t` – lehnt es ab, wird zurückgesetzt –, danach `systemctl reload`; angezeigt werden die tatsächlich wirksamen Werte aus `sshd -T`. **Aussperr-Schutz:** Passwort-Login abschalten oder den letzten Schlüssel entfernen geht nur, wenn danach noch jemand mit einem funktionierenden Schlüssel hereinkommt (sonst nur mit ausdrücklicher Bestätigung).
+- **Anmeldungen:** letzte Logins (Benutzer, IP, Schlüssel oder Passwort) und fehlgeschlagene Versuche pro IP der letzten 24 Stunden.
+- **Neues Gerät verbinden:** fertige Befehle für `ssh-keygen`, `ssh-copy-id` und `ssh`.
+
 ## Layout anpassen
 
 Das Dashboard ist beim ersten Start fertig angeordnet. Mit **Bearbeiten** (oder Taste `E`) lässt es sich auf zwei Ebenen ändern:
@@ -153,7 +163,7 @@ Das Layout wird pro Bildschirmbreite (Desktop, Tablet, Handy) in SQLite gespeich
 Quadeck besteht aus zwei Diensten:
 
 - **`quadeck.service`** – die Web-App, als eigener Systembenutzer `quadeck` **ohne Root-Rechte**. Sie liest alles, was ohne root geht (systemd über D-Bus, Journal über die Gruppe `systemd-journal`, Platten, Freigaben).
-- **`quadeck-helper.service`** – ein kleiner **Root-Helfer** mit fester Aktionsliste (Units starten/stoppen/neu starten, Podman lesen und Container ohne Unit steuern, Pakete und Images prüfen, Update-/Entfernen-Jobs starten, Quadlet-Dateien, Podman-Einstellungen und Freigaben schreiben). Er lauscht nur auf `/run/quadeck/helper.sock`, den ausschließlich die Gruppe `quadeck` öffnen kann.
+- **`quadeck-helper.service`** – ein kleiner **Root-Helfer** mit fester Aktionsliste (Units starten/stoppen/neu starten, Podman lesen und Container ohne Unit steuern, Pakete und Images prüfen, Update-/Entfernen-Jobs starten, Quadlet-Dateien, Podman-Einstellungen, Freigaben und SSH-Einstellungen schreiben). Er lauscht nur auf `/run/quadeck/helper.sock`, den ausschließlich die Gruppe `quadeck` öffnen kann.
 
 **Entsperren:** Aktionen am Server sind gesperrt, bis man sie mit dem Passwort eines Administrators (root oder Mitglied von `wheel`/`sudo`) freischaltet – dann für 15 Minuten, mit Countdown in der Seitenleiste. Die Prüfung (gegen `/etc/shadow` mit dem System-`crypt(3)`) und die Sperre sitzen im Helfer: Selbst eine übernommene Web-App kann ohne dieses Passwort nichts verändern.
 
@@ -198,6 +208,7 @@ src/server/metrics.ts       Messwert-Verlauf (SQLite, 7 Tage, Buckets je Zeitrau
 src/server/providers/       Discovery (Caddy); Schnittstelle für Traefik u. a.
 src/server/privileged/      Root-Helfer: feste Aktionsliste, Entsperren, Unix-Socket
 src/server/packages/        Paketmanager (pacman/AUR, apt, dnf, zypper, apk, rpm-ostree), Jobs, Image-Updates
+src/server/ssh/             SSH: authorized_keys, sshd-Drop-in, Fingerprints, Logins
 src/server/shares/          SMB/NFS: smb.conf- und exports-Bearbeitung, testparm/exportfs, Dienste
 src/server/quadlets/        Quadlet-Dateien, Generator-Prüfung, git-Verlauf, Podman-Einstellungen, Compose-Import
 src/shared/ini.ts           Unit-Dateien zeilengenau lesen und ändern (Formular ↔ Text)
@@ -214,6 +225,6 @@ v0.2: Bearbeiten-Modus mit react-grid-layout (Karten und Kacheln), Services bear
 
 v0.3: getrennter Root-Helfer mit Entsperren; Updates und Paketverwaltung für sechs Paketmanager inklusive AUR; Container-Image-Updates; Quadlet-Editor (Formular/Text, Generator-Prüfung, Diff, git-Verlauf, Vorlagen, Compose-Import); Podman-Einstellungen.
 
-Danach: Verlauf für CPU, RAM, Temperatur, Netz und GPU; GPU-Karte; Freigaben (SMB/NFS) verwalten.
+Danach: Verlauf für CPU, RAM, Temperatur, Netz und GPU; GPU-Karte; Freigaben (SMB/NFS) verwalten; SSH-Zugang (Schlüssel, Absicherung, Anmeldungen).
 
 Noch nicht enthalten: SMART/SnapRAID, Forward-Auth, Timer-Editor, rootless Quadlets.

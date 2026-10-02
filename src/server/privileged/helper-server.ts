@@ -8,6 +8,7 @@ import { PACKAGE_NAME } from '~/shared/packages'
 import { parseJobSpec } from '../packages/job'
 import type { PodmanConfigName } from '~/shared/quadlets'
 import { parseShareChange } from '../shares/backend'
+import { parseSshChange } from '../ssh/backend'
 import { UNIT_ACTIONS, type Privileged, type UnitAction } from './actions'
 
 type Handler = (body: Record<string, unknown>, p: Privileged) => Promise<unknown>
@@ -82,6 +83,13 @@ export const HELPER_ROUTES: Record<string, Handler> = {
     if (b.kind !== 'smb' && b.kind !== 'nfs') throw new HttpError(400, 'kind muss smb oder nfs sein')
     if (!['start', 'stop', 'restart', 'enable'].includes(str(b.action) ?? '')) throw new HttpError(400, 'Ungültige Aktion')
     return p.shareService(str(b.token), b.kind, b.action as 'start')
+  },
+  '/ssh/state': (_b, p) => p.sshState(),
+  '/ssh/preview': (b, p) => p.previewSsh(parseSshChange(b.change)),
+  '/ssh/apply': (b, p) => p.applySsh(str(b.token), parseSshChange(b.change)),
+  '/ssh/service': (b, p) => {
+    if (!['start', 'restart', 'enable'].includes(str(b.action) ?? '')) throw new HttpError(400, 'Ungültige Aktion')
+    return p.sshService(str(b.token), b.action as 'start')
   },
   '/podman/config': async (b, p) => {
     await p.writePodmanConfig(str(b.token), str(b.name) as PodmanConfigName, str(b.content) ?? '')

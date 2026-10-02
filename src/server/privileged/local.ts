@@ -4,6 +4,8 @@ import type { MaintenanceBackend } from '../packages/maintenance'
 import type { PodmanAdminBackend } from '../quadlets/backend'
 import type { PodmanConfigName } from '~/shared/quadlets'
 import type { SharesBackend } from '../shares/backend'
+import type { SshBackend } from '../ssh/backend'
+import type { SshChange } from '~/shared/ssh'
 import type { ShareChange, ShareServiceAction } from '~/shared/shares'
 import { HttpError } from '../auth'
 import { runOk } from '../exec'
@@ -27,6 +29,7 @@ export class LocalPrivileged implements Privileged {
     private maint: MaintenanceBackend,
     private admin: PodmanAdminBackend,
     private shares: SharesBackend,
+    private ssh: SshBackend,
   ) {}
 
   async info() {
@@ -174,5 +177,22 @@ export class LocalPrivileged implements Privileged {
   async shareService(token: string | undefined, kind: 'smb' | 'nfs', action: ShareServiceAction) {
     this.gate.check(token)
     return this.shares.shareService(kind, action)
+  }
+
+  // ---------- SSH ----------
+
+  sshState() {
+    return this.ssh.sshState()
+  }
+  previewSsh(change: SshChange) {
+    return this.ssh.previewSsh(change)
+  }
+  async applySsh(token: string | undefined, change: SshChange) {
+    this.gate.check(token)
+    return this.ssh.applySsh(change)
+  }
+  async sshService(token: string | undefined, action: 'start' | 'restart' | 'enable') {
+    this.gate.check(token)
+    return this.ssh.sshService(action)
   }
 }

@@ -4,6 +4,7 @@ import type { ImageUpdatesReport, InstalledPackage, JobInfo, JobSpec, JobState, 
 import type { PodmanConfigName, PodmanSettings, QuadletFile, Revision, ValidateResult } from '~/shared/quadlets'
 import type { WriteResult } from '../quadlets/backend'
 import type { ShareChange, SharePreview, ShareServiceAction, SharesState } from '~/shared/shares'
+import type { SshChange, SshPreview, SshState } from '~/shared/ssh'
 import type { UnlockInfo } from './gate'
 
 /** Privileged over the root helper's Unix socket. */
@@ -131,5 +132,18 @@ export class HelperClient implements Privileged {
   }
   shareService(token: string | undefined, kind: 'smb' | 'nfs', action: ShareServiceAction) {
     return this.call<SharesState>('POST', '/shares/service', { token, kind, action }, 120_000)
+  }
+
+  sshState() {
+    return this.call<SshState>('POST', '/ssh/state', {})
+  }
+  previewSsh(change: SshChange) {
+    return this.call<SshPreview>('POST', '/ssh/preview', { change })
+  }
+  applySsh(token: string | undefined, change: SshChange) {
+    return this.call<SshState>('POST', '/ssh/apply', { token, change }, 60_000)
+  }
+  sshService(token: string | undefined, action: 'start' | 'restart' | 'enable') {
+    return this.call<SshState>('POST', '/ssh/service', { token, action }, 60_000)
   }
 }
