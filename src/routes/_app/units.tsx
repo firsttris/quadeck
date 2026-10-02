@@ -55,7 +55,13 @@ function Units() {
   const counts = Object.fromEntries(FILTERS.map(([k]) => [k, rows.filter((r) => matches(r, k)).length]))
   return (
     <>
-      <PageHeader title="Units" subtitle="Container, Quadlets und System-Units – gesteuert über systemd" />
+      <PageHeader title="Units" subtitle="Container, Quadlets und System-Units – gesteuert über systemd">
+        {!readonly && (
+          <Link to="/systemd" search={{ new: true }} className="btn sm">
+            + Neue Unit
+          </Link>
+        )}
+      </PageHeader>
       <div role="group" aria-label="Filter" className="flex flex-wrap gap-1.5">
         {FILTERS.map(([k, label]) => (
           <Link key={k} to="/units" search={{ filter: k }} className={`seg ${filter === k ? 'on' : ''}`} aria-current={filter === k ? 'true' : undefined}>
@@ -150,11 +156,15 @@ function UnitRow({ row, run, busy, readonly }: { row: Row; run: ReturnType<typeo
               Journal
             </Link>
           )}
-          {u?.quadlet && (
+          {u?.quadlet ? (
             <Link to="/quadlets" search={{ file: u.quadlet.file }} className="btn sm" aria-label={`${u.quadlet.file} bearbeiten`}>
               Bearbeiten
             </Link>
-          )}
+          ) : u ? (
+            <Link to="/systemd" search={{ unit: u.name }} className="btn sm" aria-label={`${u.name} bearbeiten`}>
+              Bearbeiten
+            </Link>
+          ) : null}
           {!readonly &&
             (active ? (
               <>

@@ -9,6 +9,7 @@ import type { SmartReport } from '~/shared/smart'
 import type { SelfTestType } from '../smart/backend'
 import type { DirListing, FileRoot } from '~/shared/files'
 import type { CalendarPreview, TimerAction, TimerSpec, TimersState } from '~/shared/timers'
+import type { UnitDetail, UnitValidateResult, UnitWriteResult } from '~/shared/unit-files'
 import type { UnlockInfo } from './gate'
 
 /** Privileged over the root helper's Unix socket. */
@@ -191,5 +192,30 @@ export class HelperClient implements Privileged {
   }
   timerAction(token: string | undefined, name: string, action: TimerAction) {
     return this.call<TimersState>('POST', '/timers/action', { token, name, action }, 120_000)
+  }
+
+  unitDetail(unit: string) {
+    return this.call<UnitDetail>('POST', '/units/detail', { unit })
+  }
+  validateUnitFile(unit: string, path: string, content: string) {
+    return this.call<UnitValidateResult>('POST', '/units/validate', { unit, path, content })
+  }
+  async unitFileHistory(unit: string, path: string) {
+    return (await this.call<{ data: Revision[] }>('POST', '/units/history', { unit, path })).data
+  }
+  async unitFileRevision(unit: string, path: string, id: string) {
+    return (await this.call<{ data: string }>('POST', '/units/revision', { unit, path, id })).data
+  }
+  writeUnitFile(token: string | undefined, unit: string, path: string, content: string, restart: boolean) {
+    return this.call<UnitWriteResult>('POST', '/units/write', { token, unit, path, content, restart }, 180_000)
+  }
+  async deleteUnitFile(token: string | undefined, unit: string, path: string) {
+    await this.call('POST', '/units/delete', { token, unit, path }, 180_000)
+  }
+  createUnit(token: string | undefined, unit: string, content: string, enable: boolean) {
+    return this.call<UnitWriteResult>('POST', '/units/create', { token, unit, content, enable }, 180_000)
+  }
+  async setUnitEnabled(token: string | undefined, unit: string, enabled: boolean) {
+    await this.call('POST', '/units/enable', { token, unit, enabled }, 60_000)
   }
 }

@@ -118,6 +118,20 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/timers/delete': (b, p) => p.deleteTimer(str(b.token), str(b.name) ?? ''),
   '/timers/schedule': (b, p) => p.setTimerSchedule(str(b.token), str(b.name) ?? '', str(b.calendar) ?? ''),
   '/timers/action': (b, p) => p.timerAction(str(b.token), str(b.name) ?? '', parseTimerAction(b.action)),
+  '/units/detail': (b, p) => p.unitDetail(str(b.unit) ?? ''),
+  '/units/validate': (b, p) => p.validateUnitFile(str(b.unit) ?? '', str(b.path) ?? '', str(b.content) ?? ''),
+  '/units/history': async (b, p) => ({ data: await p.unitFileHistory(str(b.unit) ?? '', str(b.path) ?? '') }),
+  '/units/revision': async (b, p) => ({ data: await p.unitFileRevision(str(b.unit) ?? '', str(b.path) ?? '', str(b.id) ?? '') }),
+  '/units/write': (b, p) => p.writeUnitFile(str(b.token), str(b.unit) ?? '', str(b.path) ?? '', str(b.content) ?? '', b.restart === true),
+  '/units/delete': async (b, p) => {
+    await p.deleteUnitFile(str(b.token), str(b.unit) ?? '', str(b.path) ?? '')
+    return { ok: true }
+  },
+  '/units/create': (b, p) => p.createUnit(str(b.token), str(b.unit) ?? '', str(b.content) ?? '', b.enable === true),
+  '/units/enable': async (b, p) => {
+    await p.setUnitEnabled(str(b.token), str(b.unit) ?? '', b.enabled === true)
+    return { ok: true }
+  },
   '/podman/config': async (b, p) => {
     await p.writePodmanConfig(str(b.token), str(b.name) as PodmanConfigName, str(b.content) ?? '')
     return { ok: true }
