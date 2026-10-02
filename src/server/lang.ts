@@ -3,7 +3,9 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { currentLang, langOfRequest, localize, localizeDeep, setLangResolver, type Lang } from '~/shared/i18n'
 
-const store = new AsyncLocalStorage<Lang>()
+// One store per process: main.ts and the bundled server routes each load their own copy of this module.
+const g = globalThis as unknown as { __quadeckLangStore?: AsyncLocalStorage<Lang> }
+const store = (g.__quadeckLangStore ??= new AsyncLocalStorage<Lang>())
 
 /** Web process: tr() answers in the language of the current request; outside of one it keeps both. */
 export function installRequestLang() {
