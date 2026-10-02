@@ -25,13 +25,21 @@ The assessment is the one from [snapraid-ui](https://github.com/firsttris/snapra
 | Level | When |
 |---|---|
 | **critical** | the drive reports itself as failing (`FAIL`), a pre-failure attribute is below its threshold now (`PREFAIL`), wear at 100 %, temperature at 60 °C or more |
-| **warning** | a pre-failure attribute was below its threshold in the past, entries in the drive's error log, reallocated, pending or uncorrectable sectors (attributes 5, 197, 198), reported uncorrectable read errors (187), CRC errors (199), media errors on NVMe, wear above 80 %, temperature above 50 °C, a failed or aborted last self-test, SMART data not readable |
+| **warning** | a pre-failure attribute was below its threshold in the past, entries in the drive's error log, reallocated, pending or uncorrectable sectors (attributes 5, 197, 198), reported uncorrectable read errors (187), CRC errors (199) that grew during the last 7 days, media errors on NVMe, wear above 80 %, temperature above 50 °C, a failed or aborted last self-test, SMART data not readable |
 | **ok** | nothing of the above |
 
 Every finding comes with what to do: *replace the disk* (status, sectors, read errors, wear,
 failed test), *check the cable* (CRC errors and a filling error log are usually a cable, a port or
 a power loss, not the disk), *cool it* (temperature), *check access* (SMART not readable). Virtual drives and USB bridges without SMART are
 shown neutrally, not as a problem.
+
+**CRC errors** (attribute 199, `UDMA_CRC_Error_Count`) count transfers between controller and disk
+that arrived damaged and were sent again – no data is lost. The counter covers the whole life of
+the disk and never goes back to zero, not after a new cable, a reboot or formatting. So Quadeck
+compares it with its own history: if it grew during the last 7 days, the disk gets a warning
+("5 new CRC errors since …, 14 in total"); an old count that no longer grows is only a grey note
+under the disk. After swapping a cable, the counter staying where it is means the problem is
+solved.
 
 ### History
 

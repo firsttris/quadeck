@@ -4,13 +4,16 @@ import { db } from '~/server/db'
 import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
 import { hubReady } from '~/server/hub'
-import { querySmartHistory } from '~/server/metrics'
+import { querySmartHistory, smartBaselines } from '~/server/metrics'
 import { privileged } from '~/server/privileged'
 import { DISK_NAME } from '~/server/smart/backend'
 import { unlockToken } from '~/server/unlock-sessions'
+import type { SmartReport } from '~/shared/smart'
 
 // GET: SMART of all disks (cached 15 min); ?history=<disk id>&days=90 → trends.
 // POST {}: read again now. POST { selftest: { disk, type } }: start a self-test (unlock).
+const withBaselines = (r: SmartReport): SmartReport => ({ ...r, baselines: smartBaselines(db(), r.disks.map((d) => d.id)) })
+
 export const Route = createFileRoute('/api/disks/smart')({
   server: {
     handlers: {
@@ -22,7 +25,7 @@ export const Route = createFileRoute('/api/disks/smart')({
           const days = Math.min(365, Math.max(1, Number(q.get('days')) || 90))
           return Response.json({ series: querySmartHistory(db(), id, days) })
         }
-        return Response.json(await privileged().smartReport(false))
+        return Response.json(withBaselines(await privileged().smartReport(false)))
       }),
       POST: authed(async ({ request }, session) => {
         const b = await readJson<{ selftest?: { disk?: unknown; type?: unknown } }>(request)
@@ -35,7 +38,7 @@ export const Route = createFileRoute('/api/disks/smart')({
           report = await p.smartSelfTest(unlockToken(session.id), disk, type)
         } else report = await p.smartReport(true)
         void (await hubReady()).collectSmart().then(async () => (await hubReady()).publish())
-        return Response.json(report)
+        return Response.json(withBaselines(report))
       }),
     },
   },

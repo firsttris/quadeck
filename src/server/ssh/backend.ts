@@ -7,8 +7,8 @@ import { hostname } from 'node:os'
 import { join } from 'node:path'
 import { HttpError } from '../auth'
 import { run } from '../exec'
-import { USER_NAME, validateSettings, type SshChange, type SshKey, type SshPreview, type SshSettings, type SshState, type SshUser } from '~/shared/ssh'
-import { addKey, parseAuthLog, parseAuthorizedKeys, parseDropIn, parseKeyLine, parseSshdT, removeKey, renderDropIn } from './keys'
+import { USER_NAME, validateSettings, type SshChange, type SshKey, type SshLogin, type SshPreview, type SshSettings, type SshState, type SshUser } from '~/shared/ssh'
+import { addKey, parseAuthLog, parseAuthorizedKeys, parseEstablished, parseDropIn, parseKeyLine, parseSshdT, removeKey, renderDropIn } from './keys'
 
 export interface SshAdmin {
   sshState(): Promise<SshState>
@@ -165,6 +165,20 @@ export class SystemSsh implements SshBackend {
     return parseAuthLog(r.stdout)
   }
 
+  /** Which of the logins are still connected (the journal alone cannot tell: disconnects get lost on restarts). */
+  private async markActive(logins: SshLogin[], ports: number[]): Promise<SshLogin[]> {
+    const r = await run(['ss', '-Htn', 'state', 'established'], { timeoutMs: 10_000 })
+    if (r.code !== 0) return logins
+    const open = parseEstablished(r.stdout, ports.length ? ports : [22])
+    const seen = new Set<string>()
+    return logins.map((l) => {
+      const key = `${l.from}:${l.port}`
+      const active = l.port !== undefined && open.has(key) && !seen.has(key)
+      seen.add(key) // a reused client port belongs to the newest login only
+      return { ...l, active }
+    })
+  }
+
   private async services() {
     if (!this.live) return []
     const r = await run(['systemctl', 'show', 'sshd.service', 'ssh.service', 'ssh.socket', '-p', 'Id,LoadState,ActiveState,UnitFileState'])
@@ -201,7 +215,7 @@ export class SystemSsh implements SshBackend {
       dropIn: this.dropIn,
       dropInActive: /^\s*Include\s+\S*sshd_config\.d\/\*\.conf/im.test(read(join(this.etc, 'sshd_config')) ?? ''),
       users: this.users(lastUsed).map(({ gid: _g, ...u }) => u),
-      logins: log.logins.slice(0, 25),
+      logins: await this.markActive(log.logins.slice(0, 25), ports),
       failed: log.failed,
       hostname: hostname(),
       error,
@@ -315,7 +329,7 @@ interface SshFixture {
   users: { name: string; uid: number; home: string; keys: string[] }[]
   hostKeys: string[]
   settings: SshSettings
-  logins: { minutesAgo: number; user: string; from: string; method: string; key?: number }[]
+  logins: { minutesAgo: number; user: string; from: string; method: string; key?: number; active?: boolean }[]
   failed: { from: string; count: number; minutesAgo: number }[]
 }
 
@@ -352,7 +366,7 @@ export class FixtureSsh implements SshBackend {
       dropIn: '/etc/ssh/sshd_config.d/01-quadeck.conf',
       dropInActive: true,
       users,
-      logins: this.data.logins.map((l) => ({ ts: Date.now() - l.minutesAgo * 60_000, user: l.user, from: l.from, method: l.method, fingerprint: l.key !== undefined ? fps[l.key] : undefined })),
+      logins: this.data.logins.map((l) => ({ ts: Date.now() - l.minutesAgo * 60_000, user: l.user, from: l.from, method: l.method, fingerprint: l.key !== undefined ? fps[l.key] : undefined, active: !!l.active })),
       failed: this.data.failed.map((f) => ({ from: f.from, count: f.count, last: Date.now() - f.minutesAgo * 60_000 })),
       hostname: 'nas-01',
     }

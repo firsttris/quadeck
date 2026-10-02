@@ -334,17 +334,22 @@ function Keys({ state, onPreview }: { state: SshState; onPreview: (p: Pending) =
 
 function Logins({ state }: { state: SshState }) {
   const names = new Map(state.users.flatMap((u) => u.keys.map((k) => [k.fingerprint, k.comment] as const)))
+  const active = state.logins.filter((l) => l.active).length
   return (
     <section className="panel flex flex-col" aria-label="Anmeldungen">
-      <h2 className="h2 px-[18px] pt-4 pb-2">Anmeldungen</h2>
+      <div className="flex items-baseline gap-2 px-[18px] pt-4 pb-2">
+        <h2 className="h2 grow">Anmeldungen</h2>
+        <span className="text-[12px] text-muted">{active === 0 ? 'gerade niemand verbunden' : `${active} gerade verbunden`}</span>
+      </div>
       {state.logins.length === 0 && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">Keine Anmeldungen in den letzten 30 Tagen (oder kein Zugriff aufs Journal).</p>}
       {state.logins.slice(0, 8).map((l, i) => (
         <div key={i} className="flex flex-wrap items-center gap-x-3 border-t border-line px-[18px] py-[7px] text-[13px]" data-testid="ssh-login">
-          <Dot tone="ok" />
+          {l.active ? <Dot tone="ok" label="verbunden" /> : <Dot tone="idle" label="abgemeldet" />}
           <span className="font-medium">{l.user}</span>
           <span className="font-mono text-[12px] text-muted">{l.from}</span>
           <span className="text-[12px] text-subtle">{l.method === 'publickey' ? `Schlüssel ${l.fingerprint ? (names.get(l.fingerprint) ?? '') : ''}`.trim() : l.method === 'password' ? 'Passwort' : l.method}</span>
-          <span className="ml-auto font-mono text-[12px] text-subtle" suppressHydrationWarning>
+          <span className="ml-auto flex items-center gap-2 font-mono text-[12px] text-subtle" suppressHydrationWarning>
+            {l.active && <span className="pill ok">verbunden</span>}
             {relative(l.ts)}
           </span>
         </div>

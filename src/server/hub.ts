@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import type { Container, Disk, GpuMetrics, HiddenService, Share, Snapshot, SourceStatus, SystemMetrics, Unit } from '~/shared/types'
 import { collectDisks } from './collectors/disks'
 import { GpuCollector } from './collectors/gpu'
-import { metricRows, pruneHistory, SAMPLE_EVERY_MS, seedFixtureHistory, seedSmartHistory } from './metrics'
+import { metricRows, pruneHistory, SAMPLE_EVERY_MS, seedFixtureHistory, seedSmartHistory, smartBaselines } from './metrics'
 import { assessSmart } from '~/shared/smart'
 import { smartSamples } from '~/shared/smart-metrics'
 import { collectShares, sharesSummary } from './collectors/shares'
@@ -251,13 +251,15 @@ export class Hub {
   async collectSmart(refresh = false) {
     try {
       const report = await this.priv.smartReport(refresh)
-      this.smart = report.disks.map((d) => ({ name: d.name, level: assessSmart(d).level, supported: d.supported, standby: d.standby }))
       if (this.fixtures) seedSmartHistory(db(), report.disks.map((d) => ({ id: d.id, samples: smartSamples(d) })))
       if (Date.now() - this.lastSmartSampleAt >= 55 * 60_000) {
         const rows = report.disks.flatMap((d) => smartSamples(d).map((r) => ({ ts: report.checkedAt, metric: `smart:${d.id}:${r.key}`, value: r.value })))
         if (rows.length) db().insert(schema.metricSamples).values(rows).run()
         this.lastSmartSampleAt = Date.now()
       }
+      // CRC counters are judged by their growth, so against the history (written above first).
+      const base = smartBaselines(db(), report.disks.map((d) => d.id))
+      this.smart = report.disks.map((d) => ({ name: d.name, level: assessSmart(d, base[d.id]).level, supported: d.supported, standby: d.standby }))
       if (report.installed) this.ok('smart')
       else this.sources.smart = { ok: false, updatedAt: Date.now() } // not an error: see the disks page
     } catch (e) {

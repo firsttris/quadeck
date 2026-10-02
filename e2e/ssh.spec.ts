@@ -31,6 +31,10 @@ test.describe.serial('SSH', () => {
     await expect(keys.getByTestId('ssh-key').filter({ hasText: 'tristan@laptop' })).toContainText('zuletzt vor')
     await expect(keys.getByTestId('ssh-key').filter({ hasText: 'tristan@altes-handy' })).toContainText('RSA mit 2048 Bit')
     await expect(page.getByTestId('ssh-login').first()).toContainText('Schlüssel tristan@laptop')
+    // Only the open connection counts as connected, older logins do not.
+    await expect(page.getByTestId('ssh-login').first()).toContainText('verbunden')
+    await expect(page.getByTestId('ssh-login').nth(1)).not.toContainText('verbunden')
+    await expect(page.getByRole('region', { name: 'Anmeldungen' })).toContainText('1 gerade verbunden')
     await expect(page.getByTestId('ssh-failed').first()).toContainText('45.155.205.233')
     await expect(page.getByRole('region', { name: 'Absicherung' }).getByTestId('ssh-check').first()).toContainText('erlaubt')
   })

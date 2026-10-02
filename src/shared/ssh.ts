@@ -34,8 +34,12 @@ export interface SshLogin {
   ts: number
   user: string
   from: string
+  /** Client port – with `from` it identifies the connection. */
+  port?: number
   method: string
   fingerprint?: string
+  /** The connection is still open right now. */
+  active?: boolean
 }
 
 export interface SshState {
