@@ -1,4 +1,5 @@
-import { createFileRoute } from '@tanstack/react-router'
+import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
+import { FileExplorer } from '~/components/FileExplorer'
 import { useCallback, useEffect, useState } from 'react'
 import { useActions } from '~/components/Actions'
 import { Glyph } from '~/components/Glyph'
@@ -14,6 +15,10 @@ import { diskSize, num, relative } from '~/lib/format'
 import { assessSmart, attributeLevel, describeReason, HINT_TEXT, smartHints, type SmartAssessment, type SmartDisk, type SmartLevel, type SmartReport } from '~/shared/smart'
 
 export const Route = createFileRoute('/_app/disks')({
+  validateSearch: (s: Record<string, unknown>): { tab?: 'files'; path?: string } => ({
+    tab: s.tab === 'files' ? 'files' : undefined,
+    path: typeof s.path === 'string' && s.path.startsWith('/') ? s.path : undefined,
+  }),
   head: () => ({ meta: [{ title: 'Festplatten · Quadeck' }] }),
   component: DisksPage,
 })
@@ -34,6 +39,25 @@ function kind(d: SmartDisk) {
 const years = (h: number) => (h >= 8760 ? `${num(h / 8760, 1)} Jahre` : h >= 720 ? `${Math.round(h / 720)} Monate` : `${h} h`)
 
 function DisksPage() {
+  const { tab, path } = Route.useSearch()
+  const navigate = useNavigate()
+  return (
+    <>
+      <PageHeader title="Festplatten" subtitle={tab === 'files' ? 'Dateien in den Datenbereichen – kopieren, verschieben, umbenennen, löschen' : 'SMART-Zustand aller Laufwerke – Verlauf, Selbsttests, was zu tun ist'} />
+      <div role="tablist" aria-label="Bereich" className="flex flex-wrap gap-1.5">
+        <Link to="/disks" search={{}} role="tab" aria-selected={tab !== 'files'} className={`seg ${tab !== 'files' ? 'on' : ''}`}>
+          SMART
+        </Link>
+        <Link to="/disks" search={{ tab: 'files' }} role="tab" aria-selected={tab === 'files'} className={`seg ${tab === 'files' ? 'on' : ''}`}>
+          Dateien
+        </Link>
+      </div>
+      {tab === 'files' ? <FileExplorer path={path} onNavigate={(p) => void navigate({ to: '/disks', search: { tab: 'files', path: p } })} /> : <Smart />}
+    </>
+  )
+}
+
+function Smart() {
   const [report, setReport] = useState<SmartReport | null>(null)
   const [error, setError] = useState('')
   const [reading, setReading] = useState(false)
@@ -71,13 +95,14 @@ function DisksPage() {
 
   return (
     <>
-      <PageHeader title="Festplatten" subtitle="SMART-Zustand aller Laufwerke – Verlauf, Selbsttests, was zu tun ist">
-        {report?.installed && (
-          <button type="button" className="btn" onClick={readNow} disabled={reading}>
-            <Glyph name="restart" size={15} /> {reading ? 'Lese …' : 'Jetzt lesen'}
+      {report?.installed && (
+        <div className="flex flex-wrap items-center gap-3 text-[12px] text-muted">
+          <span suppressHydrationWarning>Gelesen {relative(report.checkedAt)} · automatisch alle 30 Minuten, schlafende Platten werden nicht geweckt</span>
+          <button type="button" className="btn sm ml-auto" onClick={readNow} disabled={reading}>
+            <Glyph name="restart" size={14} /> {reading ? 'Lese …' : 'Jetzt lesen'}
           </button>
-        )}
-      </PageHeader>
+        </div>
+      )}
       {error && <p className="m-0 text-[13px] text-[#e3b341]">{error}</p>}
       {!report && !error && <p className="m-0 text-muted">SMART-Daten werden gelesen …</p>}
       {report && !report.installed && (
@@ -108,7 +133,7 @@ function DisksPage() {
             ))}
           </div>
           <p className="m-0 text-[12px] text-muted" suppressHydrationWarning>
-            Gelesen {relative(report.checkedAt)} · automatisch alle 30 Minuten, schlafende Platten werden nicht geweckt · Werte für den Verlauf stündlich, ein Jahr lang.
+            Werte für den Verlauf werden stündlich gespeichert und ein Jahr lang aufbewahrt.
           </p>
         </>
       )}

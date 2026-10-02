@@ -8,6 +8,9 @@ import { HttpError } from '../auth'
 import { assertUnitName } from '../privileged/actions'
 import { FEATURES, PACKAGE_NAME, PROTECTED_PACKAGES, type Feature, type JobSpec } from '~/shared/packages'
 import { aurHelper, aurUser, runAurUpgrade } from './aur'
+import { fileRootPaths } from '../files/backend'
+import { fsJobSteps, prepareFsJob, systemFsOps } from '../files/transfer'
+import { baseName, validatePath } from '~/shared/files'
 import { imageUpdates } from './images'
 import { detectProvider, type Step } from './providers'
 
@@ -47,6 +50,15 @@ export function parseJobSpec(v: unknown): JobSpec {
       if (typeof o.feature !== 'string' || !(o.feature in FEATURES)) throw new HttpError(400, 'Unbekannte Funktion')
       return { kind: 'install', feature: o.feature as Feature }
     }
+    case 'fs-copy':
+    case 'fs-move':
+    case 'fs-delete': {
+      const paths = Array.isArray(o.paths) ? o.paths : []
+      if (!paths.length || paths.length > 1000 || !paths.every((p) => typeof p === 'string' && !validatePath(p))) throw new HttpError(400, 'Ungültige Pfade')
+      if (o.kind === 'fs-delete') return { kind: 'fs-delete', paths: paths as string[] }
+      if (typeof o.toDir !== 'string' || validatePath(o.toDir)) throw new HttpError(400, 'Ungültiges Ziel')
+      return { kind: o.kind, paths: paths as string[], toDir: o.toDir, overwrite: o.overwrite === true }
+    }
     default:
       throw new HttpError(400, 'Unbekannter Job')
   }
@@ -66,6 +78,12 @@ export function jobTitle(spec: JobSpec): string {
       return `Image aktualisieren: ${spec.unit}`
     case 'install':
       return `Installieren: ${FEATURES[spec.feature].label}`
+    case 'fs-copy':
+    case 'fs-move':
+    case 'fs-delete': {
+      const what = spec.paths.length === 1 ? baseName(spec.paths[0]!) : `${spec.paths.length} Einträge`
+      return spec.kind === 'fs-delete' ? `Löschen: ${what}` : `${spec.kind === 'fs-copy' ? 'Kopieren' : 'Verschieben'}: ${what} → ${spec.toDir}`
+    }
   }
 }
 
@@ -114,6 +132,17 @@ async function execute(spec: JobSpec): Promise<number> {
       const p = detectProvider()
       if (!p) throw new Error('Kein unterstützter Paketmanager gefunden')
       return steps(p.installSteps(FEATURES[spec.feature].packages[p.id]))
+    }
+    case 'fs-copy':
+    case 'fs-move':
+    case 'fs-delete': {
+      // Checked again here, where root acts.
+      const prepared = prepareFsJob(spec, systemFsOps(fileRootPaths()))
+      for (const argv of fsJobSteps(spec, prepared)) {
+        const code = await exec(argv)
+        if (code !== 0) return code
+      }
+      return 0
     }
     case 'images-update':
       // Rolls back to the previous image if the restarted unit fails.

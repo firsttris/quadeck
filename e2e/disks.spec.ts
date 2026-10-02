@@ -52,3 +52,59 @@ test.describe.serial('Festplatten', () => {
     await expect(sda).toContainText('Selbsttest läuft')
   })
 })
+
+test.describe.serial('Dateien', () => {
+  test('browse, new folder, copy and paste, rename, delete', async ({ page }) => {
+    await login(page)
+    await page.goto('/disks?tab=files')
+    await expect(page.getByRole('region', { name: 'Bereiche' })).toContainText('/mnt/disk1')
+    const files = page.getByRole('region', { name: 'Ordnerinhalt' })
+    await expect(files.getByTestId('file-row')).toHaveCount(3) // Downloads, Filme, Serien
+    await files.getByRole('button', { name: 'Downloads' }).click()
+    await expect(page).toHaveURL(/path=%2Fmnt%2Fdisk1%2FDownloads/)
+    await expect(files.getByTestId('file-row')).toHaveCount(2)
+
+    // Copy alt.zip, paste into a new folder.
+    await files.getByRole('checkbox', { name: 'alt.zip auswählen' }).check()
+    await files.getByRole('button', { name: 'Kopieren' }).click()
+    await expect(files.getByTestId('clipboard')).toContainText('Kopiert: alt.zip')
+    await files.getByRole('button', { name: 'Neuer Ordner' }).click()
+    const name = page.getByRole('dialog', { name: 'Neuer Ordner' })
+    await name.getByLabel('Name').fill('Archiv')
+    await name.getByRole('button', { name: 'Speichern' }).click()
+    await unlock(page)
+    await expect(files.getByTestId('file-row').filter({ hasText: 'Archiv' })).toBeVisible()
+    await files.getByRole('button', { name: 'Archiv' }).click()
+    await files.getByRole('button', { name: /Einfügen/ }).click()
+    const job = page.getByRole('dialog', { name: /Kopieren: alt.zip/ })
+    await expect(job).toContainText('erfolgreich')
+    await job.getByRole('button', { name: 'Schließen' }).click()
+    await expect(files.getByTestId('file-row').filter({ hasText: 'alt.zip' })).toBeVisible()
+
+    // Pasting again asks before overwriting.
+    await files.getByRole('button', { name: /Einfügen/ }).click()
+    await expect(page.getByRole('dialog', { name: 'Im Ziel schon vorhanden' })).toContainText('alt.zip')
+    await page.getByRole('dialog', { name: 'Im Ziel schon vorhanden' }).getByRole('button', { name: 'Abbrechen' }).click()
+
+    // Rename, then delete.
+    await files.getByRole('checkbox', { name: 'alt.zip auswählen' }).check()
+    await files.getByRole('button', { name: 'Umbenennen' }).click()
+    const rename = page.getByRole('dialog', { name: '„alt.zip“ umbenennen' })
+    await rename.getByLabel('Name').fill('../etc')
+    await expect(rename).toContainText('kein „/“')
+    await rename.getByLabel('Name').fill('alt-2019.zip')
+    await rename.getByRole('button', { name: 'Speichern' }).click()
+    await expect(files.getByTestId('file-row').filter({ hasText: 'alt-2019.zip' })).toBeVisible()
+    await files.getByRole('checkbox', { name: 'alt-2019.zip auswählen' }).check()
+    await files.getByRole('button', { name: 'Löschen' }).click()
+    await page.getByRole('dialog', { name: '„alt-2019.zip“ löschen?' }).getByRole('button', { name: 'Endgültig löschen' }).click()
+    const del = page.getByRole('dialog', { name: /Löschen: alt-2019.zip/ })
+    await expect(del).toContainText('erfolgreich')
+    await del.getByRole('button', { name: 'Schließen' }).click()
+    await expect(files.getByTestId('file-row')).toHaveCount(0)
+
+    // Outside the data areas: refused.
+    await page.goto('/disks?tab=files&path=/etc')
+    await expect(page.getByRole('region', { name: 'Ordnerinhalt' })).toContainText('außerhalb der freigegebenen Bereiche')
+  })
+})

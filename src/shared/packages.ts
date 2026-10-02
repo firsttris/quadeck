@@ -97,6 +97,9 @@ export type JobSpec =
   | { kind: 'images-update' }
   | { kind: 'image-update'; unit: string }
   | { kind: 'install'; feature: Feature }
+  | { kind: 'fs-copy'; paths: string[]; toDir: string; overwrite: boolean }
+  | { kind: 'fs-move'; paths: string[]; toDir: string; overwrite: boolean }
+  | { kind: 'fs-delete'; paths: string[] }
 
 export type JobStatus = 'running' | 'ok' | 'failed'
 

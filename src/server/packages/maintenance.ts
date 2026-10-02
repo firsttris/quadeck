@@ -20,6 +20,8 @@ import {
 } from '~/shared/packages'
 import { HttpError } from '../auth'
 import { aurInfo, aurUpdates } from './aur'
+import { fileRootPaths, type FixtureFiles } from '../files/backend'
+import { prepareFsJob, systemFsOps } from '../files/transfer'
 import { imageUpdates } from './images'
 import { defaultLauncher, JobManager, type JobSink, type Launcher } from './jobs'
 import { detectProvider, type Provider } from './providers'
@@ -185,6 +187,8 @@ export class SystemMaintenance implements MaintenanceBackend {
       if (preview.error) throw new HttpError(409, preview.error)
       if (preview.blocked.length) throw new HttpError(403, `Geschützte Pakete wären betroffen: ${preview.blocked.join(', ')}`)
     }
+    // Copy/move/delete: refuse now (conflicts, outside the roots) instead of in a failing job.
+    if (spec.kind === 'fs-copy' || spec.kind === 'fs-move' || spec.kind === 'fs-delete') prepareFsJob(spec, systemFsOps(fileRootPaths()))
     const info = await this.jobsMgr.start(spec)
     // Results are stale once the job ends (checked lazily on the next read).
     this.watchEnd(info.id, spec)
@@ -227,7 +231,10 @@ export class FixtureMaintenance implements MaintenanceBackend {
   private jobsMgr: JobManager
   private checkedAt = Date.now()
 
-  constructor(dir: string) {
+  constructor(
+    dir: string,
+    private files?: FixtureFiles,
+  ) {
     this.data = JSON.parse(readFileSync(join(dir, 'packages.json'), 'utf8')) as PackageFixtures
     const self = this
     this.jobsMgr = new JobManager({
@@ -269,6 +276,15 @@ export class FixtureMaintenance implements MaintenanceBackend {
         await say(`$ podman pull ${i.image}`)
         await say(`$ systemctl restart ${i.unit}`)
         i.updated = 'false'
+      }
+    } else if (spec.kind === 'fs-copy' || spec.kind === 'fs-move' || spec.kind === 'fs-delete') {
+      const cmd = spec.kind === 'fs-copy' ? 'cp -a -v --reflink=auto' : spec.kind === 'fs-move' ? 'mv -v' : 'rm -r -f -v --one-file-system'
+      await say(`$ ${cmd} -- ${spec.paths.join(' ')}${spec.kind === 'fs-delete' ? '' : ` ${spec.toDir}`}`)
+      try {
+        for (const l of this.files!.apply(spec.kind === 'fs-copy' ? 'copy' : spec.kind === 'fs-move' ? 'move' : 'delete', spec.paths, spec.kind === 'fs-delete' ? undefined : spec.toDir)) await say(l)
+      } catch (e) {
+        await say(`Fehler: ${(e as Error).message}`)
+        return sink.exit(1)
       }
     } else if (spec.kind === 'install') {
       const pkgs = FEATURES[spec.feature].packages.pacman
@@ -317,6 +333,7 @@ export class FixtureMaintenance implements MaintenanceBackend {
       if (p.error) throw new HttpError(409, p.error)
       if (p.blocked.length) throw new HttpError(403, `Geschützte Pakete wären betroffen: ${p.blocked.join(', ')}`)
     }
+    if ((spec.kind === 'fs-copy' || spec.kind === 'fs-move' || spec.kind === 'fs-delete') && this.files) prepareFsJob(spec, this.files.ops())
     return this.jobsMgr.start(spec)
   }
   async jobs() {

@@ -9,6 +9,7 @@ import { FixturePodmanAdmin, SystemPodmanAdmin } from '../quadlets/backend'
 import { FixtureShares, SystemShares } from '../shares/backend'
 import { FixtureSsh, SystemSsh } from '../ssh/backend'
 import { FixtureSmart, SystemSmart } from '../smart/backend'
+import { FixtureFiles, SystemFiles } from '../files/backend'
 
 export function unlockMode(helperProcess: boolean): UnlockMode {
   const m = (process.env.QUADECK_UNLOCK ?? '').trim().toLowerCase()
@@ -33,9 +34,19 @@ export function privileged(): Privileged {
   if (instance) return instance
   const isRoot = process.getuid?.() === 0
   const fixtures = config().fixturesDir
+  const files = fixtures ? new FixtureFiles() : new SystemFiles()
   instance =
     isRoot || fixtures
-      ? new LocalPrivileged(createGate(false), config().podmanSocket, fixtures ? new FixtureMaintenance(fixtures) : new SystemMaintenance(), fixtures ? new FixturePodmanAdmin(fixtures) : new SystemPodmanAdmin(), fixtures ? new FixtureShares(fixtures) : new SystemShares(), fixtures ? new FixtureSsh(fixtures) : new SystemSsh(), fixtures ? new FixtureSmart(fixtures) : new SystemSmart())
+      ? new LocalPrivileged(
+          createGate(false),
+          config().podmanSocket,
+          fixtures ? new FixtureMaintenance(fixtures, files as FixtureFiles) : new SystemMaintenance(),
+          fixtures ? new FixturePodmanAdmin(fixtures) : new SystemPodmanAdmin(),
+          fixtures ? new FixtureShares(fixtures) : new SystemShares(),
+          fixtures ? new FixtureSsh(fixtures) : new SystemSsh(),
+          fixtures ? new FixtureSmart(fixtures) : new SystemSmart(),
+          files,
+        )
       : new HelperClient(config().helperSocket)
   return instance
 }

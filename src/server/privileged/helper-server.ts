@@ -97,6 +97,16 @@ export const HELPER_ROUTES: Record<string, Handler> = {
     if (!DISK_NAME.test(str(b.disk) ?? '') || (b.type !== 'short' && b.type !== 'long')) throw new HttpError(400, 'disk und type (short|long) erforderlich')
     return p.smartSelfTest(str(b.token), str(b.disk)!, b.type)
   },
+  '/files/roots': async (_b, p) => ({ data: await p.fileRoots() }),
+  '/files/list': (b, p) => p.listDir(str(b.path) ?? ''),
+  '/files/mkdir': async (b, p) => {
+    await p.makeDir(str(b.token), str(b.path) ?? '')
+    return { ok: true }
+  },
+  '/files/rename': async (b, p) => {
+    await p.renamePath(str(b.token), str(b.path) ?? '', str(b.newName) ?? '')
+    return { ok: true }
+  },
   '/podman/config': async (b, p) => {
     await p.writePodmanConfig(str(b.token), str(b.name) as PodmanConfigName, str(b.content) ?? '')
     return { ok: true }
