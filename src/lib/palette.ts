@@ -1,7 +1,7 @@
 import type { Snapshot } from '~/shared/types'
 
 export type PaletteAction =
-  | { kind: 'navigate'; to: '/' | '/units' | '/journal' | '/system' | '/quadlets' | '/shares' | '/ssh' | '/disks'; search?: Record<string, string> }
+  | { kind: 'navigate'; to: '/' | '/units' | '/journal' | '/system' | '/quadlets' | '/shares' | '/ssh' | '/disks' | '/files'; search?: Record<string, string> }
   | { kind: 'open'; url: string }
   | { kind: 'unit'; action: 'start' | 'stop' | 'restart'; name: string }
 
@@ -22,9 +22,11 @@ export function paletteItems(s: Snapshot, readonly: boolean): PaletteItem[] {
     { id: 'p:/units?failed', section: 'Seiten', label: 'Fehlgeschlagene Units', keywords: 'failed fehler', action: { kind: 'navigate', to: '/units', search: { filter: 'failed' } } },
     { id: 'p:/journal', section: 'Seiten', label: 'Journal', keywords: 'logs journalctl', action: { kind: 'navigate', to: '/journal' } },
     { id: 'p:/quadlets', section: 'Seiten', label: 'Quadlets bearbeiten', keywords: 'editor container datei compose import', action: { kind: 'navigate', to: '/quadlets' } },
-    { id: 'p:/quadlets?settings', section: 'Seiten', label: 'Podman-Einstellungen', keywords: 'auto-update timer registries containers.conf', action: { kind: 'navigate', to: '/quadlets', search: { tab: 'settings' } } },
+    { id: 'p:/quadlets?new', section: 'Seiten', label: 'Neuer Container', keywords: 'quadlet container anlegen neu', action: { kind: 'navigate', to: '/quadlets', search: { new: 'true' } } },
+    { id: 'p:/system?podman', section: 'Seiten', label: 'Podman-Einstellungen', keywords: 'auto-update timer registries containers.conf podman', action: { kind: 'navigate', to: '/system', search: { tab: 'podman' } } },
     { id: 'p:/shares', section: 'Seiten', label: 'Freigaben', keywords: 'shares smb samba nfs exports netzlaufwerk', action: { kind: 'navigate', to: '/shares' } },
     { id: 'p:/disks', section: 'Seiten', label: 'Festplatten (SMART)', keywords: 'smart smartctl platten disks hdd ssd nvme selbsttest sektoren', action: { kind: 'navigate', to: '/disks' } },
+    { id: 'p:/files', section: 'Seiten', label: 'Dateien', keywords: 'dateien explorer ordner kopieren verschieben umbenennen löschen files', action: { kind: 'navigate', to: '/files' } },
     { id: 'p:/ssh', section: 'Seiten', label: 'SSH', keywords: 'ssh schlüssel authorized_keys sshd passwort login fingerprint', action: { kind: 'navigate', to: '/ssh' } },
     { id: 'p:/system', section: 'Seiten', label: 'Updates', keywords: 'system pakete upgrade pacman apt dnf aur images auto-update', action: { kind: 'navigate', to: '/system' } },
     { id: 'p:/system?packages', section: 'Seiten', label: 'Installierte Pakete', keywords: 'system pakete deinstallieren entfernen verwaist orphans', action: { kind: 'navigate', to: '/system', search: { tab: 'packages' } } },

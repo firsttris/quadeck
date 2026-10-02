@@ -43,7 +43,7 @@ automation, …); everything else lands in *Apps*, manual links in *Links*.
 ### Manual links
 
 Devices without a Quadlet (router, printer, another host, a NAS) are added with **Link hinzufügen**
-on the services card: name, URL, group, icon and whether the URL is health-checked. They live in
+on the services card: name, URL, group, icon (with the same search over dashboard-icons as when editing) and whether the URL is health-checked. They live in
 the same card as the discovered services and are edited in the same dialog.
 
 ### Editing a service

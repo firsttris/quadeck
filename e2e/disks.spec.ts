@@ -56,7 +56,7 @@ test.describe.serial('Festplatten', () => {
 test.describe.serial('Dateien', () => {
   test('browse, new folder, copy and paste, rename, delete', async ({ page }) => {
     await login(page)
-    await page.goto('/disks?tab=files')
+    await page.goto('/files')
     await expect(page.getByRole('region', { name: 'Bereiche' })).toContainText('/mnt/disk1')
     const files = page.getByRole('region', { name: 'Ordnerinhalt' })
     await expect(files.getByTestId('file-row')).toHaveCount(3) // Downloads, Filme, Serien
@@ -104,7 +104,8 @@ test.describe.serial('Dateien', () => {
     await expect(files.getByTestId('file-row')).toHaveCount(0)
 
     // Outside the data areas: refused.
-    await page.goto('/disks?tab=files&path=/etc')
+    await page.goto('/disks?tab=files&path=/etc') // old link redirects
+    await expect(page).toHaveURL(/\/files\?path=%2Fetc/)
     await expect(page.getByRole('region', { name: 'Ordnerinhalt' })).toContainText('außerhalb der freigegebenen Bereiche')
   })
 })

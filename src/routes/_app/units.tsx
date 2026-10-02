@@ -57,10 +57,18 @@ function Units() {
     <>
       <PageHeader title="Units" subtitle="Container, Quadlets und System-Units – gesteuert über systemd">
         {!readonly && (
-          <Link to="/systemd" search={{ new: true }} className="btn sm">
-            + Neue Unit
-          </Link>
+          <>
+            <Link to="/systemd" search={{ new: true }} className="btn sm">
+              + Neue Unit
+            </Link>
+            <Link to="/quadlets" search={{ new: true }} className="btn sm">
+              + Neuer Container
+            </Link>
+          </>
         )}
+        <Link to="/quadlets" className="btn sm">
+          Quadlet-Dateien
+        </Link>
       </PageHeader>
       <div role="group" aria-label="Filter" className="flex flex-wrap gap-1.5">
         {FILTERS.map(([k, label]) => (

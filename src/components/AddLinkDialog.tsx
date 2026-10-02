@@ -1,6 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { api } from '~/lib/api'
 import { Modal } from './Modal'
+import { IconPicker } from './ServiceDialog'
 import { useToast } from './Toast'
 
 /** "Link hinzufügen": manual links to devices and services without Quadlet (router, printer, other hosts). */
@@ -8,6 +9,10 @@ export function AddLinkDialog({ open, onClose, groups }: { open: boolean; onClos
   const say = useToast()
   const [error, setError] = useState('')
   const [saving, setSaving] = useState(false)
+  const [icon, setIcon] = useState('')
+  useEffect(() => {
+    if (open) setIcon('')
+  }, [open])
   return (
     <Modal open={open} onClose={onClose} title="Link hinzufügen">
       <form
@@ -19,7 +24,7 @@ export function AddLinkDialog({ open, onClose, groups }: { open: boolean; onClos
           setError('')
           try {
             await api('/api/links', {
-              body: { name: f.get('name'), url: f.get('url'), group: f.get('group'), icon: f.get('icon'), healthCheck: f.get('health') === 'on' },
+              body: { name: f.get('name'), url: f.get('url'), group: f.get('group'), icon, healthCheck: f.get('health') === 'on' },
             })
             say(`${f.get('name')} hinzugefügt`)
             onClose()
@@ -38,20 +43,18 @@ export function AddLinkDialog({ open, onClose, groups }: { open: boolean; onClos
           URL
           <input name="url" required type="url" className="field font-mono" placeholder="http://192.168.1.1" />
         </label>
-        <div className="grid grid-cols-2 gap-3">
-          <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-            Gruppe
-            <input name="group" maxLength={40} className="field" placeholder="Links" list="link-groups" />
-            <datalist id="link-groups">
-              {groups.map((g) => (
-                <option key={g} value={g} />
-              ))}
-            </datalist>
-          </label>
-          <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-            Icon (optional)
-            <input name="icon" maxLength={80} pattern="[a-z0-9][a-z0-9\-]*" className="field font-mono" placeholder="home-assistant" />
-          </label>
+        <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
+          Gruppe
+          <input name="group" maxLength={40} className="field" placeholder="Links" list="link-groups" />
+          <datalist id="link-groups">
+            {groups.map((g) => (
+              <option key={g} value={g} />
+            ))}
+          </datalist>
+        </label>
+        <div className="flex flex-col gap-1 text-[12px] font-medium text-muted">
+          Icon
+          <IconPicker value={icon} onChange={setIcon} />
         </div>
         <label className="flex items-center gap-2 text-[13px]">
           <input name="health" type="checkbox" defaultChecked /> Erreichbarkeit alle 60 s prüfen

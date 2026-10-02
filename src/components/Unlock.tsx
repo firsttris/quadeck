@@ -148,7 +148,7 @@ function UnlockDialog({ open, state, onDone, onCancel }: { open: boolean; state:
 }
 
 /** Sidebar chip: locked / unlocked with countdown. */
-export function UnlockChip() {
+export function UnlockChip({ compact = false }: { compact?: boolean }) {
   const u = useUnlock()
   const [, tick] = useState(0)
   const open = isOpen(u)
@@ -158,6 +158,17 @@ export function UnlockChip() {
     return () => clearInterval(t)
   }, [open, u.mode])
   if (!u.mode || u.mode === 'none' || u.mode === 'readonly') return null
+  if (compact) {
+    // Phones: only the unlocked state is worth the room – actions ask for the unlock themselves.
+    if (!open) return null
+    const left = Math.max(0, Math.round((u.until! - Date.now()) / 1000))
+    return (
+      <button type="button" className="flex h-10 items-center gap-1 rounded-lg px-2 text-[12px] text-[#e3b341] tabular-nums hover:bg-[#161c24]" onClick={() => void u.lock()} aria-label="Wieder sperren">
+        <Glyph name="unlock" size={17} strokeWidth={2} />
+        {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}
+      </button>
+    )
+  }
   if (!open) {
     return (
       <button type="button" className="btn mx-1 justify-start" onClick={() => void u.ensure()} title="Aktionen am Server freischalten">

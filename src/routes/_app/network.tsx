@@ -5,7 +5,10 @@ import { Pill, type Tone } from '~/components/Status'
 import { bytes } from '~/lib/format'
 import { KNOWN_PORTS, type IfaceKind, type ListeningPort, type NetInterface, type NetworkState } from '~/shared/network'
 
+type Tab = 'interfaces' | 'ports' | 'firewall'
+
 export const Route = createFileRoute('/_app/network')({
+  validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({ tab: s.tab === 'ports' || s.tab === 'firewall' ? s.tab : undefined }),
   head: () => ({ meta: [{ title: 'Netzwerk · Quadeck' }] }),
   component: NetworkPage,
 })
@@ -14,6 +17,7 @@ const KIND_LABEL: Record<IfaceKind, string> = { ethernet: 'LAN', wifi: 'WLAN', b
 const MAIN: IfaceKind[] = ['ethernet', 'wifi', 'vpn', 'bridge']
 
 function NetworkPage() {
+  const { tab = 'interfaces' } = Route.useSearch()
   const [state, setState] = useState<NetworkState | null>(null)
   const [error, setError] = useState('')
   const [allIfaces, setAllIfaces] = useState(false)
@@ -40,24 +44,34 @@ function NetworkPage() {
   const ifaces = s?.interfaces.filter((i) => allIfaces || MAIN.includes(i.kind)) ?? []
   const hidden = (s?.interfaces.length ?? 0) - (s?.interfaces.filter((i) => MAIN.includes(i.kind)).length ?? 0)
   const ports = (s?.ports ?? []).filter((p) => !onlyExternal || p.scope !== 'local').sort((a, b) => Number(a.scope === 'local') - Number(b.scope === 'local') || a.port - b.port)
+  const tabs: [Tab, string, number | undefined][] = [
+    ['interfaces', 'Schnittstellen', undefined],
+    ['ports', 'Ports', s?.ports.length],
+    ['firewall', 'Firewall', undefined],
+  ]
   return (
     <>
-      <PageHeader title="Netzwerk" subtitle="Schnittstellen, Routen, DNS und offene Ports – nur zum Ansehen" />
+      <PageHeader title="Netzwerk" subtitle="Schnittstellen, Routen, DNS, offene Ports und Firewall – nur zum Ansehen" />
+      <div role="tablist" aria-label="Bereich" className="flex flex-wrap gap-1.5">
+        {tabs.map(([k, label, n]) => (
+          <Link key={k} to="/network" search={k === 'interfaces' ? {} : { tab: k }} role="tab" aria-selected={tab === k} className={`seg ${tab === k ? 'on' : ''}`}>
+            {label}
+            {n !== undefined && <span className="opacity-60">{n}</span>}
+          </Link>
+        ))}
+      </div>
       {error && <p className="m-0 text-[13px] text-[#e3b341]">{error}</p>}
       {s?.error && <p className="m-0 text-[13px] text-[#e3b341]">{s.error}</p>}
       {!s && !error && <p className="m-0 text-muted">Wird geladen …</p>}
-      {s && (
+      {s && tab === 'interfaces' && (
         <>
           <section className="flex flex-col gap-3" aria-label="Schnittstellen">
-            <div className="flex items-center gap-3">
-              <h2 className="h2 grow">Schnittstellen</h2>
-              {hidden > 0 && (
-                <label className="flex items-center gap-2 text-[12px] text-muted">
-                  <input type="checkbox" checked={allIfaces} onChange={(e) => setAllIfaces(e.target.checked)} />
-                  auch Loopback und Container-Verbindungen ({hidden})
-                </label>
-              )}
-            </div>
+            {hidden > 0 && (
+              <label className="flex items-center gap-2 self-end text-[12px] text-muted">
+                <input type="checkbox" checked={allIfaces} onChange={(e) => setAllIfaces(e.target.checked)} />
+                auch Loopback und Container-Verbindungen ({hidden})
+              </label>
+            )}
             <div className="grid grid-cols-1 gap-[18px] md:grid-cols-2 2xl:grid-cols-3">
               {ifaces.map((i) => (
                 <Iface key={i.name} iface={i} gateway={s.routes.find((r) => r.dst === 'default' && r.dev === i.name && r.family === 'inet')?.gateway} />
@@ -65,72 +79,69 @@ function NetworkPage() {
             </div>
           </section>
 
-          <div className="grid grid-cols-1 gap-[18px] xl:grid-cols-[minmax(0,7fr)_minmax(0,4fr)]">
-            <section className="panel relative flex flex-col overflow-x-auto" aria-label="Offene Ports">
-              <div className="flex flex-wrap items-center gap-3 px-[18px] pt-[18px] pb-2">
-                <h2 className="h2 grow">Offene Ports</h2>
-                <label className="flex items-center gap-2 text-[12px] text-muted">
-                  <input type="checkbox" checked={onlyExternal} onChange={(e) => setOnlyExternal(e.target.checked)} />
-                  nur aus dem Netz erreichbare
-                </label>
-              </div>
-              <table className="tbl">
-                <thead>
-                  <tr>
-                    <th>Port</th>
-                    <th>Erreichbar</th>
-                    <th>Programm</th>
-                    <th>Firewall</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {ports.length === 0 && (
-                    <tr>
-                      <td colSpan={4} className="text-muted">
-                        Keine Ports.
-                      </td>
-                    </tr>
-                  )}
-                  {ports.map((p) => (
-                    <PortRow key={`${p.proto}/${p.port}/${p.process ?? p.container ?? ''}`} p={p} />
-                  ))}
-                </tbody>
-              </table>
-            </section>
-
-            <div className="flex flex-col gap-[18px]">
-              <Firewall s={s} />
-              <section className="panel flex flex-col gap-2 p-[18px] text-[13px]" aria-label="Routen und DNS">
-                <h2 className="h2">Routen und DNS</h2>
-                <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5">
-                  <dt className="text-muted">Rechnername</dt>
-                  <dd className="m-0 font-mono">{s.hostname}</dd>
-                  {s.routes
-                    .filter((r) => r.dst === 'default')
-                    .map((r, i) => (
-                      <Pair key={i} k={r.family === 'inet' ? 'Gateway' : 'Gateway (IPv6)'} v={`${r.gateway ?? '–'}${r.dev ? ` über ${r.dev}` : ''}`} />
-                    ))}
-                  <Pair k="DNS-Server" v={s.dns.servers.join(', ') || '–'} />
-                  {s.dns.resolver && <Pair k="Resolver" v={s.dns.resolver} />}
-                  {s.dns.search.length > 0 && <Pair k="Suchdomänen" v={s.dns.search.join(', ')} />}
-                </dl>
-                <details className="text-[12px] text-muted">
-                  <summary className="cursor-pointer">Alle Routen ({s.routes.length})</summary>
-                  <ul className="m-0 mt-1.5 flex list-none flex-col gap-0.5 p-0 font-mono">
-                    {s.routes.map((r, i) => (
-                      <li key={i}>
-                        {r.dst}
-                        {r.gateway ? ` via ${r.gateway}` : ''}
-                        {r.dev ? ` dev ${r.dev}` : ''}
-                      </li>
-                    ))}
-                  </ul>
-                </details>
-              </section>
-            </div>
-          </div>
+          <section className="panel flex flex-col gap-2 p-[18px] text-[13px] xl:max-w-[50%]" aria-label="Routen und DNS">
+            <h2 className="h2">Routen und DNS</h2>
+            <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5">
+              <dt className="text-muted">Rechnername</dt>
+              <dd className="m-0 font-mono">{s.hostname}</dd>
+              {s.routes
+                .filter((r) => r.dst === 'default')
+                .map((r, i) => (
+                  <Pair key={i} k={r.family === 'inet' ? 'Gateway' : 'Gateway (IPv6)'} v={`${r.gateway ?? '–'}${r.dev ? ` über ${r.dev}` : ''}`} />
+                ))}
+              <Pair k="DNS-Server" v={s.dns.servers.join(', ') || '–'} />
+              {s.dns.resolver && <Pair k="Resolver" v={s.dns.resolver} />}
+              {s.dns.search.length > 0 && <Pair k="Suchdomänen" v={s.dns.search.join(', ')} />}
+            </dl>
+            <details className="text-[12px] text-muted">
+              <summary className="cursor-pointer">Alle Routen ({s.routes.length})</summary>
+              <ul className="m-0 mt-1.5 flex list-none flex-col gap-0.5 p-0 font-mono">
+                {s.routes.map((r, i) => (
+                  <li key={i}>
+                    {r.dst}
+                    {r.gateway ? ` via ${r.gateway}` : ''}
+                    {r.dev ? ` dev ${r.dev}` : ''}
+                  </li>
+                ))}
+              </ul>
+            </details>
+          </section>
         </>
       )}
+      {s && tab === 'ports' && (
+        <section className="panel relative flex flex-col overflow-x-auto" aria-label="Offene Ports">
+          <div className="flex flex-wrap items-center gap-3 px-[18px] pt-[18px] pb-2">
+            <h2 className="h2 grow">Offene Ports</h2>
+            <label className="flex items-center gap-2 text-[12px] text-muted">
+              <input type="checkbox" checked={onlyExternal} onChange={(e) => setOnlyExternal(e.target.checked)} />
+              nur aus dem Netz erreichbare
+            </label>
+          </div>
+          <table className="tbl">
+            <thead>
+              <tr>
+                <th>Port</th>
+                <th>Erreichbar</th>
+                <th>Programm</th>
+                <th>Firewall</th>
+              </tr>
+            </thead>
+            <tbody>
+              {ports.length === 0 && (
+                <tr>
+                  <td colSpan={4} className="text-muted">
+                    Keine Ports.
+                  </td>
+                </tr>
+              )}
+              {ports.map((p) => (
+                <PortRow key={`${p.proto}/${p.port}/${p.process ?? p.container ?? ''}`} p={p} />
+              ))}
+            </tbody>
+          </table>
+        </section>
+      )}
+      {s && tab === 'firewall' && <Firewall s={s} />}
     </>
   )
 }

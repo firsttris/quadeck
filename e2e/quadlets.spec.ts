@@ -23,7 +23,9 @@ async function unlock(page: Page) {
 test.describe.serial('Quadlets', () => {
   test('edit in the form, same file in the text view, save with diff and restart, history', async ({ page }) => {
     await login(page)
-    await page.getByRole('link', { name: 'Quadlets' }).click()
+    await page.getByRole('navigation', { name: 'Bereiche' }).getByRole('link', { name: 'Units' }).click()
+    await page.getByRole('link', { name: 'Quadlet-Dateien' }).click()
+    await expect(page).toHaveURL(/\/quadlets/)
     await expect(page.getByTestId('quadlet-file')).toHaveCount(5)
     await page.getByTestId('quadlet-file').filter({ hasText: 'jellyfin.container' }).click()
     const editor = page.getByRole('region', { name: 'Editor jellyfin.container' })
@@ -85,6 +87,17 @@ test.describe.serial('Quadlets', () => {
     await expect(page.getByTestId('quadlet-file').filter({ hasText: 'backend.network' })).toBeVisible()
   })
 
+  test('new container from the units page opens the dialog in the editor', async ({ page }) => {
+    await login(page)
+    await page.goto('/units')
+    await page.getByRole('link', { name: '+ Neuer Container' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Neue Quadlet-Datei' })
+    await expect(dialog).toBeVisible()
+    await dialog.getByRole('button', { name: 'Abbrechen' }).click()
+    await expect(dialog).toBeHidden()
+    await expect(page).toHaveURL(/\/quadlets$/)
+  })
+
   test('import from docker-compose', async ({ page }) => {
     await login(page)
     await page.goto('/quadlets')
@@ -103,7 +116,8 @@ test.describe.serial('Quadlets', () => {
 
   test('podman settings: timer, global auto-update, registries.conf with TOML check', async ({ page }) => {
     await login(page)
-    await page.goto('/quadlets?tab=settings')
+    await page.goto('/quadlets?tab=settings') // old link: the settings moved to the System page
+    await expect(page).toHaveURL(/\/system\?tab=podman/)
     const timer = page.getByRole('region', { name: 'Automatische Updates' })
     await expect(timer).toContainText('Podman 5.6.1')
     await timer.getByLabel('Zeitplan (OnCalendar)').fill('Mon *-*-* 04:00')

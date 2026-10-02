@@ -196,9 +196,18 @@ export function JobDialog({ id, onClose, onEnd }: { id: string | null; onClose: 
 }
 
 /** Sidebar hint while a job runs. */
-export function JobChip() {
+export function JobChip({ compact = false }: { compact?: boolean }) {
   const { running, show } = useJobs()
   if (!running) return null
+  if (compact) {
+    return (
+      <button type="button" className="grid h-10 w-10 place-items-center rounded-lg text-accent hover:bg-[#161c24]" onClick={() => show(running.id)} aria-label={`${running.title} läuft`} title={running.title}>
+        <span className="animate-pulse">
+          <Glyph name="terminal" size={19} strokeWidth={2} />
+        </span>
+      </button>
+    )
+  }
   return (
     <button type="button" className="btn mx-1 justify-start text-[12px]" onClick={() => show(running.id)}>
       <Glyph name="terminal" size={14} />

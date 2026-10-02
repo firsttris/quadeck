@@ -1,10 +1,9 @@
-import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
+import { Link, createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
 import { useActions } from '~/components/Actions'
 import { Glyph } from '~/components/Glyph'
 import { Modal } from '~/components/Modal'
 import { PageHeader } from '~/components/PageHeader'
-import { PodmanSettingsView } from '~/components/PodmanSettings'
 import { QuadletEditor } from '~/components/QuadletEditor'
 import { Dot, unitTone } from '~/components/Status'
 import { useToast } from '~/components/Toast'
@@ -14,31 +13,30 @@ import { useLive } from '~/lib/live'
 import { TEMPLATES } from '~/lib/quadlet-templates'
 import { QUADLET_NAME, QUADLET_TYPES, type ComposeResult, type QuadletFile, type QuadletType, type Revision } from '~/shared/quadlets'
 
-type Tab = 'files' | 'settings'
-
 export const Route = createFileRoute('/_app/quadlets')({
-  validateSearch: (s: Record<string, unknown>): { tab?: Tab; file?: string } => ({
+  // Podman settings used to be a tab here; they now live on the System page.
+  validateSearch: (s: Record<string, unknown>): { tab?: 'settings'; file?: string; new?: true; import?: true } => ({
     tab: s.tab === 'settings' ? 'settings' : undefined,
     file: typeof s.file === 'string' && QUADLET_NAME.test(s.file) ? s.file : undefined,
+    new: s.new === true || s.new === 'true' || s.new === 1 ? true : undefined,
+    import: s.import === true || s.import === 'true' || s.import === 1 ? true : undefined,
   }),
+  beforeLoad: ({ search }) => {
+    if (search.tab === 'settings') throw redirect({ to: '/system', search: { tab: 'podman' } })
+  },
   head: () => ({ meta: [{ title: 'Quadlets · Quadeck' }] }),
   component: QuadletsPage,
 })
 
 function QuadletsPage() {
-  const { tab = 'files' } = Route.useSearch()
   return (
     <>
-      <PageHeader title="Quadlets" subtitle="Container-Dateien in /etc/containers/systemd bearbeiten, Podman einstellen" />
-      <div role="tablist" aria-label="Bereich" className="flex flex-wrap gap-1.5">
-        <Link to="/quadlets" search={{}} role="tab" aria-selected={tab === 'files'} className={`seg ${tab === 'files' ? 'on' : ''}`}>
-          Dateien
+      <PageHeader title="Quadlets" subtitle="Container-Dateien in /etc/containers/systemd">
+        <Link to="/units" search={{ filter: 'container' }} className="btn sm">
+          ← Units
         </Link>
-        <Link to="/quadlets" search={{ tab: 'settings' }} role="tab" aria-selected={tab === 'settings'} className={`seg ${tab === 'settings' ? 'on' : ''}`}>
-          Podman-Einstellungen
-        </Link>
-      </div>
-      {tab === 'files' ? <Files /> : <PodmanSettingsView />}
+      </PageHeader>
+      <Files />
     </>
   )
 }
@@ -51,7 +49,8 @@ interface Loaded {
 }
 
 function Files() {
-  const { file } = Route.useSearch()
+  const search = Route.useSearch()
+  const { file } = search
   const navigate = useNavigate()
   const { readonly } = useActions()
   const { snapshot } = useLive()
@@ -59,8 +58,12 @@ function Files() {
   const [error, setError] = useState('')
   const [loaded, setLoaded] = useState<Loaded | null>(null)
   const [draft, setDraft] = useState<Loaded | null>(null)
-  const [creating, setCreating] = useState(false)
-  const [importing, setImporting] = useState(false)
+  // "+ Neuer Container" and "Compose-Import" on the units page open the dialogs right away.
+  const [creating, setCreating] = useState(!!search.new)
+  const [importing, setImporting] = useState(!!search.import)
+  const dropParam = () => {
+    if (search.new || search.import) void navigate({ to: '/quadlets', search: file ? { file } : {}, replace: true })
+  }
 
   const loadList = useCallback(async () => {
     try {
@@ -165,7 +168,10 @@ function Files() {
       <NewDialog
         open={creating}
         existing={files?.map((f) => f.name) ?? []}
-        onClose={() => setCreating(false)}
+        onClose={() => {
+          setCreating(false)
+          dropParam()
+        }}
         onCreate={(name, content) => {
           setDraft({ name, content, history: [], isNew: true })
           setCreating(false)
@@ -175,7 +181,10 @@ function Files() {
       <ComposeDialog
         open={importing}
         existing={files?.map((f) => f.name) ?? []}
-        onClose={() => setImporting(false)}
+        onClose={() => {
+          setImporting(false)
+          dropParam()
+        }}
         onDone={(first) => {
           setImporting(false)
           void loadList()
