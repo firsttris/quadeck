@@ -56,7 +56,7 @@ storage card still shows usage and the file explorer works.
 
 ## File explorer
 
-The **Dateien** tab is a small explorer for the data areas, meant for moving a download into the
+**Dateien** in the navigation (`/files`) is a small explorer for the data areas, meant for moving a download into the
 media folder or cleaning up, not for administering the system.
 
 ### Areas

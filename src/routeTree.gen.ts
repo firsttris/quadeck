@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppDisksRouteImport } from './routes/_app/disks'
+import { Route as AppFilesRouteImport } from './routes/_app/files'
 import { Route as AppJournalRouteImport } from './routes/_app/journal'
 import { Route as AppNetworkRouteImport } from './routes/_app/network'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
@@ -86,6 +87,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppDisksRoute = AppDisksRouteImport.update({
   id: '/disks',
   path: '/disks',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFilesRoute = AppFilesRouteImport.update({
+  id: '/files',
+  path: '/files',
   getParentRoute: () => AppRoute,
 } as any)
 const AppJournalRoute = AppJournalRouteImport.update({
@@ -339,6 +345,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/disks': typeof AppDisksRoute
+  '/files': typeof AppFilesRoute
   '/journal': typeof AppJournalRoute
   '/network': typeof AppNetworkRoute
   '/notifications': typeof AppNotificationsRoute
@@ -393,6 +400,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/disks': typeof AppDisksRoute
+  '/files': typeof AppFilesRoute
   '/journal': typeof AppJournalRoute
   '/network': typeof AppNetworkRoute
   '/notifications': typeof AppNotificationsRoute
@@ -450,6 +458,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/_app/disks': typeof AppDisksRoute
+  '/_app/files': typeof AppFilesRoute
   '/_app/journal': typeof AppJournalRoute
   '/_app/network': typeof AppNetworkRoute
   '/_app/notifications': typeof AppNotificationsRoute
@@ -508,6 +517,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/disks'
+    | '/files'
     | '/journal'
     | '/network'
     | '/notifications'
@@ -562,6 +572,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/disks'
+    | '/files'
     | '/journal'
     | '/network'
     | '/notifications'
@@ -618,6 +629,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/_app/disks'
+    | '/_app/files'
     | '/_app/journal'
     | '/_app/network'
     | '/_app/notifications'
@@ -751,6 +763,13 @@ declare module '@tanstack/react-router' {
       path: '/disks'
       fullPath: '/disks'
       preLoaderRoute: typeof AppDisksRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/files': {
+      id: '/_app/files'
+      path: '/files'
+      fullPath: '/files'
+      preLoaderRoute: typeof AppFilesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/journal': {
@@ -1101,6 +1120,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppDisksRoute: typeof AppDisksRoute
+  AppFilesRoute: typeof AppFilesRoute
   AppJournalRoute: typeof AppJournalRoute
   AppNetworkRoute: typeof AppNetworkRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
@@ -1115,6 +1135,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppDisksRoute: AppDisksRoute,
+  AppFilesRoute: AppFilesRoute,
   AppJournalRoute: AppJournalRoute,
   AppNetworkRoute: AppNetworkRoute,
   AppNotificationsRoute: AppNotificationsRoute,

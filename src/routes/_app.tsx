@@ -61,6 +61,7 @@ function Sidebar({ onSearch }: { onSearch: () => void }) {
     { to: '/journal', label: 'Journal', glyph: 'journal', badge: 0 },
     { to: '/quadlets', label: 'Quadlets', glyph: 'edit', badge: 0 },
     { to: '/disks', label: 'Festplatten', glyph: 'disk', badge: (snapshot.smart ?? []).filter((d) => d.level !== 'ok').length },
+    { to: '/files', label: 'Dateien', glyph: 'file', badge: 0 },
     { to: '/shares', label: 'Freigaben', glyph: 'folder', badge: 0 },
     { to: '/ssh', label: 'SSH', glyph: 'key', badge: 0 },
     { to: '/network', label: 'Netzwerk', glyph: 'network', badge: 0 },

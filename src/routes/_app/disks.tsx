@@ -1,5 +1,4 @@
-import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { FileExplorer } from '~/components/FileExplorer'
+import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
 import { useActions } from '~/components/Actions'
 import { Glyph } from '~/components/Glyph'
@@ -15,10 +14,14 @@ import { diskSize, num, relative } from '~/lib/format'
 import { assessSmart, attributeLevel, describeReason, HINT_TEXT, smartHints, type SmartAssessment, type SmartDisk, type SmartLevel, type SmartReport } from '~/shared/smart'
 
 export const Route = createFileRoute('/_app/disks')({
+  // The file explorer used to be a tab here; old links land on its own page.
   validateSearch: (s: Record<string, unknown>): { tab?: 'files'; path?: string } => ({
     tab: s.tab === 'files' ? 'files' : undefined,
     path: typeof s.path === 'string' && s.path.startsWith('/') ? s.path : undefined,
   }),
+  beforeLoad: ({ search }) => {
+    if (search.tab === 'files') throw redirect({ to: '/files', search: { path: search.path } })
+  },
   head: () => ({ meta: [{ title: 'Festplatten · Quadeck' }] }),
   component: DisksPage,
 })
@@ -39,20 +42,10 @@ function kind(d: SmartDisk) {
 const years = (h: number) => (h >= 8760 ? `${num(h / 8760, 1)} Jahre` : h >= 720 ? `${Math.round(h / 720)} Monate` : `${h} h`)
 
 function DisksPage() {
-  const { tab, path } = Route.useSearch()
-  const navigate = useNavigate()
   return (
     <>
-      <PageHeader title="Festplatten" subtitle={tab === 'files' ? 'Dateien in den Datenbereichen – kopieren, verschieben, umbenennen, löschen' : 'SMART-Zustand aller Laufwerke – Verlauf, Selbsttests, was zu tun ist'} />
-      <div role="tablist" aria-label="Bereich" className="flex flex-wrap gap-1.5">
-        <Link to="/disks" search={{}} role="tab" aria-selected={tab !== 'files'} className={`seg ${tab !== 'files' ? 'on' : ''}`}>
-          SMART
-        </Link>
-        <Link to="/disks" search={{ tab: 'files' }} role="tab" aria-selected={tab === 'files'} className={`seg ${tab === 'files' ? 'on' : ''}`}>
-          Dateien
-        </Link>
-      </div>
-      {tab === 'files' ? <FileExplorer path={path} onNavigate={(p) => void navigate({ to: '/disks', search: { tab: 'files', path: p } })} /> : <Smart />}
+      <PageHeader title="Festplatten" subtitle="SMART-Zustand aller Laufwerke – Verlauf, Selbsttests, was zu tun ist" />
+      <Smart />
     </>
   )
 }
