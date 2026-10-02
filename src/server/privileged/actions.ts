@@ -16,6 +16,8 @@ import type { FilesAdmin } from '../files/backend'
 import type { TimersAdmin } from '../timers/backend'
 import type { UnitEditorAdmin } from '../systemd/editor'
 import type { NetworkAdmin } from '../network/collect'
+import type { FstabAdmin } from '../fstab/backend'
+import type { FstabChange, FstabState } from '~/shared/fstab'
 import type { UnitWriteResult } from '~/shared/unit-files'
 import type { TimerAction, TimerSpec, TimersState } from '~/shared/timers'
 import type { SmartReport } from '~/shared/smart'
@@ -27,7 +29,7 @@ export type UnitAction = 'start' | 'stop' | 'restart'
 export const UNIT_ACTIONS: readonly UnitAction[] = ['start', 'stop', 'restart']
 
 /** Package/image reads need no unlock (they change nothing); jobs do. */
-export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAdmin, SmartAdmin, FilesAdmin, TimersAdmin, UnitEditorAdmin, NetworkAdmin {
+export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAdmin, SmartAdmin, FilesAdmin, TimersAdmin, UnitEditorAdmin, NetworkAdmin, FstabAdmin {
   readonly kind: 'local' | 'helper'
   info(): Promise<UnlockInfo>
   unlock(user: string, password: string): Promise<{ token: string; expiresAt: number }>
@@ -61,6 +63,8 @@ export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAd
   deleteUnitFile(token: string | undefined, unit: string, path: string): Promise<void>
   createUnit(token: string | undefined, unit: string, content: string, enable: boolean): Promise<UnitWriteResult>
   setUnitEnabled(token: string | undefined, unit: string, enabled: boolean): Promise<void>
+  applyFstab(token: string | undefined, change: FstabChange, confirmCritical: boolean): Promise<FstabState>
+  mountAction(token: string | undefined, target: string, action: 'mount' | 'unmount'): Promise<FstabState>
 }
 
 const UNIT_NAME = /^[A-Za-z0-9:_.\\@-]{1,240}\.(service|timer)$/

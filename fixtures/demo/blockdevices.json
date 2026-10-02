@@ -1,0 +1,12 @@
+[
+  { "path": "/dev/nvme0n1p1", "name": "nvme0n1p1", "disk": "nvme0n1", "fstype": "vfat", "uuid": "4A1F-0C3D", "partuuid": "a1b2c3d4-0001-4e5f-8a9b-0c1d2e3f4a01", "size": 629145600, "model": "Samsung SSD 980 PRO 1TB", "mountpoints": ["/boot/efi"] },
+  { "path": "/dev/nvme0n1p2", "name": "nvme0n1p2", "disk": "nvme0n1", "fstype": "ext4", "uuid": "2b7e9c41-0d3a-4f5e-8a6b-7c8d9e0f1a2b", "partuuid": "a1b2c3d4-0002-4e5f-8a9b-0c1d2e3f4a02", "size": 1073741824, "model": "Samsung SSD 980 PRO 1TB", "mountpoints": ["/boot"] },
+  { "path": "/dev/nvme0n1p3", "name": "nvme0n1p3", "disk": "nvme0n1", "fstype": "btrfs", "uuid": "8c1f3e2a-5d4b-4c6e-9f1a-2b3c4d5e6f70", "label": "fedora", "partuuid": "a1b2c3d4-0003-4e5f-8a9b-0c1d2e3f4a03", "size": 998512640000, "model": "Samsung SSD 980 PRO 1TB", "mountpoints": ["/", "/home"] },
+  { "path": "/dev/sda1", "name": "sda1", "disk": "sda", "fstype": "xfs", "uuid": "6f0a1b2c-3d4e-4f50-8a61-b2c3d4e5f601", "label": "disk1", "size": 12000000000000, "model": "WDC WD120EFBX-68B0EN0", "mountpoints": ["/mnt/disk1"] },
+  { "path": "/dev/sdb1", "name": "sdb1", "disk": "sdb", "fstype": "xfs", "uuid": "6f0a1b2c-3d4e-4f50-8a61-b2c3d4e5f602", "label": "disk2", "size": 12000000000000, "model": "WDC WD120EFBX-68B0EN0", "mountpoints": ["/mnt/disk2"] },
+  { "path": "/dev/sdc1", "name": "sdc1", "disk": "sdc", "fstype": "xfs", "uuid": "6f0a1b2c-3d4e-4f50-8a61-b2c3d4e5f603", "label": "disk3", "size": 14000000000000, "model": "ST14000NM001G-2KJ103", "mountpoints": ["/mnt/disk3"] },
+  { "path": "/dev/sdd1", "name": "sdd1", "disk": "sdd", "fstype": "xfs", "uuid": "6f0a1b2c-3d4e-4f50-8a61-b2c3d4e5f604", "label": "parity1", "size": 14000000000000, "model": "ST14000NM001G-2KJ103", "mountpoints": ["/mnt/parity1"] },
+  { "path": "/dev/sde1", "name": "sde1", "disk": "sde", "fstype": "ext4", "uuid": "d3e4f5a6-b7c8-4d9e-8f01-2a3b4c5d6e7f", "label": "Backup", "partuuid": "5c6d7e8f-01", "size": 4000787030016, "model": "WDC WD40EFRX-68N32N0", "mountpoints": [] },
+  { "path": "/dev/sdf1", "name": "sdf1", "disk": "sdf", "fstype": "exfat", "uuid": "1C2D-3E4F", "label": "USB-STICK", "size": 128043712512, "model": "SanDisk Extreme", "mountpoints": [] },
+  { "path": "/dev/sdg2", "name": "sdg2", "disk": "sdg", "fstype": "ntfs", "uuid": "01D9A2B3C4D5E6F0", "label": "Windows", "size": 499289948160, "model": "Crucial CT500MX500SSD1", "mountpoints": [] }
+]

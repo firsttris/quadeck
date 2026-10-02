@@ -66,6 +66,7 @@ as root in one process (installations from before the helper).
 | Samba | `smb.conf` | `testparm`, `.quadeck-bak`, reload without dropping connections |
 | NFS | `/etc/exports`, `/etc/exports.d/quadeck.exports` | `exportfs -ra` with rollback |
 | SSH | `/etc/ssh/sshd_config.d/01-quadeck.conf`, `authorized_keys` | `sshd -t` with rollback, lock-out guard |
+| mounts | `/etc/fstab` (data disks only; system entries are protected) | device, driver, `findmnt --verify`, systemd generator, test mount, confirmation for boot-critical entries, `.quadeck-bak`, history, rollback |
 | packages | the package manager | protected package list, removal preview |
 | files | the data areas only | conflicts refused before the job |
 
@@ -76,7 +77,8 @@ Nothing is written outside these places. Quadeck's own units are read-only in th
 - `/var/lib/quadeck` (user `quadeck`, 0700): SQLite database with the password hash, sessions,
   layout, overrides, metric history, notification state and channel tokens; the icon cache; the
   setup token.
-- `/var/lib/quadeck-helper` (root, 0700): the Quadlet git repository and the unit file history.
+- `/var/lib/quadeck-helper` (root, 0700): the Quadlet git repository and the history of unit files
+  and `/etc/fstab`.
 - `/var/cache/quadeck` (root): the copy of the pacman database for update checks.
 - Notification tokens are returned masked by the API and never logged.
 

@@ -1,7 +1,8 @@
 # Disks and files
 
-The **Festplatten** page has two tabs: **SMART** for the health of every drive and **Dateien**, a
-small file explorer for the data areas.
+The **Festplatten** page has two tabs: **SMART** for the health of every drive and **Einhängen**,
+a configurator for `/etc/fstab`. **Dateien** in the navigation is a small file explorer for the data
+areas.
 
 <img src="screenshot-disks.png" alt="Disks page: SMART verdict, temperature, hours and sector counters per disk, with advice" width="900">
 
@@ -53,6 +54,73 @@ link here. SMART problems also go out as [notifications](notifications.md).
 
 The page shows an install button with the command for your distribution. Without SMART, the
 storage card still shows usage and the file explorer works.
+
+## Mounts (fstab)
+
+**Einhängen** shows which file systems `/etc/fstab` mounts where and adds, changes and removes
+data disks. A broken fstab can stop the server in emergency mode at boot, so every change passes
+several checks before the file is written.
+
+### The list
+
+- **Eingebunden**: every entry with its mount point, file system, usage, the device behind it
+  (path, label, model), whether it is mounted, and whether it would **stop the boot** when the disk
+  is missing (no `nofail`). Options show their meaning on hover. Shares, NFS exports and Quadlet
+  volumes below a mount point are named, so you see what depends on it.
+- **Systemeinträge**: `/`, `/boot`, `/boot/efi`, `/home`, swap, pseudo file systems and subvolumes of
+  the root file system are shown, never changed.
+- **Nicht eingebunden**: file systems on the machine that are not in the file (RAID members, LUKS
+  containers and swap are left out), with **Einbinden …**.
+
+### Adding and changing
+
+The dialog proposes a mount point (`/mnt/<label>`), names the device by **UUID** (stable when `sdb`
+becomes `sdc`; label and PARTUUID can be chosen) and sets options for a data disk: `nofail` with a
+10-second wait (`x-systemd.device-timeout=10s`), `noatime`, for btrfs `compress=zstd`, for NTFS,
+exFAT and FAT owner and mask (`uid`, `gid`, `umask`, those file systems have no Linux permissions).
+Switches with a sentence each cover automount on first access, read-only and `nodev,nosuid`; any
+other option goes into the free field. The resulting fstab line is shown while you type, and the
+fsck order is set to 2 for ext4 and 0 for file systems that are not checked at boot.
+
+### The checks
+
+While typing and again before writing:
+
+1. **Form**: absolute mount point, not a system directory (`/etc`, `/usr`, `/var`, `/home`, `/boot`,
+   …), known options for the file system (unknown ones are a hint, the test mount decides), values
+   where an option needs one, no `ro` with `rw`, sensible fsck order.
+2. **Whole file**: no mount point twice; protected lines stay exactly as they are and no new ones
+   appear.
+3. **Host**: the device exists (`lsblk`), carries the file system named in the entry, the driver or
+   mount helper is installed (with the package to install if not), the mount point is not used by
+   something else, and whether the directory is empty.
+4. **`findmnt --verify`** on a copy of the new file.
+5. **systemd's fstab generator** on the old and the new file (`SYSTEMD_FSTAB=<copy>`): entries that
+   end up in `local-fs.target.requires` stop the boot when they fail. A change that adds such an
+   entry needs an explicit confirmation that explains the consequence.
+6. **Test mount**: the device is mounted once with exactly the chosen options in a private temporary
+   directory and unmounted again – before `/etc/fstab` is touched. A wrong option or a damaged file
+   system shows up here.
+
+### Writing
+
+The confirmation shows the diff and the steps. Then: create the mount point if needed, write the
+file atomically (previous version as `/etc/fstab.quadeck-bak` and in the history under
+`/var/lib/quadeck-helper/fstab-history`), `systemctl daemon-reload`, and start the mount unit (or
+`reload` it to remount with new options; changing source or mount point unmounts first). If any
+step after writing fails, the previous file is written back and reloaded. Removing an entry
+unmounts it first and refuses when it is busy. **Verlauf** shows earlier versions with a diff and
+restores one through the same checks.
+
+### If the server does not boot anyway
+
+In emergency mode, log in as root and restore the previous file:
+
+```sh
+cp /etc/fstab.quadeck-bak /etc/fstab
+systemctl daemon-reload
+reboot
+```
 
 ## File explorer
 

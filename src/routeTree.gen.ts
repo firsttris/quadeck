@@ -36,6 +36,7 @@ import { Route as ApiAuthSetupRouteImport } from './routes/api/auth/setup'
 import { Route as ApiDisksSmartRouteImport } from './routes/api/disks/smart'
 import { Route as ApiFaviconKeyRouteImport } from './routes/api/favicon/$key'
 import { Route as ApiFilesIndexRouteImport } from './routes/api/files/index'
+import { Route as ApiFstabIndexRouteImport } from './routes/api/fstab/index'
 import { Route as ApiIconsSlugRouteImport } from './routes/api/icons/$slug'
 import { Route as ApiIconsSearchRouteImport } from './routes/api/icons/search'
 import { Route as ApiJobsIndexRouteImport } from './routes/api/jobs/index'
@@ -197,6 +198,11 @@ const ApiFaviconKeyRoute = ApiFaviconKeyRouteImport.update({
 const ApiFilesIndexRoute = ApiFilesIndexRouteImport.update({
   id: '/api/files/',
   path: '/api/files/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiFstabIndexRoute = ApiFstabIndexRouteImport.update({
+  id: '/api/fstab/',
+  path: '/api/fstab/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiIconsSlugRoute = ApiIconsSlugRouteImport.update({
@@ -383,6 +389,7 @@ export interface FileRoutesByFullPath {
   '/api/system/remove-preview': typeof ApiSystemRemovePreviewRoute
   '/api/system/updates': typeof ApiSystemUpdatesRoute
   '/api/files/': typeof ApiFilesIndexRoute
+  '/api/fstab/': typeof ApiFstabIndexRoute
   '/api/jobs/': typeof ApiJobsIndexRoute
   '/api/layout/': typeof ApiLayoutIndexRoute
   '/api/links/': typeof ApiLinksIndexRoute
@@ -439,6 +446,7 @@ export interface FileRoutesByTo {
   '/api/system/remove-preview': typeof ApiSystemRemovePreviewRoute
   '/api/system/updates': typeof ApiSystemUpdatesRoute
   '/api/files': typeof ApiFilesIndexRoute
+  '/api/fstab': typeof ApiFstabIndexRoute
   '/api/jobs': typeof ApiJobsIndexRoute
   '/api/layout': typeof ApiLayoutIndexRoute
   '/api/links': typeof ApiLinksIndexRoute
@@ -497,6 +505,7 @@ export interface FileRoutesById {
   '/api/system/remove-preview': typeof ApiSystemRemovePreviewRoute
   '/api/system/updates': typeof ApiSystemUpdatesRoute
   '/api/files/': typeof ApiFilesIndexRoute
+  '/api/fstab/': typeof ApiFstabIndexRoute
   '/api/jobs/': typeof ApiJobsIndexRoute
   '/api/layout/': typeof ApiLayoutIndexRoute
   '/api/links/': typeof ApiLinksIndexRoute
@@ -555,6 +564,7 @@ export interface FileRouteTypes {
     | '/api/system/remove-preview'
     | '/api/system/updates'
     | '/api/files/'
+    | '/api/fstab/'
     | '/api/jobs/'
     | '/api/layout/'
     | '/api/links/'
@@ -611,6 +621,7 @@ export interface FileRouteTypes {
     | '/api/system/remove-preview'
     | '/api/system/updates'
     | '/api/files'
+    | '/api/fstab'
     | '/api/jobs'
     | '/api/layout'
     | '/api/links'
@@ -668,6 +679,7 @@ export interface FileRouteTypes {
     | '/api/system/remove-preview'
     | '/api/system/updates'
     | '/api/files/'
+    | '/api/fstab/'
     | '/api/jobs/'
     | '/api/layout/'
     | '/api/links/'
@@ -714,6 +726,7 @@ export interface RootRouteChildren {
   ApiSystemRemovePreviewRoute: typeof ApiSystemRemovePreviewRoute
   ApiSystemUpdatesRoute: typeof ApiSystemUpdatesRoute
   ApiFilesIndexRoute: typeof ApiFilesIndexRoute
+  ApiFstabIndexRoute: typeof ApiFstabIndexRoute
   ApiJobsIndexRoute: typeof ApiJobsIndexRoute
   ApiLayoutIndexRoute: typeof ApiLayoutIndexRoute
   ApiLinksIndexRoute: typeof ApiLinksIndexRoute
@@ -917,6 +930,13 @@ declare module '@tanstack/react-router' {
       path: '/api/files'
       fullPath: '/api/files/'
       preLoaderRoute: typeof ApiFilesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/fstab/': {
+      id: '/api/fstab/'
+      path: '/api/fstab'
+      fullPath: '/api/fstab/'
+      preLoaderRoute: typeof ApiFstabIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/icons/$slug': {
@@ -1182,6 +1202,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSystemRemovePreviewRoute: ApiSystemRemovePreviewRoute,
   ApiSystemUpdatesRoute: ApiSystemUpdatesRoute,
   ApiFilesIndexRoute: ApiFilesIndexRoute,
+  ApiFstabIndexRoute: ApiFstabIndexRoute,
   ApiJobsIndexRoute: ApiJobsIndexRoute,
   ApiLayoutIndexRoute: ApiLayoutIndexRoute,
   ApiLinksIndexRoute: ApiLinksIndexRoute,

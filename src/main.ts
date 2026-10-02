@@ -13,6 +13,7 @@ import { statSync } from 'node:fs'
 import { cleanupSudoers } from './server/packages/aur'
 import { runJobCommand } from './server/packages/job'
 import { SystemMaintenance } from './server/packages/maintenance'
+import { FstabManager, SystemFstabHost } from './server/fstab/backend'
 import { SystemPodmanAdmin } from './server/quadlets/backend'
 import { SystemShares } from './server/shares/backend'
 import { SystemSsh } from './server/ssh/backend'
@@ -172,7 +173,7 @@ export async function main(argv: string[], opts: MainOptions) {
         process.exit(1)
       }
       cleanupSudoers()
-      serveHelper(config().helperSocket, new LocalPrivileged(createGate(true), config().podmanSocket, new SystemMaintenance(), new SystemPodmanAdmin(), new SystemShares(), new SystemSsh(), new SystemSmart(), new SystemFiles(), new SystemTimers(), new SystemUnitEditor(), new SystemNetwork()))
+      serveHelper(config().helperSocket, new LocalPrivileged(createGate(true), config().podmanSocket, new SystemMaintenance(), new SystemPodmanAdmin(), new SystemShares(), new SystemSsh(), new SystemSmart(), new SystemFiles(), new SystemTimers(), new SystemUnitEditor(), new SystemNetwork(), new FstabManager(new SystemFstabHost())))
       return
     }
     case 'job':

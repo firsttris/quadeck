@@ -14,7 +14,7 @@ export function ServiceIcon({ s }: { s: Service }) {
     boxShadow: `inset 0 0 0 1px ${s.color}44, 0 0 18px ${s.color}22`,
   }
   return (
-    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl @min-[260px]:h-16 @min-[260px]:w-16" style={style}>
+    <span className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl @min-[260px]:h-16 @min-[260px]:w-16" style={style} data-icon={s.icon.kind === 'dash' ? s.icon.slug : undefined}>
       {src && !failed ? (
         <img
           src={src}

@@ -10,6 +10,8 @@ import type { FilesBackend } from '../files/backend'
 import type { TimersBackend } from '../timers/backend'
 import type { UnitEditorBackend } from '../systemd/editor'
 import type { NetworkAdmin } from '../network/collect'
+import type { FstabBackend } from '../fstab/backend'
+import type { FstabChange } from '~/shared/fstab'
 import type { TimerAction, TimerSpec } from '~/shared/timers'
 import type { SshChange } from '~/shared/ssh'
 import type { ShareChange, ShareServiceAction } from '~/shared/shares'
@@ -41,6 +43,7 @@ export class LocalPrivileged implements Privileged {
     private timers: TimersBackend,
     private editor: UnitEditorBackend,
     private network: NetworkAdmin,
+    private fstab: FstabBackend,
   ) {}
 
   async info() {
@@ -295,5 +298,25 @@ export class LocalPrivileged implements Privileged {
   async setUnitEnabled(token: string | undefined, unit: string, enabled: boolean) {
     this.gate.check(token)
     return this.editor.setUnitEnabled(unit, enabled)
+  }
+
+  // ---------- fstab ----------
+
+  fstabState() {
+    return this.fstab.fstabState()
+  }
+  validateFstab(change: FstabChange) {
+    return this.fstab.validateFstab(change)
+  }
+  fstabRevision(id: string) {
+    return this.fstab.fstabRevision(id)
+  }
+  async applyFstab(token: string | undefined, change: FstabChange, confirmCritical: boolean) {
+    this.gate.check(token)
+    return this.fstab.applyFstab(change, confirmCritical)
+  }
+  async mountAction(token: string | undefined, target: string, action: 'mount' | 'unmount') {
+    this.gate.check(token)
+    return this.fstab.mountAction(target, action)
   }
 }

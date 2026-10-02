@@ -11,6 +11,7 @@ import { parseShareChange } from '../shares/backend'
 import { parseSshChange } from '../ssh/backend'
 import { DISK_NAME } from '../smart/backend'
 import { parseSave, parseTimerAction } from '../timers/backend'
+import { parseFstabChange } from '../fstab/parse'
 import { UNIT_ACTIONS, type Privileged, type UnitAction } from './actions'
 
 type Handler = (body: Record<string, unknown>, p: Privileged) => Promise<unknown>
@@ -119,6 +120,11 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/timers/schedule': (b, p) => p.setTimerSchedule(str(b.token), str(b.name) ?? '', str(b.calendar) ?? ''),
   '/timers/action': (b, p) => p.timerAction(str(b.token), str(b.name) ?? '', parseTimerAction(b.action)),
   '/network/state': (_b, p) => p.networkState(),
+  '/fstab/state': (_b, p) => p.fstabState(),
+  '/fstab/validate': (b, p) => p.validateFstab(parseFstabChange(b.change)),
+  '/fstab/revision': async (b, p) => ({ data: await p.fstabRevision(str(b.id) ?? '') }),
+  '/fstab/apply': (b, p) => p.applyFstab(str(b.token), parseFstabChange(b.change), b.confirm === true),
+  '/fstab/mount': (b, p) => p.mountAction(str(b.token), str(b.target) ?? '', b.action === 'unmount' ? 'unmount' : 'mount'),
   '/units/detail': (b, p) => p.unitDetail(str(b.unit) ?? ''),
   '/units/validate': (b, p) => p.validateUnitFile(str(b.unit) ?? '', str(b.path) ?? '', str(b.content) ?? ''),
   '/units/history': async (b, p) => ({ data: await p.unitFileHistory(str(b.unit) ?? '', str(b.path) ?? '') }),
