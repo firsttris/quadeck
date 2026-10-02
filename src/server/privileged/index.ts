@@ -11,6 +11,7 @@ import { FixtureSsh, SystemSsh } from '../ssh/backend'
 import { FixtureSmart, SystemSmart } from '../smart/backend'
 import { FixtureFiles, SystemFiles } from '../files/backend'
 import { FixtureTimers, SystemTimers } from '../timers/backend'
+import { FixtureUnitEditor, SystemUnitEditor } from '../systemd/editor'
 
 export function unlockMode(helperProcess: boolean): UnlockMode {
   const m = (process.env.QUADECK_UNLOCK ?? '').trim().toLowerCase()
@@ -48,6 +49,7 @@ export function privileged(): Privileged {
           fixtures ? new FixtureSmart(fixtures) : new SystemSmart(),
           files,
           fixtures ? new FixtureTimers(fixtures) : new SystemTimers(),
+          fixtures ? new FixtureUnitEditor(fixtures) : new SystemUnitEditor(),
         )
       : new HelperClient(config().helperSocket)
   return instance

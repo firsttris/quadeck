@@ -14,6 +14,8 @@ import type { SshAdmin } from '../ssh/backend'
 import type { SelfTestType, SmartAdmin } from '../smart/backend'
 import type { FilesAdmin } from '../files/backend'
 import type { TimersAdmin } from '../timers/backend'
+import type { UnitEditorAdmin } from '../systemd/editor'
+import type { UnitWriteResult } from '~/shared/unit-files'
 import type { TimerAction, TimerSpec, TimersState } from '~/shared/timers'
 import type { SmartReport } from '~/shared/smart'
 import type { SshChange, SshState } from '~/shared/ssh'
@@ -24,7 +26,7 @@ export type UnitAction = 'start' | 'stop' | 'restart'
 export const UNIT_ACTIONS: readonly UnitAction[] = ['start', 'stop', 'restart']
 
 /** Package/image reads need no unlock (they change nothing); jobs do. */
-export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAdmin, SmartAdmin, FilesAdmin, TimersAdmin {
+export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAdmin, SmartAdmin, FilesAdmin, TimersAdmin, UnitEditorAdmin {
   readonly kind: 'local' | 'helper'
   info(): Promise<UnlockInfo>
   unlock(user: string, password: string): Promise<{ token: string; expiresAt: number }>
@@ -54,6 +56,10 @@ export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAd
   deleteTimer(token: string | undefined, name: string): Promise<TimersState>
   setTimerSchedule(token: string | undefined, name: string, calendar: string): Promise<TimersState>
   timerAction(token: string | undefined, name: string, action: TimerAction): Promise<TimersState>
+  writeUnitFile(token: string | undefined, unit: string, path: string, content: string, restart: boolean): Promise<UnitWriteResult>
+  deleteUnitFile(token: string | undefined, unit: string, path: string): Promise<void>
+  createUnit(token: string | undefined, unit: string, content: string, enable: boolean): Promise<UnitWriteResult>
+  setUnitEnabled(token: string | undefined, unit: string, enabled: boolean): Promise<void>
 }
 
 const UNIT_NAME = /^[A-Za-z0-9:_.\\@-]{1,240}\.(service|timer)$/

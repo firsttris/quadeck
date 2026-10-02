@@ -175,6 +175,18 @@ Statt cron nutzt Quadeck **systemd-Timer**: Unter **Units → Timer** stehen all
 - **Andere Timer** (aus Paketen oder von Hand angelegt) behalten ihre Dateien: Ein geänderter Zeitplan kommt als Drop-in `<timer>.d/50-quadeck.conf`, „Standard wiederherstellen“ entfernt ihn wieder.
 - **Jetzt ausführen**, Timer aktivieren/deaktivieren, Journal des Service und die Unit-Dateien (`systemctl cat`) sind direkt in der Liste. Gelöscht werden nur Timer, die Quadeck selbst angelegt hat.
 
+## systemd-Units bearbeiten
+
+In der Units-Liste führt **Bearbeiten** bei jeder System-Unit zum Editor (Quadlet-Units weiterhin zur Quadlet-Datei):
+
+- **Alle Dateien der Unit** wie bei `systemctl cat`: Hauptdatei und Overrides (Drop-ins) in der Reihenfolge, in der systemd sie anwendet, jeweils mit Herkunft (aus Paket, eigene, generiert).
+- **Paketdateien bleiben unangetastet:** Einstellungen ändert man per **Override** `/etc/systemd/system/<unit>.d/override.conf` – wie `systemctl edit`, Paket-Updates lassen ihn in Ruhe. „Override entfernen“ stellt den Paket-Standard wieder her. Eigene Units in `/etc/systemd/system` werden direkt bearbeitet.
+- **Formular und Text:** gängige Einstellungen (Befehl, Benutzer, Umgebung, Neustart, Speicher-/CPU-Limits, Absicherung wie `ProtectSystem`, Zeitplan bei Timern, `WantedBy`) mit Erklärung; im Override steht dabei, was bisher gilt. Alles andere bleibt im Text unverändert.
+- **Geprüft vor dem Speichern:** Syntax sofort, dann `systemd-analyze verify` mit der geänderten Datei – Fehler mit Zeilennummer verhindern das Speichern (Hinweise wie unbekannte Schlüssel oder fehlende Programme nicht). Ein Override, der `ExecStart=` nur ergänzt statt ersetzt, wird erklärt.
+- **Speichern** zeigt den Diff, danach `daemon-reload` und auf Wunsch Neustart. Jede Fassung landet im **Verlauf** (`/var/lib/quadeck-helper/unit-history`) und lässt sich zurückholen. „Beim Booten starten“ schaltet `systemctl enable/disable`.
+- **Neue Unit** (Units → „+ Neue Unit“) aus Vorlagen: dauerhafter Dienst, einmaliges Skript beim Start, abgesicherter Dienst.
+- Quadecks eigene Units (`quadeck.service`, `quadeck-helper.service`) sind nur lesbar.
+
 ## Layout anpassen
 
 Das Dashboard ist beim ersten Start fertig angeordnet. Mit **Bearbeiten** (oder Taste `E`) lässt es sich auf zwei Ebenen ändern:
@@ -193,7 +205,7 @@ Das Layout wird pro Bildschirmbreite (Desktop, Tablet, Handy) in SQLite gespeich
 Quadeck besteht aus zwei Diensten:
 
 - **`quadeck.service`** – die Web-App, als eigener Systembenutzer `quadeck` **ohne Root-Rechte**. Sie liest alles, was ohne root geht (systemd über D-Bus, Journal über die Gruppe `systemd-journal`, Platten, Freigaben).
-- **`quadeck-helper.service`** – ein kleiner **Root-Helfer** mit fester Aktionsliste (Units starten/stoppen/neu starten, Podman lesen und Container ohne Unit steuern, Pakete und Images prüfen, Update-/Entfernen-Jobs starten, Quadlet-Dateien, Podman-Einstellungen, Freigaben, SSH-Einstellungen und Timer schreiben). Er lauscht nur auf `/run/quadeck/helper.sock`, den ausschließlich die Gruppe `quadeck` öffnen kann.
+- **`quadeck-helper.service`** – ein kleiner **Root-Helfer** mit fester Aktionsliste (Units starten/stoppen/neu starten, Podman lesen und Container ohne Unit steuern, Pakete und Images prüfen, Update-/Entfernen-Jobs starten, Quadlet-Dateien, Podman-Einstellungen, Freigaben, SSH-Einstellungen, Timer und Unit-Dateien schreiben). Er lauscht nur auf `/run/quadeck/helper.sock`, den ausschließlich die Gruppe `quadeck` öffnen kann.
 
 **Entsperren:** Aktionen am Server sind gesperrt, bis man sie mit dem Passwort eines Administrators (root oder Mitglied von `wheel`/`sudo`) freischaltet – dann für 15 Minuten, mit Countdown in der Seitenleiste. Die Prüfung (gegen `/etc/shadow` mit dem System-`crypt(3)`) und die Sperre sitzen im Helfer: Selbst eine übernommene Web-App kann ohne dieses Passwort nichts verändern.
 

@@ -51,7 +51,7 @@ export function Diagnostics({ items, onLine }: { items: Diagnostic[]; onLine?: (
   )
 }
 
-function Field({ section, k, doc, text, onChange }: { section: string; k: string; doc: KeyDoc; text: string; onChange: (t: string) => void }) {
+export function Field({ section, k, doc, text, onChange }: { section: string; k: string; doc: KeyDoc; text: string; onChange: (t: string) => void }) {
   const values = getValues(text, section, k)
   const set = (vals: string[]) => onChange(setValues(text, section, k, vals))
   const id = `f-${section}-${k}`
@@ -125,7 +125,7 @@ function FormView({ name, text, onChange }: { name: string; text: string; onChan
   )
 }
 
-function TextView({ text, onChange, jump }: { text: string; onChange: (t: string) => void; jump: number | null }) {
+export function TextView({ text, onChange, jump, label = 'Quadlet-Datei', readOnly, height = 520 }: { text: string; onChange: (t: string) => void; jump: number | null; label?: string; readOnly?: boolean; height?: number }) {
   const ref = useRef<HTMLTextAreaElement>(null)
   const gutter = useRef<HTMLDivElement>(null)
   const count = text.split('\n').length
@@ -140,17 +140,18 @@ function TextView({ text, onChange, jump }: { text: string; onChange: (t: string
   }, [jump])
   return (
     <div className="flex overflow-hidden rounded-[10px] border border-edge bg-[#0b0f14] font-mono text-[13px] leading-[19.5px]">
-      <div ref={gutter} aria-hidden className="select-none overflow-hidden border-r border-line px-2 py-2.5 text-right text-subtle" style={{ height: 520 }}>
+      <div ref={gutter} aria-hidden className="select-none overflow-hidden border-r border-line px-2 py-2.5 text-right text-subtle" style={{ height }}>
         {Array.from({ length: count }, (_, i) => (
           <div key={i}>{i + 1}</div>
         ))}
       </div>
       <textarea
         ref={ref}
-        aria-label="Quadlet-Datei"
+        aria-label={label}
         spellCheck={false}
-        className="h-[520px] grow resize-none bg-transparent px-3 py-2.5 text-[#c9d1d9] outline-none"
-        style={{ whiteSpace: 'pre', overflowWrap: 'normal' }}
+        readOnly={readOnly}
+        className="grow resize-none bg-transparent px-3 py-2.5 text-[#c9d1d9] outline-none"
+        style={{ whiteSpace: 'pre', overflowWrap: 'normal', height }}
         value={text}
         onChange={(e) => onChange(e.target.value)}
         onScroll={(e) => {
@@ -355,7 +356,23 @@ export function QuadletEditor({ name, initial, isNew, history, readonly, onSaved
   )
 }
 
-function HistoryDialog({ open, name, history, current, onClose, onLoad }: { open: boolean; name: string; history: Revision[]; current: string; onClose: () => void; onLoad: (c: string) => void }) {
+export function HistoryDialog({
+  open,
+  name,
+  history,
+  current,
+  onClose,
+  onLoad,
+  url = (id) => `/api/quadlets/revision?name=${encodeURIComponent(name)}&id=${id}`,
+}: {
+  open: boolean
+  name: string
+  history: Revision[]
+  current: string
+  onClose: () => void
+  onLoad: (c: string) => void
+  url?: (id: string) => string
+}) {
   const [sel, setSel] = useState<Revision | null>(null)
   const [content, setContent] = useState<string | null>(null)
   useEffect(() => {
@@ -364,11 +381,11 @@ function HistoryDialog({ open, name, history, current, onClose, onLoad }: { open
   useEffect(() => {
     setContent(null)
     if (!sel) return
-    fetch(`/api/quadlets/revision?name=${encodeURIComponent(name)}&id=${sel.id}`)
+    fetch(url(sel.id))
       .then((r) => r.json())
       .then((d: { content?: string }) => setContent(d.content ?? ''))
       .catch(() => setContent(''))
-  }, [sel, name])
+  }, [sel, name]) // eslint-disable-line react-hooks/exhaustive-deps
   return (
     <Modal open={open} onClose={onClose} title={`Verlauf: ${name}`} wide>
       <div className="flex flex-wrap gap-1.5" role="listbox" aria-label="Versionen">

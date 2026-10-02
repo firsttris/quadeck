@@ -19,6 +19,7 @@ import { Route as AppQuadletsRouteImport } from './routes/_app/quadlets'
 import { Route as AppSharesRouteImport } from './routes/_app/shares'
 import { Route as AppSshRouteImport } from './routes/_app/ssh'
 import { Route as AppSystemRouteImport } from './routes/_app/system'
+import { Route as AppSystemdRouteImport } from './routes/_app/systemd'
 import { Route as AppUnitsRouteImport } from './routes/_app/units'
 import { Route as ApiContainersRouteImport } from './routes/api/containers'
 import { Route as ApiEventsRouteImport } from './routes/api/events'
@@ -54,6 +55,7 @@ import { Route as ApiSystemImagesRouteImport } from './routes/api/system/images'
 import { Route as ApiSystemOverviewRouteImport } from './routes/api/system/overview'
 import { Route as ApiSystemRemovePreviewRouteImport } from './routes/api/system/remove-preview'
 import { Route as ApiSystemUpdatesRouteImport } from './routes/api/system/updates'
+import { Route as ApiSystemdIndexRouteImport } from './routes/api/systemd/index'
 import { Route as ApiTimersIndexRouteImport } from './routes/api/timers/index'
 import { Route as ApiSystemPackagesIndexRouteImport } from './routes/api/system/packages/index'
 import { Route as ApiSystemPackagesNameRouteImport } from './routes/api/system/packages/$name'
@@ -105,6 +107,11 @@ const AppSshRoute = AppSshRouteImport.update({
 const AppSystemRoute = AppSystemRouteImport.update({
   id: '/system',
   path: '/system',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSystemdRoute = AppSystemdRouteImport.update({
+  id: '/systemd',
+  path: '/systemd',
   getParentRoute: () => AppRoute,
 } as any)
 const AppUnitsRoute = AppUnitsRouteImport.update({
@@ -282,6 +289,11 @@ const ApiSystemUpdatesRoute = ApiSystemUpdatesRouteImport.update({
   path: '/api/system/updates',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSystemdIndexRoute = ApiSystemdIndexRouteImport.update({
+  id: '/api/systemd/',
+  path: '/api/systemd/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiTimersIndexRoute = ApiTimersIndexRouteImport.update({
   id: '/api/timers/',
   path: '/api/timers/',
@@ -308,6 +320,7 @@ export interface FileRoutesByFullPath {
   '/shares': typeof AppSharesRoute
   '/ssh': typeof AppSshRoute
   '/system': typeof AppSystemRoute
+  '/systemd': typeof AppSystemdRoute
   '/units': typeof AppUnitsRoute
   '/api/containers': typeof ApiContainersRoute
   '/api/events': typeof ApiEventsRoute
@@ -343,6 +356,7 @@ export interface FileRoutesByFullPath {
   '/api/quadlets/': typeof ApiQuadletsIndexRoute
   '/api/shares/': typeof ApiSharesIndexRoute
   '/api/ssh/': typeof ApiSshIndexRoute
+  '/api/systemd/': typeof ApiSystemdIndexRoute
   '/api/timers/': typeof ApiTimersIndexRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages/': typeof ApiSystemPackagesIndexRoute
@@ -356,6 +370,7 @@ export interface FileRoutesByTo {
   '/shares': typeof AppSharesRoute
   '/ssh': typeof AppSshRoute
   '/system': typeof AppSystemRoute
+  '/systemd': typeof AppSystemdRoute
   '/units': typeof AppUnitsRoute
   '/api/containers': typeof ApiContainersRoute
   '/api/events': typeof ApiEventsRoute
@@ -392,6 +407,7 @@ export interface FileRoutesByTo {
   '/api/quadlets': typeof ApiQuadletsIndexRoute
   '/api/shares': typeof ApiSharesIndexRoute
   '/api/ssh': typeof ApiSshIndexRoute
+  '/api/systemd': typeof ApiSystemdIndexRoute
   '/api/timers': typeof ApiTimersIndexRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages': typeof ApiSystemPackagesIndexRoute
@@ -407,6 +423,7 @@ export interface FileRoutesById {
   '/_app/shares': typeof AppSharesRoute
   '/_app/ssh': typeof AppSshRoute
   '/_app/system': typeof AppSystemRoute
+  '/_app/systemd': typeof AppSystemdRoute
   '/_app/units': typeof AppUnitsRoute
   '/api/containers': typeof ApiContainersRoute
   '/api/events': typeof ApiEventsRoute
@@ -443,6 +460,7 @@ export interface FileRoutesById {
   '/api/quadlets/': typeof ApiQuadletsIndexRoute
   '/api/shares/': typeof ApiSharesIndexRoute
   '/api/ssh/': typeof ApiSshIndexRoute
+  '/api/systemd/': typeof ApiSystemdIndexRoute
   '/api/timers/': typeof ApiTimersIndexRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages/': typeof ApiSystemPackagesIndexRoute
@@ -459,6 +477,7 @@ export interface FileRouteTypes {
     | '/shares'
     | '/ssh'
     | '/system'
+    | '/systemd'
     | '/units'
     | '/api/containers'
     | '/api/events'
@@ -494,6 +513,7 @@ export interface FileRouteTypes {
     | '/api/quadlets/'
     | '/api/shares/'
     | '/api/ssh/'
+    | '/api/systemd/'
     | '/api/timers/'
     | '/api/system/packages/$name'
     | '/api/system/packages/'
@@ -507,6 +527,7 @@ export interface FileRouteTypes {
     | '/shares'
     | '/ssh'
     | '/system'
+    | '/systemd'
     | '/units'
     | '/api/containers'
     | '/api/events'
@@ -543,6 +564,7 @@ export interface FileRouteTypes {
     | '/api/quadlets'
     | '/api/shares'
     | '/api/ssh'
+    | '/api/systemd'
     | '/api/timers'
     | '/api/system/packages/$name'
     | '/api/system/packages'
@@ -557,6 +579,7 @@ export interface FileRouteTypes {
     | '/_app/shares'
     | '/_app/ssh'
     | '/_app/system'
+    | '/_app/systemd'
     | '/_app/units'
     | '/api/containers'
     | '/api/events'
@@ -593,6 +616,7 @@ export interface FileRouteTypes {
     | '/api/quadlets/'
     | '/api/shares/'
     | '/api/ssh/'
+    | '/api/systemd/'
     | '/api/timers/'
     | '/api/system/packages/$name'
     | '/api/system/packages/'
@@ -636,6 +660,7 @@ export interface RootRouteChildren {
   ApiQuadletsIndexRoute: typeof ApiQuadletsIndexRoute
   ApiSharesIndexRoute: typeof ApiSharesIndexRoute
   ApiSshIndexRoute: typeof ApiSshIndexRoute
+  ApiSystemdIndexRoute: typeof ApiSystemdIndexRoute
   ApiTimersIndexRoute: typeof ApiTimersIndexRoute
   ApiSystemPackagesNameRoute: typeof ApiSystemPackagesNameRoute
   ApiSystemPackagesIndexRoute: typeof ApiSystemPackagesIndexRoute
@@ -711,6 +736,13 @@ declare module '@tanstack/react-router' {
       path: '/system'
       fullPath: '/system'
       preLoaderRoute: typeof AppSystemRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/systemd': {
+      id: '/_app/systemd'
+      path: '/systemd'
+      fullPath: '/systemd'
+      preLoaderRoute: typeof AppSystemdRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/units': {
@@ -958,6 +990,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSystemUpdatesRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/systemd/': {
+      id: '/api/systemd/'
+      path: '/api/systemd'
+      fullPath: '/api/systemd/'
+      preLoaderRoute: typeof ApiSystemdIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/timers/': {
       id: '/api/timers/'
       path: '/api/timers'
@@ -989,6 +1028,7 @@ interface AppRouteChildren {
   AppSharesRoute: typeof AppSharesRoute
   AppSshRoute: typeof AppSshRoute
   AppSystemRoute: typeof AppSystemRoute
+  AppSystemdRoute: typeof AppSystemdRoute
   AppUnitsRoute: typeof AppUnitsRoute
   AppIndexRoute: typeof AppIndexRoute
 }
@@ -1000,6 +1040,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSharesRoute: AppSharesRoute,
   AppSshRoute: AppSshRoute,
   AppSystemRoute: AppSystemRoute,
+  AppSystemdRoute: AppSystemdRoute,
   AppUnitsRoute: AppUnitsRoute,
   AppIndexRoute: AppIndexRoute,
 }
@@ -1044,6 +1085,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiQuadletsIndexRoute: ApiQuadletsIndexRoute,
   ApiSharesIndexRoute: ApiSharesIndexRoute,
   ApiSshIndexRoute: ApiSshIndexRoute,
+  ApiSystemdIndexRoute: ApiSystemdIndexRoute,
   ApiTimersIndexRoute: ApiTimersIndexRoute,
   ApiSystemPackagesNameRoute: ApiSystemPackagesNameRoute,
   ApiSystemPackagesIndexRoute: ApiSystemPackagesIndexRoute,

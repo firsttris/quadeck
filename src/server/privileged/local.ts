@@ -8,6 +8,7 @@ import type { SshBackend } from '../ssh/backend'
 import type { SelfTestType, SmartBackend } from '../smart/backend'
 import type { FilesBackend } from '../files/backend'
 import type { TimersBackend } from '../timers/backend'
+import type { UnitEditorBackend } from '../systemd/editor'
 import type { TimerAction, TimerSpec } from '~/shared/timers'
 import type { SshChange } from '~/shared/ssh'
 import type { ShareChange, ShareServiceAction } from '~/shared/shares'
@@ -37,6 +38,7 @@ export class LocalPrivileged implements Privileged {
     private smart: SmartBackend,
     private files: FilesBackend,
     private timers: TimersBackend,
+    private editor: UnitEditorBackend,
   ) {}
 
   async info() {
@@ -256,5 +258,36 @@ export class LocalPrivileged implements Privileged {
   async timerAction(token: string | undefined, name: string, action: TimerAction) {
     this.gate.check(token)
     return this.timers.timerAction(name, action)
+  }
+
+  // ---------- unit editor ----------
+
+  unitDetail(unit: string) {
+    return this.editor.unitDetail(unit)
+  }
+  validateUnitFile(unit: string, path: string, content: string) {
+    return this.editor.validateUnitFile(unit, path, content)
+  }
+  unitFileHistory(unit: string, path: string) {
+    return this.editor.unitFileHistory(unit, path)
+  }
+  unitFileRevision(unit: string, path: string, id: string) {
+    return this.editor.unitFileRevision(unit, path, id)
+  }
+  async writeUnitFile(token: string | undefined, unit: string, path: string, content: string, restart: boolean) {
+    this.gate.check(token)
+    return this.editor.writeUnitFile(unit, path, content, restart)
+  }
+  async deleteUnitFile(token: string | undefined, unit: string, path: string) {
+    this.gate.check(token)
+    return this.editor.deleteUnitFile(unit, path)
+  }
+  async createUnit(token: string | undefined, unit: string, content: string, enable: boolean) {
+    this.gate.check(token)
+    return this.editor.createUnit(unit, content, enable)
+  }
+  async setUnitEnabled(token: string | undefined, unit: string, enabled: boolean) {
+    this.gate.check(token)
+    return this.editor.setUnitEnabled(unit, enabled)
   }
 }

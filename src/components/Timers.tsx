@@ -63,7 +63,7 @@ export function TimersView() {
     enabled: boolean
   } | null>(null)
   const [scheduling, setScheduling] = useState<TimerEntry | null>(null)
-  const [files, setFiles] = useState<string | null>(null)
+  const [files, setFiles] = useState<{ timer: TimerEntry; text: string } | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
   const { readonly } = useActions()
   const guarded = useGuardedApi()
@@ -103,12 +103,13 @@ export function TimersView() {
     }
   }
 
-  const showFiles = async (name: string) => {
+  const showFiles = async (t: TimerEntry) => {
+    const name = t.name
     try {
       const r = await fetch(`/api/timers?files=${encodeURIComponent(name)}`)
       const d = (await r.json()) as { text?: string; error?: string }
       if (!r.ok) throw new Error(d.error ?? `HTTP ${r.status}`)
-      setFiles(d.text ?? '')
+      setFiles({ timer: t, text: d.text ?? '' })
     } catch (e) {
       say((e as Error).message, 'bad')
     }
@@ -167,7 +168,7 @@ export function TimersView() {
                         className="cursor-pointer border-0 bg-transparent p-0 font-mono text-[13px] font-medium text-fg hover:underline"
                         title="Unit-Dateien anzeigen"
                         aria-label={`Dateien von ${t.name}`}
-                        onClick={() => void showFiles(t.name)}
+                        onClick={() => void showFiles(t)}
                       >
                         {t.name}
                       </button>
@@ -249,8 +250,18 @@ export function TimersView() {
       {editing && <TimerEditor key={editing.previous ?? 'new'} initial={editing.spec} previous={editing.previous} enabled={editing.enabled} existing={timers} onClose={() => setEditing(null)} onSaved={setState} />}
       {scheduling && <ScheduleDialog timer={scheduling} onClose={() => setScheduling(null)} onSaved={setState} />}
       <Modal open={files !== null} onClose={() => setFiles(null)} title="Unit-Dateien" wide>
-        <pre className="m-0 max-h-[60vh] overflow-auto rounded-lg bg-[#0e1319] p-3 font-mono text-[12px] whitespace-pre-wrap">{files}</pre>
-        <div className="flex justify-end">
+        <pre className="m-0 max-h-[60vh] overflow-auto rounded-lg bg-[#0e1319] p-3 font-mono text-[12px] whitespace-pre-wrap">{files?.text}</pre>
+        <div className="flex flex-wrap justify-end gap-2">
+          {files && (
+            <Link to="/systemd" search={{ unit: files.timer.name }} className="btn">
+              {files.timer.name} im Editor
+            </Link>
+          )}
+          {files?.timer.service && (
+            <Link to="/systemd" search={{ unit: files.timer.service }} className="btn">
+              {files.timer.service} im Editor
+            </Link>
+          )}
           <button type="button" className="btn" onClick={() => setFiles(null)}>
             Schließen
           </button>
