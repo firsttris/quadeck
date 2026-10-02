@@ -206,7 +206,7 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
         {images.data?.error || images.error ? (
           <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-[#e3b341]">{images.data?.error ?? images.error}</p>
         ) : !images.data ? (
-          <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">Wird geprüft …</p>
+          <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{t.checking}</p>
         ) : images.data.items.length === 0 ? (
           <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">
             Keine Container mit Auto-Update. In der Quadlet-Datei <span className="font-mono">AutoUpdate=registry</span> setzen.
@@ -320,7 +320,7 @@ function UpdateTable({ title, items, error, empty, note, action }: { title: stri
       {error ? (
         <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-[#e3b341]">{error}</p>
       ) : !items ? (
-        <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">Wird geprüft …</p>
+        <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{t.checking}</p>
       ) : items.length === 0 ? (
         <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{empty}</p>
       ) : (

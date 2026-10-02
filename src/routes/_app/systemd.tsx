@@ -167,9 +167,7 @@ function UnitView({ unit }: { unit: string }) {
                   {t.addOverride}
                 </button>
               )}
-              <p className="m-0 px-1 text-[11px] leading-[1.5] text-subtle">
-                {t.overridesNote(`${UNIT_DIR}/${unit}.d`)}
-              </p>
+              <p className="m-0 px-1 text-[11px] leading-[1.5] text-subtle">{t.overridesNote(`${UNIT_DIR}/${unit}.d`)}</p>
             </section>
             {sel && (
               <PartEditor

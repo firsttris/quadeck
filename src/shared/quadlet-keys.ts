@@ -22,10 +22,17 @@ export const k = (de: string, en: string, rest: Omit<KeyDoc, 'help'> = {}): KeyD
 })
 
 const C: Record<string, KeyDoc> = {
-  Image: k('Image, am besten voll qualifiziert (docker.io/…), sonst funktioniert AutoUpdate=registry nicht.', 'Image, preferably fully qualified (docker.io/…), otherwise AutoUpdate=registry does not work.', { form: true, placeholder: 'docker.io/library/nginx:latest' }),
+  Image: k('Image, am besten voll qualifiziert (docker.io/…), sonst funktioniert AutoUpdate=registry nicht.', 'Image, preferably fully qualified (docker.io/…), otherwise AutoUpdate=registry does not work.', {
+    form: true,
+    placeholder: 'docker.io/library/nginx:latest',
+  }),
   ContainerName: k('Name des Containers (Standard: systemd-<Dateiname>).', 'Name of the container (default: systemd-<file name>).', { form: true }),
   PublishPort: k('Port veröffentlichen: [IP:]Host-Port:Container-Port[/udp].', 'Publish a port: [IP:]host port:container port[/udp].', { multi: true, form: true, placeholder: '8080:80' }),
-  Volume: k('Volume oder Verzeichnis einbinden: Quelle:Ziel[:Optionen]; .volume-Dateien per Name.volume.', 'Mount a volume or directory: source:target[:options]; .volume files as name.volume.', { multi: true, form: true, placeholder: '/srv/app:/data:Z' }),
+  Volume: k('Volume oder Verzeichnis einbinden: Quelle:Ziel[:Optionen]; .volume-Dateien per Name.volume.', 'Mount a volume or directory: source:target[:options]; .volume files as name.volume.', {
+    multi: true,
+    form: true,
+    placeholder: '/srv/app:/data:Z',
+  }),
   Environment: k('Umgebungsvariable KEY=VALUE.', 'Environment variable KEY=VALUE.', { multi: true, form: true, placeholder: 'TZ=Europe/Berlin' }),
   EnvironmentFile: k('Datei mit Umgebungsvariablen.', 'File with environment variables.', { multi: true, form: true }),
   Network: k('Netzwerk: host, none, ein Podman-Netz oder eine .network-Datei (name.network).', 'Network: host, none, a Podman network or a .network file (name.network).', { multi: true, form: true, placeholder: 'app.network' }),

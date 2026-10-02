@@ -92,8 +92,15 @@ const UNIT: Record<string, KeyDoc> = {
 }
 
 const SERVICE: Record<string, KeyDoc> = {
-  Type: k('simple: läuft dauerhaft · oneshot: Skript, das sich beendet · notify/forking: wie vom Programm verlangt.', 'simple: runs permanently · oneshot: script that exits · notify/forking: as the program requires.', { form: true, options: ['', 'simple', 'exec', 'oneshot', 'notify', 'forking', 'idle'] }),
-  ExecStart: k('Befehl mit vollem Pfad. Im Override zuerst ein leeres ExecStart= setzen.', 'Command with full path. In an override, set an empty ExecStart= first.', { multi: true, form: true, placeholder: '/usr/local/bin/mein-dienst --port 8080' }),
+  Type: k('simple: läuft dauerhaft · oneshot: Skript, das sich beendet · notify/forking: wie vom Programm verlangt.', 'simple: runs permanently · oneshot: script that exits · notify/forking: as the program requires.', {
+    form: true,
+    options: ['', 'simple', 'exec', 'oneshot', 'notify', 'forking', 'idle'],
+  }),
+  ExecStart: k('Befehl mit vollem Pfad. Im Override zuerst ein leeres ExecStart= setzen.', 'Command with full path. In an override, set an empty ExecStart= first.', {
+    multi: true,
+    form: true,
+    placeholder: '/usr/local/bin/mein-dienst --port 8080',
+  }),
   ExecStartPre: k('Befehle vor dem Start.', 'Commands before the start.', { multi: true, form: true }),
   User: k('Als dieser Benutzer laufen (leer = root).', 'Run as this user (empty = root).', { form: true }),
   Group: k('Gruppe.', 'Group.', { form: true }),
@@ -107,14 +114,20 @@ const SERVICE: Record<string, KeyDoc> = {
   CPUQuota: k('CPU-Limit, z. B. 50% (eines Kerns) oder 200%.', 'CPU limit, e.g. 50% (of one core) or 200%.', { form: true }),
   Nice: k('Priorität −20 (hoch) bis 19 (niedrig).', 'Priority −20 (high) to 19 (low).', { form: true }),
   NoNewPrivileges: k('Keine zusätzlichen Rechte (setuid/sudo) erlauben.', 'Do not allow additional privileges (setuid/sudo).', { form: true, options: ['', 'yes', 'no'] }),
-  ProtectSystem: k('System schreibgeschützt: full = /usr, /boot, /etc · strict = alles außer erlaubten Pfaden.', 'Read-only system: full = /usr, /boot, /etc · strict = everything except allowed paths.', { form: true, options: ['', 'yes', 'full', 'strict'] }),
+  ProtectSystem: k('System schreibgeschützt: full = /usr, /boot, /etc · strict = alles außer erlaubten Pfaden.', 'Read-only system: full = /usr, /boot, /etc · strict = everything except allowed paths.', {
+    form: true,
+    options: ['', 'yes', 'full', 'strict'],
+  }),
   ProtectHome: k('Home-Verzeichnisse verbergen oder schreibschützen.', 'Hide home directories or make them read-only.', { form: true, options: ['', 'yes', 'read-only', 'tmpfs'] }),
   PrivateTmp: k('Eigenes /tmp.', 'Private /tmp.', { form: true, options: ['', 'yes', 'no'] }),
   ReadWritePaths: k('Trotz ProtectSystem beschreibbar.', 'Writable despite ProtectSystem.', { multi: true, form: true }),
 }
 
 const TIMER: Record<string, KeyDoc> = {
-  OnCalendar: k('Zeitplan, z. B. *-*-* 03:00:00 oder Mon..Fri 07:30. Im Override zuerst ein leeres OnCalendar= setzen.', 'Schedule, e.g. *-*-* 03:00:00 or Mon..Fri 07:30. In an override, set an empty OnCalendar= first.', { multi: true, form: true }),
+  OnCalendar: k('Zeitplan, z. B. *-*-* 03:00:00 oder Mon..Fri 07:30. Im Override zuerst ein leeres OnCalendar= setzen.', 'Schedule, e.g. *-*-* 03:00:00 or Mon..Fri 07:30. In an override, set an empty OnCalendar= first.', {
+    multi: true,
+    form: true,
+  }),
   OnBootSec: k('So lange nach dem Booten, z. B. 15min.', 'This long after boot, e.g. 15min.', { form: true }),
   OnUnitActiveSec: k('Wiederholen, so lange nach dem letzten Start, z. B. 1h.', 'Repeat this long after the last start, e.g. 1h.', { form: true }),
   Persistent: k('Verpasste Läufe nachholen.', 'Catch up on missed runs.', { form: true, options: ['', 'true', 'false'] }),
@@ -128,7 +141,11 @@ const SOCKET: Record<string, KeyDoc> = {
 }
 
 const INSTALL: Record<string, KeyDoc> = {
-  WantedBy: k('Beim Booten starten: multi-user.target (Dienste) oder timers.target (Timer).', 'Start at boot: multi-user.target (services) or timers.target (timers).', { multi: true, form: true, options: ['', 'multi-user.target', 'timers.target', 'sockets.target', 'default.target'] }),
+  WantedBy: k('Beim Booten starten: multi-user.target (Dienste) oder timers.target (Timer).', 'Start at boot: multi-user.target (services) or timers.target (timers).', {
+    multi: true,
+    form: true,
+    options: ['', 'multi-user.target', 'timers.target', 'sockets.target', 'default.target'],
+  }),
 }
 
 /** Form sections per unit type (the rest is edited as text). */
@@ -154,9 +171,15 @@ export function lintUnit(text: string, kind: 'fragment' | 'dropin'): Diagnostic[
     }
     const id = `${e.section}.${e.key}`
     if (!e.value) reset.add(id)
-    else if (kind === 'dropin' && LIST_KEYS.has(e.key!) && !reset.has(id)) out.push({ line: e.start + 1, severity: 'warning', message: tr(`${e.key}= ergänzt im Override nur – zum Ersetzen davor eine leere Zeile ${e.key}= einfügen`, `${e.key}= only adds in an override – to replace, insert an empty ${e.key}= line before it`) })
+    else if (kind === 'dropin' && LIST_KEYS.has(e.key!) && !reset.has(id))
+      out.push({
+        line: e.start + 1,
+        severity: 'warning',
+        message: tr(`${e.key}= ergänzt im Override nur – zum Ersetzen davor eine leere Zeile ${e.key}= einfügen`, `${e.key}= only adds in an override – to replace, insert an empty ${e.key}= line before it`),
+      })
   }
-  if (kind === 'fragment' && !parseIni(text).some((e) => e.kind === 'section')) out.push({ severity: 'error', message: tr('Kein [Abschnitt] – eine Unit braucht mindestens [Unit] oder [Service]', 'No [Section] – a unit needs at least [Unit] or [Service]') })
+  if (kind === 'fragment' && !parseIni(text).some((e) => e.kind === 'section'))
+    out.push({ severity: 'error', message: tr('Kein [Abschnitt] – eine Unit braucht mindestens [Unit] oder [Service]', 'No [Section] – a unit needs at least [Unit] or [Service]') })
   return out
 }
 

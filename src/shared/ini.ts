@@ -116,8 +116,7 @@ export function lintQuadlet(text: string, type: QuadletType): Diagnostic[] {
     if (e.kind === 'invalid') diags.push({ line, severity: 'error', message: tr('Zeile ist weder Abschnitt, Schlüssel=Wert noch Kommentar', 'Line is neither a section, Key=Value nor a comment') })
     if (e.kind === 'section' && e.section !== main && !SYSTEMD_SECTIONS.has(e.section) && !e.section.startsWith('X-') && !QUADLET_KEYS[e.section])
       diags.push({ line, severity: 'warning', message: tr(`Unbekannter Abschnitt [${e.section}]`, `Unknown section [${e.section}]`) })
-    if (e.kind === 'section' && e.section !== main && QUADLET_KEYS[e.section])
-    {
+    if (e.kind === 'section' && e.section !== main && QUADLET_KEYS[e.section]) {
       const ext = Object.entries(QUADLET_SECTION).find(([, s]) => s === e.section)![0]
       diags.push({ line, severity: 'error', message: tr(`[${e.section}] gehört in eine .${ext}-Datei`, `[${e.section}] belongs in a .${ext} file`) })
     }
@@ -133,9 +132,11 @@ export function lintQuadlet(text: string, type: QuadletType): Diagnostic[] {
       diags.push({ line, severity: 'warning', message: tr(`Unbekannter Schlüssel ${e.key} in [${main}]`, `Unknown key ${e.key} in [${main}]`) })
       continue
     }
-    if (!doc.multi && seen.has(e.key!)) diags.push({ line, severity: 'warning', message: tr(`${e.key} ist mehrfach gesetzt – es gilt der letzte Wert (Zeile ${line})`, `${e.key} is set more than once – the last value applies (line ${line})`) })
+    if (!doc.multi && seen.has(e.key!))
+      diags.push({ line, severity: 'warning', message: tr(`${e.key} ist mehrfach gesetzt – es gilt der letzte Wert (Zeile ${line})`, `${e.key} is set more than once – the last value applies (line ${line})`) })
     seen.set(e.key!, line)
-    if (doc.options && e.value && !doc.options.includes(e.value)) diags.push({ line, severity: 'warning', message: tr(`${e.key}=${e.value}: erwartet ${doc.options.filter(Boolean).join(', ')}`, `${e.key}=${e.value}: expected ${doc.options.filter(Boolean).join(', ')}`) })
+    if (doc.options && e.value && !doc.options.includes(e.value))
+      diags.push({ line, severity: 'warning', message: tr(`${e.key}=${e.value}: erwartet ${doc.options.filter(Boolean).join(', ')}`, `${e.key}=${e.value}: expected ${doc.options.filter(Boolean).join(', ')}`) })
   }
   if (!entries.some((e) => e.kind === 'section' && e.section === main)) diags.push({ severity: 'error', message: tr(`Abschnitt [${main}] fehlt`, `Section [${main}] is missing`) })
   else if (type === 'container' && !getValue(text, main, 'Image') && !getValue(text, main, 'Rootfs')) diags.push({ severity: 'error', message: tr('Image= fehlt', 'Image= is missing') })

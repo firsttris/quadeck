@@ -63,10 +63,7 @@ export interface SshState {
   error?: string
 }
 
-export type SshChange =
-  | { kind: 'add-key'; user: string; key: string }
-  | { kind: 'remove-key'; user: string; fingerprint: string; force?: boolean }
-  | { kind: 'settings'; settings: SshSettings; force?: boolean }
+export type SshChange = { kind: 'add-key'; user: string; key: string } | { kind: 'remove-key'; user: string; fingerprint: string; force?: boolean } | { kind: 'settings'; settings: SshSettings; force?: boolean }
 
 export interface SshPreview {
   file: string

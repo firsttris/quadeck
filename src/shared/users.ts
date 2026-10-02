@@ -217,7 +217,8 @@ export function changeProblem(state: Pick<UsersState, 'accounts' | 'shells' | 'g
   if (c.kind === 'samba-password') return undefined
   const before = adminsWithPassword(state.accounts)
   const after = adminsWithPassword(afterChange(state.accounts, c))
-  if (before.length && !after.length) return tr(
+  if (before.length && !after.length)
+    return tr(
       'Danach könnte sich niemand mehr als Administrator anmelden – Quadeck ließe sich nicht mehr entsperren und sudo ginge nicht mehr. Zuerst einem anderen Administrator ein Passwort geben.',
       'Afterwards nobody could log in as administrator anymore – Quadeck could not be unlocked and sudo would no longer work. Give another administrator a password first.',
     )

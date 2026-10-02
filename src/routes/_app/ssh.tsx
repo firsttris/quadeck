@@ -72,7 +72,6 @@ function SshPage() {
   )
 }
 
-
 // ---------- service + host keys ----------
 
 function Access({ state, onState }: { state: SshState; onState: (s: SshState) => void }) {
@@ -182,24 +181,9 @@ function Hardening({ state, onPreview }: { state: SshState; onPreview: (p: SshPe
   return (
     <section className="panel flex flex-col" aria-label={t.title}>
       <h2 className="h2 px-[18px] pt-4 pb-2">{t.title}</h2>
-      <Row
-        tone={e.passwordAuthentication ? 'warn' : 'ok'}
-        label={t.password}
-        value={e.passwordAuthentication ? t.passwordOn : t.passwordOff}
-        help={e.passwordAuthentication ? t.passwordOnHelp : t.passwordOffHelp}
-      />
-      <Row
-        tone={e.permitRootLogin === 'yes' ? 'bad' : e.permitRootLogin === 'no' ? 'ok' : 'ok'}
-        label={t.root}
-        value={T.rootLabel[e.permitRootLogin]}
-        help={e.permitRootLogin === 'yes' ? t.rootYesHelp : t.rootOtherHelp}
-      />
-      <Row
-        tone={e.allowUsers.length ? 'ok' : 'idle'}
-        label={t.allowed}
-        value={e.allowUsers.length ? e.allowUsers.join(', ') : t.all}
-        help={t.allowedHelp}
-      />
+      <Row tone={e.passwordAuthentication ? 'warn' : 'ok'} label={t.password} value={e.passwordAuthentication ? t.passwordOn : t.passwordOff} help={e.passwordAuthentication ? t.passwordOnHelp : t.passwordOffHelp} />
+      <Row tone={e.permitRootLogin === 'yes' ? 'bad' : e.permitRootLogin === 'no' ? 'ok' : 'ok'} label={t.root} value={T.rootLabel[e.permitRootLogin]} help={e.permitRootLogin === 'yes' ? t.rootYesHelp : t.rootOtherHelp} />
+      <Row tone={e.allowUsers.length ? 'ok' : 'idle'} label={t.allowed} value={e.allowUsers.length ? e.allowUsers.join(', ') : t.all} help={t.allowedHelp} />
       {!readonly && (
         <form
           className="flex flex-col gap-3 border-t border-line px-[18px] py-3"

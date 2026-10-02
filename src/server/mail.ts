@@ -37,9 +37,11 @@ export function smtpError(e: { message: string; code?: string; responseCode?: nu
       `Login rejected (${(e.response ?? e.message).trim().slice(0, 160)}) – check user and password; many providers need an app password`,
     )
   if (e.code === 'ECONNREFUSED') return tr('Verbindung abgelehnt – Server und Port prüfen', 'Connection refused – check server and port')
-  if (e.code === 'ETIMEDOUT' || e.code === 'ECONNECTION') return tr(`Keine Verbindung zum SMTP-Server (${e.message}) – Port, Verschlüsselung oder Firewall prüfen`, `No connection to the SMTP server (${e.message}) – check port, encryption or firewall`)
+  if (e.code === 'ETIMEDOUT' || e.code === 'ECONNECTION')
+    return tr(`Keine Verbindung zum SMTP-Server (${e.message}) – Port, Verschlüsselung oder Firewall prüfen`, `No connection to the SMTP server (${e.message}) – check port, encryption or firewall`)
   if (e.code === 'EDNS') return tr('SMTP-Server nicht gefunden – Name prüfen', 'SMTP server not found – check the name')
-  if (e.code === 'ESOCKET' && /wrong version number|ssl3_get_record|packet length/i.test(e.message)) return tr('TLS passt nicht – bei Port 465 „SSL/TLS“, bei 587 „STARTTLS“ wählen', 'TLS mismatch – choose “SSL/TLS” for port 465, “STARTTLS” for 587')
+  if (e.code === 'ESOCKET' && /wrong version number|ssl3_get_record|packet length/i.test(e.message))
+    return tr('TLS passt nicht – bei Port 465 „SSL/TLS“, bei 587 „STARTTLS“ wählen', 'TLS mismatch – choose “SSL/TLS” for port 465, “STARTTLS” for 587')
   if (e.responseCode && e.responseCode >= 500) return tr(`Server lehnt ab: ${(e.response ?? e.message).trim().slice(0, 200)}`, `Server rejects: ${(e.response ?? e.message).trim().slice(0, 200)}`)
   return e.message
 }

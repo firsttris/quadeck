@@ -26,7 +26,11 @@ export const Route = createFileRoute('/api/notifications/')({
             throw new HttpError(400, (e as Error).message)
           }
           const host = hub().snapshot().host.hostname
-          const sent = await n.deliver({ title: tr(`${host}: Testnachricht`, `${host}: test message`), body: tr('Benachrichtigungen von Quadeck kommen an.', 'Notifications from Quadeck are getting through.'), severity: 'info' }, s.channels, true)
+          const sent = await n.deliver(
+            { title: tr(`${host}: Testnachricht`, `${host}: test message`), body: tr('Benachrichtigungen von Quadeck kommen an.', 'Notifications from Quadeck are getting through.'), severity: 'info' },
+            s.channels,
+            true,
+          )
           return Response.json({ ...masked(n.state()), sent })
         }
         if (b.settings === undefined) throw new HttpError(400, tr('Unbekannte Anfrage', 'Unknown request'))

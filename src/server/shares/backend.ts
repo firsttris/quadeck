@@ -7,6 +7,7 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { HttpError } from '../auth'
 import { run } from '../exec'
+import { tr } from '~/shared/i18n'
 import {
   validateNfs,
   validateSmb,
@@ -46,7 +47,7 @@ export function parseShareChange(v: unknown): ShareChange {
       const errs = validateSmb(spec)
       if (errs.length) throw new HttpError(400, errs.join(' · '))
     }
-    if (!spec && !str(o.original)) throw new HttpError(400, 'Nichts zu ändern')
+    if (!spec && !str(o.original)) throw new HttpError(400, tr('Nichts zu ändern', 'Nothing to change'))
     return { kind: 'smb', original: str(o.original) || undefined, spec }
   }
   if (o.kind === 'nfs') {
@@ -66,10 +67,10 @@ export function parseShareChange(v: unknown): ShareChange {
     }
     const orig = o.original as Record<string, unknown> | undefined
     const original = orig ? { file: str(orig.file), path: str(orig.path) } : undefined
-    if (!spec && !original) throw new HttpError(400, 'Nichts zu ändern')
+    if (!spec && !original) throw new HttpError(400, tr('Nichts zu ändern', 'Nothing to change'))
     return { kind: 'nfs', original, spec }
   }
-  throw new HttpError(400, 'kind muss smb oder nfs sein')
+  throw new HttpError(400, tr('kind muss smb oder nfs sein', 'kind must be smb or nfs'))
 }
 
 const read = (p: string) => {
@@ -190,21 +191,21 @@ export class SystemShares implements SharesBackend {
       try {
         if (!statSync(path).isDirectory()) throw new Error()
       } catch {
-        throw new HttpError(422, `${path} existiert nicht oder ist kein Verzeichnis`)
+        throw new HttpError(422, tr(`${path} existiert nicht oder ist kein Verzeichnis`, `${path} does not exist or is not a directory`))
       }
     }
     try {
       if (change.kind === 'smb') {
         const before = read(this.smbConf) ?? ''
-        if (change.spec?.guestOk && !change.spec.readOnly) warnings.push('Gäste dürfen schreiben – jeder im Netz kann Dateien ändern oder löschen')
+        if (change.spec?.guestOk && !change.spec.readOnly) warnings.push(tr('Gäste dürfen schreiben – jeder im Netz kann Dateien ändern oder löschen', 'Guests may write – anyone on the network can change or delete files'))
         return { file: this.smbConf, before, after: setSmbShare(before, change.original, change.spec), warnings }
       }
       // NFS: changes stay in the file the export lives in; new ones go to quadeck.exports.
       const file = change.original?.file || this.managedExports
-      if (!this.exportFiles().includes(file)) throw new HttpError(400, `Unbekannte exports-Datei: ${file}`)
+      if (!this.exportFiles().includes(file)) throw new HttpError(400, tr(`Unbekannte exports-Datei: ${file}`, `Unknown exports file: ${file}`))
       const before = read(file) ?? ''
-      if (change.spec?.clients.some((c) => c.host === '*' && c.options.includes('rw'))) warnings.push('Schreibzugriff für alle Rechner (*) – besser auf das eigene Netz beschränken')
-      if (change.spec?.clients.some((c) => c.options.includes('no_root_squash'))) warnings.push('no_root_squash: root auf dem Client ist auch hier root')
+      if (change.spec?.clients.some((c) => c.host === '*' && c.options.includes('rw'))) warnings.push(tr('Schreibzugriff für alle Rechner (*) – besser auf das eigene Netz beschränken', 'Write access for all hosts (*) – better restrict it to your own network'))
+      if (change.spec?.clients.some((c) => c.options.includes('no_root_squash'))) warnings.push(tr('no_root_squash: root auf dem Client ist auch hier root', 'no_root_squash: root on the client is root here too'))
       return { file, before, after: setExport(before, change.original?.path, change.spec), warnings }
     } catch (e) {
       if (e instanceof HttpError) throw e
@@ -226,7 +227,7 @@ export class SystemShares implements SharesBackend {
     const t = this.target(change)
     if (change.kind === 'smb' && Bun.which('testparm')) {
       const r = await testparm(t.after)
-      if (r.code !== 0) throw new HttpError(422, `testparm lehnt die Konfiguration ab: ${(r.stderr || r.stdout).trim().split('\n').slice(-3).join(' · ')}`)
+      if (r.code !== 0) throw new HttpError(422, tr('testparm lehnt die Konfiguration ab: ', 'testparm rejects the configuration: ') + (r.stderr || r.stdout).trim().split('\n').slice(-3).join(' · '))
     }
     if (existsSync(t.file)) writeFileSync(`${t.file}.quadeck-bak`, t.before, { mode: 0o644 })
     atomicWrite(t.file, t.after)
@@ -239,7 +240,7 @@ export class SystemShares implements SharesBackend {
         // Roll back so NFS keeps working with the old exports.
         atomicWrite(t.file, t.before)
         await run(['exportfs', '-ra'], { timeoutMs: 30_000 })
-        throw new HttpError(422, `exportfs lehnt den Export ab (zurückgesetzt): ${(r.stderr || r.stdout).trim()}`)
+        throw new HttpError(422, tr('exportfs lehnt den Export ab (zurückgesetzt): ', 'exportfs rejects the export (rolled back): ') + (r.stderr || r.stdout).trim())
       }
     }
     return this.sharesState()
@@ -247,7 +248,7 @@ export class SystemShares implements SharesBackend {
 
   async shareService(kind: 'smb' | 'nfs', action: ShareServiceAction): Promise<SharesState> {
     const units = (await this.services(kind === 'smb' ? SMB_UNITS : NFS_UNITS)).map((s) => s.unit)
-    if (!units.length) throw new HttpError(404, kind === 'smb' ? 'Samba ist nicht installiert (Paket samba)' : 'Kein NFS-Server installiert (nfs-utils / nfs-kernel-server)')
+    if (!units.length) throw new HttpError(404, kind === 'smb' ? tr('Samba ist nicht installiert (Paket samba)', 'Samba is not installed (package samba)') : tr('Kein NFS-Server installiert (nfs-utils / nfs-kernel-server)', 'No NFS server installed (nfs-utils / nfs-kernel-server)'))
     const argv = action === 'enable' ? ['systemctl', 'enable', '--now', ...units] : ['systemctl', action, ...units]
     const r = await run(argv, { timeoutMs: 60_000 })
     if (r.code !== 0) throw new HttpError(500, `${argv.join(' ')}: ${r.stderr.trim()}`)
@@ -307,17 +308,17 @@ export class FixtureShares implements SharesBackend {
 
   private target(change: ShareChange) {
     const warnings: string[] = []
-    if (change.spec?.path && !this.dirExists(change.spec.path)) throw new HttpError(422, `${change.spec.path} existiert nicht oder ist kein Verzeichnis`)
+    if (change.spec?.path && !this.dirExists(change.spec.path)) throw new HttpError(422, tr(`${change.spec.path} existiert nicht oder ist kein Verzeichnis`, `${change.spec.path} does not exist or is not a directory`))
     try {
       if (change.kind === 'smb') {
         const before = this.files.get('/etc/samba/smb.conf') ?? ''
-        if (change.spec?.guestOk && !change.spec.readOnly) warnings.push('Gäste dürfen schreiben – jeder im Netz kann Dateien ändern oder löschen')
+        if (change.spec?.guestOk && !change.spec.readOnly) warnings.push(tr('Gäste dürfen schreiben – jeder im Netz kann Dateien ändern oder löschen', 'Guests may write – anyone on the network can change or delete files'))
         return { file: '/etc/samba/smb.conf', before, after: setSmbShare(before, change.original, change.spec), warnings }
       }
       const file = change.original?.file || this.managed
       const before = this.files.get(file) ?? ''
-      if (change.spec?.clients.some((c) => c.host === '*' && c.options.includes('rw'))) warnings.push('Schreibzugriff für alle Rechner (*) – besser auf das eigene Netz beschränken')
-      if (change.spec?.clients.some((c) => c.options.includes('no_root_squash'))) warnings.push('no_root_squash: root auf dem Client ist auch hier root')
+      if (change.spec?.clients.some((c) => c.host === '*' && c.options.includes('rw'))) warnings.push(tr('Schreibzugriff für alle Rechner (*) – besser auf das eigene Netz beschränken', 'Write access for all hosts (*) – better restrict it to your own network'))
+      if (change.spec?.clients.some((c) => c.options.includes('no_root_squash'))) warnings.push(tr('no_root_squash: root auf dem Client ist auch hier root', 'no_root_squash: root on the client is root here too'))
       return { file, before, after: setExport(before, change.original?.path, change.spec), warnings }
     } catch (e) {
       if (e instanceof HttpError) throw e

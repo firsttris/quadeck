@@ -200,12 +200,26 @@ async function firewall(): Promise<FirewallInfo> {
   }
   if (Bun.which('ufw')) {
     const u = parseUfw((await run(['ufw', 'status'])).stdout)
-    if (u.active) return { kind: 'ufw', active: true, ports: u.ports, services: u.services, note: u.services.length ? tr('App-Profile (z. B. OpenSSH) lassen sich hier nicht in Ports auflösen.', 'App profiles (e.g. OpenSSH) cannot be resolved to ports here.') : undefined }
+    if (u.active)
+      return {
+        kind: 'ufw',
+        active: true,
+        ports: u.ports,
+        services: u.services,
+        note: u.services.length ? tr('App-Profile (z. B. OpenSSH) lassen sich hier nicht in Ports auflösen.', 'App profiles (e.g. OpenSSH) cannot be resolved to ports here.') : undefined,
+      }
   }
   if (Bun.which('nft')) {
     const r = await run(['nft', 'list', 'ruleset'])
     // An input chain that drops by default means a hand-written firewall.
-    if (/hook input[^\n]*policy drop/.test(r.stdout)) return { kind: 'nftables', active: true, ports: [], services: [], note: tr('Eigene nftables-Regeln: welche Ports offen sind, kann Quadeck nicht sicher sagen.', 'Custom nftables rules: Quadeck cannot reliably tell which ports are open.') }
+    if (/hook input[^\n]*policy drop/.test(r.stdout))
+      return {
+        kind: 'nftables',
+        active: true,
+        ports: [],
+        services: [],
+        note: tr('Eigene nftables-Regeln: welche Ports offen sind, kann Quadeck nicht sicher sagen.', 'Custom nftables rules: Quadeck cannot reliably tell which ports are open.'),
+      }
   }
   return { kind: 'none', active: false, ports: [], services: [] }
 }

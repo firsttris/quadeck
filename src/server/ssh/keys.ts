@@ -132,7 +132,7 @@ export function parseDropIn(text: string): SshSettings | null {
   const get = (k: string) => text.match(new RegExp(`^\\s*${k}\\s+(.+)$`, 'mi'))?.[1]?.trim()
   return {
     passwordAuthentication: get('PasswordAuthentication') !== 'no',
-    permitRootLogin: ((get('PermitRootLogin') ?? 'prohibit-password').replace('without-password', 'prohibit-password') as RootLogin),
+    permitRootLogin: (get('PermitRootLogin') ?? 'prohibit-password').replace('without-password', 'prohibit-password') as RootLogin,
     allowUsers: (get('AllowUsers') ?? '').split(/\s+/).filter(Boolean),
   }
 }
@@ -160,7 +160,10 @@ export function parseAuthLog(out: string, now = Date.now()): { logins: SshLogin[
   }
   return {
     logins: logins.sort((a, b) => b.ts - a.ts),
-    failed: [...failed].map(([from, f]) => ({ from, ...f })).sort((a, b) => b.count - a.count).slice(0, 10),
+    failed: [...failed]
+      .map(([from, f]) => ({ from, ...f }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 10),
   }
 }
 

@@ -185,8 +185,12 @@ function Iface({ iface: i, gateway }: { iface: NetInterface; gateway?: string })
             {a.address}/{a.prefix}
           </span>
         ))}
-        {!v4.length && !v6.length && <span className="font-sans text-[12px] text-muted">{t.ifaces.noAddress}
-            {link6.length ? t.ifaces.linkLocalOnly : ''}</span>}
+        {!v4.length && !v6.length && (
+          <span className="font-sans text-[12px] text-muted">
+            {t.ifaces.noAddress}
+            {link6.length ? t.ifaces.linkLocalOnly : ''}
+          </span>
+        )}
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[12px] text-muted">
         {gateway && <span>{t.ifaces.gateway(gateway)}</span>}
@@ -256,11 +260,7 @@ function Firewall({ s }: { s: NetworkState }) {
         <h2 className="h2 grow">{t.firewall.title}</h2>
         <Pill tone={f.active ? 'ok' : 'idle'}>{f.active ? t.firewall.active(f.kind) : t.firewall.noneActive}</Pill>
       </div>
-      {!f.active && (
-        <p className="m-0 text-muted">
-          {t.firewall.noFirewall}
-        </p>
-      )}
+      {!f.active && <p className="m-0 text-muted">{t.firewall.noFirewall}</p>}
       {f.active && (
         <>
           {f.zone && (

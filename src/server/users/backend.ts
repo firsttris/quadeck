@@ -9,21 +9,7 @@ import { HttpError } from '../auth'
 import { run } from '../exec'
 import { parseAuthorizedKeys } from '../ssh/keys'
 import { tr } from '~/shared/i18n'
-import {
-  changeProblem,
-  isHuman,
-  knownGroups,
-  parseGroup,
-  parseLast,
-  parsePasswd,
-  parseShadow,
-  passwordState,
-  type Account,
-  type GroupInfo,
-  type LoginRecord,
-  type UserChange,
-  type UsersState,
-} from '~/shared/users'
+import { changeProblem, isHuman, knownGroups, parseGroup, parseLast, parsePasswd, parseShadow, passwordState, type Account, type GroupInfo, type LoginRecord, type UserChange, type UsersState } from '~/shared/users'
 
 export interface UsersAdmin {
   usersState(): Promise<UsersState>
@@ -43,7 +29,14 @@ const read = (p: string) => {
 }
 
 export function parseShells(text: string): string[] {
-  return [...new Set(text.split('\n').map((l) => l.trim()).filter((l) => l.startsWith('/')))]
+  return [
+    ...new Set(
+      text
+        .split('\n')
+        .map((l) => l.trim())
+        .filter((l) => l.startsWith('/')),
+    ),
+  ]
 }
 
 /** The state from the account files – shared by the real machine and the demo. */
@@ -86,7 +79,8 @@ export function buildUsersState(files: { passwd: string; group: string; shadow: 
 
 /** userdel/usermod messages in plain words. */
 export function shadowError(tool: string, out: string): string {
-  if (/currently used by process|is currently logged in/i.test(out)) return tr('Das Konto ist gerade angemeldet oder Prozesse laufen darunter – erst abmelden bzw. beenden', 'The account is logged in or processes are running under it – log out or stop them first')
+  if (/currently used by process|is currently logged in/i.test(out))
+    return tr('Das Konto ist gerade angemeldet oder Prozesse laufen darunter – erst abmelden bzw. beenden', 'The account is logged in or processes are running under it – log out or stop them first')
   if (/already exists/i.test(out)) return tr('Den Namen gibt es schon (auch als Gruppe)', 'The name already exists (maybe as a group)')
   return `${tool}: ${out.trim() || tr('fehlgeschlagen', 'failed')}`
 }
@@ -106,7 +100,12 @@ export class SystemUsers implements UsersBackend {
   private async samba(): Promise<Set<string> | undefined> {
     if (!Bun.which('pdbedit') || !Bun.which('smbpasswd')) return undefined
     const r = await run(['pdbedit', '-L'], { timeoutMs: 10_000 })
-    return new Set(r.stdout.split('\n').map((l) => l.split(':')[0]!).filter(Boolean))
+    return new Set(
+      r.stdout
+        .split('\n')
+        .map((l) => l.split(':')[0]!)
+        .filter(Boolean),
+    )
   }
 
   private async history(): Promise<LoginRecord[]> {
@@ -197,12 +196,27 @@ export class FixtureUsers implements UsersBackend {
 
   async usersState() {
     const now = Date.now()
-    const history = this.f.history.map((h) => ({ user: h.user, tty: h.tty, from: h.from, start: now - h.startMinutesAgo * 60_000, end: h.durationMinutes ? now - (h.startMinutesAgo - h.durationMinutes) * 60_000 : undefined, active: !h.durationMinutes }))
+    const history = this.f.history.map((h) => ({
+      user: h.user,
+      tty: h.tty,
+      from: h.from,
+      start: now - h.startMinutesAgo * 60_000,
+      end: h.durationMinutes ? now - (h.startMinutesAgo - h.durationMinutes) * 60_000 : undefined,
+      active: !h.durationMinutes,
+    }))
     return buildUsersState(this.f, { keys: (n) => this.f.keys[n] ?? 0, samba: new Set(this.f.samba), history })
   }
 
   private edit(file: 'passwd' | 'group' | 'shadow', fn: (fields: string[][]) => string[][]) {
-    this.f[file] = fn(this.f[file].trim().split('\n').map((l) => l.split(':'))).map((x) => x.join(':')).join('\n') + '\n'
+    this.f[file] =
+      fn(
+        this.f[file]
+          .trim()
+          .split('\n')
+          .map((l) => l.split(':')),
+      )
+        .map((x) => x.join(':'))
+        .join('\n') + '\n'
   }
 
   async applyUser(c: UserChange) {
@@ -220,7 +234,13 @@ export class FixtureUsers implements UsersBackend {
     const admin = (groups: string[], on: boolean) => [...new Set([...groups.filter((g) => g !== state.adminGroup), ...(on ? [state.adminGroup] : [])])]
     switch (c.kind) {
       case 'create': {
-        const uid = Math.max(999, ...parsePasswd(this.f.passwd).filter((p) => p.uid < 60000).map((p) => p.uid)) + 1
+        const uid =
+          Math.max(
+            999,
+            ...parsePasswd(this.f.passwd)
+              .filter((p) => p.uid < 60000)
+              .map((p) => p.uid),
+          ) + 1
         this.f.passwd += `${c.name}:x:${uid}:${uid}:${c.fullName}:/home/${c.name}:${c.shell}\n`
         this.f.group += `${c.name}:x:${uid}:\n`
         this.f.shadow += `${c.name}:${c.password ? '$6$demo$hash' : '*'}:20000:0:99999:7:::\n`

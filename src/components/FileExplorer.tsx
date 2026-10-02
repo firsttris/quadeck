@@ -7,11 +7,13 @@ import { useJobs } from './Jobs'
 import { ConfirmDialog, Modal } from './Modal'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
+import { useT } from '~/i18n'
+import { localeOf } from '~/shared/i18n'
 
 type Clip = { mode: 'copy' | 'cut'; paths: string[] }
 type Sort = 'name' | 'size' | 'mtime'
 
-const dateFmt = (ts: number) => new Date(ts).toLocaleString('de-DE', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+const dateFmt = (ts: number) => new Date(ts).toLocaleString(localeOf(), { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 /**
  * A small file manager for the data areas: browse, new folder, rename,
@@ -23,6 +25,8 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
   const jobs = useJobs()
   const guarded = useGuardedApi()
   const { readonly } = useActions()
+  const tt = useT()
+  const t = tt.files.explorer
   const [roots, setRoots] = useState<FileRoot[] | null>(null)
   const [listing, setListing] = useState<DirListing | null>(null)
   const [error, setError] = useState('')
@@ -36,7 +40,7 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
     fetch('/api/files')
       .then((r) => r.json())
       .then((d: { roots?: FileRoot[]; error?: string }) => {
-        if (!d.roots) throw new Error(d.error ?? 'Fehler')
+        if (!d.roots) throw new Error(d.error ?? tt.common.error)
         setRoots(d.roots)
         if (!path && d.roots[0]) onNavigate(d.roots[0].path)
       })
@@ -49,7 +53,7 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
     try {
       const r = await fetch(`/api/files?path=${encodeURIComponent(path)}`)
       const d = (await r.json()) as DirListing & { error?: string }
-      if (!r.ok) throw new Error(d.error ?? `HTTP ${r.status}`)
+      if (!r.ok) throw new Error(d.error ?? tt.common.http(r.status))
       setListing(d)
       setError('')
     } catch (e) {
@@ -68,7 +72,7 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
   const entries = useMemo(() => {
     const list = (listing?.entries ?? []).filter((e) => hidden || !e.name.startsWith('.'))
     const dirFirst = (a: FileEntry, b: FileEntry) => Number(b.type === 'dir') - Number(a.type === 'dir')
-    return list.sort((a, b) => dirFirst(a, b) || (sort === 'size' ? b.size - a.size : sort === 'mtime' ? b.mtime - a.mtime : a.name.localeCompare(b.name, 'de', { numeric: true })))
+    return list.sort((a, b) => dirFirst(a, b) || (sort === 'size' ? b.size - a.size : sort === 'mtime' ? b.mtime - a.mtime : a.name.localeCompare(b.name, localeOf(), { numeric: true })))
   }, [listing, hidden, sort])
 
   const cur = listing?.path ?? path ?? ''
@@ -112,23 +116,23 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
 
   return (
     <div className="grid grid-cols-1 gap-[18px] lg:grid-cols-[240px_minmax(0,1fr)]">
-      <section className="panel flex flex-col self-start" aria-label="Bereiche">
-        <h2 className="h2 px-[18px] pt-4 pb-2">Bereiche</h2>
-        {roots?.length === 0 && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">Keine Datenbereiche gefunden (/mnt, /srv, /media, /home, /data). Eigene mit QUADECK_FILE_ROOTS.</p>}
+      <section className="panel flex flex-col self-start" aria-label={t.roots}>
+        <h2 className="h2 px-[18px] pt-4 pb-2">{t.roots}</h2>
+        {roots?.length === 0 && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{t.noRoots}</p>}
         {roots?.map((r) => (
           <button key={r.path} type="button" onClick={() => onNavigate(r.path)} className={`flex flex-col border-t border-line px-[18px] py-[9px] text-left hover:bg-[rgba(255,255,255,.03)] ${r.path === root ? 'bg-[rgba(124,196,184,.10)]' : ''}`}>
             <span className="flex items-center gap-2 font-mono text-[13px]">
               <Glyph name="disk" size={14} />
               {r.label}
             </span>
-            {r.size ? <span className="pl-[22px] text-[11px] text-muted">{diskSize(r.free ?? 0)} frei von {diskSize(r.size)}</span> : null}
+            {r.size ? <span className="pl-[22px] text-[11px] text-muted">{t.freeOf(diskSize(r.free ?? 0), diskSize(r.size))}</span> : null}
           </button>
         ))}
       </section>
 
-      <section className="panel flex min-w-0 flex-col" aria-label="Ordnerinhalt" onKeyDown={onKey}>
+      <section className="panel flex min-w-0 flex-col" aria-label={t.folderContent} onKeyDown={onKey}>
         <div className="flex flex-wrap items-center gap-2 px-[18px] pt-4 pb-2">
-          <nav aria-label="Pfad" className="flex min-w-0 grow flex-wrap items-center gap-1 font-mono text-[13px]">
+          <nav aria-label={tt.common.path} className="flex min-w-0 grow flex-wrap items-center gap-1 font-mono text-[13px]">
             <button type="button" className="hover:underline" onClick={() => onNavigate(root)}>
               {root || '…'}
             </button>
@@ -142,44 +146,45 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
             ))}
           </nav>
           <label className="flex items-center gap-1.5 text-[12px] text-muted">
-            <input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} /> versteckte
+            <input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} /> {t.hidden}
           </label>
-          <select className="field !w-auto !py-1 text-[12px]" aria-label="Sortieren" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
-            <option value="name">Name</option>
-            <option value="mtime">Geändert</option>
-            <option value="size">Größe</option>
+          <select className="field !w-auto !py-1 text-[12px]" aria-label={t.sort} value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+            <option value="name">{tt.common.name}</option>
+            <option value="mtime">{t.modified}</option>
+            <option value="size">{tt.common.size}</option>
           </select>
         </div>
 
         {!readonly && (
-          <div className="flex flex-wrap items-center gap-1.5 border-t border-line px-[18px] py-2" role="toolbar" aria-label="Aktionen">
-            <button type="button" className="btn sm" disabled={cur === root} onClick={() => onNavigate(parentOf(cur))} aria-label="Eine Ebene höher">
+          <div className="flex flex-wrap items-center gap-1.5 border-t border-line px-[18px] py-2" role="toolbar" aria-label={tt.common.actions}>
+            <button type="button" className="btn sm" disabled={cur === root} onClick={() => onNavigate(parentOf(cur))} aria-label={t.up}>
               ↑
             </button>
             <button type="button" className="btn sm" onClick={() => setDialog({ kind: 'mkdir' })}>
-              <Glyph name="plus" size={13} /> Neuer Ordner
+              <Glyph name="plus" size={13} /> {t.newFolder}
             </button>
             <span className="mx-1 h-5 w-px bg-line" />
             <button type="button" className="btn sm" disabled={!selected.size} onClick={() => setClip({ mode: 'copy', paths: selPaths })}>
-              Kopieren
+              {tt.common.copy}
             </button>
             <button type="button" className="btn sm" disabled={!selected.size} onClick={() => setClip({ mode: 'cut', paths: selPaths })}>
-              Ausschneiden
+              {t.cut}
             </button>
             <button type="button" className="btn sm" disabled={!clip || !!jobs.running} onClick={startPaste}>
-              Einfügen{clip ? ` (${clip.paths.length})` : ''}
+              {t.paste}
+              {clip ? ` (${clip.paths.length})` : ''}
             </button>
             <button type="button" className="btn sm" disabled={selected.size !== 1} onClick={() => setDialog({ kind: 'rename', entry: listing!.entries.find((x) => x.name === [...selected][0])! })}>
-              Umbenennen
+              {t.rename}
             </button>
             <button type="button" className="btn sm danger" disabled={!selected.size || !!jobs.running} onClick={() => setDialog({ kind: 'delete' })}>
-              <Glyph name="trash" size={13} /> Löschen
+              <Glyph name="trash" size={13} /> {tt.common.delete}
             </button>
             {clip && (
               <span className="ml-auto truncate text-[12px] text-muted" data-testid="clipboard">
-                {clip.mode === 'copy' ? 'Kopiert' : 'Ausgeschnitten'}: {clip.paths.map(baseName).join(', ')}{' '}
+                {clip.mode === 'copy' ? tt.common.copied : t.cutDone}: {clip.paths.map(baseName).join(', ')}{' '}
                 <button type="button" className="underline" onClick={() => setClip(null)}>
-                  leeren
+                  {t.clear}
                 </button>
               </span>
             )}
@@ -188,28 +193,28 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
 
         {error && <p className="m-0 border-t border-line px-[18px] py-2 text-[13px] text-[#e3b341]">{error}</p>}
         <div className="overflow-x-auto">
-          <table className="tbl" aria-label="Dateien">
+          <table className="tbl" aria-label={t.files}>
             <thead>
               <tr>
                 <th className="w-8">
                   <input
                     type="checkbox"
-                    aria-label="Alle auswählen"
+                    aria-label={t.selectAll}
                     checked={!!entries.length && selected.size === entries.length}
                     onChange={(e) => setSelected(e.target.checked ? new Set(entries.map((x) => x.name)) : new Set())}
                   />
                 </th>
-                <th>Name</th>
-                <th className="hidden sm:table-cell">Größe</th>
-                <th className="hidden md:table-cell">Geändert</th>
-                <th className="hidden lg:table-cell">Besitzer</th>
+                <th>{tt.common.name}</th>
+                <th className="hidden sm:table-cell">{tt.common.size}</th>
+                <th className="hidden md:table-cell">{t.modified}</th>
+                <th className="hidden lg:table-cell">{t.owner}</th>
               </tr>
             </thead>
             <tbody>
               {listing && entries.length === 0 && (
                 <tr>
                   <td colSpan={5} className="text-muted">
-                    Leerer Ordner.
+                    {t.empty}
                   </td>
                 </tr>
               )}
@@ -219,7 +224,7 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
                 return (
                   <tr key={e.name} data-testid="file-row" className={`${selected.has(e.name) ? 'bg-[rgba(124,196,184,.08)]' : ''} ${cut ? 'opacity-50' : ''}`} onDoubleClick={() => isDir && onNavigate(joinPath(cur, e.name))}>
                     <td>
-                      <input type="checkbox" aria-label={`${e.name} auswählen`} checked={selected.has(e.name)} onChange={() => toggle(e.name)} />
+                      <input type="checkbox" aria-label={t.select(e.name)} checked={selected.has(e.name)} onChange={() => toggle(e.name)} />
                     </td>
                     <td className="max-w-[520px]">
                       <span className="flex items-center gap-2">
@@ -250,15 +255,16 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
           </table>
         </div>
         <div className="border-t border-line px-[18px] py-2 text-[12px] text-muted">
-          {entries.length} Einträge{selected.size ? ` · ${selected.size} ausgewählt` : ''}
-          {listing?.truncated ? ' · nur die ersten 5000 angezeigt' : ''}
-          {!readonly && ' · Strg+C/X/V, Entf, F2'}
+          {t.count(entries.length)}
+          {selected.size ? t.selected(selected.size) : ''}
+          {listing?.truncated ? t.truncated : ''}
+          {!readonly && t.keys}
         </div>
       </section>
 
       <NameDialog
         open={dialog?.kind === 'mkdir' || dialog?.kind === 'rename'}
-        title={dialog?.kind === 'rename' ? `„${dialog.entry.name}“ umbenennen` : 'Neuer Ordner'}
+        title={dialog?.kind === 'rename' ? t.renameTitle(dialog.entry.name) : t.newFolder}
         initial={dialog?.kind === 'rename' ? dialog.entry.name : ''}
         taken={new Set(listing?.entries.map((e) => e.name))}
         onClose={() => setDialog(null)}
@@ -270,7 +276,7 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
             setDialog(null)
             setSelected(new Set())
             await load()
-            say(dialog?.kind === 'rename' ? `Umbenannt in ${name}` : `Ordner ${name} angelegt`)
+            say(dialog?.kind === 'rename' ? t.renamed(name) : t.created(name))
           } catch (e) {
             say((e as Error).message, 'bad')
           }
@@ -278,12 +284,12 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
       />
       <ConfirmDialog
         open={dialog?.kind === 'delete'}
-        title={selected.size === 1 ? `„${[...selected][0]}“ löschen?` : `${selected.size} Einträge löschen?`}
+        title={selected.size === 1 ? t.deleteOne([...selected][0]!) : t.deleteMany(selected.size)}
         danger
-        confirm="Endgültig löschen"
+        confirm={t.deleteConfirm}
         body={
           <div className="flex flex-col gap-2">
-            <p className="m-0">Ordner werden mit ihrem gesamten Inhalt gelöscht. Es gibt keinen Papierkorb.</p>
+            <p className="m-0">{t.deleteBody}</p>
             <ul className="m-0 max-h-[160px] list-none overflow-y-auto p-0 font-mono text-[12px]">
               {[...selected].map((n) => (
                 <li key={n}>{joinPath(cur, n)}</li>
@@ -298,12 +304,14 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
       />
       <ConfirmDialog
         open={dialog?.kind === 'overwrite'}
-        title="Im Ziel schon vorhanden"
+        title={t.existsTitle}
         danger
-        confirm="Überschreiben"
+        confirm={t.overwrite}
         body={
           <p className="m-0">
-            {dialog?.kind === 'overwrite' ? dialog.names.join(', ') : ''} gibt es in <span className="font-mono">{cur}</span> schon. Überschreiben?
+            {t.existsBefore(dialog?.kind === 'overwrite' ? dialog.names.join(', ') : '')}
+            <span className="font-mono">{cur}</span>
+            {t.existsAfter}
           </p>
         }
         onConfirm={() => void paste(true)}
@@ -315,8 +323,9 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
 
 function NameDialog({ open, title, initial, taken, onClose, onSubmit }: { open: boolean; title: string; initial: string; taken: Set<string>; onClose: () => void; onSubmit: (name: string) => void }) {
   const [name, setName] = useState(initial)
+  const tt = useT()
   useEffect(() => setName(initial), [initial, open])
-  const err = name && name !== initial ? (validateName(name) ?? (taken.has(name) ? `${name} gibt es schon` : undefined)) : undefined
+  const err = name && name !== initial ? (validateName(name) ?? (taken.has(name) ? tt.files.explorer.exists(name) : undefined)) : undefined
   return (
     <Modal open={open} onClose={onClose} title={title}>
       <form
@@ -327,16 +336,16 @@ function NameDialog({ open, title, initial, taken, onClose, onSubmit }: { open: 
         }}
       >
         <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-          Name
+          {tt.common.name}
           <input className="field" value={name} onChange={(e) => setName(e.target.value)} autoFocus />
         </label>
         {err && <p className="m-0 text-[13px] text-[#ff8a80]">{err}</p>}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn" onClick={onClose}>
-            Abbrechen
+            {tt.common.cancel}
           </button>
           <button type="submit" className="btn primary" disabled={!name || name === initial || !!err}>
-            Speichern
+            {tt.common.save}
           </button>
         </div>
       </form>

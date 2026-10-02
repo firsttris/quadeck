@@ -1,6 +1,8 @@
 // File explorer: types and checks shared by the page, the web app, the
 // root helper and the `quadeck job` runner.
 
+import { tr } from './i18n'
+
 export interface FileRoot {
   path: string
   label: string
@@ -37,19 +39,19 @@ const CONTROL = /[\x00-\x1f\x7f]/
 
 /** A single new file or folder name (rename, mkdir). */
 export function validateName(name: string): string | undefined {
-  if (!name || name === '.' || name === '..') return 'Name fehlt'
-  if (name.includes('/')) return 'Name darf kein „/“ enthalten'
-  if (CONTROL.test(name)) return 'Steuerzeichen im Namen'
-  if (new TextEncoder().encode(name).length > 255) return 'Name zu lang'
+  if (!name || name === '.' || name === '..') return tr('Name fehlt', 'Name missing')
+  if (name.includes('/')) return tr('Name darf kein „/“ enthalten', 'Name must not contain “/”')
+  if (CONTROL.test(name)) return tr('Steuerzeichen im Namen', 'Control characters in the name')
+  if (new TextEncoder().encode(name).length > 255) return tr('Name zu lang', 'Name too long')
   return undefined
 }
 
 /** Absolute, normalised path without "..", "." or control characters. */
 export function validatePath(path: string): string | undefined {
-  if (!path.startsWith('/')) return 'Pfad muss absolut sein'
-  if (CONTROL.test(path)) return 'Steuerzeichen im Pfad'
-  if (path.length > 4096) return 'Pfad zu lang'
-  if (path.split('/').some((p) => p === '..' || p === '.')) return 'Pfad darf kein „..“ enthalten'
+  if (!path.startsWith('/')) return tr('Pfad muss absolut sein', 'Path must be absolute')
+  if (CONTROL.test(path)) return tr('Steuerzeichen im Pfad', 'Control characters in the path')
+  if (path.length > 4096) return tr('Pfad zu lang', 'Path too long')
+  if (path.split('/').some((p) => p === '..' || p === '.')) return tr('Pfad darf kein „..“ enthalten', 'Path must not contain “..”')
   return undefined
 }
 

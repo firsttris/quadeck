@@ -67,7 +67,10 @@ export function judgeSettings(users: SshUser[], s: SshSettings): { warnings: str
   if (s.permitRootLogin === 'yes') warnings.push(tr('root darf sich mit Passwort anmelden – besser „nur mit Schlüssel“ oder „nein“', 'root may log in with a password – better “key only” or “no”'))
   if (s.passwordAuthentication) warnings.push(tr('Passwort-Login ist an – Angreifer können Passwörter durchprobieren', 'Password login is on – attackers can try out passwords'))
   if (!s.passwordAuthentication && !keyLoginPossible(users, s))
-    return { warnings, blocked: tr('Ohne Passwort-Login könnte sich niemand mehr anmelden: kein erlaubter Benutzer hat einen funktionierenden Schlüssel.', 'Without password login nobody could log in anymore: no allowed user has a working key.') }
+    return {
+      warnings,
+      blocked: tr('Ohne Passwort-Login könnte sich niemand mehr anmelden: kein erlaubter Benutzer hat einen funktionierenden Schlüssel.', 'Without password login nobody could log in anymore: no allowed user has a working key.'),
+    }
   if (s.allowUsers.length && !users.some((u) => s.allowUsers.includes(u.name) && !(u.uid === 0 && s.permitRootLogin === 'no')))
     return { warnings, blocked: tr('Kein erlaubter Benutzer dürfte sich anmelden.', 'No allowed user would be able to log in.') }
   warnings.push(tr('Bleib in deiner jetzigen SSH-Sitzung angemeldet und teste den Zugang in einer zweiten, bevor du sie schließt.', 'Stay logged in to your current SSH session and test access in a second one before closing it.'))
@@ -246,7 +249,13 @@ export class SystemSsh implements SshBackend {
     const after = removeKey(before, change.fingerprint)
     const remaining = st.users.map((x) => (x.name === u.name ? { ...x, keys: x.keys.filter((k) => k.fingerprint !== change.fingerprint) } : x))
     const eff = st.effective
-    const blocked = !eff.passwordAuthentication && !keyLoginPossible(remaining, eff) ? tr('Das ist der letzte funktionierende Schlüssel und Passwort-Login ist aus – danach käme niemand mehr per SSH auf den Server.', 'This is the last working key and password login is off – afterwards nobody could get onto the server via SSH.') : undefined
+    const blocked =
+      !eff.passwordAuthentication && !keyLoginPossible(remaining, eff)
+        ? tr(
+            'Das ist der letzte funktionierende Schlüssel und Passwort-Login ist aus – danach käme niemand mehr per SSH auf den Server.',
+            'This is the last working key and password login is off – afterwards nobody could get onto the server via SSH.',
+          )
+        : undefined
     return { file, before, after, warnings: [], blocked, user: u }
   }
 
@@ -286,10 +295,14 @@ export class SystemSsh implements SshBackend {
     const p = this.plan(change, st, users)
     if (p.blocked && !(change.kind !== 'add-key' && change.force)) throw new HttpError(409, p.blocked)
     if (change.kind === 'settings') {
-      if (!st.dropInActive) throw new HttpError(409, tr(
-          `${join(this.etc, 'sshd_config')} bindet sshd_config.d/*.conf nicht ein – „Include /etc/ssh/sshd_config.d/*.conf“ oben ergänzen`,
-          `${join(this.etc, 'sshd_config')} does not include sshd_config.d/*.conf – add “Include /etc/ssh/sshd_config.d/*.conf” at the top`,
-        ))
+      if (!st.dropInActive)
+        throw new HttpError(
+          409,
+          tr(
+            `${join(this.etc, 'sshd_config')} bindet sshd_config.d/*.conf nicht ein – „Include /etc/ssh/sshd_config.d/*.conf“ oben ergänzen`,
+            `${join(this.etc, 'sshd_config')} does not include sshd_config.d/*.conf – add “Include /etc/ssh/sshd_config.d/*.conf” at the top`,
+          ),
+        )
       mkdirSync(join(this.etc, 'sshd_config.d'), { recursive: true, mode: 0o755 })
       if (existsSync(this.dropIn)) writeFileSync(`${this.dropIn}.quadeck-bak`, p.before, { mode: 0o644 })
       writeFileSync(`${this.dropIn}.quadeck-tmp`, p.after, { mode: 0o644 })
@@ -397,7 +410,13 @@ export class FixtureSsh implements SshBackend {
     }
     const after = removeKey(before, change.fingerprint)
     const remaining = st.users.map((x) => (x.name === u.name ? { ...x, keys: x.keys.filter((k) => k.fingerprint !== change.fingerprint) } : x))
-    const blocked = !st.effective.passwordAuthentication && !keyLoginPossible(remaining, st.effective) ? tr('Das ist der letzte funktionierende Schlüssel und Passwort-Login ist aus – danach käme niemand mehr per SSH auf den Server.', 'This is the last working key and password login is off – afterwards nobody could get onto the server via SSH.') : undefined
+    const blocked =
+      !st.effective.passwordAuthentication && !keyLoginPossible(remaining, st.effective)
+        ? tr(
+            'Das ist der letzte funktionierende Schlüssel und Passwort-Login ist aus – danach käme niemand mehr per SSH auf den Server.',
+            'This is the last working key and password login is off – afterwards nobody could get onto the server via SSH.',
+          )
+        : undefined
     return { file, before, after, warnings: [] as string[], blocked }
   }
 

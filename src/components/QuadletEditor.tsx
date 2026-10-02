@@ -87,11 +87,7 @@ export function Field({ section, k, doc, text, onChange }: { section: string; k:
               </button>
             </div>
           ))}
-          <button
-            type="button"
-            className="btn sm self-start"
-            onClick={() => set([...values, ''])}
-          >
+          <button type="button" className="btn sm self-start" onClick={() => set([...values, ''])}>
             <Glyph name="plus" size={13} /> {t.addEntry(k)}
           </button>
         </div>
@@ -107,7 +103,13 @@ function FormView({ name, text, onChange }: { name: string; text: string; onChan
   const t = useT().quadlets.editor
   const main = QUADLET_SECTION[quadletType(name)]
   const sections: [string, Record<string, KeyDoc>][] = [[main, QUADLET_KEYS[main]!], ...Object.entries(SYSTEMD_KEYS)]
-  const shown = new Set(sections.flatMap(([s, keys]) => Object.entries(keys).filter(([, d]) => d.form).map(([k]) => `${s}.${k}`)))
+  const shown = new Set(
+    sections.flatMap(([s, keys]) =>
+      Object.entries(keys)
+        .filter(([, d]) => d.form)
+        .map(([k]) => `${s}.${k}`),
+    ),
+  )
   const other = parseIni(text).filter((e) => e.kind === 'kv' && !shown.has(`${e.section}.${e.key}`))
   return (
     <div className="flex flex-col gap-5">
@@ -271,11 +273,7 @@ export function QuadletEditor({ name, initial, isNew, history, readonly, onSaved
         </div>
       </div>
 
-      {mode === 'form' ? (
-        <FormView name={name} text={text} onChange={(t) => (setText(t), setServer(null))} />
-      ) : (
-        <TextView text={text} jump={jump} onChange={(t) => (setText(t), setServer(null))} />
-      )}
+      {mode === 'form' ? <FormView name={name} text={text} onChange={(t) => (setText(t), setServer(null))} /> : <TextView text={text} jump={jump} onChange={(t) => (setText(t), setServer(null))} />}
 
       <Diagnostics
         items={diags}

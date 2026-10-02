@@ -176,8 +176,7 @@ export const en: typeof de = {
     keyOnly: 'SSH key only',
     password: 'Password',
     repeat: 'Repeat',
-    noPassword: (admin: boolean) =>
-      `The account gets no password. You add the public key afterwards in the details${admin ? ' – as administrator it still needs a password for sudo and to unlock Quadeck' : ''}.`,
+    noPassword: (admin: boolean) => `The account gets no password. You add the public key afterwards in the details${admin ? ' – as administrator it still needs a password for sudo and to unlock Quadeck' : ''}.`,
     shell: 'Shell',
     moreGroups: 'More groups',
     create: 'Create',

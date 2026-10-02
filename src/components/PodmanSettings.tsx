@@ -50,7 +50,11 @@ function ConfigCard({ file, readonly, onSaved }: { file: PodmanConfigFile; reado
   }
   const setField = (f: (typeof form)[number], raw: string) => {
     let v: TomlValue | undefined = raw.trim() || undefined
-    if (v !== undefined && f.kind === 'list') v = raw.split(',').map((s) => s.trim()).filter(Boolean)
+    if (v !== undefined && f.kind === 'list')
+      v = raw
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
     else if (v !== undefined && /^-?\d+$/.test(raw.trim())) v = Number(raw.trim())
     setText(setToml(text, f.section, f.key, v))
   }
@@ -82,7 +86,11 @@ function ConfigCard({ file, readonly, onSaved }: { file: PodmanConfigFile; reado
           {form.map((f) => (
             <label key={f.key} className="flex flex-col gap-1 text-[12px]">
               <span className="font-medium text-fg">
-                {tx.podman.fields[f.key]?.label} <span className="font-mono text-subtle">{f.section ? `[${f.section}] ` : ''}{f.key}</span>
+                {tx.podman.fields[f.key]?.label}{' '}
+                <span className="font-mono text-subtle">
+                  {f.section ? `[${f.section}] ` : ''}
+                  {f.key}
+                </span>
               </span>
               {f.kind === 'select' ? (
                 <select className="field" value={value(f)} onChange={(e) => setField(f, e.target.value)}>
@@ -100,14 +108,7 @@ function ConfigCard({ file, readonly, onSaved }: { file: PodmanConfigFile; reado
           ))}
         </div>
       )}
-      <textarea
-        aria-label={t.asText(file.name)}
-        spellCheck={false}
-        readOnly={!file.editable || readonly}
-        className="field h-[220px] font-mono text-[12px]"
-        value={text}
-        onChange={(e) => setText(e.target.value)}
-      />
+      <textarea aria-label={t.asText(file.name)} spellCheck={false} readOnly={!file.editable || readonly} className="field h-[220px] font-mono text-[12px]" value={text} onChange={(e) => setText(e.target.value)} />
       {error && (
         <p role="alert" className="m-0 text-[13px] text-[#ff8a80]">
           {error}
@@ -223,7 +224,12 @@ export function PodmanSettingsView() {
               </datalist>
             </label>
             {!readonly && (
-              <button type="button" className="btn sm" disabled={busy || calendar === (t.custom ? t.calendar : '')} onClick={() => void apply({ timer: { enabled: t.enabled, calendar } }, calendar ? u.scheduleSet(calendar) : u.scheduleDefault)}>
+              <button
+                type="button"
+                className="btn sm"
+                disabled={busy || calendar === (t.custom ? t.calendar : '')}
+                onClick={() => void apply({ timer: { enabled: t.enabled, calendar } }, calendar ? u.scheduleSet(calendar) : u.scheduleDefault)}
+              >
                 {u.applySchedule}
               </button>
             )}

@@ -65,7 +65,11 @@ export function SshKeys({ state, onPreview, only }: { state: SshState; onPreview
           <div className="min-w-0 grow">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="font-medium">{k.comment || t.unnamed}</span>
-              {k.options && <span className="chip" title={k.options}>{t.withOptions}</span>}
+              {k.options && (
+                <span className="chip" title={k.options}>
+                  {t.withOptions}
+                </span>
+              )}
               {k.weak && <Pill tone="warn">{t.weak}</Pill>}
             </div>
             <div className="truncate font-mono text-[11px] text-muted" title={k.fingerprint}>

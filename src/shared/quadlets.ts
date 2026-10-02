@@ -19,7 +19,10 @@ export function quadletType(name: string): QuadletType {
 
 /** systemd unit Quadlet generates for a file (without ServiceName=). */
 export function quadletUnit(name: string): string {
-  const base = name.split('/').pop()!.replace(/\.[^.]+$/, '')
+  const base = name
+    .split('/')
+    .pop()!
+    .replace(/\.[^.]+$/, '')
   const t = quadletType(name)
   return t === 'container' || t === 'kube' ? `${base}.service` : `${base}-${t}.service`
 }

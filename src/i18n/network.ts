@@ -51,8 +51,7 @@ export const de = {
     title: 'Firewall',
     active: (kind: string) => `${kind} aktiv`,
     noneActive: 'keine aktiv',
-    noFirewall:
-      'Keine Firewall aktiv: alles, was auf „alle Schnittstellen“ lauscht, ist im lokalen Netz erreichbar. Hinter einem Router ist das zu Hause üblich – von außen kommt nur durch, was der Router weiterleitet.',
+    noFirewall: 'Keine Firewall aktiv: alles, was auf „alle Schnittstellen“ lauscht, ist im lokalen Netz erreichbar. Hinter einem Router ist das zu Hause üblich – von außen kommt nur durch, was der Router weiterleitet.',
     zone: 'Zone',
     listening: (n: number) => (n === 1 ? 'Ein Port lauscht' : `${n} Ports lauschen`),
     blocked: (ports: string) => `, wird aber blockiert: ${ports}. Gewollt? Sonst in der Firewall freigeben (z. B.`,
@@ -110,8 +109,7 @@ export const en: typeof de = {
     title: 'Firewall',
     active: (kind: string) => `${kind} active`,
     noneActive: 'none active',
-    noFirewall:
-      'No firewall active: everything listening on “all interfaces” is reachable in the local network. Behind a router this is common at home – from outside only what the router forwards gets through.',
+    noFirewall: 'No firewall active: everything listening on “all interfaces” is reachable in the local network. Behind a router this is common at home – from outside only what the router forwards gets through.',
     zone: 'Zone',
     listening: (n: number) => (n === 1 ? 'One port is listening' : `${n} ports are listening`),
     blocked: (ports: string) => `, but blocked: ${ports}. Intended? Otherwise allow it in the firewall (e.g.`,

@@ -5,6 +5,7 @@
 
 import { chownSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, statfsSync, statSync, type Stats } from 'node:fs'
 import { HttpError } from '../auth'
+import { tr } from '~/shared/i18n'
 import type { FsOps } from './transfer'
 import { baseName, joinPath, MAX_ENTRIES, parentOf, validateName, validatePath, type DirListing, type FileEntry, type FileRoot } from '~/shared/files'
 
@@ -69,11 +70,11 @@ export function resolveInRoots(path: string, roots: string[], opts: { parentOnly
   try {
     real = opts.parentOnly ? joinPath(realpathSync(parentOf(path)), baseName(path)) : realpathSync(path)
   } catch {
-    throw new HttpError(404, `${path} existiert nicht`)
+    throw new HttpError(404, tr(`${path} existiert nicht`, `${path} does not exist`))
   }
   const root = roots.find((r) => real === r || real.startsWith(r + '/'))
-  if (!root) throw new HttpError(403, `${path} liegt außerhalb der freigegebenen Bereiche`)
-  if (real === root && !opts.allowRoot) throw new HttpError(403, `${root} selbst kann nicht verändert werden`)
+  if (!root) throw new HttpError(403, tr(`${path} liegt außerhalb der freigegebenen Bereiche`, `${path} is outside the shared areas`))
+  if (real === root && !opts.allowRoot) throw new HttpError(403, tr(`${root} selbst kann nicht verändert werden`, `${root} itself cannot be changed`))
   return { real, root }
 }
 
@@ -123,7 +124,7 @@ export class SystemFiles implements FilesBackend {
 
   async listDir(path: string): Promise<DirListing> {
     const { real, root } = resolveInRoots(path, this.rootsFn(), { allowRoot: true })
-    if (!statSync(real).isDirectory()) throw new HttpError(400, `${path} ist kein Ordner`)
+    if (!statSync(real).isDirectory()) throw new HttpError(400, tr(`${path} ist kein Ordner`, `${path} is not a folder`))
     const users = idNames('/etc/passwd')
     const groups = idNames('/etc/group')
     const names = readdirSync(real)
@@ -137,7 +138,7 @@ export class SystemFiles implements FilesBackend {
           try {
             target = realpathSync(p)
           } catch {
-            target = '(Ziel fehlt)'
+            target = tr('(Ziel fehlt)', '(target missing)')
           }
         }
         entries.push(entryFrom(name, st, users, groups, target))
@@ -152,7 +153,7 @@ export class SystemFiles implements FilesBackend {
     const bad = validateName(baseName(path))
     if (bad) throw new HttpError(400, bad)
     const { real } = resolveInRoots(path, this.rootsFn(), { parentOnly: true })
-    if (existsSync(real)) throw new HttpError(409, `${baseName(path)} gibt es schon`)
+    if (existsSync(real)) throw new HttpError(409, tr(`${baseName(path)} gibt es schon`, `${baseName(path)} already exists`))
     mkdirSync(real, { mode: 0o775 })
     // Same owner as the folder it lives in (not root).
     const parent = statSync(parentOf(real))
@@ -165,11 +166,11 @@ export class SystemFiles implements FilesBackend {
     // The entry itself, not its symlink target, is renamed.
     const { real } = resolveInRoots(path, this.rootsFn(), { parentOnly: true })
     const dest = joinPath(parentOf(real), newName)
-    if (existsSync(dest)) throw new HttpError(409, `${newName} gibt es schon`)
+    if (existsSync(dest)) throw new HttpError(409, tr(`${newName} gibt es schon`, `${newName} already exists`))
     try {
       lstatSync(real)
     } catch {
-      throw new HttpError(404, `${path} existiert nicht`)
+      throw new HttpError(404, tr(`${path} existiert nicht`, `${path} does not exist`))
     }
     renameSync(real, dest)
   }
@@ -221,7 +222,7 @@ export class FixtureFiles implements FilesBackend {
     const bad = validatePath(path)
     if (bad) throw new HttpError(400, bad)
     const root = [...this.tree.keys()].find((r) => path === r || path.startsWith(r + '/'))
-    if (!root) throw new HttpError(403, `${path} liegt außerhalb der freigegebenen Bereiche`)
+    if (!root) throw new HttpError(403, tr(`${path} liegt außerhalb der freigegebenen Bereiche`, `${path} is outside the shared areas`))
     return root
   }
 
@@ -232,8 +233,8 @@ export class FixtureFiles implements FilesBackend {
   async listDir(path: string): Promise<DirListing> {
     const root = this.rootOf(path)
     const n = this.node(path)
-    if (!n) throw new HttpError(404, `${path} existiert nicht`)
-    if (n.type !== 'dir') throw new HttpError(400, `${path} ist kein Ordner`)
+    if (!n) throw new HttpError(404, tr(`${path} existiert nicht`, `${path} does not exist`))
+    if (n.type !== 'dir') throw new HttpError(400, tr(`${path} ist kein Ordner`, `${path} is not a folder`))
     const entries = [...n.children!].map(([name, c]) => ({ name, type: c.type, size: c.size, mtime: c.mtime, mode: c.type === 'dir' ? '775' : '664', owner: c.owner, group: c.owner === 'root' ? 'root' : 'users' }))
     return { path, root, entries, truncated: false }
   }
@@ -242,10 +243,10 @@ export class FixtureFiles implements FilesBackend {
     const bad = validateName(baseName(path))
     if (bad) throw new HttpError(400, bad)
     const root = this.rootOf(path)
-    if (path === root) throw new HttpError(403, 'Bereich selbst')
+    if (path === root) throw new HttpError(403, tr('Bereich selbst', 'The area itself'))
     const parent = this.node(parentOf(path))
-    if (!parent?.children) throw new HttpError(404, `${parentOf(path)} existiert nicht`)
-    if (parent.children.has(baseName(path))) throw new HttpError(409, `${baseName(path)} gibt es schon`)
+    if (!parent?.children) throw new HttpError(404, tr(`${parentOf(path)} existiert nicht`, `${parentOf(path)} does not exist`))
+    if (parent.children.has(baseName(path))) throw new HttpError(409, tr(`${baseName(path)} gibt es schon`, `${baseName(path)} already exists`))
     parent.children.set(baseName(path), { type: 'dir', size: 0, mtime: Date.now(), owner: parent.owner, children: new Map() })
   }
 
@@ -253,11 +254,11 @@ export class FixtureFiles implements FilesBackend {
     const bad = validateName(newName)
     if (bad) throw new HttpError(400, bad)
     const root = this.rootOf(path)
-    if (path === root) throw new HttpError(403, `${root} selbst kann nicht verändert werden`)
+    if (path === root) throw new HttpError(403, tr(`${root} selbst kann nicht verändert werden`, `${root} itself cannot be changed`))
     const parent = this.node(parentOf(path))!
     const n = parent?.children?.get(baseName(path))
-    if (!n) throw new HttpError(404, `${path} existiert nicht`)
-    if (parent.children!.has(newName)) throw new HttpError(409, `${newName} gibt es schon`)
+    if (!n) throw new HttpError(404, tr(`${path} existiert nicht`, `${path} does not exist`))
+    if (parent.children!.has(newName)) throw new HttpError(409, tr(`${newName} gibt es schon`, `${newName} already exists`))
     parent.children!.delete(baseName(path))
     parent.children!.set(newName, n)
   }
@@ -268,14 +269,14 @@ export class FixtureFiles implements FilesBackend {
     for (const p of paths) {
       const parent = this.node(parentOf(p))
       const n = parent?.children?.get(baseName(p))
-      if (!n || !parent?.children) throw new Error(`${p} existiert nicht`)
+      if (!n || !parent?.children) throw new Error(tr(`${p} existiert nicht`, `${p} does not exist`))
       if (kind === 'delete') {
         parent.children.delete(baseName(p))
         lines.push(`removed '${p}'`)
         continue
       }
       const dest = this.node(toDir!)
-      if (!dest?.children) throw new Error(`${toDir} existiert nicht`)
+      if (!dest?.children) throw new Error(tr(`${toDir} existiert nicht`, `${toDir} does not exist`))
       dest.children.set(baseName(p), kind === 'copy' ? structuredClone(n) : n)
       if (kind === 'move') parent.children.delete(baseName(p))
       lines.push(`'${p}' -> '${joinPath(toDir!, baseName(p))}'`)
@@ -292,13 +293,13 @@ export class FixtureFiles implements FilesBackend {
     return {
       entry: (p) => {
         const root = this.rootOf(p)
-        if (p === root) throw new HttpError(403, `${root} selbst kann nicht verändert werden`)
-        if (!this.node(p)) throw new HttpError(404, `${p} existiert nicht`)
+        if (p === root) throw new HttpError(403, tr(`${root} selbst kann nicht verändert werden`, `${root} itself cannot be changed`))
+        if (!this.node(p)) throw new HttpError(404, tr(`${p} existiert nicht`, `${p} does not exist`))
         return p
       },
       dir: (p) => {
         this.rootOf(p)
-        if (this.node(p)?.type !== 'dir') throw new HttpError(400, `${p} ist kein Ordner`)
+        if (this.node(p)?.type !== 'dir') throw new HttpError(400, tr(`${p} ist kein Ordner`, `${p} is not a folder`))
         return p
       },
       exists: (p) => this.exists(p),

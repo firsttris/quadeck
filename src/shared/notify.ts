@@ -78,22 +78,60 @@ export const MASK = '••••••••'
 export const RULE_KEYS: RuleKey[] = ['unit-failed', 'service-down', 'container-unhealthy', 'smart', 'disk-full', 'updates']
 
 export const rules = (): { key: RuleKey; label: string; help: string }[] => [
-  { key: 'unit-failed', label: tr('Dienst oder Timer fehlgeschlagen', 'Service or timer failed'), help: tr('Eine systemd-Unit oder ein Container-Dienst ist im Zustand „failed“ – z. B. das nächtliche Backup.', 'A systemd unit or a container service is in the state “failed” – e.g. the nightly backup.') },
-  { key: 'service-down', label: tr('Webdienst nicht erreichbar', 'Web service not reachable'), help: tr('Der HTTP-Check einer Kachel auf der Übersicht schlägt seit über 2 Minuten fehl.', 'The HTTP check of a tile on the overview has been failing for over 2 minutes.') },
-  { key: 'container-unhealthy', label: tr('Container ungesund', 'Container unhealthy'), help: tr('Healthcheck meldet „unhealthy“ oder ein Container ohne Unit ist abgestürzt (über 2 Minuten).', 'Healthcheck reports “unhealthy” or a container without a unit has crashed (over 2 minutes).') },
+  {
+    key: 'unit-failed',
+    label: tr('Dienst oder Timer fehlgeschlagen', 'Service or timer failed'),
+    help: tr('Eine systemd-Unit oder ein Container-Dienst ist im Zustand „failed“ – z. B. das nächtliche Backup.', 'A systemd unit or a container service is in the state “failed” – e.g. the nightly backup.'),
+  },
+  {
+    key: 'service-down',
+    label: tr('Webdienst nicht erreichbar', 'Web service not reachable'),
+    help: tr('Der HTTP-Check einer Kachel auf der Übersicht schlägt seit über 2 Minuten fehl.', 'The HTTP check of a tile on the overview has been failing for over 2 minutes.'),
+  },
+  {
+    key: 'container-unhealthy',
+    label: tr('Container ungesund', 'Container unhealthy'),
+    help: tr('Healthcheck meldet „unhealthy“ oder ein Container ohne Unit ist abgestürzt (über 2 Minuten).', 'Healthcheck reports “unhealthy” or a container without a unit has crashed (over 2 minutes).'),
+  },
   { key: 'smart', label: tr('Festplatte meldet Probleme (SMART)', 'Disk reports problems (SMART)'), help: tr('Warnung oder kritischer Zustand laut SMART-Auswertung.', 'Warning or critical state according to the SMART evaluation.') },
   { key: 'disk-full', label: tr('Platte fast voll', 'Disk almost full'), help: tr('Belegung über dem Schwellwert.', 'Usage above the threshold.') },
-  { key: 'updates', label: tr('Updates verfügbar (täglich)', 'Updates available (daily)'), help: tr('Einmal am Tag: neue Pakete und Container-Images – nur wenn sich seit der letzten Meldung etwas geändert hat.', 'Once a day: new packages and container images – only if something changed since the last message.') },
+  {
+    key: 'updates',
+    label: tr('Updates verfügbar (täglich)', 'Updates available (daily)'),
+    help: tr('Einmal am Tag: neue Pakete und Container-Images – nur wenn sich seit der letzten Meldung etwas geändert hat.', 'Once a day: new packages and container images – only if something changed since the last message.'),
+  },
 ]
 
 export const CHANNEL_KIND_IDS: ChannelKind[] = ['ntfy', 'gotify', 'telegram', 'webhook', 'email']
 
 export const channelKinds = (): { kind: ChannelKind; label: string; help: string }[] => [
-  { kind: 'ntfy', label: 'ntfy', help: tr('Push aufs Handy über ntfy.sh oder einen eigenen ntfy-Server: Thema wählen und in der ntfy-App abonnieren.', 'Push to your phone via ntfy.sh or your own ntfy server: pick a topic and subscribe to it in the ntfy app.') },
+  {
+    kind: 'ntfy',
+    label: 'ntfy',
+    help: tr('Push aufs Handy über ntfy.sh oder einen eigenen ntfy-Server: Thema wählen und in der ntfy-App abonnieren.', 'Push to your phone via ntfy.sh or your own ntfy server: pick a topic and subscribe to it in the ntfy app.'),
+  },
   { kind: 'gotify', label: 'Gotify', help: tr('Eigener Gotify-Server: in Gotify eine App anlegen und deren Token eintragen.', 'Your own Gotify server: create an app in Gotify and enter its token.') },
-  { kind: 'telegram', label: 'Telegram', help: tr('Bot bei @BotFather anlegen, Token eintragen, dem Bot schreiben und die Chat-ID (z. B. über @userinfobot) eintragen.', 'Create a bot with @BotFather, enter the token, write to the bot and enter the chat ID (e.g. via @userinfobot).') },
-  { kind: 'webhook', label: 'Webhook', help: tr('POST mit JSON an eine URL – passt für Discord, Slack, Mattermost, Home Assistant oder eigene Skripte.', 'POST with JSON to a URL – works for Discord, Slack, Mattermost, Home Assistant or your own scripts.') },
-  { kind: 'email', label: tr('E-Mail', 'E-mail'), help: tr('Über den SMTP-Server deines Mail-Anbieters. Bei Gmail, GMX, web.de und Co. ist dafür oft ein eigenes App-Passwort nötig, nicht das normale Passwort.', 'Via the SMTP server of your mail provider. Gmail, GMX, web.de and the like often need a separate app password for this, not the normal password.') },
+  {
+    kind: 'telegram',
+    label: 'Telegram',
+    help: tr(
+      'Bot bei @BotFather anlegen, Token eintragen, dem Bot schreiben und die Chat-ID (z. B. über @userinfobot) eintragen.',
+      'Create a bot with @BotFather, enter the token, write to the bot and enter the chat ID (e.g. via @userinfobot).',
+    ),
+  },
+  {
+    kind: 'webhook',
+    label: 'Webhook',
+    help: tr('POST mit JSON an eine URL – passt für Discord, Slack, Mattermost, Home Assistant oder eigene Skripte.', 'POST with JSON to a URL – works for Discord, Slack, Mattermost, Home Assistant or your own scripts.'),
+  },
+  {
+    kind: 'email',
+    label: tr('E-Mail', 'E-mail'),
+    help: tr(
+      'Über den SMTP-Server deines Mail-Anbieters. Bei Gmail, GMX, web.de und Co. ist dafür oft ein eigenes App-Passwort nötig, nicht das normale Passwort.',
+      'Via the SMTP server of your mail provider. Gmail, GMX, web.de and the like often need a separate app password for this, not the normal password.',
+    ),
+  },
 ]
 
 /** Common mail providers: server and port to start from. */
@@ -237,20 +275,29 @@ export function currentAlerts(snap: Snapshot, s: NotifySettings, active: Set<str
   }
   if (on('service-down')) {
     for (const g of snap.services)
-      for (const svc of g.items) if (svc.health === 'bad') alerts.push({ key: `http:${svc.key}`, rule: 'service-down', severity: 'warning', title: tr(`${svc.name} ist nicht erreichbar`, `${svc.name} is not reachable`), detail: svc.healthNote ?? svc.url })
+      for (const svc of g.items)
+        if (svc.health === 'bad') alerts.push({ key: `http:${svc.key}`, rule: 'service-down', severity: 'warning', title: tr(`${svc.name} ist nicht erreichbar`, `${svc.name} is not reachable`), detail: svc.healthNote ?? svc.url })
   }
   if (on('container-unhealthy')) {
     if (!snap.sources.podman.ok) unknown.add('container-unhealthy')
     for (const c of snap.containers) {
-      if (c.health === 'unhealthy') alerts.push({ key: `ct:${c.name}`, rule: 'container-unhealthy', severity: 'warning', title: tr(`Container ${c.name} ist ungesund`, `Container ${c.name} is unhealthy`), detail: tr('Healthcheck schlägt fehl', 'Healthcheck failing') })
-      else if (!c.unit && c.state === 'exited' && /Exited \((?!0\))\d+\)/.test(c.status)) alerts.push({ key: `ct:${c.name}`, rule: 'container-unhealthy', severity: 'warning', title: tr(`Container ${c.name} ist abgestürzt`, `Container ${c.name} crashed`), detail: c.status })
+      if (c.health === 'unhealthy')
+        alerts.push({ key: `ct:${c.name}`, rule: 'container-unhealthy', severity: 'warning', title: tr(`Container ${c.name} ist ungesund`, `Container ${c.name} is unhealthy`), detail: tr('Healthcheck schlägt fehl', 'Healthcheck failing') })
+      else if (!c.unit && c.state === 'exited' && /Exited \((?!0\))\d+\)/.test(c.status))
+        alerts.push({ key: `ct:${c.name}`, rule: 'container-unhealthy', severity: 'warning', title: tr(`Container ${c.name} ist abgestürzt`, `Container ${c.name} crashed`), detail: c.status })
     }
   }
   if (on('smart')) {
     if (!snap.sources.smart.ok) unknown.add('smart')
     for (const d of snap.smart ?? [])
       if (d.level !== 'ok')
-        alerts.push({ key: `smart:${d.name}:${d.level}`, rule: 'smart', severity: d.level, title: tr(`Festplatte ${d.name}: SMART ${d.level === 'critical' ? 'kritisch' : 'Warnung'}`, `Disk ${d.name}: SMART ${d.level === 'critical' ? 'critical' : 'warning'}`), detail: tr('Details unter Festplatten → SMART', 'Details under Disks → SMART') })
+        alerts.push({
+          key: `smart:${d.name}:${d.level}`,
+          rule: 'smart',
+          severity: d.level,
+          title: tr(`Festplatte ${d.name}: SMART ${d.level === 'critical' ? 'kritisch' : 'Warnung'}`, `Disk ${d.name}: SMART ${d.level === 'critical' ? 'critical' : 'warning'}`),
+          detail: tr('Details unter Festplatten → SMART', 'Details under Disks → SMART'),
+        })
   }
   if (on('disk-full')) {
     if (!snap.sources.disks.ok) unknown.add('disk-full')
