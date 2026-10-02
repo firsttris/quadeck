@@ -76,6 +76,18 @@ Im Bearbeiten-Modus öffnet ein Klick auf eine Kachel den Dialog **Service bearb
 
 **Strg+K** (⌘K) oder „Suchen“ in der Seitenleiste: Services öffnen, zu Seiten springen, Units neu starten oder stoppen (mit der üblichen Bestätigung) und ihr Journal öffnen.
 
+## Verlauf und GPU
+
+Die Karten **CPU**, **RAM**, **CPU-Temperatur**, **Netz** und **GPU** zeigen unter dem Ring die letzte Stunde. Ein Klick öffnet den Verlauf mit 1 h, 6 h, 24 h oder 7 Tagen, Werten unter dem Mauszeiger und Min/Ø/Max. Gespeichert wird alle 30 s in SQLite, sieben Tage lang; Lücken zeigen, wann Quadeck nicht lief.
+
+Die **GPU-Karte** erscheint, sobald eine Grafikkarte erkannt wird – ohne Root-Rechte:
+
+| GPU | Quelle | Werte |
+| --- | --- | --- |
+| NVIDIA | `nvidia-smi` | Auslastung, VRAM, Temperatur, Leistung, Takt |
+| AMD (amdgpu) | sysfs | Auslastung, VRAM, Temperatur, Leistung |
+| Intel (i915, xe) | sysfs | Takt im Verhältnis zum Maximaltakt (eine echte Auslastung gibt Intel nur root preis), VRAM bei Arc |
+
 ## Updates und Pakete
 
 Die Seite **System** zeigt verfügbare Updates und alle installierten Pakete – für **pacman** (Arch, inklusive AUR), **apt** (Debian, Ubuntu), **dnf** (Fedora, RHEL), **zypper** (openSUSE), **apk** (Alpine) und **rpm-ostree** (Fedora CoreOS/Atomic). Der Paketmanager wird erkannt; `QUADECK_PACKAGE_MANAGER` erzwingt einen.
@@ -174,7 +186,8 @@ Aufbau:
 
 ```
 src/main.ts                 Binary-Einstieg: CLI, Bun.serve, statische Assets
-src/server/collectors/      system, disks, podman, systemd
+src/server/collectors/      system, gpu, disks, podman, systemd, shares
+src/server/metrics.ts       Messwert-Verlauf (SQLite, 7 Tage, Buckets je Zeitraum)
 src/server/providers/       Discovery (Caddy); Schnittstelle für Traefik u. a.
 src/server/privileged/      Root-Helfer: feste Aktionsliste, Entsperren, Unix-Socket
 src/server/packages/        Paketmanager (pacman/AUR, apt, dnf, zypper, apk, rpm-ostree), Jobs, Image-Updates
@@ -192,5 +205,7 @@ v0.1 (MVP) laut Implementierungsplan: Collectors, Service-Kacheln mit Icons und 
 v0.2: Bearbeiten-Modus mit react-grid-layout (Karten und Kacheln), Services bearbeiten (Overrides, Icon-Picker, Ausblenden), Befehlspalette, Freigaben (SMB/NFS).
 
 v0.3: getrennter Root-Helfer mit Entsperren; Updates und Paketverwaltung für sechs Paketmanager inklusive AUR; Container-Image-Updates; Quadlet-Editor (Formular/Text, Generator-Prüfung, Diff, git-Verlauf, Vorlagen, Compose-Import); Podman-Einstellungen.
+
+Danach: Verlauf für CPU, RAM, Temperatur, Netz und GPU; GPU-Karte.
 
 Noch nicht enthalten: SMART/SnapRAID, Forward-Auth, Timer-Editor, rootless Quadlets.

@@ -35,6 +35,7 @@ import { Route as ApiLayoutIndexRouteImport } from './routes/api/layout/index'
 import { Route as ApiLayoutHiddenRouteImport } from './routes/api/layout/hidden'
 import { Route as ApiLinksIndexRouteImport } from './routes/api/links/index'
 import { Route as ApiLinksIdRouteImport } from './routes/api/links/$id'
+import { Route as ApiMetricsHistoryRouteImport } from './routes/api/metrics/history'
 import { Route as ApiPodmanSettingsRouteImport } from './routes/api/podman/settings'
 import { Route as ApiQuadletsIndexRouteImport } from './routes/api/quadlets/index'
 import { Route as ApiQuadletsComposeRouteImport } from './routes/api/quadlets/compose'
@@ -178,6 +179,11 @@ const ApiLinksIdRoute = ApiLinksIdRouteImport.update({
   path: '/api/links/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMetricsHistoryRoute = ApiMetricsHistoryRouteImport.update({
+  id: '/api/metrics/history',
+  path: '/api/metrics/history',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPodmanSettingsRoute = ApiPodmanSettingsRouteImport.update({
   id: '/api/podman/settings',
   path: '/api/podman/settings',
@@ -267,6 +273,7 @@ export interface FileRoutesByFullPath {
   '/api/jobs/$id': typeof ApiJobsIdRoute
   '/api/layout/hidden': typeof ApiLayoutHiddenRoute
   '/api/links/$id': typeof ApiLinksIdRoute
+  '/api/metrics/history': typeof ApiMetricsHistoryRoute
   '/api/podman/settings': typeof ApiPodmanSettingsRoute
   '/api/quadlets/compose': typeof ApiQuadletsComposeRoute
   '/api/quadlets/file': typeof ApiQuadletsFileRoute
@@ -307,6 +314,7 @@ export interface FileRoutesByTo {
   '/api/jobs/$id': typeof ApiJobsIdRoute
   '/api/layout/hidden': typeof ApiLayoutHiddenRoute
   '/api/links/$id': typeof ApiLinksIdRoute
+  '/api/metrics/history': typeof ApiMetricsHistoryRoute
   '/api/podman/settings': typeof ApiPodmanSettingsRoute
   '/api/quadlets/compose': typeof ApiQuadletsComposeRoute
   '/api/quadlets/file': typeof ApiQuadletsFileRoute
@@ -349,6 +357,7 @@ export interface FileRoutesById {
   '/api/jobs/$id': typeof ApiJobsIdRoute
   '/api/layout/hidden': typeof ApiLayoutHiddenRoute
   '/api/links/$id': typeof ApiLinksIdRoute
+  '/api/metrics/history': typeof ApiMetricsHistoryRoute
   '/api/podman/settings': typeof ApiPodmanSettingsRoute
   '/api/quadlets/compose': typeof ApiQuadletsComposeRoute
   '/api/quadlets/file': typeof ApiQuadletsFileRoute
@@ -391,6 +400,7 @@ export interface FileRouteTypes {
     | '/api/jobs/$id'
     | '/api/layout/hidden'
     | '/api/links/$id'
+    | '/api/metrics/history'
     | '/api/podman/settings'
     | '/api/quadlets/compose'
     | '/api/quadlets/file'
@@ -431,6 +441,7 @@ export interface FileRouteTypes {
     | '/api/jobs/$id'
     | '/api/layout/hidden'
     | '/api/links/$id'
+    | '/api/metrics/history'
     | '/api/podman/settings'
     | '/api/quadlets/compose'
     | '/api/quadlets/file'
@@ -472,6 +483,7 @@ export interface FileRouteTypes {
     | '/api/jobs/$id'
     | '/api/layout/hidden'
     | '/api/links/$id'
+    | '/api/metrics/history'
     | '/api/podman/settings'
     | '/api/quadlets/compose'
     | '/api/quadlets/file'
@@ -509,6 +521,7 @@ export interface RootRouteChildren {
   ApiJobsIdRoute: typeof ApiJobsIdRoute
   ApiLayoutHiddenRoute: typeof ApiLayoutHiddenRoute
   ApiLinksIdRoute: typeof ApiLinksIdRoute
+  ApiMetricsHistoryRoute: typeof ApiMetricsHistoryRoute
   ApiPodmanSettingsRoute: typeof ApiPodmanSettingsRoute
   ApiQuadletsComposeRoute: typeof ApiQuadletsComposeRoute
   ApiQuadletsFileRoute: typeof ApiQuadletsFileRoute
@@ -711,6 +724,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiLinksIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/metrics/history': {
+      id: '/api/metrics/history'
+      path: '/api/metrics/history'
+      fullPath: '/api/metrics/history'
+      preLoaderRoute: typeof ApiMetricsHistoryRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/podman/settings': {
       id: '/api/podman/settings'
       path: '/api/podman/settings'
@@ -842,6 +862,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiJobsIdRoute: ApiJobsIdRoute,
   ApiLayoutHiddenRoute: ApiLayoutHiddenRoute,
   ApiLinksIdRoute: ApiLinksIdRoute,
+  ApiMetricsHistoryRoute: ApiMetricsHistoryRoute,
   ApiPodmanSettingsRoute: ApiPodmanSettingsRoute,
   ApiQuadletsComposeRoute: ApiQuadletsComposeRoute,
   ApiQuadletsFileRoute: ApiQuadletsFileRoute,

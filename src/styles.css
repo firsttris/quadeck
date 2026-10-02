@@ -544,3 +544,52 @@
 .joblog .err {
   color: #ff8a80;
 }
+
+/* ---------- history charts ---------- */
+.chart-line {
+  stroke-dasharray: 1;
+  stroke-dashoffset: 0;
+  animation: chart-draw 0.9s cubic-bezier(0.33, 1, 0.68, 1) both;
+}
+.chart-area {
+  animation: chart-fade 0.9s ease-out 0.15s both;
+}
+.chart-dot {
+  transition: transform 0.6s ease;
+}
+.chart-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: chart-pulse 2.4s ease-out infinite;
+}
+@keyframes chart-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+}
+@keyframes chart-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes chart-pulse {
+  0% {
+    opacity: 0.45;
+    transform: scale(0.5);
+  }
+  70%,
+  100% {
+    opacity: 0;
+    transform: scale(1.8);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .chart-line,
+  .chart-area,
+  .chart-pulse {
+    animation: none;
+  }
+  .chart-dot {
+    transition: none;
+  }
+}

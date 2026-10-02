@@ -64,3 +64,11 @@ describe('layout storage', () => {
     expect(layout.getLayout()).toEqual({ layouts: { page: {}, tiles: {} }, hidden: [] })
   })
 })
+
+describe('mergeLayout minimum height', () => {
+  it('raises saved heights below minH (cards that grew since the layout was saved)', () => {
+    const spec = { rowHeight: 20, margin: [16, 16] as [number, number] }
+    const out = mergeLayout([{ i: 'cpu', x: 0, y: 0, w: 3, minH: 6 }], [{ i: 'cpu', x: 0, y: 0, w: 3, h: 4 }], {}, spec)
+    expect(out[0]!.h).toBe(6)
+  })
+})

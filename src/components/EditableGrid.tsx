@@ -43,7 +43,8 @@ export function mergeLayout(defaults: DefaultItem[], saved: GridItem[] | undefin
     const autoDefault = d.h === undefined
     const auto = s ? s.h === 0 && autoDefault : autoDefault
     const autoH = measured[d.i] !== undefined ? rowsFor(measured[d.i]!, spec.rowHeight, spec.margin[1]) : (d.minH ?? 4)
-    const h = auto ? Math.max(autoH, d.minH ?? 1) : (s?.h || d.h || 1)
+    // Saved heights below the minimum (older layouts, cards that grew) are raised.
+    const h = Math.max(auto ? autoH : s?.h || d.h || 1, d.minH ?? 1)
     const base = s ? { x: s.x, y: s.y, w: s.w } : { x: d.x, y: d.y + offset, w: d.w }
     return { i: d.i, ...base, h, minW: d.minW, minH: d.minH, maxW: d.maxW, maxH: d.maxH, auto }
   })

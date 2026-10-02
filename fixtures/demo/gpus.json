@@ -1,0 +1,3 @@
+[
+ { "id": "card0", "name": "Intel Arc A380", "vendor": "intel", "util": 0.32, "utilKind": "clock", "freqMhz": 1150, "memUsed": 1610612736, "memTotal": 6442450944, "tempC": 52, "powerW": 18.5 }
+]
