@@ -92,6 +92,9 @@ describe('validation', () => {
     expect(validateSmb(spec({ validUsers: 'ok @grp\nbad' }))).toHaveLength(1)
     expect(validateSmb(spec({ comment: 'x\npath = /etc' }))).toHaveLength(1)
     expect(validateNfs({ path: '/mnt/x', clients: [{ host: '192.168.1.0/24', options: ['rw', 'sync', 'fsid=0', 'anonuid=1000'] }] })).toEqual([])
+    // Hand-written exports with less common options stay editable.
+    expect(validateNfs({ path: '/mnt/x', clients: [{ host: '*.lan', options: ['ro', 'wdelay', 'insecure_locks', 'no_acl', 'mountpoint=/mnt/x', 'refer=/a@srv1+srv2', 'xprtsec=tls:mtls', 'anonuid=-2', 'fsid=1a2b3c4d-1111-2222-3333-444455556666'] }] })).toEqual([])
+    expect(validateNfs({ path: '/mnt/x', clients: [{ host: 'h', options: ['mountpoint=/x,rw'] }] })).toHaveLength(1)
     expect(validateNfs({ path: '/mnt/x', clients: [{ host: 'h', options: ['rw', 'ro'] }] })).toHaveLength(1)
     expect(validateNfs({ path: '/mnt/x', clients: [{ host: 'h(rw) *', options: [] }] })).toHaveLength(1)
     expect(validateNfs({ path: '/mnt/x', clients: [{ host: 'h', options: ['rw),*(rw'] }] })).toHaveLength(1)

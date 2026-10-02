@@ -18,7 +18,12 @@ export interface SmbShareInfo extends SmbShareSpec {
   connections: number
 }
 
-export const NFS_OPTIONS = ['rw', 'ro', 'sync', 'async', 'no_subtree_check', 'subtree_check', 'root_squash', 'no_root_squash', 'all_squash', 'insecure', 'secure', 'crossmnt', 'nohide', 'no_wdelay'] as const
+/** All flag options of exports(5), so exports written by hand stay editable. */
+export const NFS_OPTIONS = [
+  'rw', 'ro', 'sync', 'async', 'no_subtree_check', 'subtree_check', 'root_squash', 'no_root_squash', 'all_squash', 'no_all_squash',
+  'insecure', 'secure', 'crossmnt', 'nohide', 'hide', 'no_wdelay', 'wdelay', 'insecure_locks', 'no_auth_nlm', 'secure_locks', 'auth_nlm',
+  'mountpoint', 'mp', 'nordirplus', 'pnfs', 'no_pnfs', 'security_label', 'acl', 'no_acl',
+] as const
 
 export interface NfsClient {
   host: string
@@ -70,7 +75,8 @@ const RESERVED_SMB = new Set(['global', 'homes', 'printers', 'print$', 'ipc$'])
 const SMB_NAME = /^[A-Za-z0-9][A-Za-z0-9 _.$-]{0,79}$/
 const USER_TOKEN = /^[@+&]?[A-Za-z0-9_.\\-]{1,64}$/
 const NFS_HOST = /^[A-Za-z0-9.*?:/[\]@_-]{1,253}$/
-const NFS_VALUE_OPTION = /^(fsid=(\d{1,10}|root|[0-9a-f-]{36})|anonuid=\d{1,10}|anongid=\d{1,10}|sec=(sys|krb5|krb5i|krb5p)(:(sys|krb5|krb5i|krb5p))*)$/
+const NFS_VALUE_OPTION =
+  /^(fsid=(\d{1,10}|root|[0-9a-fA-F-]{32,36})|anonuid=-?\d{1,10}|anongid=-?\d{1,10}|sec=(sys|krb5|krb5i|krb5p)(:(sys|krb5|krb5i|krb5p))*|xprtsec=(none|tls|mtls)(:(none|tls|mtls))*|(mountpoint|mp)=\/[A-Za-z0-9/._+-]{0,200}|(refer|replicas)=\/[A-Za-z0-9/._+-]*@[A-Za-z0-9.:+_-]+(\+[A-Za-z0-9.:_-]+)*(:\/[A-Za-z0-9/._+-]*@[A-Za-z0-9.:+_-]+(\+[A-Za-z0-9.:_-]+)*)*)$/
 
 /** Paths that must never be shared (or anything below them). */
 const FORBIDDEN = ['/etc', '/root', '/boot', '/proc', '/sys', '/dev', '/run', '/var/lib/quadeck', '/var/lib/quadeck-helper', '/var/lib/containers']
