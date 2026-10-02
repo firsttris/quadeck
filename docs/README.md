@@ -40,17 +40,22 @@ disks, shares and the host itself, with the actions you need day to day.
 
 ## Which page does what
 
-| Page | Content |
-|---|---|
-| **Übersicht** (overview) | gauges with history, failed units, services, storage, timers, shares |
-| **Units** | services, timers and Quadlet units with actions; the *Timer* filter is the schedule editor |
-| **Journal** | `journalctl` live, per unit and priority, searchable |
-| **Quadlets** | Quadlet files and Podman settings |
-| **Festplatten** (disks) | SMART and the file explorer |
-| **Freigaben** (shares) | SMB and NFS |
-| **SSH** | keys, hardening, logins |
-| **Netzwerk** (network) | interfaces, ports, firewall |
-| **System** | updates and installed packages |
-| **Benachrichtigungen** (notifications) | channels and rules |
+The navigation is grouped into *Dienste* (services), *Speicher* (storage) and *Server*. On a
+phone it folds into a menu behind the button at the top left; the bar keeps search, a running job
+and the unlock countdown in reach.
+
+| Page | Group | Content |
+|---|---|---|
+| **Übersicht** (overview) | | gauges with history, failed units, services, storage, timers, shares |
+| **Units** | Dienste | services, timers and Quadlet units with actions; the *Timer* filter is the schedule editor |
+| **Quadlets** | Dienste | Quadlet files and Podman settings |
+| **Journal** | Dienste | `journalctl` live, per unit and priority, searchable |
+| **Festplatten** (disks) | Speicher | SMART verdicts, history, self-tests |
+| **Dateien** (files) | Speicher | file explorer for the data areas |
+| **Freigaben** (shares) | Speicher | SMB and NFS |
+| **Netzwerk** (network) | Server | interfaces, ports, firewall |
+| **SSH** | Server | keys, hardening, logins |
+| **System** | Server | updates and installed packages |
+| **Benachrichtigungen** (notifications) | Server | channels and rules |
 
 The UI is in German; the documentation names the German labels where you need to find them.
