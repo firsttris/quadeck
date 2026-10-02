@@ -351,6 +351,9 @@
     font: 14px var(--font-sans);
     color: var(--color-fg);
   }
+  .field::placeholder {
+    color: var(--color-faint);
+  }
   .field:focus {
     outline: 2px solid var(--color-accent);
     outline-offset: 1px;
@@ -363,6 +366,14 @@
     padding: 0;
     width: min(440px, calc(100vw - 32px));
     box-shadow: 0 30px 80px rgba(0, 0, 0, 0.6);
+  }
+  /* Tailwind's reset sets margin: 0 on everything, which undoes the native centering of <dialog>. */
+  dialog.modal {
+    margin: auto;
+  }
+  dialog.modal.palette {
+    width: min(620px, calc(100vw - 32px));
+    margin: 12vh auto auto;
   }
   dialog.modal::backdrop {
     background: rgba(5, 8, 12, 0.7);

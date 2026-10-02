@@ -1,6 +1,7 @@
 import { Link, Outlet, createFileRoute, redirect, useRouterState } from '@tanstack/react-router'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { ActionsProvider } from '~/components/Actions'
+import { CommandPalette } from '~/components/CommandPalette'
 import { Glyph, Logo } from '~/components/Glyph'
 import { Dot } from '~/components/Status'
 import { ToastProvider } from '~/components/Toast'
@@ -25,23 +26,25 @@ function AppLayout() {
   const { csrf, readonly } = Route.useRouteContext()
   setCsrfToken(csrf)
   useEffect(() => setCsrfToken(csrf), [csrf])
+  const [palette, setPalette] = useState(false)
   return (
     <ToastProvider>
       <LiveProvider initial={initial}>
         <ActionsProvider readonly={readonly}>
           <div className="grid min-h-screen grid-cols-1 md:grid-cols-[232px_minmax(0,1fr)]">
-            <Sidebar />
+            <Sidebar onSearch={() => setPalette(true)} />
             <main className="box-border flex w-full min-w-0 flex-col gap-[18px] px-4 pt-[22px] pb-12 md:px-7">
               <Outlet />
             </main>
           </div>
+          <CommandPalette open={palette} onOpenChange={setPalette} />
         </ActionsProvider>
       </LiveProvider>
     </ToastProvider>
   )
 }
 
-function Sidebar() {
+function Sidebar({ onSearch }: { onSearch: () => void }) {
   const { snapshot, connected } = useLive()
   const path = useRouterState({ select: (s) => s.location.pathname })
   const failed = snapshot.units.filter((u) => u.active === 'failed').length
@@ -71,6 +74,11 @@ function Sidebar() {
           {h.podmanVersion ? `Podman ${h.podmanVersion} · ` : ''}up {duration(h.uptimeSec)}
         </span>
       </div>
+      <button type="button" className="btn mx-1 justify-start text-muted" onClick={onSearch} aria-keyshortcuts="Control+K">
+        <Glyph name="search" size={15} strokeWidth={2} />
+        <span className="grow text-left">Suchen</span>
+        <kbd className="font-mono rounded border border-[#333a45] px-1.5 py-0.5 text-[11px]">Strg K</kbd>
+      </button>
       <nav aria-label="Bereiche" className="flex flex-row flex-wrap gap-[2px] md:flex-col">
         {nav.map((n) => (
           <Link key={n.to} to={n.to} className={`navbtn ${path === n.to ? 'on' : ''}`} style={{ width: 'auto' }}>

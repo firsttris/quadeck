@@ -32,6 +32,17 @@ export function addLink(l: LinkInput) {
   return db().insert(schema.manualServices).values(l).returning().get()
 }
 
+export function updateLink(id: number, l: LinkInput) {
+  const r = db()
+    .update(schema.manualServices)
+    .set({ name: l.name, url: l.url, group: l.group ?? null, icon: l.icon ?? null, healthCheck: l.healthCheck })
+    .where(eq(schema.manualServices.id, id))
+    .returning()
+    .all()
+  if (!r.length) throw new HttpError(404, 'Link nicht gefunden')
+  return r[0]
+}
+
 export function deleteLink(id: number) {
   const r = db().delete(schema.manualServices).where(eq(schema.manualServices.id, id)).returning().all()
   if (!r.length) throw new HttpError(404, 'Link nicht gefunden')

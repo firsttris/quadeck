@@ -5,8 +5,9 @@ import { asc, lt } from 'drizzle-orm'
 import { readFileSync } from 'node:fs'
 import { hostname, networkInterfaces } from 'node:os'
 import { join } from 'node:path'
-import type { Container, Disk, Snapshot, SourceStatus, SystemMetrics, Unit } from '~/shared/types'
+import type { Container, Disk, HiddenService, Share, Snapshot, SourceStatus, SystemMetrics, Unit } from '~/shared/types'
 import { collectDisks } from './collectors/disks'
+import { collectShares } from './collectors/shares'
 import { PodmanCollector } from './collectors/podman'
 import { readHostInfo, SystemCollector } from './collectors/system'
 import { collectUnits, systemdVersion } from './collectors/systemd'
@@ -60,7 +61,9 @@ export class Hub {
     podman: { ok: false },
     systemd: { ok: false },
     caddy: { ok: false },
+    shares: { ok: false },
   }
+  private shares: Share[] = []
   private current?: Snapshot
   private lastStateJson = ''
   private listeners = new Set<(e: HubEvent) => void>()
@@ -123,7 +126,7 @@ export class Hub {
       this.publish()
     })
     const slow = every(30_000, async () => {
-      await Promise.allSettled([this.collectDisks(), this.collectCaddy()])
+      await Promise.allSettled([this.collectDisks(), this.collectCaddy(), this.collectShares()])
       this.publish()
     })
     const health = every(60_000, async () => {
@@ -204,6 +207,18 @@ export class Hub {
     }
   }
 
+  private async collectShares() {
+    try {
+      const dir = config().fixturesDir
+      this.shares = collectShares(
+        dir ? { smbConf: join(dir, 'smb.conf'), exports: join(dir, 'exports'), exportsDir: join(dir, 'exports.d') } : { smbConf: config().smbConf, exports: config().exports, exportsDir: config().exportsDir },
+      )
+      this.ok('shares')
+    } catch (e) {
+      this.fail('shares', e)
+    }
+  }
+
   private async collectCaddy() {
     try {
       if (this.fixtures) {
@@ -230,7 +245,9 @@ export class Hub {
   private build(): Snapshot {
     const localNames = [hostname(), ...Object.values(networkInterfaces()).flatMap((l) => (l ?? []).map((i) => i.address))]
     const d = db()
+    const hiddenServices: HiddenService[] = []
     const services = mergeServices({
+      onHidden: (s) => hiddenServices.push(s),
       candidates: this.candidates,
       containers: this.containers,
       manual: d.select().from(schema.manualServices).all(),
@@ -247,6 +264,8 @@ export class Hub {
       containers: this.containers,
       units: this.units,
       services,
+      hiddenServices,
+      shares: this.shares,
       sources: this.sources,
       readonly: config().readonly,
     }

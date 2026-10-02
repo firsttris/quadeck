@@ -47,6 +47,8 @@ Umgebungsvariablen, z. B. in `/etc/quadeck/quadeck.env`:
 | `QUADECK_PODMAN_SOCKET` | `/run/podman/podman.sock` | Podman-API |
 | `QUADECK_CADDY_ADMIN` | `http://localhost:2019` | Caddy-Admin-API |
 | `QUADECK_CADDYFILE` | `/etc/caddy/Caddyfile` | Fallback, wenn die API nicht erreichbar ist |
+| `QUADECK_SMB_CONF` | `/etc/samba/smb.conf` | SMB-Freigaben |
+| `QUADECK_EXPORTS` | `/etc/exports` | NFS-Freigaben (dazu `/etc/exports.d/*.exports`) |
 | `QUADECK_TRUSTED_PROXIES` | `127.,::1` | IP-Präfixe von Reverse-Proxys, deren `X-Forwarded-For` gilt (z. B. `10.88.` für Caddy in rootful Podman) |
 | `QUADECK_PUBLIC_URL` | – | Öffentliche URL, falls ein Proxy den `Host`-Header umschreibt |
 
@@ -67,6 +69,16 @@ Umgebungsvariablen, z. B. in `/etc/quadeck/quadeck.env`:
 5. **Overrides** aus der Datenbank haben die höchste Priorität.
 
 Eigene Links zu Geräten ohne Quadlet (Router, Drucker, andere Hosts) legt man im Dashboard über „Link hinzufügen“ an; sie stehen in derselben Karte wie die erkannten Services.
+
+Im Bearbeiten-Modus öffnet ein Klick auf eine Kachel den Dialog **Service bearbeiten**: Name, Gruppe, URL und Icon (Suche über die dashboard-icons-Sammlung) überschreiben die Erkennung, leere Felder folgen ihr weiter. Dazu Anpinnen und Ausblenden; ausgeblendete Services lassen sich in der Bearbeiten-Leiste wieder anzeigen. Eigene Links werden im selben Dialog direkt bearbeitet.
+
+## Befehlspalette
+
+**Strg+K** (⌘K) oder „Suchen“ in der Seitenleiste: Services öffnen, zu Seiten springen, Units neu starten oder stoppen (mit der üblichen Bestätigung) und ihr Journal öffnen.
+
+## Freigaben
+
+Die Karte „Freigaben“ liest SMB-Shares aus `smb.conf` (Pfad, lesen oder lesen/schreiben, Gast, `valid users`) und NFS-Exports aus `/etc/exports` und `/etc/exports.d` (Clients, `ro`). Quadeck liest die Dateien nur.
 
 ## Layout anpassen
 
@@ -123,6 +135,6 @@ src/routes/                 UI (Übersicht, Units, Journal) und /api-Routen
 
 v0.1 (MVP) laut Implementierungsplan: Collectors, Service-Kacheln mit Icons und Health-Checks, manuelle Links, Unit- und Container-Aktionen über systemd, Login und CSRF-Schutz, Standard-Layout, Live-Journal, Installationsskript und `update`-Befehl, CI und Release-Builds für vier Targets.
 
-Seit v0.2 in Arbeit: Bearbeiten-Modus mit react-grid-layout (Karten und Kacheln).
+v0.2: Bearbeiten-Modus mit react-grid-layout (Karten und Kacheln), Services bearbeiten (Overrides, Icon-Picker, Ausblenden), Befehlspalette, Freigaben (SMB/NFS).
 
-Noch nicht enthalten (v0.2/v0.3): Overrides-UI, Freigaben (SMB/NFS), SMART/SnapRAID, Befehlspalette, Forward-Auth, Quadlet-Editor, Timer-Editor, Image-Updates, rootless Quadlets, getrennter Root-Helfer.
+Noch nicht enthalten (v0.2/v0.3): SMART/SnapRAID, Forward-Auth, Quadlet-Editor, Timer-Editor, Image-Updates, rootless Quadlets, getrennter Root-Helfer.

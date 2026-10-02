@@ -25,10 +25,12 @@ import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
 import { Route as ApiAuthSetupRouteImport } from './routes/api/auth/setup'
 import { Route as ApiFaviconKeyRouteImport } from './routes/api/favicon/$key'
 import { Route as ApiIconsSlugRouteImport } from './routes/api/icons/$slug'
+import { Route as ApiIconsSearchRouteImport } from './routes/api/icons/search'
 import { Route as ApiLayoutIndexRouteImport } from './routes/api/layout/index'
 import { Route as ApiLayoutHiddenRouteImport } from './routes/api/layout/hidden'
 import { Route as ApiLinksIndexRouteImport } from './routes/api/links/index'
 import { Route as ApiLinksIdRouteImport } from './routes/api/links/$id'
+import { Route as ApiServicesOverrideRouteImport } from './routes/api/services/override'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -109,6 +111,11 @@ const ApiIconsSlugRoute = ApiIconsSlugRouteImport.update({
   path: '/api/icons/$slug',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiIconsSearchRoute = ApiIconsSearchRouteImport.update({
+  id: '/api/icons/search',
+  path: '/api/icons/search',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiLayoutIndexRoute = ApiLayoutIndexRouteImport.update({
   id: '/api/layout/',
   path: '/api/layout/',
@@ -129,6 +136,11 @@ const ApiLinksIdRoute = ApiLinksIdRouteImport.update({
   path: '/api/links/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiServicesOverrideRoute = ApiServicesOverrideRouteImport.update({
+  id: '/api/services/override',
+  path: '/api/services/override',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
@@ -146,8 +158,10 @@ export interface FileRoutesByFullPath {
   '/api/auth/setup': typeof ApiAuthSetupRoute
   '/api/favicon/$key': typeof ApiFaviconKeyRoute
   '/api/icons/$slug': typeof ApiIconsSlugRoute
+  '/api/icons/search': typeof ApiIconsSearchRoute
   '/api/layout/hidden': typeof ApiLayoutHiddenRoute
   '/api/links/$id': typeof ApiLinksIdRoute
+  '/api/services/override': typeof ApiServicesOverrideRoute
   '/api/layout/': typeof ApiLayoutIndexRoute
   '/api/links/': typeof ApiLinksIndexRoute
 }
@@ -167,8 +181,10 @@ export interface FileRoutesByTo {
   '/api/auth/setup': typeof ApiAuthSetupRoute
   '/api/favicon/$key': typeof ApiFaviconKeyRoute
   '/api/icons/$slug': typeof ApiIconsSlugRoute
+  '/api/icons/search': typeof ApiIconsSearchRoute
   '/api/layout/hidden': typeof ApiLayoutHiddenRoute
   '/api/links/$id': typeof ApiLinksIdRoute
+  '/api/services/override': typeof ApiServicesOverrideRoute
   '/api/layout': typeof ApiLayoutIndexRoute
   '/api/links': typeof ApiLinksIndexRoute
 }
@@ -190,8 +206,10 @@ export interface FileRoutesById {
   '/api/auth/setup': typeof ApiAuthSetupRoute
   '/api/favicon/$key': typeof ApiFaviconKeyRoute
   '/api/icons/$slug': typeof ApiIconsSlugRoute
+  '/api/icons/search': typeof ApiIconsSearchRoute
   '/api/layout/hidden': typeof ApiLayoutHiddenRoute
   '/api/links/$id': typeof ApiLinksIdRoute
+  '/api/services/override': typeof ApiServicesOverrideRoute
   '/api/layout/': typeof ApiLayoutIndexRoute
   '/api/links/': typeof ApiLinksIndexRoute
 }
@@ -213,8 +231,10 @@ export interface FileRouteTypes {
     | '/api/auth/setup'
     | '/api/favicon/$key'
     | '/api/icons/$slug'
+    | '/api/icons/search'
     | '/api/layout/hidden'
     | '/api/links/$id'
+    | '/api/services/override'
     | '/api/layout/'
     | '/api/links/'
   fileRoutesByTo: FileRoutesByTo
@@ -234,8 +254,10 @@ export interface FileRouteTypes {
     | '/api/auth/setup'
     | '/api/favicon/$key'
     | '/api/icons/$slug'
+    | '/api/icons/search'
     | '/api/layout/hidden'
     | '/api/links/$id'
+    | '/api/services/override'
     | '/api/layout'
     | '/api/links'
   id:
@@ -256,8 +278,10 @@ export interface FileRouteTypes {
     | '/api/auth/setup'
     | '/api/favicon/$key'
     | '/api/icons/$slug'
+    | '/api/icons/search'
     | '/api/layout/hidden'
     | '/api/links/$id'
+    | '/api/services/override'
     | '/api/layout/'
     | '/api/links/'
   fileRoutesById: FileRoutesById
@@ -276,8 +300,10 @@ export interface RootRouteChildren {
   ApiAuthSetupRoute: typeof ApiAuthSetupRoute
   ApiFaviconKeyRoute: typeof ApiFaviconKeyRoute
   ApiIconsSlugRoute: typeof ApiIconsSlugRoute
+  ApiIconsSearchRoute: typeof ApiIconsSearchRoute
   ApiLayoutHiddenRoute: typeof ApiLayoutHiddenRoute
   ApiLinksIdRoute: typeof ApiLinksIdRoute
+  ApiServicesOverrideRoute: typeof ApiServicesOverrideRoute
   ApiLayoutIndexRoute: typeof ApiLayoutIndexRoute
   ApiLinksIndexRoute: typeof ApiLinksIndexRoute
 }
@@ -396,6 +422,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiIconsSlugRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/icons/search': {
+      id: '/api/icons/search'
+      path: '/api/icons/search'
+      fullPath: '/api/icons/search'
+      preLoaderRoute: typeof ApiIconsSearchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/layout/': {
       id: '/api/layout/'
       path: '/api/layout'
@@ -422,6 +455,13 @@ declare module '@tanstack/react-router' {
       path: '/api/links/$id'
       fullPath: '/api/links/$id'
       preLoaderRoute: typeof ApiLinksIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/services/override': {
+      id: '/api/services/override'
+      path: '/api/services/override'
+      fullPath: '/api/services/override'
+      preLoaderRoute: typeof ApiServicesOverrideRouteImport
       parentRoute: typeof rootRouteImport
     }
   }
@@ -455,8 +495,10 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthSetupRoute: ApiAuthSetupRoute,
   ApiFaviconKeyRoute: ApiFaviconKeyRoute,
   ApiIconsSlugRoute: ApiIconsSlugRoute,
+  ApiIconsSearchRoute: ApiIconsSearchRoute,
   ApiLayoutHiddenRoute: ApiLayoutHiddenRoute,
   ApiLinksIdRoute: ApiLinksIdRoute,
+  ApiServicesOverrideRoute: ApiServicesOverrideRoute,
   ApiLayoutIndexRoute: ApiLayoutIndexRoute,
   ApiLinksIndexRoute: ApiLinksIndexRoute,
 }

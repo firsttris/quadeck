@@ -2,11 +2,12 @@ import { Link, createFileRoute } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useActions } from '~/components/Actions'
 import { AddLinkDialog } from '~/components/AddLinkDialog'
-import { EditableGrid, type DefaultItem, type GridSpec } from '~/components/EditableGrid'
+import { EditableGrid, recentlyDragged, type DefaultItem, type GridSpec } from '~/components/EditableGrid'
 import { Gauge } from '~/components/Gauge'
 import { Glyph } from '~/components/Glyph'
 import { ConfirmDialog } from '~/components/Modal'
 import { PageHeader } from '~/components/PageHeader'
+import { ServiceDialog } from '~/components/ServiceDialog'
 import { ServiceTile } from '~/components/ServiceTile'
 import { Dot, Pill } from '~/components/Status'
 import { useToast } from '~/components/Toast'
@@ -15,7 +16,7 @@ import { bytes, calendarLabel, diskSize, num, pct, rate, relative } from '~/lib/
 import { useLive } from '~/lib/live'
 import { getDashboardLayout } from '~/lib/server-fns'
 import type { DashboardLayout, GridItem, LayoutScope } from '~/shared/layout'
-import type { Disk, Service, ServiceGroup, Snapshot, Unit } from '~/shared/types'
+import type { Disk, Service, ServiceGroup, Share, Snapshot, Unit } from '~/shared/types'
 import { failureReason } from '~/shared/units'
 
 export const Route = createFileRoute('/_app/')({
@@ -29,6 +30,7 @@ const CARDS = [
   { id: 'services', label: 'Services' },
   { id: 'storage', label: 'Speicher' },
   { id: 'timers', label: 'Nächste Timer' },
+  { id: 'shares', label: 'Freigaben' },
   { id: 'cpu', label: 'CPU' },
   { id: 'ram', label: 'RAM' },
   { id: 'temp', label: 'CPU-Temp' },
@@ -48,6 +50,7 @@ const CARD_DEFAULTS: Record<string, Record<CardId, Omit<DefaultItem, 'i'>>> = {
     services: { x: 0, y: 4, w: 8, minW: 3, minH: 3 },
     storage: { x: 8, y: 4, w: 4, minW: 2, minH: 3 },
     timers: { x: 8, y: 200, w: 4, minW: 2, minH: 3 },
+    shares: { x: 8, y: 300, w: 4, minW: 2, minH: 3 },
   },
   md: {
     cpu: { x: 0, y: 0, w: 3, ...GAUGE, minW: 1 },
@@ -57,6 +60,7 @@ const CARD_DEFAULTS: Record<string, Record<CardId, Omit<DefaultItem, 'i'>>> = {
     services: { x: 0, y: 8, w: 6, minW: 2, minH: 3 },
     storage: { x: 0, y: 200, w: 3, minW: 2, minH: 3 },
     timers: { x: 3, y: 200, w: 3, minW: 2, minH: 3 },
+    shares: { x: 0, y: 300, w: 3, minW: 2, minH: 3 },
   },
   xs: {
     services: { x: 0, y: 0, w: 1, minH: 3 },
@@ -66,6 +70,7 @@ const CARD_DEFAULTS: Record<string, Record<CardId, Omit<DefaultItem, 'i'>>> = {
     net: { x: 0, y: 112, w: 1, ...GAUGE, minW: 1 },
     storage: { x: 0, y: 200, w: 1, minH: 3 },
     timers: { x: 0, y: 300, w: 1, minH: 3 },
+    shares: { x: 0, y: 400, w: 1, minH: 3 },
   },
 }
 
@@ -140,6 +145,7 @@ function Overview() {
     services: <Services groups={snapshot.services} editing={editing} saved={layout.layouts.tiles} onSave={(bp, items) => save('tiles', bp, items)} />,
     storage: <Storage disks={snapshot.disks} />,
     timers: <Timers units={snapshot.units} />,
+    shares: <Shares shares={snapshot.shares} error={snapshot.sources.shares?.error} />,
     ...gaugeNodes(snapshot),
   }
 
@@ -153,7 +159,7 @@ function Overview() {
       </PageHeader>
       {editing && (
         <div className="flex flex-wrap items-center gap-3 rounded-[10px] border border-[rgba(124,196,184,.35)] bg-[rgba(124,196,184,.08)] px-[14px] py-[10px] text-[13px] text-[#b6e3da]" role="status">
-          <span className="grow">Bearbeiten-Modus: Karten am Griff ziehen, an der Ecke unten rechts vergrößern. Kacheln in „Services“ lassen sich ebenso verschieben und vergrößern.</span>
+          <span className="grow">Bearbeiten-Modus: Karten am Griff ziehen, an der Ecke unten rechts vergrößern. Kacheln lassen sich ebenso verschieben und vergrößern; ein Klick auf eine Kachel öffnet Name, Icon, Gruppe und URL.</span>
           {layout.hidden.length > 0 && (
             <span className="flex flex-wrap items-center gap-1.5">
               Ausgeblendet:
@@ -161,6 +167,23 @@ function Overview() {
                 <button key={id} type="button" className="seg" onClick={() => setHidden(id, false)} aria-label={`${CARDS.find((c) => c.id === id)?.label ?? id} einblenden`}>
                   <Glyph name="plus" size={12} strokeWidth={2} />
                   {CARDS.find((c) => c.id === id)?.label ?? id}
+                </button>
+              ))}
+            </span>
+          )}
+          {snapshot.hiddenServices.length > 0 && (
+            <span className="flex flex-wrap items-center gap-1.5">
+              Ausgeblendete Services:
+              {snapshot.hiddenServices.map((h) => (
+                <button
+                  key={h.key}
+                  type="button"
+                  className="seg"
+                  aria-label={`${h.name} wieder anzeigen`}
+                  onClick={() => api('/api/services/override', { body: { key: h.key, hidden: false, onlyHidden: true } }).catch((e) => say((e as Error).message, 'bad'))}
+                >
+                  <Glyph name="plus" size={12} strokeWidth={2} />
+                  {h.name}
                 </button>
               ))}
             </span>
@@ -302,8 +325,11 @@ function Storage({ disks }: { disks: Disk[] }) {
 function Services({ groups, editing, saved, onSave }: { groups: ServiceGroup[]; editing: boolean; saved: Record<string, GridItem[]>; onSave: (bp: string, items: GridItem[]) => void }) {
   const [adding, setAdding] = useState(false)
   const [removing, setRemoving] = useState<Service | null>(null)
+  const [editingKey, setEditingKey] = useState<string | null>(null)
   const say = useToast()
   const groupNames = useMemo(() => groups.map((g) => g.name), [groups])
+  // Look the service up live, so the dialog follows SSE updates.
+  const edited = editingKey ? (groups.flatMap((g) => g.items).find((s) => s.key === editingKey) ?? null) : null
   return (
     <section className="flex flex-col gap-[14px] p-[18px]" aria-label="Services">
       <div className="flex flex-wrap items-center gap-3 pr-16">
@@ -320,9 +346,20 @@ function Services({ groups, editing, saved, onSave }: { groups: ServiceGroup[]; 
         </p>
       )}
       {groups.map((g) => (
-        <TileGroup key={g.name} group={g} editing={editing} saved={saved} onSave={onSave} onDelete={setRemoving} />
+        <TileGroup
+          key={g.name}
+          group={g}
+          editing={editing}
+          saved={saved}
+          onSave={onSave}
+          onDelete={setRemoving}
+          onEdit={(s) => {
+            if (!recentlyDragged()) setEditingKey(s.key)
+          }}
+        />
       ))}
       <AddLinkDialog open={adding} onClose={() => setAdding(false)} groups={groupNames} />
+      <ServiceDialog service={edited} groups={groupNames} onClose={() => setEditingKey(null)} />
       <ConfirmDialog
         open={!!removing}
         title={`Link „${removing?.name}“ entfernen?`}
@@ -344,7 +381,21 @@ function Services({ groups, editing, saved, onSave }: { groups: ServiceGroup[]; 
   )
 }
 
-function TileGroup({ group, editing, saved, onSave, onDelete }: { group: ServiceGroup; editing: boolean; saved: Record<string, GridItem[]>; onSave: (bp: string, items: GridItem[]) => void; onDelete: (s: Service) => void }) {
+function TileGroup({
+  group,
+  editing,
+  saved,
+  onSave,
+  onDelete,
+  onEdit,
+}: {
+  group: ServiceGroup
+  editing: boolean
+  saved: Record<string, GridItem[]>
+  onSave: (bp: string, items: GridItem[]) => void
+  onDelete: (s: Service) => void
+  onEdit: (s: Service) => void
+}) {
   const keys = group.items.map((s) => s.key).join('\n')
   const spec: GridSpec = useMemo(
     () => ({ ...TILE_GRID_BASE, defaults: (_bp, cols) => flowTiles(group.items, cols) }),
@@ -365,7 +416,7 @@ function TileGroup({ group, editing, saved, onSave, onDelete }: { group: Service
       <EditableGrid
         spec={spec}
         ssrBreakpoint="sm"
-        items={group.items.map((s) => ({ i: s.key, node: <ServiceTile s={s} editing={editing} onDelete={s.manualId !== undefined ? () => onDelete(s) : undefined} /> }))}
+        items={group.items.map((s) => ({ i: s.key, node: <ServiceTile s={s} editing={editing} onEdit={() => onEdit(s)} onDelete={s.manualId !== undefined ? () => onDelete(s) : undefined} /> }))}
         saved={own}
         editing={editing}
         onSave={onSave}
@@ -407,6 +458,37 @@ function Timers({ units }: { units: Unit[] }) {
           </div>
         )
       })}
+    </section>
+  )
+}
+
+// ---------- shares ----------
+
+function Shares({ shares, error }: { shares: Share[]; error?: string }) {
+  return (
+    <section className="pt-[18px] pb-1.5" aria-label="Freigaben">
+      <div className="flex items-baseline justify-between px-[18px] pb-2">
+        <h2 className="h2">Freigaben</h2>
+        <span className="text-[12px] text-muted">SMB und NFS</span>
+      </div>
+      {shares.length === 0 && (
+        <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{error ? `Nicht lesbar: ${error}` : 'Keine Freigaben in smb.conf oder /etc/exports.'}</p>
+      )}
+      {shares.map((sh) => (
+        <div key={`${sh.type}:${sh.name}:${sh.path}`} className="flex items-center gap-[10px] border-t border-line px-[18px] py-[9px]" data-testid="share">
+          <span className={`${sh.type === 'SMB' ? 'chip q' : 'chip'} w-[30px] text-center`}>{sh.type}</span>
+          <div className="min-w-0 grow">
+            <div className="truncate font-medium">{sh.name}</div>
+            <div className="truncate font-mono text-[11px] text-muted">
+              {sh.path}
+              {sh.note ? ` · ${sh.note}` : ''}
+            </div>
+          </div>
+          <span className="max-w-[45%] truncate text-right text-[12px] text-subtle" title={sh.access}>
+            {sh.access}
+          </span>
+        </div>
+      ))}
     </section>
   )
 }

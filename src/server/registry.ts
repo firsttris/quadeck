@@ -44,6 +44,8 @@ export interface MergeInput {
   httpHealth: Map<string, HttpHealth>
   iconIndex?: IconIndex
   localHosts: Set<string>
+  /** Receives services hidden by an override (so the UI can bring them back). */
+  onHidden?: (s: { key: string; name: string }) => void
 }
 
 const LOCAL_NAMES = ['localhost', '127.0.0.1', '::1', '0.0.0.0', 'host.containers.internal', 'host.docker.internal', 'host-gateway']
@@ -176,6 +178,7 @@ export function mergeServices(input: MergeInput): ServiceGroup[] {
       source: o.source,
       probe: label(c, 'url') ? undefined : o.probe,
       manualId: o.manual?.id,
+      healthCheck: o.manual?.healthCheck,
     }
     if (truthy(label(c, 'hidden'))) return
     const ch = c ? containerHealth(c) : undefined
@@ -235,8 +238,13 @@ export function mergeServices(input: MergeInput): ServiceGroup[] {
   const final: Service[] = []
   for (const s of services) {
     const o = ov.get(s.key)
-    if (o?.hidden) continue
+    if (o?.hidden) {
+      input.onHidden?.({ key: s.key, name: o.name || s.name })
+      continue
+    }
     if (o) {
+      const set = Object.entries({ name: o.name, group: o.group, url: o.url, icon: o.icon }).filter(([, v]) => v)
+      if (set.length) s.overridden = Object.fromEntries(set)
       if (o.name) s.name = o.name
       if (o.group) s.group = o.group
       const ou = safeUrl(o.url)
