@@ -1,5 +1,7 @@
 // German number/size/time formatting for the UI.
 
+import { describeCalendar } from '~/shared/timers'
+
 const nf = (digits: number) => new Intl.NumberFormat('de-DE', { maximumFractionDigits: digits, minimumFractionDigits: digits })
 
 export function bytes(n: number | undefined, digits = 1): string {
@@ -82,16 +84,5 @@ export function weekdayTime(ts: number | undefined): string {
 
 /** Friendly OnCalendar= rendering for common expressions. */
 export function calendarLabel(cal: string | undefined): string {
-  if (!cal) return '–'
-  const c = cal.trim()
-  const named: Record<string, string> = { hourly: 'stündlich', daily: 'täglich 00:00', weekly: 'wöchentlich', monthly: 'monatlich', yearly: 'jährlich' }
-  if (named[c]) return named[c]
-  let m = c.match(/^\*-\*-\* (\d\d):(\d\d)(?::00)?$/)
-  if (m) return `täglich ${m[1]}:${m[2]}`
-  m = c.match(/^(Mon|Tue|Wed|Thu|Fri|Sat|Sun) \*-\*-\* (\d\d):(\d\d)(?::00)?$/)
-  if (m) {
-    const de: Record<string, string> = { Mon: 'Mo', Tue: 'Di', Wed: 'Mi', Thu: 'Do', Fri: 'Fr', Sat: 'Sa', Sun: 'So' }
-    return `${de[m[1]!]} ${m[2]}:${m[3]}`
-  }
-  return c
+  return describeCalendar(cal?.trim())
 }

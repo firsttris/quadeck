@@ -10,6 +10,7 @@ import type { PodmanConfigName } from '~/shared/quadlets'
 import { parseShareChange } from '../shares/backend'
 import { parseSshChange } from '../ssh/backend'
 import { DISK_NAME } from '../smart/backend'
+import { parseSave, parseTimerAction } from '../timers/backend'
 import { UNIT_ACTIONS, type Privileged, type UnitAction } from './actions'
 
 type Handler = (body: Record<string, unknown>, p: Privileged) => Promise<unknown>
@@ -107,6 +108,16 @@ export const HELPER_ROUTES: Record<string, Handler> = {
     await p.renamePath(str(b.token), str(b.path) ?? '', str(b.newName) ?? '')
     return { ok: true }
   },
+  '/timers/state': (_b, p) => p.timersState(),
+  '/timers/preview': (b, p) => p.previewCalendar(str(b.calendar) ?? ''),
+  '/timers/files': async (b, p) => ({ data: await p.timerFiles(str(b.name) ?? '') }),
+  '/timers/save': (b, p) => {
+    const s = parseSave(b)
+    return p.saveTimer(str(b.token), s.spec, s.previous, s.enable)
+  },
+  '/timers/delete': (b, p) => p.deleteTimer(str(b.token), str(b.name) ?? ''),
+  '/timers/schedule': (b, p) => p.setTimerSchedule(str(b.token), str(b.name) ?? '', str(b.calendar) ?? ''),
+  '/timers/action': (b, p) => p.timerAction(str(b.token), str(b.name) ?? '', parseTimerAction(b.action)),
   '/podman/config': async (b, p) => {
     await p.writePodmanConfig(str(b.token), str(b.name) as PodmanConfigName, str(b.content) ?? '')
     return { ok: true }
