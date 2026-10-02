@@ -5,6 +5,8 @@ import type { PodmanConfigName, PodmanSettings, QuadletFile, Revision, ValidateR
 import type { WriteResult } from '../quadlets/backend'
 import type { ShareChange, SharePreview, ShareServiceAction, SharesState } from '~/shared/shares'
 import type { SshChange, SshPreview, SshState } from '~/shared/ssh'
+import type { SmartReport } from '~/shared/smart'
+import type { SelfTestType } from '../smart/backend'
 import type { UnlockInfo } from './gate'
 
 /** Privileged over the root helper's Unix socket. */
@@ -145,5 +147,12 @@ export class HelperClient implements Privileged {
   }
   sshService(token: string | undefined, action: 'start' | 'restart' | 'enable') {
     return this.call<SshState>('POST', '/ssh/service', { token, action }, 60_000)
+  }
+
+  smartReport(refresh: boolean) {
+    return this.call<SmartReport>('POST', '/smart/report', { refresh }, 300_000)
+  }
+  smartSelfTest(token: string | undefined, disk: string, type: SelfTestType) {
+    return this.call<SmartReport>('POST', '/smart/selftest', { token, disk, type }, 300_000)
   }
 }

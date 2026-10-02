@@ -9,6 +9,7 @@ import { parseJobSpec } from '../packages/job'
 import type { PodmanConfigName } from '~/shared/quadlets'
 import { parseShareChange } from '../shares/backend'
 import { parseSshChange } from '../ssh/backend'
+import { DISK_NAME } from '../smart/backend'
 import { UNIT_ACTIONS, type Privileged, type UnitAction } from './actions'
 
 type Handler = (body: Record<string, unknown>, p: Privileged) => Promise<unknown>
@@ -90,6 +91,11 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/ssh/service': (b, p) => {
     if (!['start', 'restart', 'enable'].includes(str(b.action) ?? '')) throw new HttpError(400, 'Ungültige Aktion')
     return p.sshService(str(b.token), b.action as 'start')
+  },
+  '/smart/report': (b, p) => p.smartReport(b.refresh === true),
+  '/smart/selftest': (b, p) => {
+    if (!DISK_NAME.test(str(b.disk) ?? '') || (b.type !== 'short' && b.type !== 'long')) throw new HttpError(400, 'disk und type (short|long) erforderlich')
+    return p.smartSelfTest(str(b.token), str(b.disk)!, b.type)
   },
   '/podman/config': async (b, p) => {
     await p.writePodmanConfig(str(b.token), str(b.name) as PodmanConfigName, str(b.content) ?? '')

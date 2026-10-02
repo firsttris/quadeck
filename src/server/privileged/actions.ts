@@ -11,6 +11,8 @@ import type { PodmanAdmin, WriteResult } from '../quadlets/backend'
 import type { PodmanConfigName } from '~/shared/quadlets'
 import type { SharesAdmin } from '../shares/backend'
 import type { SshAdmin } from '../ssh/backend'
+import type { SelfTestType, SmartAdmin } from '../smart/backend'
+import type { SmartReport } from '~/shared/smart'
 import type { SshChange, SshState } from '~/shared/ssh'
 import type { ShareChange, ShareServiceAction, SharesState } from '~/shared/shares'
 import type { UnlockInfo } from './gate'
@@ -19,7 +21,7 @@ export type UnitAction = 'start' | 'stop' | 'restart'
 export const UNIT_ACTIONS: readonly UnitAction[] = ['start', 'stop', 'restart']
 
 /** Package/image reads need no unlock (they change nothing); jobs do. */
-export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAdmin {
+export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAdmin, SmartAdmin {
   readonly kind: 'local' | 'helper'
   info(): Promise<UnlockInfo>
   unlock(user: string, password: string): Promise<{ token: string; expiresAt: number }>
@@ -42,6 +44,7 @@ export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAd
   shareService(token: string | undefined, kind: 'smb' | 'nfs', action: ShareServiceAction): Promise<SharesState>
   applySsh(token: string | undefined, change: SshChange): Promise<SshState>
   sshService(token: string | undefined, action: 'start' | 'restart' | 'enable'): Promise<SshState>
+  smartSelfTest(token: string | undefined, disk: string, type: SelfTestType): Promise<SmartReport>
 }
 
 const UNIT_NAME = /^[A-Za-z0-9:_.\\@-]{1,240}\.(service|timer)$/

@@ -5,6 +5,7 @@ import type { PodmanAdminBackend } from '../quadlets/backend'
 import type { PodmanConfigName } from '~/shared/quadlets'
 import type { SharesBackend } from '../shares/backend'
 import type { SshBackend } from '../ssh/backend'
+import type { SelfTestType, SmartBackend } from '../smart/backend'
 import type { SshChange } from '~/shared/ssh'
 import type { ShareChange, ShareServiceAction } from '~/shared/shares'
 import { HttpError } from '../auth'
@@ -30,6 +31,7 @@ export class LocalPrivileged implements Privileged {
     private admin: PodmanAdminBackend,
     private shares: SharesBackend,
     private ssh: SshBackend,
+    private smart: SmartBackend,
   ) {}
 
   async info() {
@@ -194,5 +196,15 @@ export class LocalPrivileged implements Privileged {
   async sshService(token: string | undefined, action: 'start' | 'restart' | 'enable') {
     this.gate.check(token)
     return this.ssh.sshService(action)
+  }
+
+  // ---------- SMART ----------
+
+  smartReport(refresh: boolean) {
+    return this.smart.smartReport(refresh)
+  }
+  async smartSelfTest(token: string | undefined, disk: string, type: SelfTestType) {
+    this.gate.check(token)
+    return this.smart.smartSelfTest(disk, type)
   }
 }

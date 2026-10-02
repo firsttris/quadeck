@@ -8,6 +8,7 @@ import { FixtureMaintenance, SystemMaintenance } from '../packages/maintenance'
 import { FixturePodmanAdmin, SystemPodmanAdmin } from '../quadlets/backend'
 import { FixtureShares, SystemShares } from '../shares/backend'
 import { FixtureSsh, SystemSsh } from '../ssh/backend'
+import { FixtureSmart, SystemSmart } from '../smart/backend'
 
 export function unlockMode(helperProcess: boolean): UnlockMode {
   const m = (process.env.QUADECK_UNLOCK ?? '').trim().toLowerCase()
@@ -34,7 +35,7 @@ export function privileged(): Privileged {
   const fixtures = config().fixturesDir
   instance =
     isRoot || fixtures
-      ? new LocalPrivileged(createGate(false), config().podmanSocket, fixtures ? new FixtureMaintenance(fixtures) : new SystemMaintenance(), fixtures ? new FixturePodmanAdmin(fixtures) : new SystemPodmanAdmin(), fixtures ? new FixtureShares(fixtures) : new SystemShares(), fixtures ? new FixtureSsh(fixtures) : new SystemSsh())
+      ? new LocalPrivileged(createGate(false), config().podmanSocket, fixtures ? new FixtureMaintenance(fixtures) : new SystemMaintenance(), fixtures ? new FixturePodmanAdmin(fixtures) : new SystemPodmanAdmin(), fixtures ? new FixtureShares(fixtures) : new SystemShares(), fixtures ? new FixtureSsh(fixtures) : new SystemSsh(), fixtures ? new FixtureSmart(fixtures) : new SystemSmart())
       : new HelperClient(config().helperSocket)
   return instance
 }
