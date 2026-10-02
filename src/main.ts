@@ -20,6 +20,7 @@ import { SystemSmart } from './server/smart/backend'
 import { SystemFiles } from './server/files/backend'
 import { SystemTimers } from './server/timers/backend'
 import { SystemUnitEditor } from './server/systemd/editor'
+import { SystemNetwork } from './server/network/collect'
 
 export interface StartServer {
   fetch(request: Request): Response | Promise<Response>
@@ -171,7 +172,7 @@ export async function main(argv: string[], opts: MainOptions) {
         process.exit(1)
       }
       cleanupSudoers()
-      serveHelper(config().helperSocket, new LocalPrivileged(createGate(true), config().podmanSocket, new SystemMaintenance(), new SystemPodmanAdmin(), new SystemShares(), new SystemSsh(), new SystemSmart(), new SystemFiles(), new SystemTimers(), new SystemUnitEditor()))
+      serveHelper(config().helperSocket, new LocalPrivileged(createGate(true), config().podmanSocket, new SystemMaintenance(), new SystemPodmanAdmin(), new SystemShares(), new SystemSsh(), new SystemSmart(), new SystemFiles(), new SystemTimers(), new SystemUnitEditor(), new SystemNetwork()))
       return
     }
     case 'job':

@@ -1,0 +1,66 @@
+{
+  "hostname": "nas-01",
+  "interfaces": [
+    { "name": "lo", "kind": "loopback", "state": "UNKNOWN", "mtu": 65536, "addresses": [{ "family": "inet", "address": "127.0.0.1", "prefix": 8, "scope": "host" }, { "family": "inet6", "address": "::1", "prefix": 128, "scope": "host" }] },
+    {
+      "name": "enp3s0",
+      "kind": "ethernet",
+      "state": "UP",
+      "mac": "d8:5e:d3:1a:4c:02",
+      "mtu": 1500,
+      "speedMbps": 2500,
+      "addresses": [
+        { "family": "inet", "address": "192.168.1.20", "prefix": 24, "scope": "global", "dynamic": true },
+        { "family": "inet6", "address": "fd00::20", "prefix": 64, "scope": "global", "dynamic": true },
+        { "family": "inet6", "address": "fe80::da5e:d3ff:fe1a:4c02", "prefix": 64, "scope": "link" }
+      ],
+      "rxBytes": 1843093350400,
+      "txBytes": 412938112000
+    },
+    { "name": "wlp4s0", "kind": "wifi", "state": "DOWN", "mac": "3c:a9:f4:22:10:7e", "mtu": 1500, "addresses": [] },
+    { "name": "wg0", "kind": "vpn", "state": "UNKNOWN", "mtu": 1420, "addresses": [{ "family": "inet", "address": "10.8.0.1", "prefix": 24, "scope": "global" }], "rxBytes": 9381021, "txBytes": 48210334 },
+    {
+      "name": "podman0",
+      "kind": "bridge",
+      "state": "UP",
+      "mac": "6e:51:0b:9c:aa:01",
+      "mtu": 1500,
+      "addresses": [{ "family": "inet", "address": "10.88.0.1", "prefix": 16, "scope": "global" }],
+      "rxBytes": 52934011,
+      "txBytes": 1203994821
+    },
+    { "name": "veth0", "kind": "container", "state": "UP", "mac": "8a:2f:41:0c:93:10", "mtu": 1500, "master": "podman0", "addresses": [] },
+    { "name": "veth1", "kind": "container", "state": "UP", "mac": "8a:2f:41:0c:93:11", "mtu": 1500, "master": "podman0", "addresses": [] },
+    { "name": "veth2", "kind": "container", "state": "UP", "mac": "8a:2f:41:0c:93:12", "mtu": 1500, "master": "podman0", "addresses": [] }
+  ],
+  "routes": [
+    { "family": "inet", "dst": "default", "gateway": "192.168.1.1", "dev": "enp3s0" },
+    { "family": "inet", "dst": "10.8.0.0/24", "dev": "wg0" },
+    { "family": "inet", "dst": "10.88.0.0/16", "dev": "podman0" },
+    { "family": "inet", "dst": "192.168.1.0/24", "dev": "enp3s0" },
+    { "family": "inet6", "dst": "default", "gateway": "fe80::1", "dev": "enp3s0" }
+  ],
+  "dns": { "servers": ["192.168.1.1"], "search": ["fritz.box"], "resolver": "systemd-resolved" },
+  "ports": [
+    { "proto": "tcp", "port": 22, "addresses": ["0.0.0.0", "::"], "scope": "all", "process": "sshd", "pid": 812, "unit": "sshd.service" },
+    { "proto": "tcp", "port": 53, "addresses": ["127.0.0.53", "127.0.0.54"], "scope": "local", "process": "systemd-resolve", "pid": 640, "unit": "systemd-resolved.service" },
+    { "proto": "udp", "port": 53, "addresses": ["127.0.0.53", "127.0.0.54"], "scope": "local", "process": "systemd-resolve", "pid": 640, "unit": "systemd-resolved.service" },
+    { "proto": "tcp", "port": 111, "addresses": ["0.0.0.0", "::"], "scope": "all", "process": "rpcbind", "pid": 701, "unit": "rpcbind.service" },
+    { "proto": "udp", "port": 111, "addresses": ["0.0.0.0", "::"], "scope": "all", "process": "rpcbind", "pid": 701, "unit": "rpcbind.service" },
+    { "proto": "tcp", "port": 139, "addresses": ["0.0.0.0", "::"], "scope": "all", "process": "smbd", "pid": 1020, "unit": "smb.service" },
+    { "proto": "tcp", "port": 445, "addresses": ["0.0.0.0", "::"], "scope": "all", "process": "smbd", "pid": 1020, "unit": "smb.service" },
+    { "proto": "tcp", "port": 631, "addresses": ["127.0.0.1", "::1"], "scope": "local", "process": "cupsd", "pid": 905, "unit": "cups.service" },
+    { "proto": "tcp", "port": 2049, "addresses": ["0.0.0.0", "::"], "scope": "all" },
+    { "proto": "udp", "port": 5353, "addresses": ["0.0.0.0", "::"], "scope": "all", "process": "avahi-daemon", "pid": 688, "unit": "avahi-daemon.service" },
+    { "proto": "tcp", "port": 8585, "addresses": ["0.0.0.0"], "scope": "all", "process": "quadeck", "pid": 1311, "unit": "quadeck.service" },
+    { "proto": "udp", "port": 51820, "addresses": ["0.0.0.0", "::"], "scope": "all" }
+  ],
+  "firewall": {
+    "kind": "firewalld",
+    "active": true,
+    "zone": "public",
+    "services": ["ssh", "dhcpv6-client", "samba", "nfs", "mdns"],
+    "ports": ["8585/tcp", "22/tcp", "546/udp", "137/udp", "138/udp", "139/tcp", "445/tcp", "2049/tcp", "5353/udp"]
+  },
+  "checkedAt": 0
+}
