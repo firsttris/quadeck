@@ -1,0 +1,17 @@
+[
+ {
+  "title": "Manual intervention for pacman 7.0.0 and local repositories required",
+  "link": "https://archlinux.org/news/manual-intervention-for-pacman-700-and-local-repositories-required/",
+  "date": 1726000000000
+ },
+ {
+  "title": "The sshd service needs to be restarted after upgrading to openssh-9.8p1",
+  "link": "https://archlinux.org/news/the-sshd-service-needs-to-be-restarted-after-upgrading-to-openssh-98p1/",
+  "date": 1719300000000
+ },
+ {
+  "title": "Arch Linux 2024 Leader Election Results",
+  "link": "https://archlinux.org/news/arch-linux-2024-leader-election-results/",
+  "date": 1713200000000
+ }
+]

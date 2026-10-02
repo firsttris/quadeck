@@ -10,6 +10,9 @@ import { serveHelper } from './server/privileged/helper-server'
 import { LocalPrivileged } from './server/privileged/local'
 import { createGate } from './server/privileged'
 import { statSync } from 'node:fs'
+import { cleanupSudoers } from './server/packages/aur'
+import { runJobCommand } from './server/packages/job'
+import { SystemMaintenance } from './server/packages/maintenance'
 
 export interface StartServer {
   fetch(request: Request): Response | Promise<Response>
@@ -104,7 +107,8 @@ const HELP = `quadeck – Dashboard für Podman-Server mit Quadlets
   quadeck version        Version ausgeben
 
 Umgebung: QUADECK_HOST (0.0.0.0), QUADECK_PORT (8484), QUADECK_DATA_DIR (/var/lib/quadeck),
-          QUADECK_READONLY, QUADECK_PODMAN_SOCKET, QUADECK_CADDY_ADMIN, QUADECK_CADDYFILE`
+          QUADECK_READONLY, QUADECK_PODMAN_SOCKET, QUADECK_CADDY_ADMIN, QUADECK_CADDYFILE,
+          QUADECK_UNLOCK, QUADECK_PACKAGE_MANAGER, QUADECK_AUR_USER`
 
 /**
  * CLI commands that touch the database run as the owner of the data
@@ -159,9 +163,13 @@ export async function main(argv: string[], opts: MainOptions) {
         console.error('quadeck helper muss als root laufen')
         process.exit(1)
       }
-      serveHelper(config().helperSocket, new LocalPrivileged(createGate(true), config().podmanSocket))
+      cleanupSudoers()
+      serveHelper(config().helperSocket, new LocalPrivileged(createGate(true), config().podmanSocket, new SystemMaintenance()))
       return
     }
+    case 'job':
+      // Started by the helper only (systemd-run or child process), as root.
+      process.exit(await runJobCommand(argv[1]))
     case 'update':
       await selfUpdate(opts.version, argv.includes('--force'))
       return

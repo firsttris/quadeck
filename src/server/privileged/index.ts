@@ -4,6 +4,7 @@ import type { Privileged } from './actions'
 import { Gate, type UnlockMode } from './gate'
 import { HelperClient } from './helper-client'
 import { LocalPrivileged } from './local'
+import { FixtureMaintenance, SystemMaintenance } from '../packages/maintenance'
 
 export function unlockMode(helperProcess: boolean): UnlockMode {
   const m = (process.env.QUADECK_UNLOCK ?? '').trim().toLowerCase()
@@ -27,6 +28,10 @@ let instance: Privileged | undefined
 export function privileged(): Privileged {
   if (instance) return instance
   const isRoot = process.getuid?.() === 0
-  instance = isRoot || config().fixturesDir ? new LocalPrivileged(createGate(false), config().podmanSocket) : new HelperClient(config().helperSocket)
+  const fixtures = config().fixturesDir
+  instance =
+    isRoot || fixtures
+      ? new LocalPrivileged(createGate(false), config().podmanSocket, fixtures ? new FixtureMaintenance(fixtures) : new SystemMaintenance())
+      : new HelperClient(config().helperSocket)
   return instance
 }

@@ -7,6 +7,7 @@ import { Gate } from '~/server/privileged/gate'
 import { HelperClient } from '~/server/privileged/helper-client'
 import { serveHelper } from '~/server/privileged/helper-server'
 import { LocalPrivileged } from '~/server/privileged/local'
+import { FixtureMaintenance } from '~/server/packages/maintenance'
 
 // sha512-crypt of "geheim-123"
 const HASH = '$6$quadeckt$pgIhFnbK6xs46yd0LWpDYqO6iRlF44QJuqBQ7i2j0gU.Rxvby3N1AG9aVgJxVbQQawFROmuIr9MJ9V3/.cG9w.'
@@ -66,7 +67,7 @@ describe('gate', () => {
 describe('helper over a Unix socket', () => {
   const dir = mkdtempSync(join(tmpdir(), 'quadeck-helper-'))
   const socket = join(dir, 'helper.sock')
-  const server = serveHelper(socket, new LocalPrivileged(new Gate('system', 15, { authFiles: () => files }), join(dir, 'no-podman.sock')))
+  const server = serveHelper(socket, new LocalPrivileged(new Gate('system', 15, { authFiles: () => files }), join(dir, 'no-podman.sock'), new FixtureMaintenance('fixtures/demo')))
   const client = new HelperClient(socket)
   afterAll(() => server.stop(true))
 

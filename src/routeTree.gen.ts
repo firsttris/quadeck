@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppJournalRouteImport } from './routes/_app/journal'
+import { Route as AppSystemRouteImport } from './routes/_app/system'
 import { Route as AppUnitsRouteImport } from './routes/_app/units'
 import { Route as ApiContainersRouteImport } from './routes/api/containers'
 import { Route as ApiEventsRouteImport } from './routes/api/events'
@@ -27,11 +28,19 @@ import { Route as ApiAuthSetupRouteImport } from './routes/api/auth/setup'
 import { Route as ApiFaviconKeyRouteImport } from './routes/api/favicon/$key'
 import { Route as ApiIconsSlugRouteImport } from './routes/api/icons/$slug'
 import { Route as ApiIconsSearchRouteImport } from './routes/api/icons/search'
+import { Route as ApiJobsIndexRouteImport } from './routes/api/jobs/index'
+import { Route as ApiJobsIdRouteImport } from './routes/api/jobs/$id'
 import { Route as ApiLayoutIndexRouteImport } from './routes/api/layout/index'
 import { Route as ApiLayoutHiddenRouteImport } from './routes/api/layout/hidden'
 import { Route as ApiLinksIndexRouteImport } from './routes/api/links/index'
 import { Route as ApiLinksIdRouteImport } from './routes/api/links/$id'
 import { Route as ApiServicesOverrideRouteImport } from './routes/api/services/override'
+import { Route as ApiSystemImagesRouteImport } from './routes/api/system/images'
+import { Route as ApiSystemOverviewRouteImport } from './routes/api/system/overview'
+import { Route as ApiSystemRemovePreviewRouteImport } from './routes/api/system/remove-preview'
+import { Route as ApiSystemUpdatesRouteImport } from './routes/api/system/updates'
+import { Route as ApiSystemPackagesIndexRouteImport } from './routes/api/system/packages/index'
+import { Route as ApiSystemPackagesNameRouteImport } from './routes/api/system/packages/$name'
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
@@ -55,6 +64,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppJournalRoute = AppJournalRouteImport.update({
   id: '/journal',
   path: '/journal',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSystemRoute = AppSystemRouteImport.update({
+  id: '/system',
+  path: '/system',
   getParentRoute: () => AppRoute,
 } as any)
 const AppUnitsRoute = AppUnitsRouteImport.update({
@@ -122,6 +136,16 @@ const ApiIconsSearchRoute = ApiIconsSearchRouteImport.update({
   path: '/api/icons/search',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiJobsIndexRoute = ApiJobsIndexRouteImport.update({
+  id: '/api/jobs/',
+  path: '/api/jobs/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiJobsIdRoute = ApiJobsIdRouteImport.update({
+  id: '/api/jobs/$id',
+  path: '/api/jobs/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiLayoutIndexRoute = ApiLayoutIndexRouteImport.update({
   id: '/api/layout/',
   path: '/api/layout/',
@@ -147,12 +171,43 @@ const ApiServicesOverrideRoute = ApiServicesOverrideRouteImport.update({
   path: '/api/services/override',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSystemImagesRoute = ApiSystemImagesRouteImport.update({
+  id: '/api/system/images',
+  path: '/api/system/images',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSystemOverviewRoute = ApiSystemOverviewRouteImport.update({
+  id: '/api/system/overview',
+  path: '/api/system/overview',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSystemRemovePreviewRoute = ApiSystemRemovePreviewRouteImport.update({
+  id: '/api/system/remove-preview',
+  path: '/api/system/remove-preview',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSystemUpdatesRoute = ApiSystemUpdatesRouteImport.update({
+  id: '/api/system/updates',
+  path: '/api/system/updates',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSystemPackagesIndexRoute = ApiSystemPackagesIndexRouteImport.update({
+  id: '/api/system/packages/',
+  path: '/api/system/packages/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiSystemPackagesNameRoute = ApiSystemPackagesNameRouteImport.update({
+  id: '/api/system/packages/$name',
+  path: '/api/system/packages/$name',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/journal': typeof AppJournalRoute
+  '/system': typeof AppSystemRoute
   '/units': typeof AppUnitsRoute
   '/api/containers': typeof ApiContainersRoute
   '/api/events': typeof ApiEventsRoute
@@ -166,16 +221,25 @@ export interface FileRoutesByFullPath {
   '/api/favicon/$key': typeof ApiFaviconKeyRoute
   '/api/icons/$slug': typeof ApiIconsSlugRoute
   '/api/icons/search': typeof ApiIconsSearchRoute
+  '/api/jobs/$id': typeof ApiJobsIdRoute
   '/api/layout/hidden': typeof ApiLayoutHiddenRoute
   '/api/links/$id': typeof ApiLinksIdRoute
   '/api/services/override': typeof ApiServicesOverrideRoute
+  '/api/system/images': typeof ApiSystemImagesRoute
+  '/api/system/overview': typeof ApiSystemOverviewRoute
+  '/api/system/remove-preview': typeof ApiSystemRemovePreviewRoute
+  '/api/system/updates': typeof ApiSystemUpdatesRoute
+  '/api/jobs/': typeof ApiJobsIndexRoute
   '/api/layout/': typeof ApiLayoutIndexRoute
   '/api/links/': typeof ApiLinksIndexRoute
+  '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
+  '/api/system/packages/': typeof ApiSystemPackagesIndexRoute
 }
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/journal': typeof AppJournalRoute
+  '/system': typeof AppSystemRoute
   '/units': typeof AppUnitsRoute
   '/api/containers': typeof ApiContainersRoute
   '/api/events': typeof ApiEventsRoute
@@ -190,11 +254,19 @@ export interface FileRoutesByTo {
   '/api/favicon/$key': typeof ApiFaviconKeyRoute
   '/api/icons/$slug': typeof ApiIconsSlugRoute
   '/api/icons/search': typeof ApiIconsSearchRoute
+  '/api/jobs/$id': typeof ApiJobsIdRoute
   '/api/layout/hidden': typeof ApiLayoutHiddenRoute
   '/api/links/$id': typeof ApiLinksIdRoute
   '/api/services/override': typeof ApiServicesOverrideRoute
+  '/api/system/images': typeof ApiSystemImagesRoute
+  '/api/system/overview': typeof ApiSystemOverviewRoute
+  '/api/system/remove-preview': typeof ApiSystemRemovePreviewRoute
+  '/api/system/updates': typeof ApiSystemUpdatesRoute
+  '/api/jobs': typeof ApiJobsIndexRoute
   '/api/layout': typeof ApiLayoutIndexRoute
   '/api/links': typeof ApiLinksIndexRoute
+  '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
+  '/api/system/packages': typeof ApiSystemPackagesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -202,6 +274,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/_app/journal': typeof AppJournalRoute
+  '/_app/system': typeof AppSystemRoute
   '/_app/units': typeof AppUnitsRoute
   '/api/containers': typeof ApiContainersRoute
   '/api/events': typeof ApiEventsRoute
@@ -216,11 +289,19 @@ export interface FileRoutesById {
   '/api/favicon/$key': typeof ApiFaviconKeyRoute
   '/api/icons/$slug': typeof ApiIconsSlugRoute
   '/api/icons/search': typeof ApiIconsSearchRoute
+  '/api/jobs/$id': typeof ApiJobsIdRoute
   '/api/layout/hidden': typeof ApiLayoutHiddenRoute
   '/api/links/$id': typeof ApiLinksIdRoute
   '/api/services/override': typeof ApiServicesOverrideRoute
+  '/api/system/images': typeof ApiSystemImagesRoute
+  '/api/system/overview': typeof ApiSystemOverviewRoute
+  '/api/system/remove-preview': typeof ApiSystemRemovePreviewRoute
+  '/api/system/updates': typeof ApiSystemUpdatesRoute
+  '/api/jobs/': typeof ApiJobsIndexRoute
   '/api/layout/': typeof ApiLayoutIndexRoute
   '/api/links/': typeof ApiLinksIndexRoute
+  '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
+  '/api/system/packages/': typeof ApiSystemPackagesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -229,6 +310,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/journal'
+    | '/system'
     | '/units'
     | '/api/containers'
     | '/api/events'
@@ -242,16 +324,25 @@ export interface FileRouteTypes {
     | '/api/favicon/$key'
     | '/api/icons/$slug'
     | '/api/icons/search'
+    | '/api/jobs/$id'
     | '/api/layout/hidden'
     | '/api/links/$id'
     | '/api/services/override'
+    | '/api/system/images'
+    | '/api/system/overview'
+    | '/api/system/remove-preview'
+    | '/api/system/updates'
+    | '/api/jobs/'
     | '/api/layout/'
     | '/api/links/'
+    | '/api/system/packages/$name'
+    | '/api/system/packages/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/login'
     | '/setup'
     | '/journal'
+    | '/system'
     | '/units'
     | '/api/containers'
     | '/api/events'
@@ -266,17 +357,26 @@ export interface FileRouteTypes {
     | '/api/favicon/$key'
     | '/api/icons/$slug'
     | '/api/icons/search'
+    | '/api/jobs/$id'
     | '/api/layout/hidden'
     | '/api/links/$id'
     | '/api/services/override'
+    | '/api/system/images'
+    | '/api/system/overview'
+    | '/api/system/remove-preview'
+    | '/api/system/updates'
+    | '/api/jobs'
     | '/api/layout'
     | '/api/links'
+    | '/api/system/packages/$name'
+    | '/api/system/packages'
   id:
     | '__root__'
     | '/_app'
     | '/login'
     | '/setup'
     | '/_app/journal'
+    | '/_app/system'
     | '/_app/units'
     | '/api/containers'
     | '/api/events'
@@ -291,11 +391,19 @@ export interface FileRouteTypes {
     | '/api/favicon/$key'
     | '/api/icons/$slug'
     | '/api/icons/search'
+    | '/api/jobs/$id'
     | '/api/layout/hidden'
     | '/api/links/$id'
     | '/api/services/override'
+    | '/api/system/images'
+    | '/api/system/overview'
+    | '/api/system/remove-preview'
+    | '/api/system/updates'
+    | '/api/jobs/'
     | '/api/layout/'
     | '/api/links/'
+    | '/api/system/packages/$name'
+    | '/api/system/packages/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -314,11 +422,19 @@ export interface RootRouteChildren {
   ApiFaviconKeyRoute: typeof ApiFaviconKeyRoute
   ApiIconsSlugRoute: typeof ApiIconsSlugRoute
   ApiIconsSearchRoute: typeof ApiIconsSearchRoute
+  ApiJobsIdRoute: typeof ApiJobsIdRoute
   ApiLayoutHiddenRoute: typeof ApiLayoutHiddenRoute
   ApiLinksIdRoute: typeof ApiLinksIdRoute
   ApiServicesOverrideRoute: typeof ApiServicesOverrideRoute
+  ApiSystemImagesRoute: typeof ApiSystemImagesRoute
+  ApiSystemOverviewRoute: typeof ApiSystemOverviewRoute
+  ApiSystemRemovePreviewRoute: typeof ApiSystemRemovePreviewRoute
+  ApiSystemUpdatesRoute: typeof ApiSystemUpdatesRoute
+  ApiJobsIndexRoute: typeof ApiJobsIndexRoute
   ApiLayoutIndexRoute: typeof ApiLayoutIndexRoute
   ApiLinksIndexRoute: typeof ApiLinksIndexRoute
+  ApiSystemPackagesNameRoute: typeof ApiSystemPackagesNameRoute
+  ApiSystemPackagesIndexRoute: typeof ApiSystemPackagesIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -356,6 +472,13 @@ declare module '@tanstack/react-router' {
       path: '/journal'
       fullPath: '/journal'
       preLoaderRoute: typeof AppJournalRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/system': {
+      id: '/_app/system'
+      path: '/system'
+      fullPath: '/system'
+      preLoaderRoute: typeof AppSystemRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/units': {
@@ -449,6 +572,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiIconsSearchRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/jobs/': {
+      id: '/api/jobs/'
+      path: '/api/jobs'
+      fullPath: '/api/jobs/'
+      preLoaderRoute: typeof ApiJobsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/jobs/$id': {
+      id: '/api/jobs/$id'
+      path: '/api/jobs/$id'
+      fullPath: '/api/jobs/$id'
+      preLoaderRoute: typeof ApiJobsIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/layout/': {
       id: '/api/layout/'
       path: '/api/layout'
@@ -484,17 +621,61 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiServicesOverrideRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/system/images': {
+      id: '/api/system/images'
+      path: '/api/system/images'
+      fullPath: '/api/system/images'
+      preLoaderRoute: typeof ApiSystemImagesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/system/overview': {
+      id: '/api/system/overview'
+      path: '/api/system/overview'
+      fullPath: '/api/system/overview'
+      preLoaderRoute: typeof ApiSystemOverviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/system/remove-preview': {
+      id: '/api/system/remove-preview'
+      path: '/api/system/remove-preview'
+      fullPath: '/api/system/remove-preview'
+      preLoaderRoute: typeof ApiSystemRemovePreviewRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/system/updates': {
+      id: '/api/system/updates'
+      path: '/api/system/updates'
+      fullPath: '/api/system/updates'
+      preLoaderRoute: typeof ApiSystemUpdatesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/system/packages/': {
+      id: '/api/system/packages/'
+      path: '/api/system/packages'
+      fullPath: '/api/system/packages/'
+      preLoaderRoute: typeof ApiSystemPackagesIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/system/packages/$name': {
+      id: '/api/system/packages/$name'
+      path: '/api/system/packages/$name'
+      fullPath: '/api/system/packages/$name'
+      preLoaderRoute: typeof ApiSystemPackagesNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface AppRouteChildren {
   AppJournalRoute: typeof AppJournalRoute
+  AppSystemRoute: typeof AppSystemRoute
   AppUnitsRoute: typeof AppUnitsRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppJournalRoute: AppJournalRoute,
+  AppSystemRoute: AppSystemRoute,
   AppUnitsRoute: AppUnitsRoute,
   AppIndexRoute: AppIndexRoute,
 }
@@ -517,11 +698,19 @@ const rootRouteChildren: RootRouteChildren = {
   ApiFaviconKeyRoute: ApiFaviconKeyRoute,
   ApiIconsSlugRoute: ApiIconsSlugRoute,
   ApiIconsSearchRoute: ApiIconsSearchRoute,
+  ApiJobsIdRoute: ApiJobsIdRoute,
   ApiLayoutHiddenRoute: ApiLayoutHiddenRoute,
   ApiLinksIdRoute: ApiLinksIdRoute,
   ApiServicesOverrideRoute: ApiServicesOverrideRoute,
+  ApiSystemImagesRoute: ApiSystemImagesRoute,
+  ApiSystemOverviewRoute: ApiSystemOverviewRoute,
+  ApiSystemRemovePreviewRoute: ApiSystemRemovePreviewRoute,
+  ApiSystemUpdatesRoute: ApiSystemUpdatesRoute,
+  ApiJobsIndexRoute: ApiJobsIndexRoute,
   ApiLayoutIndexRoute: ApiLayoutIndexRoute,
   ApiLinksIndexRoute: ApiLinksIndexRoute,
+  ApiSystemPackagesNameRoute: ApiSystemPackagesNameRoute,
+  ApiSystemPackagesIndexRoute: ApiSystemPackagesIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

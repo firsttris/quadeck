@@ -76,6 +76,23 @@ Im Bearbeiten-Modus öffnet ein Klick auf eine Kachel den Dialog **Service bearb
 
 **Strg+K** (⌘K) oder „Suchen“ in der Seitenleiste: Services öffnen, zu Seiten springen, Units neu starten oder stoppen (mit der üblichen Bestätigung) und ihr Journal öffnen.
 
+## Updates und Pakete
+
+Die Seite **System** zeigt verfügbare Updates und alle installierten Pakete – für **pacman** (Arch, inklusive AUR), **apt** (Debian, Ubuntu), **dnf** (Fedora, RHEL), **zypper** (openSUSE), **apk** (Alpine) und **rpm-ostree** (Fedora CoreOS/Atomic). Der Paketmanager wird erkannt; `QUADECK_PACKAGE_MANAGER` erzwingt einen.
+
+- **Updates:** alte → neue Version, Quelle und Downloadgröße; Hinweis, wenn danach ein Neustart nötig ist (Kernel, systemd, glibc …) und wenn der laufende Kernel bereits ersetzt wurde. Auf Arch zusätzlich die **Arch-News** (neue seit dem letzten Update hervorgehoben) und liegengebliebene **.pacnew/.pacsave**-Dateien (bei anderen Distributionen `.rpmnew`, `.dpkg-dist` …). Die Prüfung synchronisiert auf Arch eine *Kopie* der Paketdatenbank (wie `checkupdates`), also nie ein halbes `pacman -Sy`.
+- **Aktualisieren** startet einen Job mit Live-Ausgabe. Jobs laufen als eigene transiente systemd-Unit (`quadeck-job-….service`) und damit weiter, auch wenn das Update Quadeck oder Podman neu startet; die Ausgabe steht zusätzlich im Journal.
+- **AUR:** Updates werden über die AUR-API erkannt. Installiert wird mit `yay` oder `paru` als normaler Benutzer (makepkg verweigert root) – automatisch das erste Mitglied von `wheel`/`sudo`, oder `QUADECK_AUR_USER`. Nur für die Dauer des Jobs darf dieser Benutzer `pacman` per sudo ohne Passwort starten (`/etc/sudoers.d/zz-quadeck-aur`, danach wieder gelöscht). PKGBUILDs werden dabei nicht angezeigt.
+- **Installiert:** Suche und Filter (explizit, Abhängigkeit, fremd/AUR, verwaist), Größe, Details mit Abhängigkeiten und „benötigt von“. **Entfernen** zeigt vorher, was alles mitgeht (nicht mehr benötigte Abhängigkeiten). Systemkritische Pakete (Kernel, systemd, glibc, Paketmanager, sudo, ssh, podman …) sind geschützt – auch der Helfer verweigert sie.
+- **Container-Images:** `podman auto-update --dry-run` für alle Container mit `AutoUpdate=registry`. „Alle aktualisieren“ nutzt `podman auto-update` mit Rollback; einzeln wird das Image gezogen und die Unit neu gestartet.
+
+Alles, was etwas verändert, braucht wie die Unit-Aktionen das Entsperren.
+
+| Variable | Standard | Bedeutung |
+| --- | --- | --- |
+| `QUADECK_PACKAGE_MANAGER` | automatisch | `pacman`, `apt`, `dnf`, `zypper`, `apk` oder `rpm-ostree` |
+| `QUADECK_AUR_USER` | erstes Mitglied von `wheel`/`sudo` | Benutzer für yay/paru |
+
 ## Freigaben
 
 Die Karte „Freigaben“ liest SMB-Shares aus `smb.conf` (Pfad, lesen oder lesen/schreiben, Gast, `valid users`) und NFS-Exports aus `/etc/exports` und `/etc/exports.d` (Clients, `ro`). Quadeck liest die Dateien nur.
@@ -98,7 +115,7 @@ Das Layout wird pro Bildschirmbreite (Desktop, Tablet, Handy) in SQLite gespeich
 Quadeck besteht aus zwei Diensten:
 
 - **`quadeck.service`** – die Web-App, als eigener Systembenutzer `quadeck` **ohne Root-Rechte**. Sie liest alles, was ohne root geht (systemd über D-Bus, Journal über die Gruppe `systemd-journal`, Platten, Freigaben).
-- **`quadeck-helper.service`** – ein kleiner **Root-Helfer** mit fester Aktionsliste (Units starten/stoppen/neu starten, Podman lesen und Container ohne Unit steuern). Er lauscht nur auf `/run/quadeck/helper.sock`, den ausschließlich die Gruppe `quadeck` öffnen kann.
+- **`quadeck-helper.service`** – ein kleiner **Root-Helfer** mit fester Aktionsliste (Units starten/stoppen/neu starten, Podman lesen und Container ohne Unit steuern, Pakete und Images prüfen, Update-/Entfernen-Jobs starten). Er lauscht nur auf `/run/quadeck/helper.sock`, den ausschließlich die Gruppe `quadeck` öffnen kann.
 
 **Entsperren:** Aktionen am Server sind gesperrt, bis man sie mit dem Passwort eines Administrators (root oder Mitglied von `wheel`/`sudo`) freischaltet – dann für 15 Minuten, mit Countdown in der Seitenleiste. Die Prüfung (gegen `/etc/shadow` mit dem System-`crypt(3)`) und die Sperre sitzen im Helfer: Selbst eine übernommene Web-App kann ohne dieses Passwort nichts verändern.
 
@@ -140,10 +157,11 @@ Aufbau:
 src/main.ts                 Binary-Einstieg: CLI, Bun.serve, statische Assets
 src/server/collectors/      system, disks, podman, systemd
 src/server/providers/       Discovery (Caddy); Schnittstelle für Traefik u. a.
-src/server/privileged/      PrivilegedActions (D-Bus); später ein getrennter Root-Helfer
+src/server/privileged/      Root-Helfer: feste Aktionsliste, Entsperren, Unix-Socket
+src/server/packages/        Paketmanager (pacman/AUR, apt, dnf, zypper, apk, rpm-ostree), Jobs, Image-Updates
 src/server/registry.ts      Merge: Caddy-Route → Container → Unit → Labels → Overrides
 src/server/hub.ts           Intervalle, Snapshot, SSE-Push
-src/routes/                 UI (Übersicht, Units, Journal) und /api-Routen
+src/routes/                 UI (Übersicht, Units, Journal, System) und /api-Routen
 ```
 
 ## Stand
@@ -152,4 +170,6 @@ v0.1 (MVP) laut Implementierungsplan: Collectors, Service-Kacheln mit Icons und 
 
 v0.2: Bearbeiten-Modus mit react-grid-layout (Karten und Kacheln), Services bearbeiten (Overrides, Icon-Picker, Ausblenden), Befehlspalette, Freigaben (SMB/NFS).
 
-Noch nicht enthalten (v0.2/v0.3): SMART/SnapRAID, Forward-Auth, Quadlet-Editor, Timer-Editor, Image-Updates, rootless Quadlets, getrennter Root-Helfer.
+Danach: getrennter Root-Helfer mit Entsperren; Updates und Paketverwaltung für sechs Paketmanager inklusive AUR; Container-Image-Updates.
+
+Noch nicht enthalten: Podman-Einstellungen, Quadlet-Editor, SMART/SnapRAID, Forward-Auth, Timer-Editor, rootless Quadlets.

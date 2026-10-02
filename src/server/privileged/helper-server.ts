@@ -4,11 +4,17 @@
 
 import { chmodSync, chownSync, existsSync, readFileSync, rmSync } from 'node:fs'
 import { HttpError } from '../auth'
+import { PACKAGE_NAME } from '~/shared/packages'
+import { parseJobSpec } from '../packages/job'
 import { UNIT_ACTIONS, type Privileged, type UnitAction } from './actions'
 
 type Handler = (body: Record<string, unknown>, p: Privileged) => Promise<unknown>
 
 const str = (v: unknown) => (typeof v === 'string' ? v : undefined)
+const names = (v: unknown) => {
+  if (!Array.isArray(v) || !v.length || v.length > 200 || !v.every((n) => typeof n === 'string' && PACKAGE_NAME.test(n))) throw new HttpError(400, 'Ungültige Paketnamen')
+  return v as string[]
+}
 const action = (v: unknown): UnitAction => {
   if (!UNIT_ACTIONS.includes(v as UnitAction)) throw new HttpError(400, 'action muss start, stop oder restart sein')
   return v as UnitAction
@@ -39,6 +45,15 @@ export const HELPER_ROUTES: Record<string, Handler> = {
     await p.podmanContainer(str(b.token), str(b.id) ?? '', action(b.action))
     return { ok: true }
   },
+  '/pkg/overview': (_b, p) => p.overview(),
+  '/pkg/installed': async (_b, p) => ({ data: await p.installed() }),
+  '/pkg/detail': async (b, p) => ({ data: await p.detail(names([b.name])[0]!) }),
+  '/pkg/updates': (b, p) => p.updates(b.refresh === true),
+  '/pkg/remove-preview': (b, p) => p.removePreview(names(b.names)),
+  '/images/updates': (b, p) => p.imageUpdates(b.refresh === true),
+  '/jobs/list': async (_b, p) => ({ data: await p.jobs() }),
+  '/jobs/get': async (b, p) => ({ data: await p.job(str(b.id) ?? '', Number(b.from) || 0) }),
+  '/jobs/start': (b, p) => p.startJob(str(b.token), parseJobSpec(b.spec)),
 }
 
 export async function handleHelperRequest(req: Request, p: Privileged, routes = HELPER_ROUTES): Promise<Response> {
