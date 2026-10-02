@@ -62,7 +62,9 @@ fi
 
 port=$(sed -n 's/^QUADECK_PORT=//p' /etc/quadeck/quadeck.env 2>/dev/null || true)
 port=${port:-8484}
-host=$(hostname -I 2>/dev/null | awk '{print $1}')
+# Primary IPv4 (works everywhere iproute2 exists; Arch has no `hostname -I`).
+host=$(ip -4 route get 1.1.1.1 2>/dev/null | sed -n 's/.* src \([0-9.]*\).*/\1/p')
+[ -n "$host" ] || host=$(hostname -I 2>/dev/null | awk '{print $1}')
 sleep 1
 token=$(QUADECK_DATA_DIR=/var/lib/quadeck "$BIN_DIR/quadeck" setup-token 2>/dev/null || true)
 echo

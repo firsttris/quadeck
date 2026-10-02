@@ -74,6 +74,24 @@ export function matchUpstream(dial: string, containers: Container[], localHosts:
   return undefined
 }
 
+/**
+ * Turns a Caddy upstream into an address the host itself can reach: a
+ * container name becomes its IP (or its published port on localhost),
+ * localhost names become 127.0.0.1, anything else stays as is.
+ */
+export function probeUrl(dial: string, container: Container | undefined, localHosts: Set<string>): string | undefined {
+  const { host, port } = parseDial(dial)
+  if (!port) return undefined
+  const fmt = (h: string, p: number) => `http://${h.includes(':') ? `[${h}]` : h}:${p}`
+  if (localHosts.has(host)) return fmt('127.0.0.1', port)
+  if (container && (container.name.toLowerCase() === host || container.aliases.some((a) => a.toLowerCase() === host))) {
+    if (container.ips[0]) return fmt(container.ips[0], port)
+    const published = container.ports.find((p) => p.containerPort === port)
+    return published ? fmt('127.0.0.1', published.hostPort) : undefined
+  }
+  return fmt(host, port)
+}
+
 const label = (c: Container | undefined, k: string) => c?.labels[`quadeck.${k}`]?.trim() || undefined
 
 /** Only http(s) URLs from labels/overrides: they are fetched (health, favicon) and rendered as links. */
@@ -136,6 +154,7 @@ export function mergeServices(input: MergeInput): ServiceGroup[] {
     fallbackName: string
     hostForSlug?: string
     manual?: ManualService
+    probe?: string
   }) => {
     const c = o.container
     const name = o.manual?.name ?? label(c, 'name') ?? o.fallbackName
@@ -155,6 +174,7 @@ export function mergeServices(input: MergeInput): ServiceGroup[] {
       container: c?.name,
       unit: c?.unit,
       source: o.source,
+      probe: label(c, 'url') ? undefined : o.probe,
       manualId: o.manual?.id,
     }
     if (truthy(label(c, 'hidden'))) return
@@ -183,6 +203,7 @@ export function mergeServices(input: MergeInput): ServiceGroup[] {
       container,
       source: 'caddy',
       fallbackName: container ? knownName(container) : (prettyName(slugCandidates({ host: cand.host })) ?? titleCase(sub)),
+      probe: cand.upstreams.map((u) => probeUrl(u, container, input.localHosts)).find(Boolean),
       hostForSlug: cand.host,
     })
   }

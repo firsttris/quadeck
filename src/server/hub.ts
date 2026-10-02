@@ -127,7 +127,7 @@ export class Hub {
       this.publish()
     })
     const health = every(60_000, async () => {
-      await this.health.checkAll(this.serviceUrls())
+      await this.health.checkAll(this.healthTargets())
       if (!this.fixtures) this.host = { ...this.host, uptimeSec: readHostInfo().uptimeSec }
       this.publish()
     })
@@ -283,15 +283,15 @@ export class Hub {
     }
   }
 
-  private serviceUrls() {
-    return this.snapshot().services.flatMap((g) => g.items.map((s) => s.url))
+  private healthTargets() {
+    return this.snapshot().services.flatMap((g) => g.items.map((s) => ({ url: s.url, probe: s.probe })))
   }
 
   /** Re-reads manual links/overrides from the DB and pushes the result. */
   async refreshServices() {
     this.publish()
-    if (this.serviceUrls().some((u) => !this.health.results.has(u))) {
-      await this.health.checkAll(this.serviceUrls())
+    if (this.healthTargets().some((t) => !this.health.results.has(t.url))) {
+      await this.health.checkAll(this.healthTargets())
       this.publish()
     }
   }

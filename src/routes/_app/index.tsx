@@ -261,7 +261,7 @@ function Services({ snapshot }: { snapshot: Snapshot }) {
             <span className="text-[11px] tracking-[.08em] text-muted uppercase">{g.name}</span>
             <span className="text-[11px] text-[#4a525e]">{g.note}</span>
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6 2xl:grid-cols-8">
             {g.items.map((s) => (
               <ServiceTile key={s.key} s={s} onDelete={s.manualId !== undefined && !snapshot.readonly ? () => setRemoving(s) : undefined} />
             ))}

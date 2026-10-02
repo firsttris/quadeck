@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { parseIconIndex } from '~/server/icons'
-import { localHostSet, matchUpstream, mergeServices, parseDial, type MergeInput } from '~/server/registry'
+import { checkTarget } from '~/server/health'
+import { localHostSet, matchUpstream, mergeServices, parseDial, probeUrl, type HttpHealth, type MergeInput } from '~/server/registry'
 import type { Container } from '~/shared/types'
 
 const ct = (name: string, o: Partial<Container> = {}): Container => ({
@@ -143,5 +144,62 @@ describe('mergeServices', () => {
       ),
     )
     expect(s.map((x) => x.key).sort()).toEqual(['ct:app', 'host:b.x/admin'])
+  })
+})
+
+const flat = (g: ReturnType<typeof mergeServices>) => g.flatMap((x) => x.items)
+
+describe('upstream probe for health checks', () => {
+  it('maps upstreams to addresses the host can reach', () => {
+    const jf = ct('jellyfin', { ips: ['10.88.0.5'], aliases: ['jf'] })
+    const noIp = ct('app', { ports: [{ hostPort: 18080, containerPort: 8080, protocol: 'tcp' }] })
+    expect(probeUrl('jellyfin:8096', jf, local)).toBe('http://10.88.0.5:8096')
+    expect(probeUrl('jf:8096', jf, local)).toBe('http://10.88.0.5:8096')
+    expect(probeUrl('app:8080', noIp, local)).toBe('http://127.0.0.1:18080')
+    expect(probeUrl('app:9999', noIp, local)).toBeUndefined()
+    expect(probeUrl('localhost:3000', undefined, local)).toBe('http://127.0.0.1:3000')
+    expect(probeUrl('192.168.1.30:8123', undefined, local)).toBe('http://192.168.1.30:8123')
+    expect(probeUrl('jellyfin', jf, local)).toBeUndefined()
+  })
+
+  it('is set on Caddy services, not when a label sets the URL', () => {
+    const s = flat(
+      mergeServices({
+        candidates: [{ host: 'borg.home', url: 'https://borg.home', upstreams: ['borg-web-ui:8081'], provider: 'caddy' }],
+        containers: [ct('borg-web-ui', { ips: ['10.88.0.9'] })],
+        manual: [],
+        overrides: [],
+        httpHealth: new Map(),
+        localHosts: local,
+      }),
+    )
+    expect(s[0]!.probe).toBe('http://10.88.0.9:8081')
+  })
+})
+
+describe('checkTarget', () => {
+  const fake = (results: Record<string, HttpHealth>) => async (u: string) => results[u]!
+
+  it('uses the public URL when it answers', async () => {
+    const r = await checkTarget({ url: 'https://a.home', probe: 'http://10.0.0.1:80' }, fake({ 'https://a.home': { health: 'ok', note: 'HTTP 200' } }))
+    expect(r).toEqual({ health: 'ok', note: 'HTTP 200' })
+  })
+
+  it('falls back to the upstream when the server cannot resolve the public name', async () => {
+    const r = await checkTarget(
+      { url: 'https://borg.home', probe: 'http://10.88.0.9:8081' },
+      fake({ 'https://borg.home': { health: 'bad', note: 'nicht erreichbar: getaddrinfo ENOTFOUND borg.home' }, 'http://10.88.0.9:8081': { health: 'ok', note: 'HTTP 200 · 3 ms' } }),
+    )
+    expect(r.health).toBe('ok')
+    expect(r.note).toContain('Upstream http://10.88.0.9:8081')
+  })
+
+  it('stays red when both fail', async () => {
+    const r = await checkTarget(
+      { url: 'https://x.home', probe: 'http://10.0.0.2:80' },
+      fake({ 'https://x.home': { health: 'bad', note: 'nicht erreichbar: ENOTFOUND' }, 'http://10.0.0.2:80': { health: 'bad', note: 'nicht erreichbar: ECONNREFUSED' } }),
+    )
+    expect(r.health).toBe('bad')
+    expect(r.note).toContain('ECONNREFUSED')
   })
 })
