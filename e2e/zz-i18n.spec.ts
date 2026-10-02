@@ -36,7 +36,9 @@ function germanOnlyWords(): Set<string> {
       words(m[2]!).forEach((w) => en.add(w))
     }
   }
-  return new Set([...de].filter((w) => !en.has(w)))
+  // German words that are English too (or names), and appear in host data
+  const english = ['pods', 'fast', 'controller', 'asmedia', 'mainboard', 'manual']
+  return new Set([...de].filter((w) => !en.has(w) && !english.includes(w)))
 }
 const GERMAN_ONLY = germanOnlyWords()
 const isGerman = (t: string) => GERMAN.test(t) || (t.match(/[A-Za-zÄÖÜäöüß]{4,}/g) ?? []).some((w) => GERMAN_ONLY.has(w.toLowerCase()))
@@ -44,7 +46,11 @@ const isGerman = (t: string) => GERMAN.test(t) || (t.match(/[A-Za-zÄÖÜäöü�
 /** Fixture data that is German on purpose (it is "the server's" data, not UI text). */
 const DATA: RegExp[] = [
   // Fan names the admin gave in the sensor config
-  /^(CPU-Lüfter|Gehäuse vorne|Gehäuse hinten)$/,
+  /^(CPU-Lüfter|Gehäuse vorne|Gehäuse hinten|Temperatur 1)$/,
+  // Share names, app group label and host names of the demo server
+  /\b(Medien|Fotos)\b|^MEDIEN UND DOWNLOADS$|fotos\.home\.example/i,
+  // An SSH key comment, a demo timer description, a demo /etc/passwd line
+  /altes-handy|^Alte Podman-Images entfernen$|^- anna:x:/,
 ]
 
 async function scan(page: Page, where: string): Promise<string[]> {

@@ -17,6 +17,7 @@ import { FixtureFstabHost, FstabManager, SystemFstabHost } from '../fstab/backen
 import { FixtureBoot, SystemBoot } from '../boot/backend'
 import { FixtureUsers, SystemUsers } from '../users/backend'
 import { FixtureHardware, SystemHardware } from '../hardware/collect'
+import { outsideRequest } from '../lang'
 
 export function unlockMode(helperProcess: boolean): UnlockMode {
   const m = (process.env.QUADECK_UNLOCK ?? '').trim().toLowerCase()
@@ -45,7 +46,7 @@ export function privileged(): Privileged {
   const maint = fixtures ? new FixtureMaintenance(fixtures, files as FixtureFiles) : new SystemMaintenance()
   instance =
     isRoot || fixtures
-      ? new LocalPrivileged(
+      ? likeHelper(new LocalPrivileged(
           createGate(false),
           config().podmanSocket,
           maint,
@@ -61,7 +62,21 @@ export function privileged(): Privileged {
           fixtures ? new FixtureBoot(fixtures, async () => new Map((await maint.installed()).map((p) => [p.name, p.version]))) : new SystemBoot(),
           fixtures ? new FixtureUsers(fixtures) : new SystemUsers(),
           fixtures ? new FixtureHardware(fixtures) : new SystemHardware(),
-        )
+        ))
       : new HelperClient(config().helperSocket)
   return instance
+}
+
+/**
+ * In one process, privileged work runs as if it were the helper: without the
+ * viewer's language, so texts carry both languages (and caches stay valid for
+ * every viewer) and the response picks one – exactly as with the helper.
+ */
+function likeHelper(p: Privileged): Privileged {
+  return new Proxy(p, {
+    get(target, prop, receiver) {
+      const v = Reflect.get(target, prop, receiver) as unknown
+      return typeof v === 'function' ? (...args: unknown[]) => outsideRequest(() => (v as (...a: unknown[]) => unknown).apply(target, args)) : v
+    },
+  })
 }
