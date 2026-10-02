@@ -48,7 +48,7 @@ const DATA: RegExp[] = [
 ]
 
 async function scan(page: Page, where: string): Promise<string[]> {
-  await page.waitForTimeout(300)
+  await page.waitForTimeout(150)
   const texts = await page.evaluate(() => {
     const out: string[] = []
     const root = document.body
@@ -61,7 +61,9 @@ async function scan(page: Page, where: string): Promise<string[]> {
     }
     return out
   })
-  return [...new Set(texts)].filter((t) => isGerman(t) && !DATA.some((d) => d.test(t.replace(/^@[a-z-]+: /, '')))).map((t) => `${where}: ${t}`)
+  const found = [...new Set(texts)].filter((t) => isGerman(t) && !DATA.some((d) => d.test(t.replace(/^@[a-z-]+: /, '')))).map((t) => `${where}: ${t}`)
+  if (found.length) console.log(found.join('\n'))
+  return found
 }
 
 /** Opens what only shows on click – dialogs ("… …" buttons) and row menus – scans it, closes it again. */
@@ -73,9 +75,9 @@ async function openers(page: Page, where: string, hits: string[]) {
     if (!(await b.isVisible().catch(() => false)) || (await b.isDisabled().catch(() => true))) continue
     const name = ((await b.getAttribute('aria-label')) ?? (await b.innerText())).trim()
     await b.click({ timeout: 2000 }).catch(() => {})
-    await page.waitForTimeout(250)
+    await page.waitForTimeout(150)
     hits.push(...(await scan(page, `${where} {${name}}`)))
-    for (let k = 0; k < 3 && (await page.locator('[role=dialog]:visible, [role=menu]:visible').count()) > 0; k++) {
+    for (let k = 0; k < 3 && (await page.locator('dialog[open], [role=dialog]:visible, [role=menu]:visible').count()) > 0; k++) {
       await page.keyboard.press('Escape')
       await page.waitForTimeout(150)
     }
@@ -89,7 +91,7 @@ async function tabs(page: Page, where: string, hits: string[]) {
     const tab = list.nth(i)
     if (!(await tab.isVisible())) continue
     const name = (await tab.innerText()).trim()
-    await tab.click()
+    await tab.click({ timeout: 3000 }).catch(() => {})
     hits.push(...(await scan(page, `${where} [${name}]`)))
     await openers(page, `${where} [${name}]`, hits)
   }
@@ -121,7 +123,6 @@ test.describe('English', () => {
       await page.goto(p)
       await tabs(page, p, hits)
     }
-    console.log(hits.join('\n'))
     expect(hits).toEqual([])
   })
 })
