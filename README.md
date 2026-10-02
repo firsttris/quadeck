@@ -43,7 +43,7 @@ Umgebungsvariablen, z. B. in `/etc/quadeck/quadeck.env`:
 | --- | --- | --- |
 | `QUADECK_HOST` / `QUADECK_PORT` | `0.0.0.0` / `8484` | Adresse und Port |
 | `QUADECK_DATA_DIR` | `/var/lib/quadeck` | SQLite-Datenbank, Icon-Cache, Setup-Token |
-| `QUADECK_READONLY` | `false` | Keine Aktionen und keine Änderungen |
+| `QUADECK_READONLY` | `false` | Keine Aktionen am Server (Start/Stopp/Neustart); Dashboard-Layout und Links bleiben änderbar |
 | `QUADECK_PODMAN_SOCKET` | `/run/podman/podman.sock` | Podman-API |
 | `QUADECK_CADDY_ADMIN` | `http://localhost:2019` | Caddy-Admin-API |
 | `QUADECK_CADDYFILE` | `/etc/caddy/Caddyfile` | Fallback, wenn die API nicht erreichbar ist |
@@ -66,7 +66,16 @@ Umgebungsvariablen, z. B. in `/etc/quadeck/quadeck.env`:
    ```
 5. **Overrides** aus der Datenbank haben die höchste Priorität.
 
-Eigene Links zu Geräten ohne Quadlet (Router, Drucker, andere Hosts) legt man im Dashboard über „Link hinzufügen“ an.
+Eigene Links zu Geräten ohne Quadlet (Router, Drucker, andere Hosts) legt man im Dashboard über „Link hinzufügen“ an; sie stehen in derselben Karte wie die erkannten Services.
+
+## Layout anpassen
+
+Das Dashboard ist beim ersten Start fertig angeordnet. Mit **Bearbeiten** (oder Taste `E`) lässt es sich auf zwei Ebenen ändern:
+
+- **Karten** (CPU, RAM, Temperatur, Netz, Services, Speicher, Timer): am Griff verschieben, an der Ecke unten rechts vergrößern oder verkleinern, ausblenden und wieder einblenden.
+- **Kacheln** in der Services-Karte: innerhalb ihrer Gruppe verschieben und vergrößern (z. B. Jellyfin als 2×2-Kachel). Die Gruppe einer Kachel legt das Label `quadeck.group` fest.
+
+Das Layout wird pro Bildschirmbreite (Desktop, Tablet, Handy) in SQLite gespeichert. Karten passen ihre Höhe automatisch an den Inhalt an, bis man sie selbst in der Größe ändert. „Auf Auto-Layout zurücksetzen“ stellt den Ausgangszustand wieder her.
 
 **Icons** kommen aus [dashboard-icons](https://github.com/homarr-labs/dashboard-icons) (Kandidaten aus Image-Name, Unit-Name und Caddy-Host, inklusive Aliasen wie `ha` → `home-assistant`) und werden unter `/var/lib/quadeck/icons` zwischengespeichert. Ohne Treffer: Favicon des Service, danach ein neutrales Kategorie-Icon.
 
@@ -81,7 +90,7 @@ Quadeck läuft als root, damit es Units steuern kann. Deshalb:
 - CSRF-Schutz: jede schreibende Anfrage muss von derselben Herkunft kommen und den CSRF-Token der Sitzung mitsenden. Gefährliche Aktionen brauchen eine Bestätigung.
 - Begrenzte Anmeldeversuche; Logout und Passwortwechsel beenden auch offene Live-Streams.
 - Feste Aktionsliste, Unit-Namen werden geprüft; alle Prozesse werden ohne Shell gestartet.
-- Read-only-Modus per `QUADECK_READONLY=true`.
+- Read-only-Modus per `QUADECK_READONLY=true`: keine Eingriffe in systemd oder Podman.
 
 **Nicht ungeschützt ins Internet stellen.** Quadeck ist für das LAN gedacht; von außen nur hinter VPN oder einem Reverse-Proxy mit zusätzlicher Authentifizierung.
 
@@ -114,4 +123,6 @@ src/routes/                 UI (Übersicht, Units, Journal) und /api-Routen
 
 v0.1 (MVP) laut Implementierungsplan: Collectors, Service-Kacheln mit Icons und Health-Checks, manuelle Links, Unit- und Container-Aktionen über systemd, Login und CSRF-Schutz, Standard-Layout, Live-Journal, Installationsskript und `update`-Befehl, CI und Release-Builds für vier Targets.
 
-Noch nicht enthalten (v0.2/v0.3): Bearbeiten-Modus mit react-grid-layout, Overrides-UI, Freigaben (SMB/NFS), SMART/SnapRAID, Befehlspalette, Forward-Auth, Quadlet-Editor, Timer-Editor, Image-Updates, rootless Quadlets, getrennter Root-Helfer.
+Seit v0.2 in Arbeit: Bearbeiten-Modus mit react-grid-layout (Karten und Kacheln).
+
+Noch nicht enthalten (v0.2/v0.3): Overrides-UI, Freigaben (SMB/NFS), SMART/SnapRAID, Befehlspalette, Forward-Auth, Quadlet-Editor, Timer-Editor, Image-Updates, rootless Quadlets, getrennter Root-Helfer.

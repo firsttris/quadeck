@@ -8,7 +8,6 @@ export const Route = createFileRoute('/api/links/$id')({
   server: {
     handlers: {
       DELETE: authed(async ({ params }: { request: Request; params: { id: string } }) => {
-        (await hubReady()).assertWritable()
         const id = Number(params.id)
         if (!Number.isInteger(id)) throw new HttpError(400, 'Ungültige ID')
         deleteLink(id)

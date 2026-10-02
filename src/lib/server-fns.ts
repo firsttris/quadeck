@@ -20,3 +20,10 @@ export const getInitialSnapshot = createServerFn({ method: 'GET' }).handler(asyn
   requireSession(getRequest())
   return (await hubReady()).snapshot()
 })
+
+export const getDashboardLayout = createServerFn({ method: 'GET' }).handler(async () => {
+  const { requireSession } = await import('~/server/auth')
+  const { getLayout } = await import('~/server/layout')
+  requireSession(getRequest())
+  return getLayout()
+})
