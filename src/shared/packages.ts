@@ -2,6 +2,7 @@
 // (web app, root helper and the `quadeck job` runner).
 
 import type { KernelFlavor } from './boot'
+import { tr } from './i18n'
 
 export type ManagerId = 'pacman' | 'apt' | 'dnf' | 'zypper' | 'apk' | 'rpm-ostree'
 
@@ -155,21 +156,30 @@ export const REBOOT_PACKAGES = /^(linux(-lts|-zen|-hardened)?|linux-image-.*|ker
  */
 export type Feature = 'smart' | 'samba' | 'nfs' | 'ssh'
 
+/** `label` is a getter: read in the viewer's language. */
 export const FEATURES: Record<Feature, { label: string; packages: Record<ManagerId, string[]>; service?: Record<ManagerId, string> }> = {
   smart: {
-    label: 'smartmontools (SMART-Werte der Platten)',
+    get label() {
+      return tr('smartmontools (SMART-Werte der Platten)', 'smartmontools (SMART values of the disks)')
+    },
     packages: { pacman: ['smartmontools'], apt: ['smartmontools'], dnf: ['smartmontools'], zypper: ['smartmontools'], apk: ['smartmontools'], 'rpm-ostree': ['smartmontools'] },
   },
   samba: {
-    label: 'Samba (SMB-Freigaben)',
+    get label() {
+      return tr('Samba (SMB-Freigaben)', 'Samba (SMB shares)')
+    },
     packages: { pacman: ['samba'], apt: ['samba'], dnf: ['samba'], zypper: ['samba'], apk: ['samba'], 'rpm-ostree': ['samba'] },
   },
   nfs: {
-    label: 'NFS-Server',
+    get label() {
+      return tr('NFS-Server', 'NFS server')
+    },
     packages: { pacman: ['nfs-utils'], apt: ['nfs-kernel-server'], dnf: ['nfs-utils'], zypper: ['nfs-kernel-server'], apk: ['nfs-utils'], 'rpm-ostree': ['nfs-utils'] },
   },
   ssh: {
-    label: 'OpenSSH-Server',
+    get label() {
+      return tr('OpenSSH-Server', 'OpenSSH server')
+    },
     packages: { pacman: ['openssh'], apt: ['openssh-server'], dnf: ['openssh-server'], zypper: ['openssh-server'], apk: ['openssh'], 'rpm-ostree': ['openssh-server'] },
   },
 }

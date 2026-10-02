@@ -8,7 +8,7 @@ import { getSetting, setSetting } from './settings'
 import type { ImageUpdatesReport, UpdatesReport } from '~/shared/packages'
 import type { Snapshot } from '~/shared/types'
 import { sendMail, type Mail } from './mail'
-import { isLang, localizeDeep, type Lang } from '~/shared/i18n'
+import { isLang, localizeDeep, tr, type Lang } from '~/shared/i18n'
 import { DELAY_MS, buildMail, buildRequest, currentAlerts, defaultSettings, problemNotice, recoveryNotice, type Alert, type Channel, type Notice, type NotifySettings, type NotifyState, type SentNotice } from '~/shared/notify'
 
 const KEY = 'notifications'
@@ -75,12 +75,13 @@ export class Notifier {
   /** Sends to every enabled channel (or the given one); errors end up in the log, not as exceptions. */
   async deliver(n: Notice, channels: Channel[], test = false): Promise<SentNotice> {
     // Messages go out in the language last picked in the UI; the log keeps both.
-    const out = localizeDeep(n, notifyLang())
+    const lang = notifyLang()
+    const out = localizeDeep(n, lang)
     const results = await Promise.all(
       channels.map(async (c) => {
         try {
           if (c.kind === 'email') {
-            await this.mail(c, buildMail(c, out))
+            await this.mail(c, localizeDeep(buildMail(c, out), lang))
             return { channel: c.name, ok: true }
           }
           const { url, init } = buildRequest(c, out)
@@ -159,8 +160,12 @@ export class Notifier {
         .slice(0, 16)
       setSetting(UPDATES, { day, hash })
       if ((!pkgs.length && !images.length) || hash === last?.hash) return
-      const lines = [pkgs.length ? `• ${pkgs.length} Paket-Update${pkgs.length === 1 ? '' : 's'}` : '', images.length ? `• neue Images für ${images.join(', ')}` : '', 'Installieren unter System → Updates'].filter(Boolean)
-      await this.deliver({ title: `${host}: Updates verfügbar`, body: lines.join('\n'), severity: 'info' }, channels)
+      const lines = [
+        pkgs.length ? tr(`• ${pkgs.length} Paket-Update${pkgs.length === 1 ? '' : 's'}`, `• ${pkgs.length} package update${pkgs.length === 1 ? '' : 's'}`) : '',
+        images.length ? tr(`• neue Images für ${images.join(', ')}`, `• new images for ${images.join(', ')}`) : '',
+        tr('Installieren unter System → Updates', 'Install under System → Updates'),
+      ].filter(Boolean)
+      await this.deliver({ title: tr(`${host}: Updates verfügbar`, `${host}: updates available`), body: lines.join('\n'), severity: 'info' }, channels)
     } finally {
       this.updatesRunning = false
     }

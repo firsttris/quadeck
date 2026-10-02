@@ -8,10 +8,11 @@ import { join } from 'node:path'
 import { HttpError } from '../auth'
 import { run } from '../exec'
 import { parseAuthorizedKeys } from '../ssh/keys'
+import { tr } from '~/shared/i18n'
 import {
-  KNOWN_GROUPS,
   changeProblem,
   isHuman,
+  knownGroups,
   parseGroup,
   parseLast,
   parsePasswd,
@@ -69,24 +70,25 @@ export function buildUsersState(files: { passwd: string; group: string; shadow: 
       keys: extra.keys(p.name, p.home),
       samba: extra.samba ? extra.samba.has(p.name) : undefined,
       lastLogin: last || undefined,
-      protected: p.uid === 0 ? 'root ist das Systemkonto und wird nicht gelöscht' : undefined,
+      protected: p.uid === 0 ? tr('root ist das Systemkonto und wird nicht gelöscht', 'root is the system account and is not deleted') : undefined,
     }
   })
   // Personal groups (same name and gid as a user) are not offered.
   const personal = new Set(passwd.map((p) => `${p.name}:${p.gid}`))
   const used = new Set(accounts.flatMap((a) => a.groups))
+  const known = knownGroups()
   const offered: GroupInfo[] = groups
-    .filter((g) => !personal.has(`${g.name}:${g.gid}`) && (g.name in KNOWN_GROUPS || used.has(g.name) || (g.gid >= 1000 && g.gid < 60000)))
-    .map((g) => ({ name: g.name, gid: g.gid, text: KNOWN_GROUPS[g.name] }))
+    .filter((g) => !personal.has(`${g.name}:${g.gid}`) && (g.name in known || used.has(g.name) || (g.gid >= 1000 && g.gid < 60000)))
+    .map((g) => ({ name: g.name, gid: g.gid, text: known[g.name] }))
     .sort((a, b) => Number(b.name === adminGroup) - Number(a.name === adminGroup) || a.name.localeCompare(b.name))
   return { accounts, groups: offered, shells: parseShells(files.shells), adminGroup, sambaAvailable: !!extra.samba, history: extra.history.slice(0, 50) }
 }
 
 /** userdel/usermod messages in plain words. */
 export function shadowError(tool: string, out: string): string {
-  if (/currently used by process|is currently logged in/i.test(out)) return 'Das Konto ist gerade angemeldet oder Prozesse laufen darunter – erst abmelden bzw. beenden'
-  if (/already exists/i.test(out)) return 'Den Namen gibt es schon (auch als Gruppe)'
-  return `${tool}: ${out.trim() || 'fehlgeschlagen'}`
+  if (/currently used by process|is currently logged in/i.test(out)) return tr('Das Konto ist gerade angemeldet oder Prozesse laufen darunter – erst abmelden bzw. beenden', 'The account is logged in or processes are running under it – log out or stop them first')
+  if (/already exists/i.test(out)) return tr('Den Namen gibt es schon (auch als Gruppe)', 'The name already exists (maybe as a group)')
+  return `${tool}: ${out.trim() || tr('fehlgeschlagen', 'failed')}`
 }
 
 export class SystemUsers implements UsersBackend {
@@ -161,7 +163,7 @@ export class SystemUsers implements UsersBackend {
         break
       }
       case 'samba-password':
-        if (!Bun.which('smbpasswd')) throw new HttpError(409, 'Samba ist nicht installiert')
+        if (!Bun.which('smbpasswd')) throw new HttpError(409, tr('Samba ist nicht installiert', 'Samba is not installed'))
         await this.tool(['smbpasswd', '-a', '-s', c.name], `${c.password}\n${c.password}\n`)
         break
       case 'delete': {

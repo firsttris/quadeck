@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { useT } from '~/i18n'
 import { api } from '~/lib/api'
 import { diffLines, hunks } from '~/lib/diff'
 import { relative } from '~/lib/format'
@@ -11,10 +12,11 @@ import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
 
 export function DiffView({ before, after }: { before: string; after: string }) {
+  const t = useT().quadlets.editor
   const lines = useMemo(() => hunks(diffLines(before, after)), [before, after])
-  if (!lines.length) return <p className="m-0 text-[13px] text-muted">Keine Änderungen.</p>
+  if (!lines.length) return <p className="m-0 text-[13px] text-muted">{t.noChanges}</p>
   return (
-    <pre className="joblog !min-h-0" aria-label="Änderungen">
+    <pre className="joblog !min-h-0" aria-label={t.changes}>
       {lines.map((l, i) =>
         l === null ? (
           <div key={i} className="text-subtle">
@@ -31,18 +33,19 @@ export function DiffView({ before, after }: { before: string; after: string }) {
 }
 
 export function Diagnostics({ items, onLine }: { items: Diagnostic[]; onLine?: (line: number) => void }) {
+  const t = useT().quadlets.editor
   if (!items.length) return null
   return (
-    <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[13px]" aria-label="Hinweise">
+    <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[13px]" aria-label={t.hints}>
       {items.map((d, i) => (
         <li key={i} className={`flex items-start gap-2 ${d.severity === 'error' ? 'text-[#ff8a80]' : 'text-[#e3b341]'}`}>
-          <span className="font-mono text-[11px] uppercase">{d.severity === 'error' ? 'Fehler' : 'Hinweis'}</span>
+          <span className="font-mono text-[11px] uppercase">{d.severity === 'error' ? t.error : t.hint}</span>
           {d.line && onLine ? (
             <button type="button" className="font-mono underline" onClick={() => onLine(d.line!)}>
-              Zeile {d.line}
+              {t.line(d.line)}
             </button>
           ) : d.line ? (
-            <span className="font-mono">Zeile {d.line}</span>
+            <span className="font-mono">{t.line(d.line)}</span>
           ) : null}
           <span className="text-[#c9d1d9]">{d.message}</span>
         </li>
@@ -52,6 +55,7 @@ export function Diagnostics({ items, onLine }: { items: Diagnostic[]; onLine?: (
 }
 
 export function Field({ section, k, doc, text, onChange }: { section: string; k: string; doc: KeyDoc; text: string; onChange: (t: string) => void }) {
+  const t = useT().quadlets.editor
   const values = getValues(text, section, k)
   const set = (vals: string[]) => onChange(setValues(text, section, k, vals))
   const id = `f-${section}-${k}`
@@ -78,7 +82,7 @@ export function Field({ section, k, doc, text, onChange }: { section: string; k:
           {values.map((v, i) => (
             <div key={i} className="flex gap-1.5">
               {input(v, (nv) => set(values.map((x, j) => (j === i ? nv : x))), `${k} ${i + 1}`)}
-              <button type="button" className="btn sm" aria-label={`${k} ${i + 1} entfernen`} onClick={() => set(values.filter((_, j) => j !== i))}>
+              <button type="button" className="btn sm" aria-label={t.removeEntry(`${k} ${i + 1}`)} onClick={() => set(values.filter((_, j) => j !== i))}>
                 <Glyph name="trash" size={13} />
               </button>
             </div>
@@ -88,7 +92,7 @@ export function Field({ section, k, doc, text, onChange }: { section: string; k:
             className="btn sm self-start"
             onClick={() => set([...values, ''])}
           >
-            <Glyph name="plus" size={13} /> {k} hinzufügen
+            <Glyph name="plus" size={13} /> {t.addEntry(k)}
           </button>
         </div>
       ) : (
@@ -100,6 +104,7 @@ export function Field({ section, k, doc, text, onChange }: { section: string; k:
 
 /** Form over the same text: only form keys are shown; everything else stays as it is. */
 function FormView({ name, text, onChange }: { name: string; text: string; onChange: (t: string) => void }) {
+  const t = useT().quadlets.editor
   const main = QUADLET_SECTION[quadletType(name)]
   const sections: [string, Record<string, KeyDoc>][] = [[main, QUADLET_KEYS[main]!], ...Object.entries(SYSTEMD_KEYS)]
   const shown = new Set(sections.flatMap(([s, keys]) => Object.entries(keys).filter(([, d]) => d.form).map(([k]) => `${s}.${k}`)))
@@ -118,14 +123,15 @@ function FormView({ name, text, onChange }: { name: string; text: string; onChan
       ))}
       {other.length > 0 && (
         <p className="m-0 text-[12px] text-muted">
-          Weitere Einträge bleiben unverändert (im Text bearbeiten): <span className="font-mono">{other.map((e) => `${e.key}`).join(', ')}</span>
+          {t.otherEntries} <span className="font-mono">{other.map((e) => `${e.key}`).join(', ')}</span>
         </p>
       )}
     </div>
   )
 }
 
-export function TextView({ text, onChange, jump, label = 'Quadlet-Datei', readOnly, height = 520 }: { text: string; onChange: (t: string) => void; jump: number | null; label?: string; readOnly?: boolean; height?: number }) {
+export function TextView({ text, onChange, jump, label, readOnly, height = 520 }: { text: string; onChange: (t: string) => void; jump: number | null; label?: string; readOnly?: boolean; height?: number }) {
+  const fileLabel = useT().quadlets.editor.fileLabel
   const ref = useRef<HTMLTextAreaElement>(null)
   const gutter = useRef<HTMLDivElement>(null)
   const count = text.split('\n').length
@@ -147,7 +153,7 @@ export function TextView({ text, onChange, jump, label = 'Quadlet-Datei', readOn
       </div>
       <textarea
         ref={ref}
-        aria-label={label}
+        aria-label={label ?? fileLabel}
         spellCheck={false}
         readOnly={readOnly}
         className="grow resize-none bg-transparent px-3 py-2.5 text-[#c9d1d9] outline-none"
@@ -173,6 +179,8 @@ export interface EditorProps {
 }
 
 export function QuadletEditor({ name, initial, isNew, history, readonly, onSaved, onDeleted }: EditorProps) {
+  const tx = useT()
+  const t = tx.quadlets.editor
   const say = useToast()
   const guarded = useGuardedApi()
   const [text, setText] = useState(initial)
@@ -223,7 +231,7 @@ export function QuadletEditor({ name, initial, isNew, history, readonly, onSaved
       if (!r) return
       setReview(false)
       if (r.warning) say(r.warning, 'bad')
-      else say(`${name} gespeichert${r.restarted ? ` · ${r.unit} neu gestartet` : ' · daemon-reload'}`)
+      else say(t.saved(name, r.unit, r.restarted))
       onSaved()
     } catch (e) {
       say((e as Error).message, 'bad')
@@ -236,7 +244,7 @@ export function QuadletEditor({ name, initial, isNew, history, readonly, onSaved
     try {
       const r = await guarded('/api/quadlets/file', { method: 'DELETE', body: { name } })
       if (!r) return
-      say(`${name} gelöscht, ${quadletUnit(name)} gestoppt`)
+      say(t.deleted(name, quadletUnit(name)))
       onDeleted()
     } catch (e) {
       say((e as Error).message, 'bad')
@@ -244,21 +252,21 @@ export function QuadletEditor({ name, initial, isNew, history, readonly, onSaved
   }
 
   return (
-    <section className="panel flex min-w-0 flex-col gap-4 p-[18px]" aria-label={`Editor ${name}`}>
+    <section className="panel flex min-w-0 flex-col gap-4 p-[18px]" aria-label={t.aria(name)}>
       <div className="flex flex-wrap items-center gap-2">
         <div className="min-w-0 grow">
           <h2 className="h2 truncate font-mono">{name}</h2>
           <div className="text-[12px] text-muted">
-            {isNew ? 'neu – noch nicht gespeichert' : `erzeugt ${quadletUnit(name)}`}
-            {dirty && !isNew && ' · ungespeicherte Änderungen'}
+            {isNew ? t.isNew : t.generates(quadletUnit(name))}
+            {dirty && !isNew && t.unsaved}
           </div>
         </div>
-        <div role="group" aria-label="Ansicht" className="flex gap-1.5">
+        <div role="group" aria-label={t.view} className="flex gap-1.5">
           <button type="button" className={`seg ${mode === 'form' ? 'on' : ''}`} aria-pressed={mode === 'form'} onClick={() => setMode('form')}>
-            Formular
+            {t.form}
           </button>
           <button type="button" className={`seg ${mode === 'text' ? 'on' : ''}`} aria-pressed={mode === 'text'} onClick={() => setMode('text')}>
-            Text
+            {t.text}
           </button>
         </div>
       </div>
@@ -277,11 +285,11 @@ export function QuadletEditor({ name, initial, isNew, history, readonly, onSaved
           setTimeout(() => setJump(l), 0)
         }}
       />
-      {server?.ok && <p className="m-0 text-[13px] text-[#7ee2a8]">Geprüft: der Quadlet-Generator erzeugt {quadletUnit(name)}.</p>}
+      {server?.ok && <p className="m-0 text-[13px] text-[#7ee2a8]">{t.checked(quadletUnit(name))}</p>}
       {server?.generated && (
         <div>
           <button type="button" className="btn sm" aria-expanded={showGenerated} onClick={() => setShowGenerated((s) => !s)}>
-            Erzeugte Unit {showGenerated ? 'ausblenden' : 'anzeigen'}
+            {t.generatedUnit(showGenerated)}
           </button>
           {showGenerated && <pre className="joblog mt-2 !min-h-0">{server.generated}</pre>}
         </div>
@@ -290,43 +298,43 @@ export function QuadletEditor({ name, initial, isNew, history, readonly, onSaved
       <div className="flex flex-wrap items-center gap-2 border-t border-line pt-4">
         {!readonly && !isNew && (
           <button type="button" className="btn danger sm" onClick={() => setConfirmDelete(true)}>
-            <Glyph name="trash" size={14} /> Löschen
+            <Glyph name="trash" size={14} /> {tx.common.delete}
           </button>
         )}
         {history.length > 0 && (
           <button type="button" className="btn sm" onClick={() => setShowHistory(true)}>
-            Verlauf ({history.length})
+            {t.history(history.length)}
           </button>
         )}
         <span className="grow" />
         {dirty && !isNew && (
           <button type="button" className="btn sm" onClick={() => (setText(initial), setServer(null))}>
-            Verwerfen
+            {t.discard}
           </button>
         )}
         <button type="button" className="btn sm" onClick={validate} disabled={checking}>
-          {checking ? 'Prüfe …' : 'Prüfen'}
+          {checking ? t.checking : t.check}
         </button>
         {!readonly && (
           <button type="button" className="btn primary sm" disabled={!dirty || checking || local.some((d) => d.severity === 'error')} onClick={startSave}>
-            Speichern …
+            {t.saveDots}
           </button>
         )}
       </div>
 
-      <Modal open={review} onClose={() => setReview(false)} title={`${name} speichern?`} wide>
+      <Modal open={review} onClose={() => setReview(false)} title={t.saveTitle(name)} wide>
         <DiffView before={isNew ? '' : initial} after={text} />
         <label className="flex items-center gap-2 text-[13px]">
           <input type="checkbox" checked={restart} onChange={(e) => setRestart(e.target.checked)} />
-          Danach <span className="font-mono">{quadletUnit(name)}</span> {isNew ? 'starten' : 'neu starten'}
+          {t.thenBefore(isNew)} <span className="font-mono">{quadletUnit(name)}</span> {t.thenAfter(isNew)}
         </label>
-        <p className="m-0 text-[12px] text-muted">Gespeichert wird über den Root-Helfer, danach systemctl daemon-reload. Die vorige Fassung bleibt im Verlauf.</p>
+        <p className="m-0 text-[12px] text-muted">{t.saveNote}</p>
         <div className="flex justify-end gap-2">
           <button type="button" className="btn" onClick={() => setReview(false)}>
-            Abbrechen
+            {tx.common.cancel}
           </button>
           <button type="button" className="btn primary" disabled={saving} onClick={save}>
-            {saving ? 'Speichere …' : restart ? (isNew ? 'Speichern & starten' : 'Speichern & neu starten') : 'Speichern'}
+            {saving ? t.savingDots : restart ? (isNew ? t.saveStart : t.saveRestart) : tx.common.save}
           </button>
         </div>
       </Modal>
@@ -345,10 +353,10 @@ export function QuadletEditor({ name, initial, isNew, history, readonly, onSaved
       />
       <ConfirmDialog
         open={confirmDelete}
-        title={`${name} löschen?`}
+        title={t.deleteTitle(name)}
         danger
-        confirm="Löschen"
-        body={<p className="m-0">{quadletUnit(name)} wird gestoppt und die Datei gelöscht. Im Verlauf bleibt sie erhalten.</p>}
+        confirm={tx.common.delete}
+        body={<p className="m-0">{t.deleteBody(quadletUnit(name))}</p>}
         onConfirm={() => void remove()}
         onClose={() => setConfirmDelete(false)}
       />
@@ -373,6 +381,8 @@ export function HistoryDialog({
   onLoad: (c: string) => void
   url?: (id: string) => string
 }) {
+  const tx = useT()
+  const t = tx.quadlets.history
   const [sel, setSel] = useState<Revision | null>(null)
   const [content, setContent] = useState<string | null>(null)
   useEffect(() => {
@@ -387,8 +397,8 @@ export function HistoryDialog({
       .catch(() => setContent(''))
   }, [sel, name]) // eslint-disable-line react-hooks/exhaustive-deps
   return (
-    <Modal open={open} onClose={onClose} title={`Verlauf: ${name}`} wide>
-      <div className="flex flex-wrap gap-1.5" role="listbox" aria-label="Versionen">
+    <Modal open={open} onClose={onClose} title={t.title(name)} wide>
+      <div className="flex flex-wrap gap-1.5" role="listbox" aria-label={t.versions}>
         {history.map((h) => (
           <button key={h.id} type="button" role="option" aria-selected={sel?.id === h.id} className={`seg ${sel?.id === h.id ? 'on' : ''}`} onClick={() => setSel(h)} title={h.message}>
             <span suppressHydrationWarning>{relative(h.date)}</span>
@@ -398,16 +408,16 @@ export function HistoryDialog({
       </div>
       {sel && content !== null && (
         <>
-          <p className="m-0 text-[12px] text-muted">Unterschied dieser Version zum aktuellen Stand im Editor:</p>
+          <p className="m-0 text-[12px] text-muted">{t.diffNote}</p>
           <DiffView before={content} after={current} />
         </>
       )}
       <div className="flex justify-end gap-2">
         <button type="button" className="btn" onClick={onClose}>
-          Schließen
+          {tx.common.close}
         </button>
         <button type="button" className="btn primary" disabled={content === null} onClick={() => content !== null && onLoad(content)}>
-          Diese Version in den Editor laden
+          {t.load}
         </button>
       </div>
     </Modal>

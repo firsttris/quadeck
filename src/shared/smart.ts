@@ -2,6 +2,8 @@
 // snapraid-ui's smart-health.ts (same thresholds and reasons); the data
 // comes from `smartctl --json` instead of `snapraid smart`.
 
+import { localeOf, tr } from './i18n'
+
 export type SmartStatus = 'OK' | 'FAIL' | 'PREFAIL' | 'LOGFAIL' | 'LOGERR' | 'SELFERR' | 'UNKNOWN'
 
 export interface SmartAttribute {
@@ -201,60 +203,98 @@ export function smartHints(assessments: SmartAssessment[]): SmartHint[] {
   return (['replace', 'cable', 'cooling', 'access'] as const).filter((h) => hints.has(h))
 }
 
-const STATUS_TEXT: Record<SmartStatus, string> = {
-  OK: 'in Ordnung',
-  FAIL: 'Die Platte meldet selbst einen bevorstehenden Ausfall',
-  PREFAIL: 'Ein Vorausfall-Attribut liegt jetzt unter seinem Grenzwert',
-  LOGFAIL: 'Ein Vorausfall-Attribut lag früher unter seinem Grenzwert',
-  LOGERR: 'Fehler im Fehlerprotokoll der Platte',
-  SELFERR: 'Ein Selbsttest ist fehlgeschlagen',
-  UNKNOWN: 'unbekannt',
+const statusText = (s: SmartStatus): string => {
+  switch (s) {
+    case 'OK':
+      return tr('in Ordnung', 'OK')
+    case 'FAIL':
+      return tr('Die Platte meldet selbst einen bevorstehenden Ausfall', 'The drive itself reports an imminent failure')
+    case 'PREFAIL':
+      return tr('Ein Vorausfall-Attribut liegt jetzt unter seinem Grenzwert', 'A pre-failure attribute is below its threshold now')
+    case 'LOGFAIL':
+      return tr('Ein Vorausfall-Attribut lag früher unter seinem Grenzwert', 'A pre-failure attribute was below its threshold in the past')
+    case 'LOGERR':
+      return tr('Fehler im Fehlerprotokoll der Platte', 'Errors in the drive\'s error log')
+    case 'SELFERR':
+      return tr('Ein Selbsttest ist fehlgeschlagen', 'A self-test failed')
+    case 'UNKNOWN':
+      return tr('unbekannt', 'unknown')
+  }
 }
 
-const SECTOR_TEXT: Record<SectorAttribute, string> = {
-  reallocated: 'Sektoren wurden ersetzt (Reallocated)',
-  pending: 'Sektoren warten auf Ersatz (Pending)',
-  uncorrectable: 'Sektoren sind nicht lesbar (Offline Uncorrectable)',
+const sectorText = (a: SectorAttribute): string => {
+  switch (a) {
+    case 'reallocated':
+      return tr('Sektoren wurden ersetzt (Reallocated)', 'sectors reallocated (Reallocated)')
+    case 'pending':
+      return tr('Sektoren warten auf Ersatz (Pending)', 'sectors waiting for reallocation (Pending)')
+    case 'uncorrectable':
+      return tr('Sektoren sind nicht lesbar (Offline Uncorrectable)', 'sectors unreadable (Offline Uncorrectable)')
+  }
 }
 
-const ERROR_TEXT: Record<ErrorAttribute, string> = {
-  reported_uncorrectable: 'nicht korrigierbare Lesefehler',
-  crc: 'Übertragungsfehler (CRC) – meist Kabel oder Backplane',
-  medium: 'Medienfehler',
+const errorText = (a: ErrorAttribute): string => {
+  switch (a) {
+    case 'reported_uncorrectable':
+      return tr('nicht korrigierbare Lesefehler', 'uncorrectable read errors')
+    case 'crc':
+      return tr('Übertragungsfehler (CRC) – meist Kabel oder Backplane', 'transfer errors (CRC) – usually cable or backplane')
+    case 'medium':
+      return tr('Medienfehler', 'media errors')
+  }
 }
 
 export function describeReason(r: SmartReason): string {
   switch (r.kind) {
     case 'status':
-      return STATUS_TEXT[r.status]
+      return statusText(r.status)
     case 'unreadable':
-      return 'SMART-Daten nicht lesbar'
+      return tr('SMART-Daten nicht lesbar', 'SMART data not readable')
     case 'sectors':
-      return `${r.count} ${SECTOR_TEXT[r.attribute]}`
+      return `${r.count} ${sectorText(r.attribute)}`
     case 'errors':
-      return `${r.count} ${ERROR_TEXT[r.attribute]}`
+      return `${r.count} ${errorText(r.attribute)}`
     case 'crc':
-      return `${r.added} neue Übertragungsfehler (CRC) seit ${dateDe(r.since)} – insgesamt ${r.count}; Kabel oder Backplane prüfen`
+      return tr(
+        `${r.added} neue Übertragungsfehler (CRC) seit ${shortDate(r.since)} – insgesamt ${r.count}; Kabel oder Backplane prüfen`,
+        `${r.added} new transfer errors (CRC) since ${shortDate(r.since)} – ${r.count} in total; check cable or backplane`,
+      )
     case 'wear':
-      return `${r.percent} % der vorgesehenen Lebensdauer verbraucht`
+      return tr(`${r.percent} % der vorgesehenen Lebensdauer verbraucht`, `${r.percent} % of the rated lifetime used`)
     case 'temperature':
-      return `${r.celsius} °C – zu warm`
+      return tr(`${r.celsius} °C – zu warm`, `${r.celsius} °C – too hot`)
     case 'selftest':
-      return `Letzter Selbsttest: ${r.status}`
+      return tr(`Letzter Selbsttest: ${r.status}`, `Last self-test: ${r.status}`)
   }
 }
 
-const dateDe = (ts: number) => new Date(ts).toLocaleDateString('de-DE', { day: 'numeric', month: 'numeric' })
+const shortDate = (ts: number) => new Date(ts).toLocaleDateString(localeOf(), { day: 'numeric', month: 'numeric' })
 
 export function describeNote(n: SmartNote): string {
   return n.since
-    ? `${n.count} ältere Übertragungsfehler (CRC), seit ${dateDe(n.since)} keine neuen – der Zähler wird nie zurückgesetzt, nur ein Anstieg wäre ein Problem`
-    : `${n.count} Übertragungsfehler (CRC) seit dem Einbau – der Zähler wird nie zurückgesetzt; Quadeck meldet sich, sobald neue dazukommen`
+    ? tr(
+        `${n.count} ältere Übertragungsfehler (CRC), seit ${shortDate(n.since)} keine neuen – der Zähler wird nie zurückgesetzt, nur ein Anstieg wäre ein Problem`,
+        `${n.count} older transfer errors (CRC), none new since ${shortDate(n.since)} – the counter is never reset, only an increase would be a problem`,
+      )
+    : tr(
+        `${n.count} Übertragungsfehler (CRC) seit dem Einbau – der Zähler wird nie zurückgesetzt; Quadeck meldet sich, sobald neue dazukommen`,
+        `${n.count} transfer errors (CRC) since installation – the counter is never reset; Quadeck will tell you as soon as new ones appear`,
+      )
 }
 
-export const HINT_TEXT: Record<SmartHint, string> = {
-  replace: 'Ersatz besorgen und Daten sichern – die Platte zeigt Verschleiß oder Defekte.',
-  cable: 'SATA-Kabel und Stromanschluss prüfen oder tauschen; die Platte selbst ist oft in Ordnung. Der CRC-Zähler bleibt danach stehen, geht aber nicht zurück – steigt er nicht mehr, ist das Problem behoben.',
-  cooling: 'Für bessere Kühlung sorgen (Luftstrom, Lüfter, Abstand zwischen den Platten).',
-  access: 'smartctl kann die Platte nicht auslesen – USB-Gehäuse ohne SAT-Unterstützung oder fehlende Rechte.',
+/** What to do, as a sentence. */
+export function hintText(h: SmartHint): string {
+  switch (h) {
+    case 'replace':
+      return tr('Ersatz besorgen und Daten sichern – die Platte zeigt Verschleiß oder Defekte.', 'Get a replacement and back up your data – the drive shows wear or defects.')
+    case 'cable':
+      return tr(
+        'SATA-Kabel und Stromanschluss prüfen oder tauschen; die Platte selbst ist oft in Ordnung. Der CRC-Zähler bleibt danach stehen, geht aber nicht zurück – steigt er nicht mehr, ist das Problem behoben.',
+        'Check or replace the SATA cable and power connector; the drive itself is often fine. The CRC counter then stops but does not go back – if it no longer rises, the problem is fixed.',
+      )
+    case 'cooling':
+      return tr('Für bessere Kühlung sorgen (Luftstrom, Lüfter, Abstand zwischen den Platten).', 'Improve cooling (airflow, fans, spacing between the drives).')
+    case 'access':
+      return tr('smartctl kann die Platte nicht auslesen – USB-Gehäuse ohne SAT-Unterstützung oder fehlende Rechte.', 'smartctl cannot read the drive – USB enclosure without SAT support or missing permissions.')
+  }
 }

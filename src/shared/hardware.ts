@@ -3,6 +3,8 @@
 // paths, SATA link speeds and sensors – plus the warnings worth acting on.
 // buildHardware() is pure: the root helper reads sysfs into HardwareRaw.
 
+import { localize, tr } from './i18n'
+
 export interface PciRaw {
   address: string
   /** 0x010802 */
@@ -89,7 +91,7 @@ export interface Hardware {
   cpu: { model: string; vendor?: string; sockets: number; cores: number; threads: number; maxMHz?: number; virtualization?: string; cache?: string }
   memory: { total: number; ecc?: boolean; eccSource?: 'dmi' | 'edac'; maxCapacity?: number; slots: MemorySlot[] }
   gpus: { pci: string; name: string; driver?: string; nodes: string[] }[]
-  pci: (PciRaw & { group: string; downgraded?: string })[]
+  pci: (PciRaw & { group: string; kind: PciKind; downgraded?: string })[]
   usb: UsbRaw[]
   sata: (AtaRaw & { slow?: boolean })[]
   sensors: SensorRaw[]
@@ -159,7 +161,7 @@ export function parseDmidecode(text: string): { slots: MemorySlot[]; ecc?: boole
       const clean = (v?: string) => (v && !/^(Unknown|Not Specified|NO DIMM|None|Undefined|0000|\s*)$/i.test(v) ? v : undefined)
       const mts = (v?: string) => (v && /^\d+/.test(v) ? Number(v.match(/^\d+/)![0]) : undefined)
       slots.push({
-        locator: f('Locator') ?? f('Bank Locator') ?? `Steckplatz ${slots.length + 1}`,
+        locator: f('Locator') ?? f('Bank Locator') ?? tr(`Steckplatz ${slots.length + 1}`, `Slot ${slots.length + 1}`),
         size: installed ? bytesOf(size) : undefined,
         type: installed ? clean(f('Type')) : undefined,
         speed: installed ? mts(f('Speed')) : undefined,
@@ -195,7 +197,7 @@ export function parseCpu(lscpu: string | undefined, cpuinfo: string): Hardware['
   const virt = fields.get('Virtualization') ?? (/\bvmx\b/.test(flags) ? 'VT-x' : /\bsvm\b/.test(flags) ? 'AMD-V' : undefined)
   const max = Number(fields.get('CPU max MHz'))
   return {
-    model: (fields.get('Model name') ?? info('model name') ?? info('Model') ?? 'unbekannt').replace(/\s+/g, ' '),
+    model: (fields.get('Model name') ?? info('model name') ?? info('Model') ?? tr('unbekannt', 'unknown')).replace(/\s+/g, ' '),
     vendor: fields.get('Vendor ID') ?? info('vendor_id'),
     sockets,
     cores: coresPerSocket * sockets,
@@ -215,20 +217,46 @@ export function pcieGen(speed: string | undefined): number | undefined {
 
 const gbps = (s?: string) => Number(s?.match(/^([\d.]+)\s*Gbps/)?.[1]) || undefined
 
-export const CHASSIS: Record<string, string> = { '3': 'Desktop', '4': 'Desktop (flach)', '6': 'Mini-Tower', '7': 'Tower', '8': 'Laptop', '9': 'Laptop', '10': 'Notebook', '13': 'All-in-One', '17': 'Rack-Server', '23': 'Rack', '24': 'Tower', '30': 'Tablet', '31': 'Convertible', '35': 'Mini-PC', '36': 'Stick-PC' }
+/** DMI chassis type → name. */
+export const chassisName = (type: string): string | undefined =>
+  ({ '3': 'Desktop', '4': tr('Desktop (flach)', 'Desktop (low profile)'), '6': 'Mini-Tower', '7': 'Tower', '8': 'Laptop', '9': 'Laptop', '10': 'Notebook', '13': 'All-in-One', '17': tr('Rack-Server', 'Rack server'), '23': 'Rack', '24': 'Tower', '30': 'Tablet', '31': 'Convertible', '35': 'Mini-PC', '36': tr('Stick-PC', 'Stick PC') })[type]
+
+export type PciKind = 'nvme' | 'storage' | 'network' | 'graphics' | 'media' | 'usb' | 'bridge' | 'other'
+
+/** PCI class → kind of device. */
+export function pciKind(cls: string): PciKind {
+  const c = cls.replace(/^0x/, '').slice(0, 2)
+  const sub = cls.replace(/^0x/, '').slice(0, 4)
+  if (sub === '0108') return 'nvme'
+  if (c === '01') return 'storage'
+  if (c === '02') return 'network'
+  if (c === '03') return 'graphics'
+  if (c === '04') return 'media'
+  if (sub === '0c03') return 'usb'
+  if (c === '06') return 'bridge'
+  return 'other'
+}
 
 /** PCI class → group on the page. */
 export function pciGroup(cls: string): string {
-  const c = cls.replace(/^0x/, '').slice(0, 2)
-  const sub = cls.replace(/^0x/, '').slice(0, 4)
-  if (sub === '0108') return 'NVMe'
-  if (c === '01') return 'Speicher-Controller'
-  if (c === '02') return 'Netzwerk'
-  if (c === '03') return 'Grafik'
-  if (c === '04') return 'Audio und Video'
-  if (sub === '0c03') return 'USB-Controller'
-  if (c === '06') return 'Brücken'
-  return 'Sonstige'
+  switch (pciKind(cls)) {
+    case 'nvme':
+      return 'NVMe'
+    case 'storage':
+      return tr('Speicher-Controller', 'Storage controllers')
+    case 'network':
+      return tr('Netzwerk', 'Network')
+    case 'graphics':
+      return tr('Grafik', 'Graphics')
+    case 'media':
+      return tr('Audio und Video', 'Audio and video')
+    case 'usb':
+      return tr('USB-Controller', 'USB controllers')
+    case 'bridge':
+      return tr('Brücken', 'Bridges')
+    case 'other':
+      return tr('Sonstige', 'Other')
+  }
 }
 
 /** Without pci.ids: the vendors a home server usually has. */
@@ -276,26 +304,30 @@ export function buildHardware(raw: HardwareRaw, now = Date.now()): Hardware {
   const pci = raw.pci
     .map((p) => {
       p = { ...p, vendorName: p.vendorName ?? PCI_VENDORS[p.vendor] }
+      const kind = pciKind(p.class)
       const group = pciGroup(p.class)
       let downgraded: string | undefined
-      if ((group === 'NVMe' || group === 'Speicher-Controller' || group === 'Netzwerk') && p.linkWidth && p.maxLinkWidth && p.linkWidth < p.maxLinkWidth)
-        downgraded = `läuft mit x${p.linkWidth} statt x${p.maxLinkWidth}`
-      else if (group === 'NVMe' && pcieGen(p.linkSpeed) && pcieGen(p.maxLinkSpeed) && pcieGen(p.linkSpeed)! < pcieGen(p.maxLinkSpeed)!)
-        downgraded = `läuft mit PCIe ${pcieGen(p.linkSpeed)}.0 statt ${pcieGen(p.maxLinkSpeed)}.0`
-      return { ...p, group, downgraded }
+      if ((kind === 'nvme' || kind === 'storage' || kind === 'network') && p.linkWidth && p.maxLinkWidth && p.linkWidth < p.maxLinkWidth)
+        downgraded = tr(`läuft mit x${p.linkWidth} statt x${p.maxLinkWidth}`, `runs at x${p.linkWidth} instead of x${p.maxLinkWidth}`)
+      else if (kind === 'nvme' && pcieGen(p.linkSpeed) && pcieGen(p.maxLinkSpeed) && pcieGen(p.linkSpeed)! < pcieGen(p.maxLinkSpeed)!)
+        downgraded = tr(`läuft mit PCIe ${pcieGen(p.linkSpeed)}.0 statt ${pcieGen(p.maxLinkSpeed)}.0`, `runs at PCIe ${pcieGen(p.linkSpeed)}.0 instead of ${pcieGen(p.maxLinkSpeed)}.0`)
+      return { ...p, group, kind, downgraded }
     })
     .sort((a, b) => a.group.localeCompare(b.group) || a.address.localeCompare(b.address))
   const gpus = pci
-    .filter((p) => p.group === 'Grafik')
+    .filter((p) => p.kind === 'graphics')
     .map((p) => ({ pci: p.address, name: [p.vendorName?.replace(/ Corporation| Inc\.|, Inc\.| \[AMD\/ATI\]/g, ''), p.deviceName].filter(Boolean).join(' ') || `${p.vendor}:${p.device}`, driver: p.driver, nodes: raw.drm.filter((d) => d.pci === p.address).map((d) => d.node).sort() }))
   const sata = raw.ata.map((a) => ({ ...a, slow: !!(gbps(a.speed) && gbps(a.limit) && gbps(a.speed)! < gbps(a.limit)!) }))
 
   const warnings: Hardware['warnings'] = []
-  for (const p of pci) if (p.downgraded) warnings.push({ level: 'warning', text: `${p.names?.[0] ?? p.deviceName ?? p.address} ${p.downgraded} – meist ein Steckplatz, der weniger Lanes hat oder sie mit einem anderen teilt (Handbuch des Mainboards).` })
-  for (const a of sata) if (a.slow && a.disk) warnings.push({ level: 'warning', text: `${a.disk}${a.model ? ` (${a.model})` : ''} ist mit ${a.speed} statt ${a.limit} angebunden – oft Kabel oder Port; passt zu CRC-Fehlern in SMART.` })
-  for (const s of raw.sensors) if (s.kind === 'temp' && s.crit && s.value >= s.crit - 5) warnings.push({ level: 'warning', text: `${s.chip} ${s.label}: ${Math.round(s.value)} °C – nahe am kritischen Wert (${s.crit} °C).` })
-  if (year && new Date(now).getUTCFullYear() - year >= 4) warnings.push({ level: 'info', text: `Das BIOS ist von ${year}. Neuere Versionen beheben oft Fehler und Sicherheitslücken – auf der Seite des Mainboard-Herstellers nachsehen.` })
-  if (raw.virt && raw.virt !== 'none') warnings.push({ level: 'info', text: `Läuft in einer virtuellen Maschine (${raw.virt}) – Steckplätze, Sensoren und Anbindungen zeigen dann die virtuelle Hardware.` })
+  // downgraded and sensor labels may carry both languages already (tr() inside tr() would not resolve): pick each side.
+  const de = (t: string) => localize(t, 'de')
+  const en = (t: string) => localize(t, 'en')
+  for (const p of pci) if (p.downgraded) { const who = p.names?.[0] ?? p.deviceName ?? p.address; warnings.push({ level: 'warning', text: tr(`${who} ${de(p.downgraded)} – meist ein Steckplatz, der weniger Lanes hat oder sie mit einem anderen teilt (Handbuch des Mainboards).`, `${who} ${en(p.downgraded)} – usually a slot that has fewer lanes or shares them with another one (see the mainboard manual).`) }) }
+  for (const a of sata) if (a.slow && a.disk) warnings.push({ level: 'warning', text: tr(`${a.disk}${a.model ? ` (${a.model})` : ''} ist mit ${a.speed} statt ${a.limit} angebunden – oft Kabel oder Port; passt zu CRC-Fehlern in SMART.`, `${a.disk}${a.model ? ` (${a.model})` : ''} is linked at ${a.speed} instead of ${a.limit} – often the cable or port; matches CRC errors in SMART.`) })
+  for (const s of raw.sensors) if (s.kind === 'temp' && s.crit && s.value >= s.crit - 5) warnings.push({ level: 'warning', text: tr(`${s.chip} ${de(s.label)}: ${Math.round(s.value)} °C – nahe am kritischen Wert (${s.crit} °C).`, `${s.chip} ${en(s.label)}: ${Math.round(s.value)} °C – close to the critical value (${s.crit} °C).`) })
+  if (year && new Date(now).getUTCFullYear() - year >= 4) warnings.push({ level: 'info', text: tr(`Das BIOS ist von ${year}. Neuere Versionen beheben oft Fehler und Sicherheitslücken – auf der Seite des Mainboard-Herstellers nachsehen.`, `The BIOS is from ${year}. Newer versions often fix bugs and security holes – check the mainboard maker’s website.`) })
+  if (raw.virt && raw.virt !== 'none') warnings.push({ level: 'info', text: tr(`Läuft in einer virtuellen Maschine (${raw.virt}) – Steckplätze, Sensoren und Anbindungen zeigen dann die virtuelle Hardware.`, `Runs in a virtual machine (${raw.virt}) – slots, sensors and links then show the virtual hardware.`) })
 
   return {
     system: {
@@ -303,7 +335,7 @@ export function buildHardware(raw: HardwareRaw, now = Date.now()): Hardware {
       product: [dmi('product_name'), dmi('product_version')].filter(Boolean).join(' ') || undefined,
       board: [dmi('board_vendor'), dmi('board_name')].filter(Boolean).join(' ') || undefined,
       bios: dmi('bios_version') || biosDate ? { vendor: dmi('bios_vendor'), version: dmi('bios_version'), date: biosDate, year } : undefined,
-      chassis: CHASSIS[raw.dmi.chassis_type?.trim() ?? ''],
+      chassis: chassisName(raw.dmi.chassis_type?.trim() ?? ''),
       virt: raw.virt && raw.virt !== 'none' ? raw.virt : undefined,
     },
     cpu: parseCpu(raw.lscpu, raw.cpuinfo),
@@ -329,4 +361,4 @@ export function gpuQuadletLine(nodes: string[]): string | undefined {
   return render ? `AddDevice=${render}` : 'AddDevice=/dev/dri'
 }
 
-export const SENSOR_UNIT: Record<SensorRaw['kind'], string> = { temp: '°C', fan: 'U/min', in: 'V', power: 'W' }
+export const sensorUnit = (kind: SensorRaw['kind']): string => ({ temp: '°C', fan: tr('U/min', 'rpm'), in: 'V', power: 'W' })[kind]

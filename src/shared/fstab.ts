@@ -1,6 +1,7 @@
 // /etc/fstab: parser, writer, option catalogue and the checks that do not need
 // the host. Shared by the disks page, the web app and the root helper.
 
+import { tr } from './i18n'
 import type { Diagnostic, Revision } from './quadlets'
 
 export interface FstabEntry {
@@ -104,11 +105,11 @@ export function parseFstab(text: string): { entries: FstabEntry[]; diagnostics: 
     if (!t || t.startsWith('#')) return
     const f = t.split(/\s+/)
     const line = i + 1
-    if (f.length < 2) return void diagnostics.push({ line, severity: 'error', message: 'Zu wenige Felder – mindestens Quelle und Einhängepunkt' })
-    if (f.length > 6) return void diagnostics.push({ line, severity: 'error', message: `${f.length} Felder – fstab hat höchstens 6 (Leerzeichen in Pfaden als \\040 schreiben)` })
+    if (f.length < 2) return void diagnostics.push({ line, severity: 'error', message: tr('Zu wenige Felder – mindestens Quelle und Einhängepunkt', 'Too few fields – at least source and mount point') })
+    if (f.length > 6) return void diagnostics.push({ line, severity: 'error', message: tr(`${f.length} Felder – fstab hat höchstens 6 (Leerzeichen in Pfaden als \\040 schreiben)`, `${f.length} fields – fstab has at most 6 (write spaces in paths as \\040)`) })
     const num = (v: string | undefined, name: string) => {
       if (v === undefined) return 0
-      if (!/^\d+$/.test(v)) diagnostics.push({ line, severity: 'error', message: `${name} muss eine Zahl sein, nicht „${v}“` })
+      if (!/^\d+$/.test(v)) diagnostics.push({ line, severity: 'error', message: name + tr(` muss eine Zahl sein, nicht „${v}“`, ` must be a number, not “${v}”`) })
       return Number(v) || 0
     }
     entries.push({
@@ -118,8 +119,8 @@ export function parseFstab(text: string): { entries: FstabEntry[]; diagnostics: 
       file: unescapeField(f[1]!),
       vfstype: f[2] ?? 'auto',
       options: (f[3] ?? 'defaults').split(',').filter(Boolean),
-      freq: num(f[4], 'Feld 5 (dump)'),
-      passno: num(f[5], 'Feld 6 (Prüfreihenfolge)'),
+      freq: num(f[4], tr('Feld 5 (dump)', 'Field 5 (dump)')),
+      passno: num(f[5], tr('Feld 6 (Prüfreihenfolge)', 'Field 6 (check order)')),
     })
   })
   return { entries, diagnostics }
@@ -161,7 +162,7 @@ export function applyChange(text: string, change: FstabChange): string {
 
 export class FstabConflict extends Error {
   constructor() {
-    super('Die fstab wurde inzwischen geändert – bitte neu laden')
+    super(tr('Die fstab wurde inzwischen geändert – bitte neu laden', 'The fstab has been changed in the meantime – please reload'))
   }
 }
 
@@ -176,11 +177,11 @@ const FORBIDDEN_TARGET = /^\/(?:$|(?:boot|efi|usr|etc|proc|sys|dev|run|tmp|bin|s
 
 /** Why an entry is read-only, or undefined when Quadeck may change it. `rootSpecs` are the sources of `/`. */
 export function systemReason(e: Pick<FstabEntry, 'spec' | 'file' | 'vfstype'>, rootSpecs: string[] = []): string | undefined {
-  if (e.vfstype === 'swap' || e.file === 'none' || e.file === 'swap') return 'Auslagerungsspeicher'
-  if (SYSTEM_TARGETS.has(e.file)) return 'Systempartition'
-  if (PSEUDO_FS.has(e.vfstype)) return 'Systemdateisystem'
-  if (e.file !== '/' && rootSpecs.includes(e.spec)) return 'Teil der Systempartition (Subvolume)'
-  if (/^\/(boot|efi|usr|var|etc)\//.test(e.file)) return 'Systemverzeichnis'
+  if (e.vfstype === 'swap' || e.file === 'none' || e.file === 'swap') return tr('Auslagerungsspeicher', 'Swap')
+  if (SYSTEM_TARGETS.has(e.file)) return tr('Systempartition', 'System partition')
+  if (PSEUDO_FS.has(e.vfstype)) return tr('Systemdateisystem', 'System file system')
+  if (e.file !== '/' && rootSpecs.includes(e.spec)) return tr('Teil der Systempartition (Subvolume)', 'Part of the system partition (subvolume)')
+  if (/^\/(boot|efi|usr|var|etc)\//.test(e.file)) return tr('Systemverzeichnis', 'System directory')
   return undefined
 }
 
@@ -211,84 +212,92 @@ export interface OptionDoc {
 
 const FAT_LIKE = ['vfat', 'exfat', 'ntfs3', 'ntfs', 'ntfs-3g']
 
+/** The text follows the viewer's language: it is read when needed, not when the module loads. */
+const doc = (d: Omit<OptionDoc, 'text'>, de: string, en: string): OptionDoc => ({
+  ...d,
+  get text() {
+    return tr(de, en)
+  },
+})
+
 export const OPTION_DOCS: OptionDoc[] = [
-  { name: 'defaults', text: 'Standardeinstellungen (rw, suid, dev, exec, auto, nouser, async).' },
-  { name: 'nofail', text: 'Fehlt die Platte beim Start, bootet der Server trotzdem – ohne diese Option landet er im Notfallmodus.' },
-  { name: 'x-systemd.device-timeout', value: 'seconds', text: 'So lange wartet systemd beim Start auf die Platte (Standard 90 s).' },
-  { name: 'noauto', text: 'Beim Start nicht einhängen, nur von Hand oder bei Bedarf.' },
-  { name: 'x-systemd.automount', text: 'Erst beim ersten Zugriff einhängen – der Start wartet nicht auf die Platte.' },
-  { name: 'x-systemd.idle-timeout', value: 'seconds', text: 'Mit Automount: nach so langer Ruhe wieder aushängen (Platte darf schlafen).' },
-  { name: 'x-systemd.mount-timeout', value: 'seconds', text: 'Höchstdauer für das Einhängen selbst.' },
-  { name: 'x-systemd.requires', value: 'text', text: 'Erst einhängen, wenn diese Unit läuft.' },
-  { name: 'x-systemd.after', value: 'text', text: 'Nach dieser Unit einhängen.' },
-  { name: 'x-systemd.before', value: 'text', text: 'Vor dieser Unit einhängen.' },
-  { name: 'x-systemd.makefs', text: 'Leeres Gerät beim Start formatieren – Vorsicht.' },
-  { name: 'x-mount.mkdir', text: 'Einhängepunkt anlegen, falls er fehlt.' },
-  { name: 'x-gvfs-show', text: 'Im Dateimanager des Desktops anzeigen.' },
-  { name: '_netdev', text: 'Braucht das Netzwerk – erst danach einhängen.' },
-  { name: 'noatime', text: 'Keine Zugriffszeiten schreiben – weniger Schreibzugriffe, Platten schlafen länger.' },
-  { name: 'relatime', text: 'Zugriffszeit nur selten aktualisieren (Standard).' },
-  { name: 'nodiratime', text: 'Keine Zugriffszeiten für Ordner.' },
-  { name: 'lazytime', text: 'Zeitstempel nur im Speicher halten und gesammelt schreiben.' },
-  { name: 'ro', text: 'Nur lesen.' },
-  { name: 'rw', text: 'Lesen und schreiben.' },
-  { name: 'auto', text: 'Beim Start einhängen (Standard).' },
-  { name: 'user', text: 'Normale Benutzer dürfen einhängen.' },
-  { name: 'users', text: 'Jeder Benutzer darf ein- und aushängen.' },
-  { name: 'nouser', text: 'Nur root darf einhängen (Standard).' },
-  { name: 'owner', text: 'Der Besitzer des Geräts darf einhängen.' },
-  { name: 'group', text: 'Die Gruppe des Geräts darf einhängen.' },
-  { name: 'exec', text: 'Programme auf der Platte dürfen laufen (Standard).' },
-  { name: 'noexec', text: 'Keine Programme von dieser Platte starten.' },
-  { name: 'suid', text: 'Setuid-Bits gelten (Standard).' },
-  { name: 'nosuid', text: 'Setuid-Bits werden ignoriert – sicherer für Datenplatten.' },
-  { name: 'dev', text: 'Gerätedateien gelten (Standard).' },
-  { name: 'nodev', text: 'Gerätedateien werden ignoriert – sicherer für Datenplatten.' },
-  { name: 'sync', text: 'Sofort schreiben, ohne Puffer – langsam.' },
-  { name: 'async', text: 'Gepuffert schreiben (Standard).' },
-  { name: 'discard', text: 'TRIM bei jedem Löschen – bei SSDs meist besser den wöchentlichen fstrim.timer nutzen.' },
-  { name: 'comment', value: 'text', text: 'Kommentar für andere Programme.' },
-  { name: 'errors', value: 'text', fs: ['ext2', 'ext3', 'ext4', 'vfat'], text: 'Bei Fehlern: continue, remount-ro oder panic.' },
-  { name: 'commit', value: 'number', fs: ['ext3', 'ext4', 'btrfs'], text: 'Alle so viele Sekunden auf die Platte schreiben.' },
-  { name: 'data', value: 'text', fs: ['ext3', 'ext4'], text: 'Journal-Modus: ordered, writeback oder journal.' },
-  { name: 'barrier', value: 'number', fs: ['ext4'], text: 'Schreibbarrieren (1 an, 0 aus).' },
-  { name: 'nobarrier', fs: ['ext4'], text: 'Ohne Schreibbarrieren – nur mit Batterie-Cache.' },
-  { name: 'user_xattr', fs: ['ext4'], text: 'Erweiterte Attribute für Benutzer.' },
-  { name: 'acl', fs: ['ext4'], text: 'Zugriffslisten (ACL).' },
-  { name: 'inode64', fs: ['xfs'], text: 'Inodes überall auf der Platte anlegen (Standard).' },
-  { name: 'logbufs', value: 'number', fs: ['xfs'], text: 'Anzahl der Log-Puffer.' },
-  { name: 'allocsize', value: 'text', fs: ['xfs'], text: 'Vorab reservierte Größe beim Schreiben.' },
-  { name: 'largeio', fs: ['xfs'], text: 'Große I/O-Größe melden.' },
-  { name: 'usrquota', fs: ['xfs', 'ext4'], text: 'Kontingente pro Benutzer.' },
-  { name: 'grpquota', fs: ['xfs', 'ext4'], text: 'Kontingente pro Gruppe.' },
-  { name: 'subvol', value: 'text', fs: ['btrfs'], text: 'Dieses Subvolume einhängen.' },
-  { name: 'subvolid', value: 'number', fs: ['btrfs'], text: 'Subvolume über seine Nummer.' },
-  { name: 'compress', value: 'text', fs: ['btrfs'], text: 'Neue Dateien komprimieren, z. B. zstd oder zstd:3.' },
-  { name: 'compress-force', value: 'text', fs: ['btrfs'], text: 'Immer komprimieren, auch schlecht komprimierbare Dateien.' },
-  { name: 'space_cache', value: 'text', fs: ['btrfs'], text: 'Freiraum-Cache, v2 ist Standard.' },
-  { name: 'autodefrag', fs: ['btrfs'], text: 'Kleine Schreibzugriffe automatisch defragmentieren.' },
-  { name: 'ssd', fs: ['btrfs'], text: 'Für SSDs optimieren (wird meist erkannt).' },
-  { name: 'nossd', fs: ['btrfs'], text: 'Nicht für SSDs optimieren.' },
-  { name: 'degraded', fs: ['btrfs'], text: 'Auch mit fehlender Platte im RAID einhängen.' },
-  { name: 'uid', value: 'number', fs: FAT_LIKE, text: 'Besitzer aller Dateien (Benutzer-ID) – dieses Dateisystem kennt keine Linux-Rechte.' },
-  { name: 'gid', value: 'number', fs: FAT_LIKE, text: 'Gruppe aller Dateien (Gruppen-ID).' },
-  { name: 'umask', value: 'text', fs: FAT_LIKE, text: 'Rechte, die entzogen werden, z. B. 022 (andere dürfen nur lesen) oder 002.' },
-  { name: 'fmask', value: 'text', fs: FAT_LIKE, text: 'Wie umask, nur für Dateien.' },
-  { name: 'dmask', value: 'text', fs: FAT_LIKE, text: 'Wie umask, nur für Ordner.' },
-  { name: 'iocharset', value: 'text', fs: ['vfat', 'exfat', 'ntfs3', 'ntfs', 'ntfs-3g', 'cifs'], text: 'Zeichensatz der Dateinamen, z. B. utf8.' },
-  { name: 'utf8', fs: ['vfat'], text: 'Dateinamen als UTF-8.' },
-  { name: 'shortname', value: 'text', fs: ['vfat'], text: 'Umgang mit kurzen 8.3-Namen.' },
-  { name: 'flush', fs: ['vfat', 'exfat'], text: 'Früher schreiben – sicherer bei Wechseldatenträgern.' },
-  { name: 'windows_names', fs: ['ntfs3', 'ntfs', 'ntfs-3g'], text: 'Keine Namen anlegen, die Windows nicht öffnen kann.' },
-  { name: 'prealloc', fs: ['ntfs3'], text: 'Platz beim Schreiben vorab reservieren – weniger Fragmentierung.' },
-  { name: 'force', fs: ['ntfs3'], text: 'Auch einhängen, wenn Windows die Platte als „dirty“ markiert hat.' },
-  { name: 'permissions', fs: ['ntfs', 'ntfs-3g'], text: 'Linux-Rechte auf NTFS speichern.' },
-  { name: 'big_writes', fs: ['ntfs', 'ntfs-3g'], text: 'Größere Schreibblöcke (schneller).' },
-  { name: 'nfsvers', value: 'text', fs: ['nfs', 'nfs4'], text: 'NFS-Version, z. B. 4.2.' },
-  { name: 'vers', value: 'text', fs: ['nfs', 'nfs4', 'cifs'], text: 'Protokollversion.' },
-  { name: 'credentials', value: 'text', fs: ['cifs', 'smb3'], text: 'Datei mit Benutzer und Passwort.' },
-  { name: 'soft', fs: ['nfs', 'nfs4'], text: 'Bei Serverausfall Fehler statt warten.' },
-  { name: 'hard', fs: ['nfs', 'nfs4'], text: 'Bei Serverausfall warten (Standard).' },
+  doc({ name: 'defaults' }, 'Standardeinstellungen (rw, suid, dev, exec, auto, nouser, async).', 'Default settings (rw, suid, dev, exec, auto, nouser, async).'),
+  doc({ name: 'nofail' }, 'Fehlt die Platte beim Start, bootet der Server trotzdem – ohne diese Option landet er im Notfallmodus.', 'If the disk is missing at boot, the server boots anyway – without this option it ends up in emergency mode.'),
+  doc({ name: 'x-systemd.device-timeout', value: 'seconds' }, 'So lange wartet systemd beim Start auf die Platte (Standard 90 s).', 'How long systemd waits for the disk at boot (default 90 s).'),
+  doc({ name: 'noauto' }, 'Beim Start nicht einhängen, nur von Hand oder bei Bedarf.', 'Do not mount at boot, only by hand or on demand.'),
+  doc({ name: 'x-systemd.automount' }, 'Erst beim ersten Zugriff einhängen – der Start wartet nicht auf die Platte.', 'Mount on first access only – the boot does not wait for the disk.'),
+  doc({ name: 'x-systemd.idle-timeout', value: 'seconds' }, 'Mit Automount: nach so langer Ruhe wieder aushängen (Platte darf schlafen).', 'With automount: unmount again after this much idle time (the disk may sleep).'),
+  doc({ name: 'x-systemd.mount-timeout', value: 'seconds' }, 'Höchstdauer für das Einhängen selbst.', 'Maximum time for the mount itself.'),
+  doc({ name: 'x-systemd.requires', value: 'text' }, 'Erst einhängen, wenn diese Unit läuft.', 'Mount only once this unit is running.'),
+  doc({ name: 'x-systemd.after', value: 'text' }, 'Nach dieser Unit einhängen.', 'Mount after this unit.'),
+  doc({ name: 'x-systemd.before', value: 'text' }, 'Vor dieser Unit einhängen.', 'Mount before this unit.'),
+  doc({ name: 'x-systemd.makefs' }, 'Leeres Gerät beim Start formatieren – Vorsicht.', 'Format an empty device at boot – careful.'),
+  doc({ name: 'x-mount.mkdir' }, 'Einhängepunkt anlegen, falls er fehlt.', 'Create the mount point if it is missing.'),
+  doc({ name: 'x-gvfs-show' }, 'Im Dateimanager des Desktops anzeigen.', 'Show in the desktop file manager.'),
+  doc({ name: '_netdev' }, 'Braucht das Netzwerk – erst danach einhängen.', 'Needs the network – mount only after it is up.'),
+  doc({ name: 'noatime' }, 'Keine Zugriffszeiten schreiben – weniger Schreibzugriffe, Platten schlafen länger.', 'Do not write access times – fewer writes, disks sleep longer.'),
+  doc({ name: 'relatime' }, 'Zugriffszeit nur selten aktualisieren (Standard).', 'Update the access time only rarely (default).'),
+  doc({ name: 'nodiratime' }, 'Keine Zugriffszeiten für Ordner.', 'No access times for directories.'),
+  doc({ name: 'lazytime' }, 'Zeitstempel nur im Speicher halten und gesammelt schreiben.', 'Keep timestamps in memory only and write them in batches.'),
+  doc({ name: 'ro' }, 'Nur lesen.', 'Read-only.'),
+  doc({ name: 'rw' }, 'Lesen und schreiben.', 'Read and write.'),
+  doc({ name: 'auto' }, 'Beim Start einhängen (Standard).', 'Mount at boot (default).'),
+  doc({ name: 'user' }, 'Normale Benutzer dürfen einhängen.', 'Normal users may mount.'),
+  doc({ name: 'users' }, 'Jeder Benutzer darf ein- und aushängen.', 'Any user may mount and unmount.'),
+  doc({ name: 'nouser' }, 'Nur root darf einhängen (Standard).', 'Only root may mount (default).'),
+  doc({ name: 'owner' }, 'Der Besitzer des Geräts darf einhängen.', 'The owner of the device may mount.'),
+  doc({ name: 'group' }, 'Die Gruppe des Geräts darf einhängen.', 'The group of the device may mount.'),
+  doc({ name: 'exec' }, 'Programme auf der Platte dürfen laufen (Standard).', 'Programs on the disk may run (default).'),
+  doc({ name: 'noexec' }, 'Keine Programme von dieser Platte starten.', 'Do not run programs from this disk.'),
+  doc({ name: 'suid' }, 'Setuid-Bits gelten (Standard).', 'Setuid bits apply (default).'),
+  doc({ name: 'nosuid' }, 'Setuid-Bits werden ignoriert – sicherer für Datenplatten.', 'Setuid bits are ignored – safer for data disks.'),
+  doc({ name: 'dev' }, 'Gerätedateien gelten (Standard).', 'Device files apply (default).'),
+  doc({ name: 'nodev' }, 'Gerätedateien werden ignoriert – sicherer für Datenplatten.', 'Device files are ignored – safer for data disks.'),
+  doc({ name: 'sync' }, 'Sofort schreiben, ohne Puffer – langsam.', 'Write immediately, without buffering – slow.'),
+  doc({ name: 'async' }, 'Gepuffert schreiben (Standard).', 'Buffered writes (default).'),
+  doc({ name: 'discard' }, 'TRIM bei jedem Löschen – bei SSDs meist besser den wöchentlichen fstrim.timer nutzen.', 'TRIM on every delete – for SSDs the weekly fstrim.timer is usually better.'),
+  doc({ name: 'comment', value: 'text' }, 'Kommentar für andere Programme.', 'Comment for other programs.'),
+  doc({ name: 'errors', value: 'text', fs: ['ext2', 'ext3', 'ext4', 'vfat'] }, 'Bei Fehlern: continue, remount-ro oder panic.', 'On errors: continue, remount-ro or panic.'),
+  doc({ name: 'commit', value: 'number', fs: ['ext3', 'ext4', 'btrfs'] }, 'Alle so viele Sekunden auf die Platte schreiben.', 'Write to the disk every this many seconds.'),
+  doc({ name: 'data', value: 'text', fs: ['ext3', 'ext4'] }, 'Journal-Modus: ordered, writeback oder journal.', 'Journal mode: ordered, writeback or journal.'),
+  doc({ name: 'barrier', value: 'number', fs: ['ext4'] }, 'Schreibbarrieren (1 an, 0 aus).', 'Write barriers (1 on, 0 off).'),
+  doc({ name: 'nobarrier', fs: ['ext4'] }, 'Ohne Schreibbarrieren – nur mit Batterie-Cache.', 'Without write barriers – only with a battery-backed cache.'),
+  doc({ name: 'user_xattr', fs: ['ext4'] }, 'Erweiterte Attribute für Benutzer.', 'Extended attributes for users.'),
+  doc({ name: 'acl', fs: ['ext4'] }, 'Zugriffslisten (ACL).', 'Access control lists (ACL).'),
+  doc({ name: 'inode64', fs: ['xfs'] }, 'Inodes überall auf der Platte anlegen (Standard).', 'Create inodes anywhere on the disk (default).'),
+  doc({ name: 'logbufs', value: 'number', fs: ['xfs'] }, 'Anzahl der Log-Puffer.', 'Number of log buffers.'),
+  doc({ name: 'allocsize', value: 'text', fs: ['xfs'] }, 'Vorab reservierte Größe beim Schreiben.', 'Size reserved in advance when writing.'),
+  doc({ name: 'largeio', fs: ['xfs'] }, 'Große I/O-Größe melden.', 'Report a large I/O size.'),
+  doc({ name: 'usrquota', fs: ['xfs', 'ext4'] }, 'Kontingente pro Benutzer.', 'Quotas per user.'),
+  doc({ name: 'grpquota', fs: ['xfs', 'ext4'] }, 'Kontingente pro Gruppe.', 'Quotas per group.'),
+  doc({ name: 'subvol', value: 'text', fs: ['btrfs'] }, 'Dieses Subvolume einhängen.', 'Mount this subvolume.'),
+  doc({ name: 'subvolid', value: 'number', fs: ['btrfs'] }, 'Subvolume über seine Nummer.', 'Subvolume by its number.'),
+  doc({ name: 'compress', value: 'text', fs: ['btrfs'] }, 'Neue Dateien komprimieren, z. B. zstd oder zstd:3.', 'Compress new files, e.g. zstd or zstd:3.'),
+  doc({ name: 'compress-force', value: 'text', fs: ['btrfs'] }, 'Immer komprimieren, auch schlecht komprimierbare Dateien.', 'Always compress, even poorly compressible files.'),
+  doc({ name: 'space_cache', value: 'text', fs: ['btrfs'] }, 'Freiraum-Cache, v2 ist Standard.', 'Free space cache, v2 is the default.'),
+  doc({ name: 'autodefrag', fs: ['btrfs'] }, 'Kleine Schreibzugriffe automatisch defragmentieren.', 'Defragment small writes automatically.'),
+  doc({ name: 'ssd', fs: ['btrfs'] }, 'Für SSDs optimieren (wird meist erkannt).', 'Optimize for SSDs (usually detected).'),
+  doc({ name: 'nossd', fs: ['btrfs'] }, 'Nicht für SSDs optimieren.', 'Do not optimize for SSDs.'),
+  doc({ name: 'degraded', fs: ['btrfs'] }, 'Auch mit fehlender Platte im RAID einhängen.', 'Mount even with a disk missing from the RAID.'),
+  doc({ name: 'uid', value: 'number', fs: FAT_LIKE }, 'Besitzer aller Dateien (Benutzer-ID) – dieses Dateisystem kennt keine Linux-Rechte.', 'Owner of all files (user ID) – this file system has no Linux permissions.'),
+  doc({ name: 'gid', value: 'number', fs: FAT_LIKE }, 'Gruppe aller Dateien (Gruppen-ID).', 'Group of all files (group ID).'),
+  doc({ name: 'umask', value: 'text', fs: FAT_LIKE }, 'Rechte, die entzogen werden, z. B. 022 (andere dürfen nur lesen) oder 002.', 'Permissions that are removed, e.g. 022 (others may only read) or 002.'),
+  doc({ name: 'fmask', value: 'text', fs: FAT_LIKE }, 'Wie umask, nur für Dateien.', 'Like umask, for files only.'),
+  doc({ name: 'dmask', value: 'text', fs: FAT_LIKE }, 'Wie umask, nur für Ordner.', 'Like umask, for directories only.'),
+  doc({ name: 'iocharset', value: 'text', fs: ['vfat', 'exfat', 'ntfs3', 'ntfs', 'ntfs-3g', 'cifs'] }, 'Zeichensatz der Dateinamen, z. B. utf8.', 'Character set of the file names, e.g. utf8.'),
+  doc({ name: 'utf8', fs: ['vfat'] }, 'Dateinamen als UTF-8.', 'File names as UTF-8.'),
+  doc({ name: 'shortname', value: 'text', fs: ['vfat'] }, 'Umgang mit kurzen 8.3-Namen.', 'Handling of short 8.3 names.'),
+  doc({ name: 'flush', fs: ['vfat', 'exfat'] }, 'Früher schreiben – sicherer bei Wechseldatenträgern.', 'Write earlier – safer for removable media.'),
+  doc({ name: 'windows_names', fs: ['ntfs3', 'ntfs', 'ntfs-3g'] }, 'Keine Namen anlegen, die Windows nicht öffnen kann.', 'Do not create names Windows cannot open.'),
+  doc({ name: 'prealloc', fs: ['ntfs3'] }, 'Platz beim Schreiben vorab reservieren – weniger Fragmentierung.', 'Reserve space in advance when writing – less fragmentation.'),
+  doc({ name: 'force', fs: ['ntfs3'] }, 'Auch einhängen, wenn Windows die Platte als „dirty“ markiert hat.', 'Mount even if Windows marked the disk as “dirty”.'),
+  doc({ name: 'permissions', fs: ['ntfs', 'ntfs-3g'] }, 'Linux-Rechte auf NTFS speichern.', 'Store Linux permissions on NTFS.'),
+  doc({ name: 'big_writes', fs: ['ntfs', 'ntfs-3g'] }, 'Größere Schreibblöcke (schneller).', 'Larger write blocks (faster).'),
+  doc({ name: 'nfsvers', value: 'text', fs: ['nfs', 'nfs4'] }, 'NFS-Version, z. B. 4.2.', 'NFS version, e.g. 4.2.'),
+  doc({ name: 'vers', value: 'text', fs: ['nfs', 'nfs4', 'cifs'] }, 'Protokollversion.', 'Protocol version.'),
+  doc({ name: 'credentials', value: 'text', fs: ['cifs', 'smb3'] }, 'Datei mit Benutzer und Passwort.', 'File with user name and password.'),
+  doc({ name: 'soft', fs: ['nfs', 'nfs4'] }, 'Bei Serverausfall Fehler statt warten.', 'If the server fails, return an error instead of waiting.'),
+  doc({ name: 'hard', fs: ['nfs', 'nfs4'] }, 'Bei Serverausfall warten (Standard).', 'If the server fails, wait (default).'),
 ]
 
 const DOC = new Map(OPTION_DOCS.map((d) => [d.name, d]))
@@ -298,7 +307,7 @@ export const optionValue = (o: string) => (o.includes('=') ? o.slice(o.indexOf('
 
 export function optionDoc(o: string): OptionDoc | undefined {
   const n = optionName(o)
-  return DOC.get(n) ?? (n.startsWith('x-systemd.') || n.startsWith('x-') ? { name: n, text: 'Option für systemd oder andere Programme (wird vom Kernel ignoriert).' } : undefined)
+  return DOC.get(n) ?? (n.startsWith('x-systemd.') || n.startsWith('x-') ? doc({ name: n }, 'Option für systemd oder andere Programme (wird vom Kernel ignoriert).', 'Option for systemd or other programs (ignored by the kernel).') : undefined)
 }
 
 /** Options that need no driver: mount(8) and systemd handle them. */
@@ -321,11 +330,11 @@ const FSTYPE_RE = /^[a-z0-9][a-z0-9_.+-]{0,39}$/
 
 /** Mount point a new entry may use. */
 export function targetProblem(path: string): string | undefined {
-  if (!path.startsWith('/')) return 'Der Einhängepunkt muss ein absoluter Pfad sein (/mnt/…)'
-  if (/\/\.\.?(\/|$)/.test(path) || /\/\//.test(path) || (path.length > 1 && path.endsWith('/'))) return 'Pfad ohne „.“, „..“, doppelte oder abschließende „/“ angeben'
-  if (/[\x00-\x1f#]/.test(path)) return 'Steuerzeichen und „#“ sind im Pfad nicht erlaubt'
-  if (FORBIDDEN_TARGET.test(path)) return `${path} ist ein Systemverzeichnis – z. B. /mnt/name oder /srv/name verwenden`
-  if (path.length > 240) return 'Pfad zu lang'
+  if (!path.startsWith('/')) return tr('Der Einhängepunkt muss ein absoluter Pfad sein (/mnt/…)', 'The mount point must be an absolute path (/mnt/…)')
+  if (/\/\.\.?(\/|$)/.test(path) || /\/\//.test(path) || (path.length > 1 && path.endsWith('/'))) return tr('Pfad ohne „.“, „..“, doppelte oder abschließende „/“ angeben', 'Give the path without “.”, “..”, double or trailing “/”')
+  if (/[\x00-\x1f#]/.test(path)) return tr('Steuerzeichen und „#“ sind im Pfad nicht erlaubt', 'Control characters and “#” are not allowed in the path')
+  if (FORBIDDEN_TARGET.test(path)) return tr(`${path} ist ein Systemverzeichnis – z. B. /mnt/name oder /srv/name verwenden`, `${path} is a system directory – use e.g. /mnt/name or /srv/name`)
+  if (path.length > 240) return tr('Pfad zu lang', 'Path too long')
   return undefined
 }
 
@@ -333,29 +342,29 @@ export function targetProblem(path: string): string | undefined {
 export function checkInput(e: EntryInput): Diagnostic[] {
   const d: Diagnostic[] = []
   const err = (message: string) => d.push({ severity: 'error', message })
-  if (!e.spec.trim() || /[\x00-\x1f]/.test(e.spec) || !SPEC_RE.test(e.spec)) err('Quelle: UUID=…, LABEL=…, PARTUUID=… oder /dev/… angeben')
+  if (!e.spec.trim() || /[\x00-\x1f]/.test(e.spec) || !SPEC_RE.test(e.spec)) err(tr('Quelle: UUID=…, LABEL=…, PARTUUID=… oder /dev/… angeben', 'Source: give UUID=…, LABEL=…, PARTUUID=… or /dev/…'))
   const t = targetProblem(e.file)
   if (t) err(t)
-  if (!FSTYPE_RE.test(e.vfstype)) err('Dateisystem: z. B. ext4, xfs, btrfs')
+  if (!FSTYPE_RE.test(e.vfstype)) err(tr('Dateisystem: z. B. ext4, xfs, btrfs', 'File system: e.g. ext4, xfs, btrfs'))
   for (const o of e.options) {
-    if (!OPTION_RE.test(o)) err(`Option „${o}“ enthält unerlaubte Zeichen`)
-    else if (!knownOption(o, e.vfstype)) d.push({ severity: 'warning', message: `Option „${o}“ kennt Quadeck für ${e.vfstype} nicht – der Probemount zeigt, ob der Treiber sie annimmt` })
+    if (!OPTION_RE.test(o)) err(tr(`Option „${o}“ enthält unerlaubte Zeichen`, `Option “${o}” contains invalid characters`))
+    else if (!knownOption(o, e.vfstype)) d.push({ severity: 'warning', message: tr(`Option „${o}“ kennt Quadeck für ${e.vfstype} nicht – der Probemount zeigt, ob der Treiber sie annimmt`, `Quadeck does not know option “${o}” for ${e.vfstype} – the test mount shows whether the driver accepts it`) })
   }
   const names = e.options.map(optionName)
   const dup = names.find((n, i) => names.indexOf(n) !== i)
-  if (dup) err(`Option „${dup}“ steht doppelt`)
-  if (names.includes('ro') && names.includes('rw')) err('ro und rw zugleich')
-  if (names.includes('noauto') && names.includes('x-systemd.automount')) d.push({ severity: 'warning', message: 'noauto mit Automount: eingehängt wird nur beim Zugriff' })
-  if (!Number.isInteger(e.freq) || e.freq < 0 || e.freq > 1) err('Feld 5 (dump) ist 0 oder 1')
-  if (!Number.isInteger(e.passno) || e.passno < 0 || e.passno > 2) err('Feld 6 (Prüfreihenfolge) ist 0, 1 oder 2')
-  if (e.passno === 1 && e.file !== '/') d.push({ severity: 'warning', message: 'Prüfreihenfolge 1 ist für / gedacht – Datenplatten 2 oder 0' })
-  if (e.passno > 0 && ['xfs', 'btrfs', 'ntfs3', 'ntfs', 'exfat', 'zfs'].includes(e.vfstype)) d.push({ severity: 'warning', message: `${e.vfstype} wird beim Start nicht mit fsck geprüft – Feld 6 auf 0 setzen` })
+  if (dup) err(tr(`Option „${dup}“ steht doppelt`, `Option “${dup}” appears twice`))
+  if (names.includes('ro') && names.includes('rw')) err(tr('ro und rw zugleich', 'ro and rw at the same time'))
+  if (names.includes('noauto') && names.includes('x-systemd.automount')) d.push({ severity: 'warning', message: tr('noauto mit Automount: eingehängt wird nur beim Zugriff', 'noauto with automount: mounted on access only') })
+  if (!Number.isInteger(e.freq) || e.freq < 0 || e.freq > 1) err(tr('Feld 5 (dump) ist 0 oder 1', 'Field 5 (dump) is 0 or 1'))
+  if (!Number.isInteger(e.passno) || e.passno < 0 || e.passno > 2) err(tr('Feld 6 (Prüfreihenfolge) ist 0, 1 oder 2', 'Field 6 (check order) is 0, 1 or 2'))
+  if (e.passno === 1 && e.file !== '/') d.push({ severity: 'warning', message: tr('Prüfreihenfolge 1 ist für / gedacht – Datenplatten 2 oder 0', 'Check order 1 is meant for / – data disks 2 or 0') })
+  if (e.passno > 0 && ['xfs', 'btrfs', 'ntfs3', 'ntfs', 'exfat', 'zfs'].includes(e.vfstype)) d.push({ severity: 'warning', message: tr(`${e.vfstype} wird beim Start nicht mit fsck geprüft – Feld 6 auf 0 setzen`, `${e.vfstype} is not checked with fsck at boot – set field 6 to 0`) })
   for (const o of e.options) {
     const v = optionValue(o)
     const doc = optionDoc(o)
-    if (doc?.value && (v === undefined || v === '')) err(`Option ${doc.name} braucht einen Wert (${doc.name}=…)`)
-    if (doc?.value === 'number' && v !== undefined && !/^\d+$/.test(v)) err(`${doc.name}= erwartet eine Zahl`)
-    if (doc?.value === 'seconds' && v !== undefined && !/^\d+(ms|s|min|h)?$/.test(v)) err(`${doc.name}= erwartet eine Dauer wie 10s`)
+    if (doc?.value && (v === undefined || v === '')) err(tr(`Option ${doc.name} braucht einen Wert (${doc.name}=…)`, `Option ${doc.name} needs a value (${doc.name}=…)`))
+    if (doc?.value === 'number' && v !== undefined && !/^\d+$/.test(v)) err(tr(`${doc.name}= erwartet eine Zahl`, `${doc.name}= expects a number`))
+    if (doc?.value === 'seconds' && v !== undefined && !/^\d+(ms|s|min|h)?$/.test(v)) err(tr(`${doc.name}= erwartet eine Dauer wie 10s`, `${doc.name}= expects a duration like 10s`))
   }
   return d
 }
@@ -367,10 +376,10 @@ export function checkFile(text: string, rootSpecs: string[] = []): Diagnostic[] 
   for (const e of entries) {
     if (e.vfstype === 'swap' || e.file === 'none') continue
     const prev = seen.get(e.file)
-    if (prev) diagnostics.push({ line: e.line, severity: 'error', message: `${e.file} steht schon in Zeile ${prev} – ein Einhängepunkt darf nur einmal vorkommen` })
+    if (prev) diagnostics.push({ line: e.line, severity: 'error', message: tr(`${e.file} steht schon in Zeile ${prev} – ein Einhängepunkt darf nur einmal vorkommen`, `${e.file} is already in line ${prev} – a mount point may appear only once`) })
     else seen.set(e.file, e.line)
   }
-  if (!entries.some((e) => e.file === '/') && rootSpecs.length) diagnostics.push({ severity: 'warning', message: 'Kein Eintrag für / – das ist unüblich' })
+  if (!entries.some((e) => e.file === '/') && rootSpecs.length) diagnostics.push({ severity: 'warning', message: tr('Kein Eintrag für / – das ist unüblich', 'No entry for / – that is unusual') })
   return diagnostics
 }
 
@@ -384,9 +393,9 @@ export function protectedLinesChanged(before: string, after: string, rootSpecs: 
   const a = sys(before)
   const b = sys(after)
   const gone = a.find((l) => !b.includes(l))
-  if (gone) return `Systemeintrag würde geändert oder entfernt: ${gone}`
+  if (gone) return tr(`Systemeintrag würde geändert oder entfernt: ${gone}`, `A system entry would be changed or removed: ${gone}`)
   const added = b.find((l) => !a.includes(l))
-  if (added) return `Neuer Systemeintrag ist nicht erlaubt: ${added}`
+  if (added) return tr(`Neuer Systemeintrag ist nicht erlaubt: ${added}`, `A new system entry is not allowed: ${added}`)
   return undefined
 }
 

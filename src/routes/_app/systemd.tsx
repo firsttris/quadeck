@@ -7,29 +7,32 @@ import { Diagnostics, DiffView, Field, HistoryDialog, TextView } from '~/compone
 import { Pill, unitTone } from '~/components/Status'
 import { useToast } from '~/components/Toast'
 import { useGuardedApi } from '~/components/Unlock'
+import { useT } from '~/i18n'
 import { api } from '~/lib/api'
+import { tr } from '~/shared/i18n'
 import { getValues, parseIni } from '~/shared/ini'
 import type { Revision } from '~/shared/quadlets'
-import { EDITABLE_UNIT, NEW_UNIT, ORIGIN_LABEL, UNIT_DIR, UNIT_TEMPLATES, formSections, lintUnit, overrideTemplate, type UnitDetail, type UnitFilePart, type UnitValidateResult, type UnitWriteResult } from '~/shared/unit-files'
+import { EDITABLE_UNIT, NEW_UNIT, UNIT_DIR, UNIT_TEMPLATES, formSections, lintUnit, overrideTemplate, type UnitDetail, type UnitFilePart, type UnitValidateResult, type UnitWriteResult } from '~/shared/unit-files'
 
 export const Route = createFileRoute('/_app/systemd')({
   validateSearch: (s: Record<string, unknown>): { unit?: string; new?: boolean } => ({
     unit: typeof s.unit === 'string' && EDITABLE_UNIT.test(s.unit) ? s.unit : undefined,
     new: s.new === true || s.new === 'true' || s.new === 1 ? true : undefined,
   }),
-  head: () => ({ meta: [{ title: 'Unit bearbeiten · Quadeck' }] }),
+  head: () => ({ meta: [{ title: tr('Unit bearbeiten · Quadeck', 'Edit unit · Quadeck') }] }),
   component: SystemdPage,
 })
 
 function SystemdPage() {
+  const t = useT().systemd.empty
   const { unit, new: isNew } = Route.useSearch()
   if (isNew) return <NewUnit />
   if (unit) return <UnitView key={unit} unit={unit} />
   return (
     <>
-      <PageHeader title="systemd-Units" subtitle="Unit in der Liste auswählen und „Bearbeiten“ wählen" />
+      <PageHeader title={t.title} subtitle={t.subtitle} />
       <Link to="/units" className="btn self-start">
-        Zu den Units
+        {t.toUnits}
       </Link>
     </>
   )
@@ -43,6 +46,8 @@ interface Selected {
 }
 
 function UnitView({ unit }: { unit: string }) {
+  const tx = useT()
+  const t = tx.systemd.unit
   const [detail, setDetail] = useState<UnitDetail | null>(null)
   const [error, setError] = useState('')
   const [sel, setSel] = useState<Selected | null>(null)
@@ -74,7 +79,7 @@ function UnitView({ unit }: { unit: string }) {
     try {
       const r = await guarded('/api/systemd', { body: { enable: { unit, enabled } } })
       if (r) {
-        say(`${unit} ${enabled ? 'startet beim Booten' : 'startet nicht mehr beim Booten'}`)
+        say(enabled ? t.bootOn(unit) : t.bootOff(unit))
         void load(sel?.part.path)
       }
     } catch (e) {
@@ -86,12 +91,12 @@ function UnitView({ unit }: { unit: string }) {
   const editableState = d?.unitFileState === 'enabled' || d?.unitFileState === 'disabled'
   return (
     <>
-      <PageHeader title={unit} subtitle={d?.description ?? 'systemd-Unit'}>
+      <PageHeader title={unit} subtitle={d?.description ?? t.subtitle}>
         <Link to="/units" className="btn sm">
-          ← Units
+          {t.backToUnits}
         </Link>
         <Link to="/journal" search={{ unit }} className="btn sm">
-          Journal
+          {tx.common.journal}
         </Link>
       </PageHeader>
       {error && (
@@ -99,7 +104,7 @@ function UnitView({ unit }: { unit: string }) {
           {error}
         </p>
       )}
-      {!d && !error && <p className="m-0 text-muted">Wird geladen …</p>}
+      {!d && !error && <p className="m-0 text-muted">{t.loading}</p>}
       {d && (
         <>
           <div className="flex flex-wrap items-center gap-3 text-[13px]">
@@ -107,34 +112,34 @@ function UnitView({ unit }: { unit: string }) {
             {d.unitFileState && <span className="chip">{d.unitFileState}</span>}
             {editableState && !d.readonly && (
               <label className="flex items-center gap-2">
-                <input type="checkbox" role="switch" aria-label="Beim Booten starten" checked={d.unitFileState === 'enabled'} disabled={readonly} onChange={(e) => void toggleEnabled(e.target.checked)} />
-                Beim Booten starten
+                <input type="checkbox" role="switch" aria-label={t.startAtBoot} checked={d.unitFileState === 'enabled'} disabled={readonly} onChange={(e) => void toggleEnabled(e.target.checked)} />
+                {t.startAtBoot}
               </label>
             )}
           </div>
           {d.readonly && <p className="m-0 text-[13px] text-[#e3b341]">{d.readonly}</p>}
           {d.quadlet && (
             <p className="m-0 text-[13px] text-muted">
-              Erzeugt aus <span className="font-mono">{d.quadlet}</span> – Änderungen am Container gehören in die{' '}
+              {t.quadletBefore} <span className="font-mono">{d.quadlet}</span> {t.quadletMiddle}{' '}
               <Link to="/quadlets" search={{ file: d.quadlet }} className="text-accent underline">
-                Quadlet-Datei
+                {t.quadletLink}
               </Link>
-              ; hier lassen sich zusätzlich Overrides anlegen.
+              {t.quadletAfter}
             </p>
           )}
           {d.managedTimer && (
             <p className="m-0 text-[13px] text-muted">
-              Von Quadeck als Zeitplan angelegt – bequemer unter{' '}
+              {t.timerBefore}{' '}
               <Link to="/units" search={{ filter: 'timer' }} className="text-accent underline">
-                Units → Timer
+                {t.timerLink}
               </Link>
-              . Von Hand geänderte Dateien bearbeitet die Timer-Seite danach nur noch per Drop-in.
+              {t.timerAfter}
             </p>
           )}
-          {d.template && <p className="m-0 text-[13px] text-muted">Instanz einer Vorlage: die Hauptdatei gilt für alle Instanzen. Ein Override hier betrifft nur diese Instanz.</p>}
+          {d.template && <p className="m-0 text-[13px] text-muted">{t.template}</p>}
           <div className="grid grid-cols-1 gap-[18px] xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
-            <section className="panel flex flex-col gap-2 self-start p-[14px]" aria-label="Dateien">
-              <h2 className="h2 px-1">Dateien</h2>
+            <section className="panel flex flex-col gap-2 self-start p-[14px]" aria-label={t.files}>
+              <h2 className="h2 px-1">{t.files}</h2>
               {d.parts.map((p) => (
                 <button
                   key={p.path}
@@ -145,25 +150,25 @@ function UnitView({ unit }: { unit: string }) {
                 >
                   <span className="font-mono text-[12px] break-all">{p.path}</span>
                   <span className="flex flex-wrap gap-1.5">
-                    <span className="chip">{p.kind === 'fragment' ? 'Hauptdatei' : 'Override'}</span>
-                    <span className={p.origin === 'etc' ? 'chip q' : 'chip'}>{ORIGIN_LABEL[p.origin]}</span>
-                    {!p.editable && <span className="chip">nur lesen</span>}
+                    <span className="chip">{p.kind === 'fragment' ? t.fragment : t.override}</span>
+                    <span className={p.origin === 'etc' ? 'chip q' : 'chip'}>{tx.systemd.origin[p.origin]}</span>
+                    {!p.editable && <span className="chip">{t.readonly}</span>}
                   </span>
                 </button>
               ))}
               {sel?.isNew && (
                 <div className="rounded-lg border border-accent bg-[rgba(124,196,184,.08)] px-3 py-2">
                   <span className="font-mono text-[12px] break-all">{sel.part.path}</span>
-                  <div className="mt-1 text-[11px] text-muted">neu – noch nicht gespeichert</div>
+                  <div className="mt-1 text-[11px] text-muted">{t.isNew}</div>
                 </div>
               )}
               {d.overridePath && !sel?.isNew && !readonly && (
                 <button type="button" className="btn sm self-start" onClick={() => setSel({ isNew: true, part: { path: d.overridePath!, kind: 'dropin', origin: 'etc', editable: true, content: overrideTemplate(unit, d.parts[0]?.path) } })}>
-                  + Override anlegen
+                  {t.addOverride}
                 </button>
               )}
               <p className="m-0 px-1 text-[11px] leading-[1.5] text-subtle">
-                Overrides (Drop-ins in {UNIT_DIR}/{unit}.d) überschreiben einzelne Einstellungen der Hauptdatei – Paket-Updates lassen sie in Ruhe. Spätere Dateien gewinnen.
+                {t.overridesNote(`${UNIT_DIR}/${unit}.d`)}
               </p>
             </section>
             {sel && (
@@ -188,6 +193,7 @@ function UnitView({ unit }: { unit: string }) {
 
 /** Form over the text: only known keys; placeholders show what applies without this file. */
 function UnitForm({ unit, text, base, onChange }: { unit: string; text: string; base: string; onChange: (t: string) => void }) {
+  const t = useT().systemd.form
   const sections = formSections(unit)
   const shown = new Set(sections.flatMap(([s, keys]) => Object.keys(keys).map((k) => `${s}.${k}`)))
   const other = parseIni(text).filter((e) => e.kind === 'kv' && !shown.has(`${e.section}.${e.key}`))
@@ -198,13 +204,13 @@ function UnitForm({ unit, text, base, onChange }: { unit: string; text: string; 
           <legend className="px-1 font-mono text-[13px] text-accent">[{section}]</legend>
           {Object.entries(keys).map(([k, doc]) => {
             const inherited = base ? getValues(base, section, k).filter(Boolean).at(-1) : undefined
-            return <Field key={k} section={section} k={k} doc={inherited ? { ...doc, help: `${doc.help} · bisher: ${inherited}` } : doc} text={text} onChange={onChange} />
+            return <Field key={k} section={section} k={k} doc={inherited ? { ...doc, help: t.before(doc.help, inherited) } : doc} text={text} onChange={onChange} />
           })}
         </fieldset>
       ))}
       {other.length > 0 && (
         <p className="m-0 text-[12px] text-muted">
-          Weitere Einträge bleiben unverändert (im Text bearbeiten): <span className="font-mono">{other.map((e) => `${e.section}.${e.key}`).join(', ')}</span>
+          {t.otherEntries} <span className="font-mono">{other.map((e) => `${e.section}.${e.key}`).join(', ')}</span>
         </p>
       )}
     </div>
@@ -230,6 +236,9 @@ function PartEditor({
   onDeleted: () => void
   onOverride?: () => void
 }) {
+  const tx = useT()
+  const t = tx.systemd.editor
+  const q = tx.quadlets.editor
   const say = useToast()
   const guarded = useGuardedApi()
   const [text, setText] = useState(part.content)
@@ -288,7 +297,7 @@ function PartEditor({
       if (!r) return
       setReview(false)
       if (r.warning) say(r.warning, 'bad')
-      else say(`${part.path} gespeichert · daemon-reload${r.restarted ? ` · ${unit} neu gestartet` : ''}`)
+      else say(t.saved(part.path, unit, r.restarted))
       loadHistory()
       onSaved()
     } catch (e) {
@@ -302,7 +311,7 @@ function PartEditor({
     try {
       const r = await guarded('/api/systemd', { body: { delete: { unit, path: part.path } } })
       if (!r) return
-      say(part.kind === 'dropin' ? `Override ${part.path} entfernt` : `${unit} gestoppt und gelöscht`)
+      say(part.kind === 'dropin' ? t.overrideRemoved(part.path) : t.unitDeleted(unit))
       onDeleted()
     } catch (e) {
       say((e as Error).message, 'bad')
@@ -310,22 +319,22 @@ function PartEditor({
   }
 
   return (
-    <section className="panel flex min-w-0 flex-col gap-4 p-[18px]" aria-label={`Editor ${part.path}`}>
+    <section className="panel flex min-w-0 flex-col gap-4 p-[18px]" aria-label={t.aria(part.path)}>
       <div className="flex flex-wrap items-center gap-2">
         <div className="min-w-0 grow">
           <h2 className="h2 truncate font-mono text-[14px]">{part.path}</h2>
           <div className="text-[12px] text-muted">
-            {isNew ? 'neu – noch nicht gespeichert' : readonly ? 'nur lesen' : part.kind === 'dropin' ? 'Override' : 'eigene Unit-Datei'}
-            {dirty && !isNew && ' · ungespeicherte Änderungen'}
+            {isNew ? tx.systemd.unit.isNew : readonly ? tx.systemd.unit.readonly : part.kind === 'dropin' ? tx.systemd.unit.override : t.ownUnit}
+            {dirty && !isNew && q.unsaved}
           </div>
         </div>
         {!readonly && (
-          <div role="group" aria-label="Ansicht" className="flex gap-1.5">
+          <div role="group" aria-label={q.view} className="flex gap-1.5">
             <button type="button" className={`seg ${mode === 'form' ? 'on' : ''}`} aria-pressed={mode === 'form'} onClick={() => setMode('form')}>
-              Formular
+              {q.form}
             </button>
             <button type="button" className={`seg ${mode === 'text' ? 'on' : ''}`} aria-pressed={mode === 'text'} onClick={() => setMode('text')}>
-              Text
+              {q.text}
             </button>
           </div>
         )}
@@ -333,12 +342,12 @@ function PartEditor({
 
       {readonly && part.origin === 'vendor' && (
         <p className="m-0 text-[13px] text-muted">
-          Diese Datei gehört zu einem Paket – Änderungen daran gingen beim nächsten Update verloren. Einstellungen ändert man per Override.
+          {t.vendorNote}
           {onOverride && (
             <>
               {' '}
               <button type="button" className="btn sm" onClick={onOverride}>
-                Override anlegen
+                {t.addOverride}
               </button>
             </>
           )}
@@ -348,7 +357,7 @@ function PartEditor({
       {mode === 'form' && !readonly ? (
         <UnitForm unit={unit} text={text} base={part.kind === 'dropin' ? base : ''} onChange={change} />
       ) : (
-        <TextView text={text} jump={jump} label={`Inhalt von ${part.path}`} readOnly={readonly} height={readonly ? 360 : 480} onChange={change} />
+        <TextView text={text} jump={jump} label={t.contentOf(part.path)} readOnly={readonly} height={readonly ? 360 : 480} onChange={change} />
       )}
 
       <Diagnostics
@@ -360,28 +369,28 @@ function PartEditor({
         }}
       />
       {server?.skipped && <p className="m-0 text-[13px] text-muted">{server.skipped}</p>}
-      {server?.ok && !server.skipped && <p className="m-0 text-[13px] text-[#7ee2a8]">Geprüft mit systemd-analyze verify.</p>}
+      {server?.ok && !server.skipped && <p className="m-0 text-[13px] text-[#7ee2a8]">{t.verified}</p>}
 
       {!readonly && (
         <div className="flex flex-wrap items-center gap-2 border-t border-line pt-4">
           {!isNew && (part.kind === 'dropin' || detail.canDelete) && (
             <button type="button" className="btn danger sm" onClick={() => setConfirmDelete(true)}>
-              {part.kind === 'dropin' ? 'Override entfernen' : 'Unit löschen'}
+              {part.kind === 'dropin' ? t.removeOverride : t.deleteUnit}
             </button>
           )}
           {history.length > 0 && (
             <button type="button" className="btn sm" onClick={() => setShowHistory(true)}>
-              Verlauf ({history.length})
+              {q.history(history.length)}
             </button>
           )}
           <span className="grow" />
           {dirty && !isNew && (
             <button type="button" className="btn sm" onClick={() => change(part.content)}>
-              Verwerfen
+              {q.discard}
             </button>
           )}
           <button type="button" className="btn sm" onClick={() => void validate()} disabled={checking}>
-            {checking ? 'Prüfe …' : 'Prüfen'}
+            {checking ? q.checking : q.check}
           </button>
           <button
             type="button"
@@ -392,26 +401,26 @@ function PartEditor({
               if (r?.ok) setReview(true)
             }}
           >
-            Speichern …
+            {q.saveDots}
           </button>
         </div>
       )}
 
-      <Modal open={review} onClose={() => setReview(false)} title={`${part.path} speichern?`} wide>
+      <Modal open={review} onClose={() => setReview(false)} title={q.saveTitle(part.path)} wide>
         <DiffView before={isNew ? '' : part.content} after={text} />
         {(detail.activeState === 'active' || detail.activeState === 'activating') && (
           <label className="flex items-center gap-2 text-[13px]">
             <input type="checkbox" checked={restart} onChange={(e) => setRestart(e.target.checked)} />
-            Danach <span className="font-mono">{unit}</span> neu starten, damit die Änderung greift
+            {t.restartBefore} <span className="font-mono">{unit}</span> {t.restartAfter}
           </label>
         )}
-        <p className="m-0 text-[12px] text-muted">Gespeichert wird über den Root-Helfer, danach systemctl daemon-reload. Die vorige Fassung bleibt im Verlauf.</p>
+        <p className="m-0 text-[12px] text-muted">{q.saveNote}</p>
         <div className="flex justify-end gap-2">
           <button type="button" className="btn" onClick={() => setReview(false)}>
-            Abbrechen
+            {tx.common.cancel}
           </button>
           <button type="button" className="btn primary" disabled={saving} onClick={() => void save()}>
-            {saving ? 'Speichere …' : restart && detail.activeState === 'active' ? 'Speichern & neu starten' : 'Speichern'}
+            {saving ? q.savingDots : restart && detail.activeState === 'active' ? q.saveRestart : tx.common.save}
           </button>
         </div>
       </Modal>
@@ -429,21 +438,24 @@ function PartEditor({
       />
       <ConfirmDialog
         open={confirmDelete}
-        title={part.kind === 'dropin' ? 'Override entfernen?' : `${unit} löschen?`}
+        title={part.kind === 'dropin' ? t.removeOverrideTitle : t.deleteTitle(unit)}
         danger
-        confirm={part.kind === 'dropin' ? 'Entfernen' : 'Löschen'}
+        confirm={part.kind === 'dropin' ? tx.common.remove : tx.common.delete}
         body={
           <p className="m-0">
             {part.kind === 'dropin' ? (
               <>
-                <span className="font-mono">{part.path}</span> wird gelöscht, danach gelten wieder die übrigen Dateien. Ein laufender Dienst übernimmt das erst beim nächsten Neustart.
+                <span className="font-mono">{part.path}</span>
+                {t.dropinBody}
               </>
             ) : (
               <>
-                {unit} wird gestoppt, deaktiviert und <span className="font-mono">{part.path}</span> gelöscht.
+                {t.fragmentBefore(unit)}
+                <span className="font-mono">{part.path}</span>
+                {t.fragmentAfter}
               </>
             )}{' '}
-            Der Inhalt bleibt im Verlauf.
+            {t.keptInHistory}
           </p>
         }
         onConfirm={() => void remove()}
@@ -456,13 +468,16 @@ function PartEditor({
 // ---------- new unit ----------
 
 function NewUnit() {
+  const tx = useT()
+  const t = tx.systemd.create
+  const q = tx.quadlets.editor
   const navigate = useNavigate()
   const say = useToast()
   const guarded = useGuardedApi()
   const { readonly } = useActions()
   const [name, setName] = useState('')
   const [template, setTemplate] = useState(UNIT_TEMPLATES[0]!.id)
-  const [text, setText] = useState(UNIT_TEMPLATES[0]!.content('mein-dienst'))
+  const [text, setText] = useState(UNIT_TEMPLATES[0]!.content(t.defaultName))
   const [touched, setTouched] = useState(false)
   const [mode, setMode] = useState<'form' | 'text'>('text')
   const [enable, setEnable] = useState(true)
@@ -474,16 +489,16 @@ function NewUnit() {
   const diags = server ? server.diagnostics : local
 
   const pick = (id: string) => {
-    const t = UNIT_TEMPLATES.find((x) => x.id === id)!
+    const tpl = UNIT_TEMPLATES.find((x) => x.id === id)!
     setTemplate(id)
-    setText(t.content(unit.replace(/\.\w+$/, '') || 'mein-dienst'))
+    setText(tpl.content(unit.replace(/\.\w+$/, '') || t.defaultName))
     setTouched(false)
     setServer(null)
   }
   // The template follows the name until the text is edited.
   useEffect(() => {
-    if (!touched) setText(UNIT_TEMPLATES.find((x) => x.id === template)!.content(unit.replace(/\.\w+$/, '') || 'mein-dienst'))
-  }, [unit, template, touched])
+    if (!touched) setText(UNIT_TEMPLATES.find((x) => x.id === template)!.content(unit.replace(/\.\w+$/, '') || t.defaultName))
+  }, [unit, template, touched, t.defaultName])
 
   const create = async () => {
     setBusy(true)
@@ -494,7 +509,7 @@ function NewUnit() {
       const r = await guarded<UnitWriteResult>('/api/systemd', { body: { create: { unit, content: text, enable } } })
       if (!r) return
       if (r.warning) say(r.warning, 'bad')
-      else say(`${unit} angelegt${r.restarted ? ' und gestartet' : ''}`)
+      else say(t.created(unit, r.restarted))
       void navigate({ to: '/systemd', search: { unit } })
     } catch (e) {
       say((e as Error).message, 'bad')
@@ -505,33 +520,33 @@ function NewUnit() {
 
   return (
     <>
-      <PageHeader title="Neue Unit" subtitle={`Eigene Unit in ${UNIT_DIR} – für Zeitpläne gibt es Units → Timer`}>
+      <PageHeader title={t.title} subtitle={t.subtitle(UNIT_DIR)}>
         <Link to="/units" className="btn sm">
-          ← Units
+          {tx.systemd.unit.backToUnits}
         </Link>
       </PageHeader>
-      <section className="panel flex flex-col gap-4 p-[18px]" aria-label="Neue Unit">
+      <section className="panel flex flex-col gap-4 p-[18px]" aria-label={t.title}>
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-            Name
+            {t.name}
             <input className="field w-[280px] font-mono" value={name} placeholder="mein-dienst.service" onChange={(e) => setName(e.target.value.trim())} autoFocus />
           </label>
-          {name && !validName && <span className="pb-2 text-[12px] text-[#ff8a80]">Buchstaben, Ziffern, - _ . und eine Endung wie .service</span>}
+          {name && !validName && <span className="pb-2 text-[12px] text-[#ff8a80]">{t.invalidName}</span>}
         </div>
         <div className="flex flex-wrap items-center gap-1.5 text-[12px] text-muted">
-          Vorlage:
-          {UNIT_TEMPLATES.map((t) => (
-            <button key={t.id} type="button" className={`seg ${template === t.id ? 'on' : ''}`} aria-pressed={template === t.id} onClick={() => pick(t.id)}>
-              {t.label}
+          {t.template}
+          {UNIT_TEMPLATES.map((x) => (
+            <button key={x.id} type="button" className={`seg ${template === x.id ? 'on' : ''}`} aria-pressed={template === x.id} onClick={() => pick(x.id)}>
+              {x.label}
             </button>
           ))}
           <span className="grow" />
-          <div role="group" aria-label="Ansicht" className="flex gap-1.5">
+          <div role="group" aria-label={q.view} className="flex gap-1.5">
             <button type="button" className={`seg ${mode === 'form' ? 'on' : ''}`} aria-pressed={mode === 'form'} onClick={() => setMode('form')}>
-              Formular
+              {q.form}
             </button>
             <button type="button" className={`seg ${mode === 'text' ? 'on' : ''}`} aria-pressed={mode === 'text'} onClick={() => setMode('text')}>
-              Text
+              {q.text}
             </button>
           </div>
         </div>
@@ -540,8 +555,8 @@ function NewUnit() {
             unit={unit || 'x.service'}
             text={text}
             base=""
-            onChange={(t) => {
-              setText(t)
+            onChange={(v) => {
+              setText(v)
               setTouched(true)
               setServer(null)
             }}
@@ -550,10 +565,10 @@ function NewUnit() {
           <TextView
             text={text}
             jump={null}
-            label="Inhalt der neuen Unit"
+            label={t.contentLabel}
             height={420}
-            onChange={(t) => {
-              setText(t)
+            onChange={(v) => {
+              setText(v)
               setTouched(true)
               setServer(null)
             }}
@@ -563,12 +578,12 @@ function NewUnit() {
         <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
           <label className="flex items-center gap-2 text-[13px]">
             <input type="checkbox" checked={enable} onChange={(e) => setEnable(e.target.checked)} />
-            Aktivieren und gleich starten
+            {t.enable}
           </label>
           <span className="grow" />
           {!readonly && (
             <button type="button" className="btn primary" disabled={!validName || busy || local.some((x) => x.severity === 'error')} onClick={() => void create()}>
-              {busy ? 'Lege an …' : 'Anlegen'}
+              {busy ? t.creating : tx.common.create}
             </button>
           )}
         </div>

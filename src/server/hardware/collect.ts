@@ -6,6 +6,7 @@
 import { existsSync, readdirSync, readFileSync, readlinkSync, realpathSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { run } from '../exec'
+import { tr } from '~/shared/i18n'
 import { buildHardware, lookupIds, type AtaRaw, type Hardware, type HardwareRaw, type PciRaw, type SensorRaw, type UsbRaw } from '~/shared/hardware'
 
 export interface HardwareAdmin {
@@ -156,7 +157,7 @@ export function readHwmon(root = '/sys/class/hwmon'): SensorRaw[] {
         return Number.isFinite(v) && v > 0 ? v / scale : undefined
       }
       if (kind === 'temp' && (raw <= -40_000 || raw >= 150_000)) continue // unconnected sensor
-      out.push({ chip, label: label ?? `${kind === 'fan' ? 'Lüfter' : kind === 'temp' ? 'Temperatur' : kind} ${m[2]}`, kind, value: raw / scale, max: extra('max'), crit: extra('crit') })
+      out.push({ chip, label: label ?? (kind === 'fan' ? tr(`Lüfter ${m[2]}`, `Fan ${m[2]}`) : kind === 'temp' ? tr(`Temperatur ${m[2]}`, `Temperature ${m[2]}`) : `${kind} ${m[2]}`), kind, value: raw / scale, max: extra('max'), crit: extra('crit') })
     }
   }
   return out.sort((a, b) => a.chip.localeCompare(b.chip) || a.kind.localeCompare(b.kind) || a.label.localeCompare(b.label, undefined, { numeric: true }))

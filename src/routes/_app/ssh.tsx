@@ -7,7 +7,7 @@ import { Dot, Pill, type Tone } from '~/components/Status'
 import { SshKeys, SshPreviewDialog, type SshPending } from '~/components/SshKeys'
 import { useToast } from '~/components/Toast'
 import { useGuardedApi } from '~/components/Unlock'
-import { api } from '~/lib/api'
+import { useT } from '~/i18n'
 import { relative } from '~/lib/format'
 import { validateSettings, type RootLogin, type SshSettings, type SshState } from '~/shared/ssh'
 
@@ -16,9 +16,8 @@ export const Route = createFileRoute('/_app/ssh')({
   component: SshPage,
 })
 
-const ROOT_LABEL: Record<RootLogin, string> = { yes: 'ja, auch mit Passwort', 'prohibit-password': 'nur mit Schlüssel', no: 'nein' }
-
 function SshPage() {
+  const t = useT().ssh
   const [state, setState] = useState<SshState | null>(null)
   const [error, setError] = useState('')
   const [pending, setPending] = useState<SshPending | null>(null)
@@ -42,17 +41,17 @@ function SshPage() {
 
   return (
     <>
-      <PageHeader title="SSH" subtitle="Zugang zum Server: Schlüssel, Absicherung, Anmeldungen" />
+      <PageHeader title="SSH" subtitle={t.subtitle} />
       {error && <p className="m-0 text-[13px] text-[#e3b341]">{error}</p>}
       {state?.error && (
         <p role="alert" className="m-0 text-[13px] text-[#e3b341]">
           {state.error}
         </p>
       )}
-      {!state && !error && <p className="m-0 text-muted">Wird geladen …</p>}
+      {!state && !error && <p className="m-0 text-muted">{t.loading}</p>}
       {state && !state.installed && (
-        <section className="panel" aria-label="SSH installieren">
-          <InstallHint feature="ssh" what="Kein SSH-Server installiert – ohne ihn ist der Server nur direkt an Bildschirm und Tastatur erreichbar." onInstalled={load} />
+        <section className="panel" aria-label={t.install.label}>
+          <InstallHint feature="ssh" what={t.install.what} onInstalled={load} />
         </section>
       )}
       {state?.installed && (
@@ -77,6 +76,7 @@ function SshPage() {
 // ---------- service + host keys ----------
 
 function Access({ state, onState }: { state: SshState; onState: (s: SshState) => void }) {
+  const t = useT().ssh.access
   const say = useToast()
   const guarded = useGuardedApi()
   const { readonly } = useActions()
@@ -90,7 +90,7 @@ function Access({ state, onState }: { state: SshState; onState: (s: SshState) =>
       const st = await guarded<SshState>('/api/ssh', { body: { service: action } })
       if (st) {
         onState(st)
-        say(action === 'enable' ? 'SSH startet jetzt auch beim Booten' : action === 'restart' ? 'SSH neu gestartet – offene Sitzungen bleiben' : 'SSH gestartet')
+        say(action === 'enable' ? t.enabled : action === 'restart' ? t.restarted : t.started)
       }
     } catch (e) {
       say((e as Error).message, 'bad')
@@ -99,40 +99,41 @@ function Access({ state, onState }: { state: SshState; onState: (s: SshState) =>
     }
   }
   return (
-    <section className="panel flex flex-col" aria-label="Zugang">
+    <section className="panel flex flex-col" aria-label={t.title}>
       <div className="flex flex-wrap items-center gap-2 px-[18px] pt-4 pb-2">
-        <h2 className="h2 grow">Zugang</h2>
+        <h2 className="h2 grow">{t.title}</h2>
         {state.services.map((s) => (
           <Pill key={s.unit} tone={s.active ? 'ok' : 'idle'}>
-            {s.unit} {s.active ? 'läuft' : 'aus'}
+            {s.unit} {s.active ? t.running : t.off}
           </Pill>
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-2 border-t border-line px-[18px] py-2.5 text-[13px]">
         <span className="grow text-muted">
-          Port <span className="font-mono text-fg">{state.ports.join(', ')}</span> · Schlüssel-Login {state.effective.pubkeyAuthentication ? 'an' : 'aus'}
+          {t.port} <span className="font-mono text-fg">{state.ports.join(', ')}</span>
+          {t.keyLogin(state.effective.pubkeyAuthentication)}
         </span>
         {!readonly && services.length > 0 && (
           <span className="flex gap-1.5">
             {!enabled && (
               <button type="button" className="btn sm" disabled={busy} onClick={() => act('enable')}>
-                Beim Booten starten
+                {t.enable}
               </button>
             )}
             {active ? (
               <button type="button" className="btn sm" disabled={busy} onClick={() => act('restart')}>
-                Neu starten
+                {t.restart}
               </button>
             ) : (
               <button type="button" className="btn sm primary" disabled={busy} onClick={() => act('start')}>
-                Starten
+                {t.start}
               </button>
             )}
           </span>
         )}
       </div>
       <div className="border-t border-line px-[18px] py-3">
-        <div className="mb-1.5 text-[12px] font-medium text-muted">Fingerprints dieses Servers – beim ersten Verbinden vergleichen</div>
+        <div className="mb-1.5 text-[12px] font-medium text-muted">{t.fingerprints}</div>
         {state.hostKeys.map((k) => (
           <div key={k.fingerprint} className="flex flex-wrap items-baseline gap-x-3 py-0.5" data-testid="host-key">
             <span className="w-[120px] shrink-0 text-[12px] text-muted">{k.type.replace('ssh-', '').replace('ecdsa-sha2-', 'ECDSA ')}</span>
@@ -165,6 +166,8 @@ function Row({ tone, label, value, help }: { tone: Tone; label: string; value: s
 
 function Hardening({ state, onPreview }: { state: SshState; onPreview: (p: SshPending) => void }) {
   const { readonly } = useActions()
+  const T = useT().ssh
+  const t = T.hardening
   const e = state.effective
   const [form, setForm] = useState<SshSettings>({ passwordAuthentication: e.passwordAuthentication, permitRootLogin: e.permitRootLogin, allowUsers: e.allowUsers })
   const [users, setUsers] = useState(e.allowUsers.join(' '))
@@ -177,63 +180,63 @@ function Hardening({ state, onPreview }: { state: SshState; onPreview: (p: SshPe
   const errors = validateSettings(next)
   const withKeys = state.users.filter((u) => u.keys.length).map((u) => u.name)
   return (
-    <section className="panel flex flex-col" aria-label="Absicherung">
-      <h2 className="h2 px-[18px] pt-4 pb-2">Absicherung</h2>
+    <section className="panel flex flex-col" aria-label={t.title}>
+      <h2 className="h2 px-[18px] pt-4 pb-2">{t.title}</h2>
       <Row
         tone={e.passwordAuthentication ? 'warn' : 'ok'}
-        label="Passwort-Login"
-        value={e.passwordAuthentication ? 'erlaubt' : 'aus – nur Schlüssel'}
-        help={e.passwordAuthentication ? 'Bots probieren ständig Passwörter durch. Abschalten, sobald dein Schlüssel funktioniert.' : 'Gut: Anmeldung nur mit einem eingetragenen Schlüssel.'}
+        label={t.password}
+        value={e.passwordAuthentication ? t.passwordOn : t.passwordOff}
+        help={e.passwordAuthentication ? t.passwordOnHelp : t.passwordOffHelp}
       />
       <Row
         tone={e.permitRootLogin === 'yes' ? 'bad' : e.permitRootLogin === 'no' ? 'ok' : 'ok'}
-        label="root-Login"
-        value={ROOT_LABEL[e.permitRootLogin]}
-        help={e.permitRootLogin === 'yes' ? 'Riskant: root mit Passwort. Besser als normaler Benutzer anmelden und sudo nutzen.' : 'root kommt nicht per Passwort herein.'}
+        label={t.root}
+        value={T.rootLabel[e.permitRootLogin]}
+        help={e.permitRootLogin === 'yes' ? t.rootYesHelp : t.rootOtherHelp}
       />
       <Row
         tone={e.allowUsers.length ? 'ok' : 'idle'}
-        label="Erlaubte Benutzer"
-        value={e.allowUsers.length ? e.allowUsers.join(', ') : 'alle'}
-        help="Optional: nur diese Konten dürfen sich per SSH anmelden."
+        label={t.allowed}
+        value={e.allowUsers.length ? e.allowUsers.join(', ') : t.all}
+        help={t.allowedHelp}
       />
       {!readonly && (
         <form
           className="flex flex-col gap-3 border-t border-line px-[18px] py-3"
           onSubmit={(ev) => {
             ev.preventDefault()
-            onPreview({ change: { kind: 'settings', settings: next }, title: 'SSH-Einstellungen ändern?', confirm: 'Übernehmen', done: 'SSH-Einstellungen übernommen (sshd neu geladen)' })
+            onPreview({ change: { kind: 'settings', settings: next }, title: t.confirmTitle, confirm: t.confirm, done: t.done })
           }}
         >
           <label className="flex items-center gap-2 text-[13px]">
-            <input type="checkbox" role="switch" checked={form.passwordAuthentication} onChange={(ev) => setForm((f) => ({ ...f, passwordAuthentication: ev.target.checked }))} aria-label="Passwort-Login erlauben" />
-            Passwort-Login erlauben
+            <input type="checkbox" role="switch" checked={form.passwordAuthentication} onChange={(ev) => setForm((f) => ({ ...f, passwordAuthentication: ev.target.checked }))} aria-label={t.allowPassword} />
+            {t.allowPassword}
           </label>
-          {!form.passwordAuthentication && !withKeys.length && <p className="m-0 text-[12px] text-[#ff8a80]">Noch kein Benutzer hat einen Schlüssel – erst einen eintragen.</p>}
+          {!form.passwordAuthentication && !withKeys.length && <p className="m-0 text-[12px] text-[#ff8a80]">{t.noKeys}</p>}
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-              root-Login
+              {t.root}
               <select className="field" value={form.permitRootLogin} onChange={(ev) => setForm((f) => ({ ...f, permitRootLogin: ev.target.value as RootLogin }))}>
-                <option value="no">nein</option>
-                <option value="prohibit-password">nur mit Schlüssel</option>
-                <option value="yes">ja, auch mit Passwort</option>
+                <option value="no">{T.rootLabel.no}</option>
+                <option value="prohibit-password">{T.rootLabel['prohibit-password']}</option>
+                <option value="yes">{T.rootLabel.yes}</option>
               </select>
             </label>
             <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-              Erlaubte Benutzer (leer = alle)
+              {t.allowedEmpty}
               <input className="field font-mono" value={users} onChange={(ev) => setUsers(ev.target.value)} placeholder="tristan" />
             </label>
           </div>
           {errors.length > 0 && <p className="m-0 text-[13px] text-[#ff8a80]">{errors.join(' · ')}</p>}
           <div className="flex items-center justify-between gap-2">
             <span className="text-[11px] text-subtle">
-              als <span className="font-mono">{state.dropIn}</span>
+              {t.as} <span className="font-mono">{state.dropIn}</span>
             </span>
             <button type="submit" className="btn primary sm" disabled={!changed || errors.length > 0}>
-              Übernehmen …
+              {t.apply}
             </button>
           </div>
-          {!state.dropInActive && <p className="m-0 text-[12px] text-[#e3b341]">sshd_config bindet sshd_config.d/*.conf nicht ein – Einstellungen lassen sich hier erst nach „Include /etc/ssh/sshd_config.d/*.conf“ übernehmen.</p>}
+          {!state.dropInActive && <p className="m-0 text-[12px] text-[#e3b341]">{t.noInclude}</p>}
         </form>
       )}
     </section>
@@ -247,28 +250,29 @@ function Hardening({ state, onPreview }: { state: SshState; onPreview: (p: SshPe
 function Logins({ state }: { state: SshState }) {
   const names = new Map(state.users.flatMap((u) => u.keys.map((k) => [k.fingerprint, k.comment] as const)))
   const active = state.logins.filter((l) => l.active).length
+  const t = useT().ssh.logins
   return (
-    <section className="panel flex flex-col" aria-label="Anmeldungen">
+    <section className="panel flex flex-col" aria-label={t.title}>
       <div className="flex items-baseline gap-2 px-[18px] pt-4 pb-2">
-        <h2 className="h2 grow">Anmeldungen</h2>
-        <span className="text-[12px] text-muted">{active === 0 ? 'gerade niemand verbunden' : `${active} gerade verbunden`}</span>
+        <h2 className="h2 grow">{t.title}</h2>
+        <span className="text-[12px] text-muted">{active === 0 ? t.nobody : t.connectedNow(active)}</span>
       </div>
-      {state.logins.length === 0 && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">Keine Anmeldungen in den letzten 30 Tagen (oder kein Zugriff aufs Journal).</p>}
+      {state.logins.length === 0 && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{t.none}</p>}
       {state.logins.slice(0, 8).map((l, i) => (
         <div key={i} className="flex flex-wrap items-center gap-x-3 border-t border-line px-[18px] py-[7px] text-[13px]" data-testid="ssh-login">
-          {l.active ? <Dot tone="ok" label="verbunden" /> : <Dot tone="idle" label="abgemeldet" />}
+          {l.active ? <Dot tone="ok" label={t.connected} /> : <Dot tone="idle" label={t.loggedOut} />}
           <span className="font-medium">{l.user}</span>
           <span className="font-mono text-[12px] text-muted">{l.from}</span>
-          <span className="text-[12px] text-subtle">{l.method === 'publickey' ? `Schlüssel ${l.fingerprint ? (names.get(l.fingerprint) ?? '') : ''}`.trim() : l.method === 'password' ? 'Passwort' : l.method}</span>
+          <span className="text-[12px] text-subtle">{l.method === 'publickey' ? t.key(l.fingerprint ? (names.get(l.fingerprint) ?? '') : '') : l.method === 'password' ? t.password : l.method}</span>
           <span className="ml-auto flex items-center gap-2 font-mono text-[12px] text-subtle" suppressHydrationWarning>
-            {l.active && <span className="pill ok">verbunden</span>}
+            {l.active && <span className="pill ok">{t.connected}</span>}
             {relative(l.ts)}
           </span>
         </div>
       ))}
       {state.failed.length > 0 && (
         <div className="border-t border-line px-[18px] py-2.5">
-          <div className="mb-1 text-[12px] font-medium text-muted">Fehlgeschlagene Versuche (24 h)</div>
+          <div className="mb-1 text-[12px] font-medium text-muted">{t.failed}</div>
           {state.failed.map((f) => (
             <div key={f.from} className="flex items-center gap-3 py-0.5 text-[13px]" data-testid="ssh-failed">
               <Dot tone={f.count > 50 ? 'bad' : 'warn'} />
@@ -279,7 +283,7 @@ function Logins({ state }: { state: SshState }) {
               </span>
             </div>
           ))}
-          {state.effective.passwordAuthentication && <p className="m-0 mt-1 text-[12px] text-[#e3b341]">Solange Passwort-Login an ist, haben diese Versuche eine Chance – abschalten oder fail2ban einrichten.</p>}
+          {state.effective.passwordAuthentication && <p className="m-0 mt-1 text-[12px] text-[#e3b341]">{t.failedHint}</p>}
         </div>
       )}
     </section>
@@ -289,33 +293,36 @@ function Logins({ state }: { state: SshState }) {
 // ---------- help ----------
 
 function NewDevice({ state }: { state: SshState }) {
+  const t = useT().ssh.newDevice
   const [host, setHost] = useState(state.hostname)
   useEffect(() => setHost(window.location.hostname || state.hostname), [state.hostname])
-  const user = state.users.find((u) => u.uid !== 0)?.name ?? 'benutzer'
+  const user = state.users.find((u) => u.uid !== 0)?.name ?? t.user
   const port = state.ports[0] && state.ports[0] !== 22 ? ` -p ${state.ports[0]}` : ''
   return (
-    <section className="panel flex flex-col gap-2 p-[18px]" aria-label="Neues Gerät verbinden">
-      <h2 className="h2">Neues Gerät verbinden</h2>
+    <section className="panel flex flex-col gap-2 p-[18px]" aria-label={t.title}>
+      <h2 className="h2">{t.title}</h2>
       <ol className="m-0 flex list-decimal flex-col gap-2 pl-5 text-[13px] text-[#c9d1d9]">
         <li>
-          Auf dem neuen Gerät einen Schlüssel erzeugen (einmalig):
-          <pre className="joblog mt-1 !min-h-0">ssh-keygen -t ed25519 -C "{user}@neues-gerät"</pre>
+          {t.step1}
+          <pre className="joblog mt-1 !min-h-0">
+            ssh-keygen -t ed25519 -C "{user}@{t.newDevice}"
+          </pre>
         </li>
         <li>
-          Den öffentlichen Teil hierher bringen –{' '}
+          {t.step2}{' '}
           {state.effective.passwordAuthentication ? (
             <>
-              solange Passwort-Login an ist geht das direkt:
+              {t.step2Password}
               <pre className="joblog mt-1 !min-h-0">
                 ssh-copy-id{port} {user}@{host}
               </pre>
             </>
           ) : (
-            <>Inhalt von ~/.ssh/id_ed25519.pub oben unter „Schlüssel“ einfügen (Passwort-Login ist aus, ssh-copy-id geht dann nicht).</>
+            <>{t.step2Key}</>
           )}
         </li>
         <li>
-          Verbinden und beim ersten Mal den Fingerprint mit „Zugang“ oben vergleichen:
+          {t.step3}
           <pre className="joblog mt-1 !min-h-0">
             ssh{port} {user}@{host}
           </pre>

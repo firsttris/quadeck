@@ -1,5 +1,7 @@
 // SSH access: types shared by the page, the web app and the root helper.
 
+import { tr } from './i18n'
+
 export interface SshKey {
   type: string
   bits?: number
@@ -82,7 +84,7 @@ export const USER_NAME = /^[a-z_][a-z0-9_.-]{0,31}$/
 
 export function validateSettings(s: SshSettings): string[] {
   const e: string[] = []
-  if (!['yes', 'prohibit-password', 'no'].includes(s.permitRootLogin)) e.push('PermitRootLogin: yes, prohibit-password oder no')
-  if (s.allowUsers.length > 50 || s.allowUsers.some((u) => !USER_NAME.test(u))) e.push('Erlaubte Benutzer: Namen durch Leerzeichen getrennt')
+  if (!['yes', 'prohibit-password', 'no'].includes(s.permitRootLogin)) e.push(tr('PermitRootLogin: yes, prohibit-password oder no', 'PermitRootLogin: yes, prohibit-password or no'))
+  if (s.allowUsers.length > 50 || s.allowUsers.some((u) => !USER_NAME.test(u))) e.push(tr('Erlaubte Benutzer: Namen durch Leerzeichen getrennt', 'Allowed users: names separated by spaces'))
   return e
 }

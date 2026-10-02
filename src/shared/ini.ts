@@ -2,6 +2,7 @@
 // keys keeps every other line (comments, unknown keys, order) unchanged, so
 // the form and the text view can work on the same file.
 
+import { tr } from './i18n'
 import { QUADLET_KEYS, QUADLET_SECTION } from './quadlet-keys'
 import type { Diagnostic, QuadletType } from './quadlets'
 
@@ -112,31 +113,34 @@ export function lintQuadlet(text: string, type: QuadletType): Diagnostic[] {
   const seen = new Map<string, number>()
   for (const e of entries) {
     const line = e.start + 1
-    if (e.kind === 'invalid') diags.push({ line, severity: 'error', message: 'Zeile ist weder Abschnitt, Schlüssel=Wert noch Kommentar' })
+    if (e.kind === 'invalid') diags.push({ line, severity: 'error', message: tr('Zeile ist weder Abschnitt, Schlüssel=Wert noch Kommentar', 'Line is neither a section, Key=Value nor a comment') })
     if (e.kind === 'section' && e.section !== main && !SYSTEMD_SECTIONS.has(e.section) && !e.section.startsWith('X-') && !QUADLET_KEYS[e.section])
-      diags.push({ line, severity: 'warning', message: `Unbekannter Abschnitt [${e.section}]` })
+      diags.push({ line, severity: 'warning', message: tr(`Unbekannter Abschnitt [${e.section}]`, `Unknown section [${e.section}]`) })
     if (e.kind === 'section' && e.section !== main && QUADLET_KEYS[e.section])
-      diags.push({ line, severity: 'error', message: `[${e.section}] gehört in eine .${Object.entries(QUADLET_SECTION).find(([, s]) => s === e.section)![0]}-Datei` })
+    {
+      const ext = Object.entries(QUADLET_SECTION).find(([, s]) => s === e.section)![0]
+      diags.push({ line, severity: 'error', message: tr(`[${e.section}] gehört in eine .${ext}-Datei`, `[${e.section}] belongs in a .${ext} file`) })
+    }
     if (e.kind !== 'kv') continue
     if (!e.section) {
-      diags.push({ line, severity: 'error', message: `${e.key}= steht vor dem ersten Abschnitt` })
+      diags.push({ line, severity: 'error', message: tr(`${e.key}= steht vor dem ersten Abschnitt`, `${e.key}= comes before the first section`) })
       continue
     }
-    if (!e.value) diags.push({ line, severity: 'warning', message: `${e.key}= ist leer` })
+    if (!e.value) diags.push({ line, severity: 'warning', message: tr(`${e.key}= ist leer`, `${e.key}= is empty`) })
     if (e.section !== main) continue
     const doc = keys[e.key!]
     if (!doc) {
-      diags.push({ line, severity: 'warning', message: `Unbekannter Schlüssel ${e.key} in [${main}]` })
+      diags.push({ line, severity: 'warning', message: tr(`Unbekannter Schlüssel ${e.key} in [${main}]`, `Unknown key ${e.key} in [${main}]`) })
       continue
     }
-    if (!doc.multi && seen.has(e.key!)) diags.push({ line, severity: 'warning', message: `${e.key} ist mehrfach gesetzt – es gilt der letzte Wert (Zeile ${line})` })
+    if (!doc.multi && seen.has(e.key!)) diags.push({ line, severity: 'warning', message: tr(`${e.key} ist mehrfach gesetzt – es gilt der letzte Wert (Zeile ${line})`, `${e.key} is set more than once – the last value applies (line ${line})`) })
     seen.set(e.key!, line)
-    if (doc.options && e.value && !doc.options.includes(e.value)) diags.push({ line, severity: 'warning', message: `${e.key}=${e.value}: erwartet ${doc.options.filter(Boolean).join(', ')}` })
+    if (doc.options && e.value && !doc.options.includes(e.value)) diags.push({ line, severity: 'warning', message: tr(`${e.key}=${e.value}: erwartet ${doc.options.filter(Boolean).join(', ')}`, `${e.key}=${e.value}: expected ${doc.options.filter(Boolean).join(', ')}`) })
   }
-  if (!entries.some((e) => e.kind === 'section' && e.section === main)) diags.push({ severity: 'error', message: `Abschnitt [${main}] fehlt` })
-  else if (type === 'container' && !getValue(text, main, 'Image') && !getValue(text, main, 'Rootfs')) diags.push({ severity: 'error', message: 'Image= fehlt' })
-  else if (type === 'kube' && !getValue(text, main, 'Yaml')) diags.push({ severity: 'error', message: 'Yaml= fehlt' })
-  else if (type === 'image' && !getValue(text, main, 'Image')) diags.push({ severity: 'error', message: 'Image= fehlt' })
+  if (!entries.some((e) => e.kind === 'section' && e.section === main)) diags.push({ severity: 'error', message: tr(`Abschnitt [${main}] fehlt`, `Section [${main}] is missing`) })
+  else if (type === 'container' && !getValue(text, main, 'Image') && !getValue(text, main, 'Rootfs')) diags.push({ severity: 'error', message: tr('Image= fehlt', 'Image= is missing') })
+  else if (type === 'kube' && !getValue(text, main, 'Yaml')) diags.push({ severity: 'error', message: tr('Yaml= fehlt', 'Yaml= is missing') })
+  else if (type === 'image' && !getValue(text, main, 'Image')) diags.push({ severity: 'error', message: tr('Image= fehlt', 'Image= is missing') })
   return diags
 }
 

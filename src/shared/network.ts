@@ -1,6 +1,8 @@
 // Network overview (read only): interfaces, routes, DNS, listening ports and
 // the firewall's view on them.
 
+import { tr } from './i18n'
+
 export type IfaceKind = 'ethernet' | 'wifi' | 'bridge' | 'container' | 'vpn' | 'loopback' | 'virtual'
 
 export interface NetAddress {
@@ -102,7 +104,7 @@ export function firewallVerdict(p: ListeningPort, fw: FirewallInfo): ListeningPo
 }
 
 /** Well-known ports, so a bare number means something. */
-export const KNOWN_PORTS: Record<string, string> = {
+export const knownPorts = (): Record<string, string> => ({
   '22/tcp': 'SSH',
   '53/udp': 'DNS',
   '53/tcp': 'DNS',
@@ -114,7 +116,7 @@ export const KNOWN_PORTS: Record<string, string> = {
   '139/tcp': 'SMB (NetBIOS)',
   '445/tcp': 'SMB',
   '2049/tcp': 'NFS',
-  '631/tcp': 'Drucker (CUPS)',
+  '631/tcp': tr('Drucker (CUPS)', 'Printer (CUPS)'),
   '5353/udp': 'mDNS/Avahi',
   '9090/tcp': 'Cockpit',
   '5355/udp': 'LLMNR',
@@ -123,7 +125,7 @@ export const KNOWN_PORTS: Record<string, string> = {
   '138/udp': 'NetBIOS',
   '3702/udp': 'WS-Discovery',
   '51820/udp': 'WireGuard',
-}
+})
 
 /**
  * Adds what Podman knows: names for container processes and published ports.

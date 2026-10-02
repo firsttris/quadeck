@@ -1,20 +1,21 @@
 import { HttpError } from '../auth'
+import { tr } from '~/shared/i18n'
 import type { UserChange } from '~/shared/users'
 
 // Request bodies → UserChange at both boundaries (API route and helper). The
 // content checks (name rules, existing groups, lock-out) follow in the backend.
 
 const str = (v: unknown, max = 600) => {
-  if (typeof v !== 'string' || v.length > max) throw new HttpError(400, 'Ungültige Anfrage')
+  if (typeof v !== 'string' || v.length > max) throw new HttpError(400, tr('Ungültige Anfrage', 'Invalid request'))
   return v
 }
 
 export function parseUserChange(v: unknown): UserChange {
-  if (!v || typeof v !== 'object') throw new HttpError(400, 'Änderung fehlt')
+  if (!v || typeof v !== 'object') throw new HttpError(400, tr('Änderung fehlt', 'Change missing'))
   const c = v as Record<string, unknown>
   const name = str(c.name, 32)
   const groups = () => {
-    if (!Array.isArray(c.groups) || c.groups.length > 50) throw new HttpError(400, 'Ungültige Gruppen')
+    if (!Array.isArray(c.groups) || c.groups.length > 50) throw new HttpError(400, tr('Ungültige Gruppen', 'Invalid groups'))
     return [...new Set(c.groups.map((g) => str(g, 32)))]
   }
   switch (c.kind) {
@@ -31,5 +32,5 @@ export function parseUserChange(v: unknown): UserChange {
     case 'delete':
       return { kind: 'delete', name, removeHome: c.removeHome === true }
   }
-  throw new HttpError(400, 'Unbekannte Änderung')
+  throw new HttpError(400, tr('Unbekannte Änderung', 'Unknown change'))
 }
