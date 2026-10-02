@@ -36,8 +36,36 @@ export function queryHistory(d: DB, range: HistoryRange, now = Date.now()): Metr
   return out
 }
 
+/** SMART trends are kept for a year (one sample per disk and hour). */
+export const SMART_KEEP_MS = 365 * 24 * 3600_000
+
 export function pruneHistory(d: DB, now = Date.now()) {
-  d.delete(schema.metricSamples).where(lt(schema.metricSamples.ts, now - KEEP_MS)).run()
+  const t = schema.metricSamples
+  d.delete(t).where(and(lt(t.ts, now - KEEP_MS), sql`${t.metric} NOT LIKE 'smart:%'`)).run()
+  d.delete(t).where(lt(t.ts, now - SMART_KEEP_MS)).run()
+}
+
+export const SMART_METRICS = ['temp', 'realloc', 'pending', 'uncorrectable', 'crc', 'wear', 'media'] as const
+export type SmartMetric = (typeof SMART_METRICS)[number]
+
+/** One disk's SMART trends ([ts, value] per metric), daily averages beyond 30 days. */
+export function querySmartHistory(d: DB, diskId: string, days: number, now = Date.now()): Partial<Record<SmartMetric, [number, number][]>> {
+  const t = schema.metricSamples
+  const bucket = days > 30 ? 24 * 3600_000 : 3600_000
+  const b = sql<number>`(${t.ts} / ${bucket}) * ${bucket}`
+  const rows = d
+    .select({ metric: t.metric, b, v: sql<number>`max(${t.value})` })
+    .from(t)
+    .where(and(gte(t.ts, now - days * 24 * 3600_000), sql`${t.metric} LIKE ${`smart:${diskId}:%`}`))
+    .groupBy(t.metric, b)
+    .orderBy(asc(b))
+    .all()
+  const out: Partial<Record<SmartMetric, [number, number][]>> = {}
+  for (const r of rows) {
+    const m = r.metric.slice(`smart:${diskId}:`.length) as SmartMetric
+    if (SMART_METRICS.includes(m)) (out[m] ??= []).push([r.b + bucket / 2, r.v])
+  }
+  return out
 }
 
 /** Demo data: a week of plausible curves (fixtures only, when the table is empty). */
@@ -64,6 +92,31 @@ export function seedFixtureHistory(d: DB, now = Date.now()) {
       { ts, metric: 'gpu_mem', value: 0.08 + transcode * 0.3 },
       { ts, metric: 'gpu_temp', value: 41 + transcode * 30 + rnd() * 2 },
     )
+  }
+  d.transaction((tx) => {
+    for (let i = 0; i < rows.length; i += 500) tx.insert(t).values(rows.slice(i, i + 500)).run()
+  })
+}
+
+/** Demo: three months of SMART trends (fixtures only, once). */
+export function seedSmartHistory(d: DB, disks: { id: string; samples: { key: string; value: number }[] }[], now = Date.now()) {
+  const t = schema.metricSamples
+  if (d.select({ n: sql<number>`count(*)` }).from(t).where(sql`${t.metric} LIKE 'smart:%'`).get()!.n > 0) return
+  const rows: { ts: number; metric: string; value: number }[] = []
+  const days = 90
+  for (const disk of disks) {
+    for (let h = days * 24; h > 0; h -= 3) {
+      const ts = now - h * 3600_000
+      const age = 1 - h / (days * 24) // 0 → 1 over the window
+      const hour = new Date(ts).getHours()
+      for (const s of disk.samples) {
+        let v = s.value
+        if (s.key === 'temp') v = s.value - 3 + 4 * Math.max(0, Math.sin(((hour - 8) / 24) * 2 * Math.PI)) + ((h * 7919) % 10) / 10
+        // Counters grew over time to today's value (the interesting part of the demo).
+        else if (s.value > 0) v = Math.floor(s.value * Math.min(1, Math.max(0, (age - 0.4) / 0.6)) ** 0.7)
+        rows.push({ ts, metric: `smart:${disk.id}:${s.key}`, value: v })
+      }
+    }
   }
   d.transaction((tx) => {
     for (let i = 0; i < rows.length; i += 500) tx.insert(t).values(rows.slice(i, i + 500)).run()

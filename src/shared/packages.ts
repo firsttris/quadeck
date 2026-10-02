@@ -96,6 +96,10 @@ export type JobSpec =
   | { kind: 'remove'; names: string[] }
   | { kind: 'images-update' }
   | { kind: 'image-update'; unit: string }
+  | { kind: 'install'; feature: Feature }
+  | { kind: 'fs-copy'; paths: string[]; toDir: string; overwrite: boolean }
+  | { kind: 'fs-move'; paths: string[]; toDir: string; overwrite: boolean }
+  | { kind: 'fs-delete'; paths: string[] }
 
 export type JobStatus = 'running' | 'ok' | 'failed'
 
@@ -139,3 +143,47 @@ export const PACKAGE_NAME = /^[A-Za-z0-9@_+][A-Za-z0-9@._+:-]{0,127}$/
 
 /** Updates that usually need a reboot to take effect. */
 export const REBOOT_PACKAGES = /^(linux(-lts|-zen|-hardened)?|linux-image-.*|kernel(-core|-default)?|systemd|glibc|libc6|musl|linux-firmware|intel-ucode|amd-ucode|nvidia.*)$/
+
+/**
+ * Tools Quadeck pages need, installable with one click. Only these – never
+ * arbitrary package names from the browser.
+ */
+export type Feature = 'smart' | 'samba' | 'nfs' | 'ssh'
+
+export const FEATURES: Record<Feature, { label: string; packages: Record<ManagerId, string[]>; service?: Record<ManagerId, string> }> = {
+  smart: {
+    label: 'smartmontools (SMART-Werte der Platten)',
+    packages: { pacman: ['smartmontools'], apt: ['smartmontools'], dnf: ['smartmontools'], zypper: ['smartmontools'], apk: ['smartmontools'], 'rpm-ostree': ['smartmontools'] },
+  },
+  samba: {
+    label: 'Samba (SMB-Freigaben)',
+    packages: { pacman: ['samba'], apt: ['samba'], dnf: ['samba'], zypper: ['samba'], apk: ['samba'], 'rpm-ostree': ['samba'] },
+  },
+  nfs: {
+    label: 'NFS-Server',
+    packages: { pacman: ['nfs-utils'], apt: ['nfs-kernel-server'], dnf: ['nfs-utils'], zypper: ['nfs-kernel-server'], apk: ['nfs-utils'], 'rpm-ostree': ['nfs-utils'] },
+  },
+  ssh: {
+    label: 'OpenSSH-Server',
+    packages: { pacman: ['openssh'], apt: ['openssh-server'], dnf: ['openssh-server'], zypper: ['openssh-server'], apk: ['openssh'], 'rpm-ostree': ['openssh-server'] },
+  },
+}
+
+/** The command to run by hand, for the hint next to the button. */
+export function installCommand(manager: ManagerId, feature: Feature): string {
+  const pkgs = FEATURES[feature].packages[manager].join(' ')
+  switch (manager) {
+    case 'pacman':
+      return `sudo pacman -S --needed ${pkgs}`
+    case 'apt':
+      return `sudo apt install ${pkgs}`
+    case 'dnf':
+      return `sudo dnf install ${pkgs}`
+    case 'zypper':
+      return `sudo zypper install ${pkgs}`
+    case 'apk':
+      return `doas apk add ${pkgs}`
+    case 'rpm-ostree':
+      return `sudo rpm-ostree install ${pkgs} && sudo systemctl reboot`
+  }
+}

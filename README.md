@@ -135,6 +135,26 @@ Die Karte „Freigaben“ auf der Übersicht zeigt SMB-Shares und NFS-Exporte; *
 
 Samba-Benutzer brauchen ein eigenes Passwort (`smbpasswd -a name`); das geht noch nicht über die Oberfläche.
 
+## Festplatten (SMART)
+
+Die Seite **Festplatten** liest alle Laufwerke mit `smartctl --json` (smartmontools) – alle 30 Minuten oder auf Knopfdruck; schlafende Platten werden dabei **nicht geweckt**.
+
+- Pro Platte: Modell, Größe, HDD/SSD/NVMe, Temperatur, Laufzeit, Verschleiß (SSD), ersetzte und wartende Sektoren, Medienfehler, letzter Selbsttest – und eine Ampel.
+- **Bewertung** wie in snapraid-ui: Status aus smartctl, ersetzte/wartende/unlesbare Sektoren, nicht korrigierbare Lesefehler, CRC-Fehler, Verschleiß ab 80 %, Temperatur über 50 °C, fehlgeschlagener Selbsttest. Dazu, was zu tun ist: Ersatz besorgen, Kabel prüfen, besser kühlen.
+- **Verlauf:** Temperatur, Sektor- und Fehlerzähler und Verschleiß werden stündlich gespeichert und ein Jahr aufbewahrt – steigende Zähler sind das eigentliche Warnsignal.
+- **Selbsttests** (kurz/lang) starten, Fortschritt und Protokoll; dafür muss entsperrt sein.
+- Auf der Übersicht zeigt die Speicher-Karte einen SMART-Punkt pro Platte, die Seitenleiste die Zahl der Platten mit Befund.
+- Virtuelle Laufwerke ohne SMART erscheinen neutral; ohne smartmontools gibt es einen Knopf zum **Installieren** (wie bei Samba, NFS und OpenSSH auf ihren Seiten) samt Befehl für die Konsole.
+
+## Dateien
+
+Im Tab **Dateien** der Seite Festplatten gibt es einen kleinen Explorer für die Datenbereiche:
+
+- **Bereiche:** `/mnt`, `/srv`, `/media`, `/home`, `/data` und eingehängte Datenplatten außerhalb davon, mit freiem Platz; eigene Liste per `QUADECK_FILE_ROOTS` (kommagetrennt). Systemordner (`/etc`, `/root`, `/boot`, `/usr`, `/var` …) sind nie erreichbar; Symlinks werden vor der Prüfung aufgelöst, ein Link führt also nicht hinaus.
+- **Ordner öffnen**, Pfadleiste, versteckte Dateien ein-/ausblenden, sortieren nach Name, Datum oder Größe.
+- **Neuer Ordner** (bekommt den Besitzer des Elternordners), **Umbenennen**, **Kopieren / Ausschneiden / Einfügen**, **Löschen** – auch per Strg+C/X/V, Entf und F2. Vor dem Überschreiben wird gefragt; in sich selbst kopieren oder einen Bereich selbst löschen geht nicht.
+- Kopieren, Verschieben und Löschen laufen als **Job mit Live-Ausgabe** (`cp -a --reflink=auto`, `mv`, `rm --one-file-system`) – große Ordner blockieren nichts. Alles Verändernde braucht das Entsperren; einen Papierkorb gibt es nicht.
+
 ## SSH
 
 Die Seite **SSH** hilft beim Zugang zum Server:
@@ -208,6 +228,8 @@ src/server/metrics.ts       Messwert-Verlauf (SQLite, 7 Tage, Buckets je Zeitrau
 src/server/providers/       Discovery (Caddy); Schnittstelle für Traefik u. a.
 src/server/privileged/      Root-Helfer: feste Aktionsliste, Entsperren, Unix-Socket
 src/server/packages/        Paketmanager (pacman/AUR, apt, dnf, zypper, apk, rpm-ostree), Jobs, Image-Updates
+src/server/smart/           SMART: smartctl --json, Selbsttests
+src/server/files/           Datei-Explorer: Bereiche, Auflisten, Kopieren/Verschieben/Löschen als Job
 src/server/ssh/             SSH: authorized_keys, sshd-Drop-in, Fingerprints, Logins
 src/server/shares/          SMB/NFS: smb.conf- und exports-Bearbeitung, testparm/exportfs, Dienste
 src/server/quadlets/        Quadlet-Dateien, Generator-Prüfung, git-Verlauf, Podman-Einstellungen, Compose-Import
@@ -225,6 +247,6 @@ v0.2: Bearbeiten-Modus mit react-grid-layout (Karten und Kacheln), Services bear
 
 v0.3: getrennter Root-Helfer mit Entsperren; Updates und Paketverwaltung für sechs Paketmanager inklusive AUR; Container-Image-Updates; Quadlet-Editor (Formular/Text, Generator-Prüfung, Diff, git-Verlauf, Vorlagen, Compose-Import); Podman-Einstellungen.
 
-Danach: Verlauf für CPU, RAM, Temperatur, Netz und GPU; GPU-Karte; Freigaben (SMB/NFS) verwalten; SSH-Zugang (Schlüssel, Absicherung, Anmeldungen).
+Danach: Verlauf für CPU, RAM, Temperatur, Netz und GPU; GPU-Karte; Freigaben (SMB/NFS) verwalten; SSH-Zugang (Schlüssel, Absicherung, Anmeldungen); SMART mit Verlauf und Selbsttests; Installieren fehlender Werkzeuge per Knopf; Datei-Explorer für die Datenbereiche.
 
 Noch nicht enthalten: SMART/SnapRAID, Forward-Auth, Timer-Editor, rootless Quadlets.

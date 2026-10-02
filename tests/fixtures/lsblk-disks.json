@@ -1,0 +1,26 @@
+{
+   "blockdevices": [
+      {
+         "name": "zram0",
+         "type": "disk"
+      },{
+         "name": "vda",
+         "type": "disk"
+      },{
+         "name": "vdb",
+         "type": "disk"
+      },{
+         "name": "vdc",
+         "type": "disk"
+      },{
+         "name": "vdd",
+         "type": "disk"
+      },{
+         "name": "vde",
+         "type": "disk"
+      },{
+         "name": "vdf",
+         "type": "disk"
+      }
+   ]
+}

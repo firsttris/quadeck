@@ -5,6 +5,9 @@ import type { PodmanConfigName, PodmanSettings, QuadletFile, Revision, ValidateR
 import type { WriteResult } from '../quadlets/backend'
 import type { ShareChange, SharePreview, ShareServiceAction, SharesState } from '~/shared/shares'
 import type { SshChange, SshPreview, SshState } from '~/shared/ssh'
+import type { SmartReport } from '~/shared/smart'
+import type { SelfTestType } from '../smart/backend'
+import type { DirListing, FileRoot } from '~/shared/files'
 import type { UnlockInfo } from './gate'
 
 /** Privileged over the root helper's Unix socket. */
@@ -145,5 +148,25 @@ export class HelperClient implements Privileged {
   }
   sshService(token: string | undefined, action: 'start' | 'restart' | 'enable') {
     return this.call<SshState>('POST', '/ssh/service', { token, action }, 60_000)
+  }
+
+  smartReport(refresh: boolean) {
+    return this.call<SmartReport>('POST', '/smart/report', { refresh }, 300_000)
+  }
+  smartSelfTest(token: string | undefined, disk: string, type: SelfTestType) {
+    return this.call<SmartReport>('POST', '/smart/selftest', { token, disk, type }, 300_000)
+  }
+
+  async fileRoots() {
+    return (await this.call<{ data: FileRoot[] }>('POST', '/files/roots', {})).data
+  }
+  listDir(path: string) {
+    return this.call<DirListing>('POST', '/files/list', { path }, 60_000)
+  }
+  async makeDir(token: string | undefined, path: string) {
+    await this.call('POST', '/files/mkdir', { token, path })
+  }
+  async renamePath(token: string | undefined, path: string, newName: string) {
+    await this.call('POST', '/files/rename', { token, path, newName })
   }
 }
