@@ -13,18 +13,7 @@ import { useT } from '~/i18n'
 import { api } from '~/lib/api'
 import { bytes, relative } from '~/lib/format'
 import { localeOf } from '~/shared/i18n'
-import {
-  REBOOT_PACKAGES,
-  type ImageUpdatesReport,
-  type InstalledPackage,
-  type JobInfo,
-  type NewsItem,
-  type PackageDetail,
-  type PackageOverview,
-  type PackageUpdate,
-  type RemovePreview,
-  type UpdatesReport,
-} from '~/shared/packages'
+import { REBOOT_PACKAGES, type ImageUpdatesReport, type InstalledPackage, type JobInfo, type NewsItem, type PackageDetail, type PackageOverview, type PackageUpdate, type RemovePreview, type UpdatesReport } from '~/shared/packages'
 
 type Tab = 'updates' | 'packages' | 'podman' | 'boot'
 
@@ -66,10 +55,7 @@ function SystemPage() {
   const t = useT().system.page
   return (
     <>
-      <PageHeader
-        title={t.title}
-        subtitle={o ? (o.manager ? t.subtitle(o.label, o.aur?.helper) : t.noManager) : t.defaultSubtitle}
-      />
+      <PageHeader title={t.title} subtitle={o ? (o.manager ? t.subtitle(o.label, o.aur?.helper) : t.noManager) : t.defaultSubtitle} />
       <div role="tablist" aria-label={t.tabs} className="flex flex-wrap gap-1.5">
         <Link to="/system" search={{}} role="tab" aria-selected={tab === 'updates'} className={`seg ${tab === 'updates' ? 'on' : ''}`}>
           {t.updates}
@@ -182,13 +168,7 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
           items={u?.aur}
           error={u?.aurError}
           empty={t.noAur}
-          note={
-            !o.aur?.helper
-              ? t.noHelper
-              : !o.aur.user
-                ? t.noAurUser
-                : t.buildsAs(o.aur.user, o.aur.helper)
-          }
+          note={!o.aur?.helper ? t.noHelper : !o.aur.user ? t.noAurUser : t.buildsAs(o.aur.user, o.aur.helper)}
           action={
             canAct && u?.aur.length && o.aur?.helper && o.aur.user ? (
               <button type="button" className="btn sm" disabled={busy} onClick={() => setConfirm('aur')}>
@@ -253,9 +233,7 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
             </table>
           </div>
         )}
-        <p className="m-0 border-t border-line px-[18px] py-2 text-[12px] text-muted">
-          {t.imagesHint}
-        </p>
+        <p className="m-0 border-t border-line px-[18px] py-2 text-[12px] text-muted">{t.imagesHint}</p>
       </section>
 
       {o && o.configFiles.length > 0 && <ConfigFilesPanel files={o.configFiles} hint={o.configHint} onChanged={onOverviewChanged} />}
@@ -296,11 +274,7 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
         open={confirm === 'aur'}
         title={t.aurTitle}
         confirm={t.update}
-        body={
-          <p className="m-0">
-            {t.aurBody(o?.aur?.helper, u?.aur.length, o?.aur?.user)}
-          </p>
-        }
+        body={<p className="m-0">{t.aurBody(o?.aur?.helper, u?.aur.length, o?.aur?.user)}</p>}
         onConfirm={() => void jobs.start({ kind: 'aur-upgrade' })}
         onClose={() => setConfirm(null)}
       />
@@ -660,9 +634,7 @@ function RemoveDialog({ names, onClose, onStarted }: { names: string[] | null; o
       )}
       {preview && !preview.error && (
         <>
-          <p className="m-0 text-[13px] text-[#c9d1d9]">
-            {t.removesN(preview.packages.length)}
-          </p>
+          <p className="m-0 text-[13px] text-[#c9d1d9]">{t.removesN(preview.packages.length)}</p>
           <ul className="m-0 flex max-h-[240px] list-none flex-col overflow-y-auto rounded-lg border border-edge p-0" aria-label={t.toBeRemoved}>
             {preview.packages.map((p) => (
               <li key={p.name} className="flex justify-between gap-3 border-b border-line px-3 py-1.5 font-mono text-[12px] last:border-b-0">

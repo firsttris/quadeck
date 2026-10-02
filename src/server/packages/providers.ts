@@ -54,7 +54,11 @@ function kernelReplaced(): string | undefined {
   return existsSync('/usr/lib/modules') || existsSync('/lib/modules') ? (dirs.some(existsSync) ? undefined : tr(`Kernel aktualisiert (läuft noch ${r})`, `Kernel updated (still running ${r})`)) : undefined
 }
 
-const lines = (s: string) => s.split('\n').map((l) => l.trim()).filter(Boolean)
+const lines = (s: string) =>
+  s
+    .split('\n')
+    .map((l) => l.trim())
+    .filter(Boolean)
 
 // ---------- pacman (Arch, Manjaro, EndeavourOS) ----------
 
@@ -130,7 +134,6 @@ export class Pacman implements Provider {
   installSteps(names: string[]): Step[] {
     return [{ argv: ['pacman', '-S', '--needed', '--noconfirm', '--noprogressbar', '--color', 'never', '--', ...names] }]
   }
-
 
   async rebootRequired() {
     return kernelReplaced()
@@ -214,9 +217,11 @@ export class Apt implements Provider {
     return [{ argv: ['apt-get', '-y', '-q', 'remove', '--autoremove', '--', ...names], env: APT_ENV }]
   }
   installSteps(names: string[]): Step[] {
-    return [{ argv: ['apt-get', 'update', '-q'], env: APT_ENV }, { argv: ['apt-get', 'install', '-y', '-q', ...APT_KEEP_CONF, '--', ...names], env: APT_ENV }]
+    return [
+      { argv: ['apt-get', 'update', '-q'], env: APT_ENV },
+      { argv: ['apt-get', 'install', '-y', '-q', ...APT_KEEP_CONF, '--', ...names], env: APT_ENV },
+    ]
   }
-
 
   async rebootRequired() {
     if (existsSync('/run/reboot-required')) {
@@ -281,13 +286,15 @@ export class Dnf implements Provider {
 
   constructor(bin: string) {
     this.bin = bin
-    this.dnf5 = bin.endsWith('dnf5') || (() => {
-      try {
-        return readlinkSync(bin).includes('dnf5')
-      } catch {
-        return false
-      }
-    })()
+    this.dnf5 =
+      bin.endsWith('dnf5') ||
+      (() => {
+        try {
+          return readlinkSync(bin).includes('dnf5')
+        } catch {
+          return false
+        }
+      })()
     this.label = this.dnf5 ? 'dnf5' : 'dnf'
   }
 
@@ -341,7 +348,6 @@ export class Dnf implements Provider {
     return [{ argv: [this.bin, '-y', 'install', '--', ...names] }]
   }
 
-
   async rebootRequired() {
     const r = this.dnf5 ? await run([this.bin, 'needs-restarting', '-r']) : Bun.which('needs-restarting') ? await run(['needs-restarting', '-r']) : undefined
     if (r?.code === 1) return tr('Neustart nötig (needs-restarting)', 'Reboot needed (needs-restarting)')
@@ -387,7 +393,10 @@ export class Zypper implements Provider {
     await runOk(['zypper', '-n', '-q', 'refresh'], SLOW)
     const r = await runOk(['zypper', '-n', '-q', 'list-updates'], SLOW)
     // S | Repository | Name | Current Version | Available Version | Arch
-    return p.parseZypperTable(r).filter((c) => c.length >= 6).map((c) => ({ name: c[2]!, from: c[3]!, to: c[4]!, repo: c[1] }))
+    return p
+      .parseZypperTable(r)
+      .filter((c) => c.length >= 6)
+      .map((c) => ({ name: c[2]!, from: c[3]!, to: c[4]!, repo: c[1] }))
   }
 
   async removePreview(names: string[]) {
@@ -407,7 +416,6 @@ export class Zypper implements Provider {
   installSteps(names: string[]): Step[] {
     return [{ argv: ['zypper', '-n', 'install', '--', ...names] }]
   }
-
 
   async rebootRequired() {
     const r = await run(['zypper', 'needs-rebooting'])
@@ -481,7 +489,6 @@ export class Apk implements Provider {
     return [{ argv: ['apk', 'add', '--no-progress', '--', ...names] }]
   }
 
-
   async rebootRequired() {
     return kernelReplaced()
   }
@@ -524,7 +531,13 @@ export class RpmOstree implements Provider {
   }
 
   async removePreview() {
-    return { packages: [], error: tr('Auf rpm-ostree-Systemen werden Pakete nicht einzeln entfernt (rpm-ostree uninstall nur für überlagerte Pakete).', 'On rpm-ostree systems packages are not removed one by one (rpm-ostree uninstall only for layered packages).') }
+    return {
+      packages: [],
+      error: tr(
+        'Auf rpm-ostree-Systemen werden Pakete nicht einzeln entfernt (rpm-ostree uninstall nur für überlagerte Pakete).',
+        'On rpm-ostree systems packages are not removed one by one (rpm-ostree uninstall only for layered packages).',
+      ),
+    }
   }
 
   upgradeSteps(): Step[] {
@@ -538,7 +551,6 @@ export class RpmOstree implements Provider {
     // Layered package; active after the next reboot.
     return [{ argv: ['rpm-ostree', 'install', '--idempotent', '--allow-inactive', '--', ...names] }]
   }
-
 
   async rebootRequired() {
     const st = await this.status()

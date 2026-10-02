@@ -102,7 +102,14 @@ function HardwarePage() {
 
           <div className="grid grid-cols-2 gap-[18px] md:grid-cols-4" aria-label={h.glance}>
             {[
-              [h.cpu, hw.cpu.model.replace(/\(R\)|\(TM\)|CPU|Processor|12th Gen|13th Gen|14th Gen/g, '').replace(/\s+/g, ' ').trim(), h.coresThreads(hw.cpu.cores, hw.cpu.threads)],
+              [
+                h.cpu,
+                hw.cpu.model
+                  .replace(/\(R\)|\(TM\)|CPU|Processor|12th Gen|13th Gen|14th Gen/g, '')
+                  .replace(/\s+/g, ' ')
+                  .trim(),
+                h.coresThreads(hw.cpu.cores, hw.cpu.threads),
+              ],
               [h.memory, gib(hw.memory.total), hw.memory.slots.length ? h.slotsUsed(hw.memory.slots.filter((x) => x.size).length, hw.memory.slots.length) : ''],
               [h.graphics, hw.gpus.length ? hw.gpus.map((g) => shortGpuName(g.name)).join(', ') : h.noneFound, hw.gpus.length > 1 ? h.gpus(hw.gpus.length) : ''],
               [h.mainboard, s?.board ?? s?.vendor ?? '–', s?.bios ? h.biosFrom(s.bios.version ?? '', s.bios.date) : ''],
@@ -141,9 +148,7 @@ function HardwarePage() {
                       {m.size ? (
                         <>
                           <span className="font-semibold">{gib(m.size)}</span>
-                          <span className="text-[12px] text-muted">
-                            {[m.type, m.speed ? `${m.configuredSpeed ?? m.speed} MT/s` : undefined].filter(Boolean).join(' · ')}
-                          </span>
+                          <span className="text-[12px] text-muted">{[m.type, m.speed ? `${m.configuredSpeed ?? m.speed} MT/s` : undefined].filter(Boolean).join(' · ')}</span>
                           {(m.manufacturer || m.part) && <span className="truncate text-[11px] text-subtle">{[m.manufacturer, m.part].filter(Boolean).join(' ')}</span>}
                         </>
                       ) : (
@@ -212,9 +217,7 @@ function HardwarePage() {
                     <span className="font-medium">{u.name ?? `${u.vendor}:${u.product}`}</span>
                     <span className="text-[12px] text-muted">{u.manufacturer}</span>
                   </div>
-                  <div className="text-[12px] text-subtle">
-                    {[usbSpeed(u.speed), u.driver && h.driver(u.driver), `${u.vendor}:${u.product}`].filter(Boolean).join(' · ')}
-                  </div>
+                  <div className="text-[12px] text-subtle">{[usbSpeed(u.speed), u.driver && h.driver(u.driver), `${u.vendor}:${u.product}`].filter(Boolean).join(' · ')}</div>
                   {u.serial.map((p) => (
                     <div key={p} className="flex items-center gap-2">
                       <code className="grow truncate rounded-md bg-[#0e1319] px-2 py-1 font-mono text-[12px]" title={p}>

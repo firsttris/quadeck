@@ -130,7 +130,11 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
               </p>
               {oneshot && (
                 <p className="m-0 flex flex-wrap items-center gap-2 text-[13px]">
-                  {b.oneshotNext} <span className="font-medium">{oneshot.title}{oneshot.version ? ` ${oneshot.version}` : ''}</span>
+                  {b.oneshotNext}{' '}
+                  <span className="font-medium">
+                    {oneshot.title}
+                    {oneshot.version ? ` ${oneshot.version}` : ''}
+                  </span>
                   {!readonly && (
                     <button type="button" className="btn sm" disabled={!!busy} onClick={() => void change('oneshot', { cancelOneshot: true }, b.oneshotCancelled)}>
                       {b.undo}
@@ -176,9 +180,7 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
                   {state.boot && (
                     <>
                       <dt className="text-muted">{state.boot.path}</dt>
-                      <dd className="m-0">
-                        {b.freeOf(diskSize(state.boot.free), diskSize(state.boot.size))}
-                      </dd>
+                      <dd className="m-0">{b.freeOf(diskSize(state.boot.free), diskSize(state.boot.size))}</dd>
                     </>
                   )}
                   <dt className="text-muted">{b.menu}</dt>
@@ -265,7 +267,10 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
             <section className="panel relative flex flex-col overflow-x-auto" aria-label={b.kernel}>
               <div className="px-[18px] pt-4 pb-2">
                 <h2 className="h2">{b.kernel}</h2>
-                <p className="m-0 mt-1 text-[12px] text-muted">{b.kernelHint}{state.dkms ? b.dkmsHint : ''}</p>
+                <p className="m-0 mt-1 text-[12px] text-muted">
+                  {b.kernelHint}
+                  {state.dkms ? b.dkmsHint : ''}
+                </p>
               </div>
               <table className="tbl">
                 <tbody>

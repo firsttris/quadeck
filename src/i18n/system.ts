@@ -58,7 +58,8 @@ export const de = {
     unreadNews: 'Es gibt ungelesene Arch-News – bitte vorher lesen. ',
     rebootAfterShort: 'Danach ist ein Neustart nötig.',
     aurTitle: 'AUR-Pakete aktualisieren?',
-    aurBody: (helper: string | undefined, n: number | undefined, user: string | undefined) => `${helper} baut ${n} Paket${n === 1 ? '' : 'e'} als ${user}. PKGBUILDs werden dabei nicht angezeigt – nur Pakete aktualisieren, denen du vertraust.`,
+    aurBody: (helper: string | undefined, n: number | undefined, user: string | undefined) =>
+      `${helper} baut ${n} Paket${n === 1 ? '' : 'e'} als ${user}. PKGBUILDs werden dabei nicht angezeigt – nur Pakete aktualisieren, denen du vertraust.`,
     imagesTitle: 'Container-Images aktualisieren?',
     imagesBody: (names: string) => `${names} werden mit neuem Image neu gestartet (podman auto-update, mit Rollback).`,
     package: 'Paket',

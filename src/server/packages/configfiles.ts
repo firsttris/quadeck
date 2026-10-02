@@ -7,6 +7,7 @@
 import { chmodSync, chownSync, copyFileSync, existsSync, lstatSync, mkdtempSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { tr } from '~/shared/i18n'
 import { HttpError } from '../auth'
 import { run } from '../exec'
 import { describeConfigFile, parseConfigPath, replaceRisk, type ConfigAction, type ConfigFileInfo } from '~/shared/configfiles'
@@ -29,9 +30,9 @@ export interface ConfigFs {
 const isBinary = (s: string) => s.includes('\u0000')
 
 export async function configFileInfo(fs: ConfigFs, path: string): Promise<ConfigFileInfo> {
-  if (!(await fs.list()).includes(path)) throw new HttpError(404, `${path} steht nicht (mehr) in der Liste`)
+  if (!(await fs.list()).includes(path)) throw new HttpError(404, tr(`${path} steht nicht (mehr) in der Liste`, `${path} is not (or no longer) in the list`))
   const parsed = parseConfigPath(path)
-  if (!parsed) throw new HttpError(400, 'Keine Konfigurationsdatei eines Pakets')
+  if (!parsed) throw new HttpError(400, tr('Keine Konfigurationsdatei eines Pakets', 'Not a config file of a package'))
   const content = fs.read(path)
   const liveContent = fs.read(parsed.live)
   const binary = (content !== undefined && (content.length > MAX || isBinary(content))) || (liveContent !== undefined && (liveContent.length > MAX || isBinary(liveContent)))
@@ -51,24 +52,25 @@ export async function applyConfigAction(fs: ConfigFs, path: string, action: Conf
   const f = await configFileInfo(fs, path)
   if (action === 'keep') {
     fs.remove(path)
-    return { done: f.kind === 'save' ? `${path} gelöscht` : `${f.live} bleibt, ${path} gelöscht` }
+    return { done: f.kind === 'save' ? tr(`${path} gelöscht`, `${path} deleted`) : tr(`${f.live} bleibt, ${path} gelöscht`, `${f.live} kept, ${path} deleted`) }
   }
-  if (f.kind === 'save') throw new HttpError(409, 'Gesicherte Fassungen werden nur gelöscht – zum Übernehmen den Inhalt bearbeiten und von Hand speichern')
+  if (f.kind === 'save')
+    throw new HttpError(409, tr('Gesicherte Fassungen werden nur gelöscht – zum Übernehmen den Inhalt bearbeiten und von Hand speichern', 'Saved versions are only deleted – to take one over, edit the content and save it by hand'))
   if (f.noReplace) throw new HttpError(403, f.noReplace)
-  if (f.binary) throw new HttpError(409, 'Keine Textdatei – hier nur behalten oder löschen')
+  if (f.binary) throw new HttpError(409, tr('Keine Textdatei – hier nur behalten oder löschen', 'Not a text file – only keep or delete here'))
   if (action === 'replace' && f.replaceRisk) throw new HttpError(409, f.replaceRisk)
   const text = action === 'replace' ? f.content! : merged
-  if (text === undefined || text.length > MAX || isBinary(text)) throw new HttpError(400, 'Ungültiger Inhalt')
+  if (text === undefined || text.length > MAX || isBinary(text)) throw new HttpError(400, tr('Ungültiger Inhalt', 'Invalid content'))
   if (f.check) {
     const err = await fs.check(f.check, text)
-    if (err) throw new HttpError(422, `${f.check} lehnt die Datei ab – nichts geändert: ${err}`)
+    if (err) throw new HttpError(422, tr(`${f.check} lehnt die Datei ab – nichts geändert: ${err}`, `${f.check} rejects the file – nothing changed: ${err}`))
   }
   fs.write(f.live, text.endsWith('\n') ? text : text + '\n')
   fs.remove(path)
   // Fast follow-ups right away; mkinitcpio takes a while and runs as a job from the page.
   let warning: string | undefined
   if (f.after && f.after !== 'mkinitcpio') warning = await fs.after(f.after)
-  return { done: action === 'replace' ? `${f.live} durch die neue Fassung ersetzt` : `${f.live} gespeichert`, after: f.after, warning }
+  return { done: action === 'replace' ? tr(`${f.live} durch die neue Fassung ersetzt`, `${f.live} replaced by the new version`) : tr(`${f.live} gespeichert`, `${f.live} saved`), after: f.after, warning }
 }
 
 export class SystemConfigFs implements ConfigFs {
@@ -92,7 +94,7 @@ export class SystemConfigFs implements ConfigFs {
   }
 
   write(path: string, content: string) {
-    if (existsSync(path) && lstatSync(path).isSymbolicLink()) throw new HttpError(409, `${path} ist ein Symlink und wird nicht überschrieben`)
+    if (existsSync(path) && lstatSync(path).isSymbolicLink()) throw new HttpError(409, tr(`${path} ist ein Symlink und wird nicht überschrieben`, `${path} is a symlink and is not overwritten`))
     const st = existsSync(path) ? statSync(path) : undefined
     if (st) copyFileSync(path, `${path}.quadeck-bak`)
     const tmp = `${path}.quadeck-tmp`
@@ -131,11 +133,10 @@ export class SystemConfigFs implements ConfigFs {
   }
 
   async after(what: NonNullable<ConfigFileInfo['after']>) {
-    const argv =
-      what === 'sshd-reload' ? ['systemctl', 'try-reload-or-restart', 'sshd.service', 'ssh.service'] : what === 'smb-reload' ? ['smbcontrol', 'smbd', 'reload-config'] : what === 'locale-gen' ? ['locale-gen'] : undefined
+    const argv = what === 'sshd-reload' ? ['systemctl', 'try-reload-or-restart', 'sshd.service', 'ssh.service'] : what === 'smb-reload' ? ['smbcontrol', 'smbd', 'reload-config'] : what === 'locale-gen' ? ['locale-gen'] : undefined
     if (!argv || !Bun.which(argv[0]!)) return undefined
     const r = await run(argv, { timeoutMs: 120_000 })
-    return r.code === 0 ? undefined : `Gespeichert, aber ${argv.join(' ')} meldet: ${(r.stderr || r.stdout).trim().slice(0, 200)}`
+    return r.code === 0 ? undefined : tr(`Gespeichert, aber ${argv.join(' ')} meldet: ${(r.stderr || r.stdout).trim().slice(0, 200)}`, `Saved, but ${argv.join(' ')} reports: ${(r.stderr || r.stdout).trim().slice(0, 200)}`)
   }
 }
 

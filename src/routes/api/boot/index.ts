@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { HttpError } from '~/server/auth'
+import { tr } from '~/shared/i18n'
 import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
 import { privileged } from '~/server/privileged'
@@ -31,7 +32,7 @@ export const Route = createFileRoute('/api/boot/')({
           const entry = typeof b.reboot.entry === 'string' && b.reboot.entry ? b.reboot.entry : undefined
           return Response.json(await p.reboot(token, { entry, firmware: b.reboot.firmware === true }))
         }
-        throw new HttpError(400, 'Unbekannte Anfrage')
+        throw new HttpError(400, tr('Unbekannte Anfrage', 'Unknown request'))
       }),
     },
   },

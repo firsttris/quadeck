@@ -198,21 +198,56 @@ export function bootWarnings(s: Omit<BootState, 'warnings'>): BootWarning[] {
   const out: BootWarning[] = []
   if (s.loader !== 'systemd-boot') return out
   for (const e of s.entries)
-    if (e.missing.length) out.push({ level: e.isDefault ? 'critical' : 'warning', text: tr(`„${e.title}“ zeigt auf fehlende Dateien (${e.missing.join(', ')}) – mit diesem Eintrag startet der Server nicht${e.isDefault ? '. Es ist der Standard-Eintrag!' : ' (z. B. nach dem Entfernen eines Kernels – Eintrag entfernen)'}`, `“${e.title}” points to missing files (${e.missing.join(', ')}) – the server will not boot with this entry${e.isDefault ? '. It is the default entry!' : ' (e.g. after removing a kernel – remove the entry)'}`) })
-  for (const k of s.kernels ?? []) if (k.installed && !k.entries.length && s.canCreateEntries) out.push({ level: 'warning', text: tr(`${k.pkg} ist installiert, hat aber keinen Boot-Eintrag – „Boot-Eintrag anlegen“`, `${k.pkg} is installed but has no boot entry – “Create boot entry”`) })
+    if (e.missing.length)
+      out.push({
+        level: e.isDefault ? 'critical' : 'warning',
+        text: tr(
+          `„${e.title}“ zeigt auf fehlende Dateien (${e.missing.join(', ')}) – mit diesem Eintrag startet der Server nicht${e.isDefault ? '. Es ist der Standard-Eintrag!' : ' (z. B. nach dem Entfernen eines Kernels – Eintrag entfernen)'}`,
+          `“${e.title}” points to missing files (${e.missing.join(', ')}) – the server will not boot with this entry${e.isDefault ? '. It is the default entry!' : ' (e.g. after removing a kernel – remove the entry)'}`,
+        ),
+      })
+  for (const k of s.kernels ?? [])
+    if (k.installed && !k.entries.length && s.canCreateEntries)
+      out.push({ level: 'warning', text: tr(`${k.pkg} ist installiert, hat aber keinen Boot-Eintrag – „Boot-Eintrag anlegen“`, `${k.pkg} is installed but has no boot entry – “Create boot entry”`) })
   if (s.boot) {
     const biggest = Math.max(0, ...s.entries.map((e) => e.size ?? 0))
     if (biggest && s.boot.free < biggest)
-      out.push({ level: 'critical', text: tr(`Auf ${s.boot.path} sind nur noch ${mib(s.boot.free)} frei – ein Kernel mit initramfs braucht ${mib(biggest)}. Das nächste Kernel-Update kann scheitern und den Server unbootbar machen: alte Kernel oder Fallback-Images entfernen.`, `Only ${mib(s.boot.free, true)} left on ${s.boot.path} – a kernel with initramfs needs ${mib(biggest, true)}. The next kernel update can fail and leave the server unbootable: remove old kernels or fallback images.`) })
-    else if (s.boot.size && s.boot.free / s.boot.size < 0.15) out.push({ level: 'warning', text: tr(`${s.boot.path} ist zu ${Math.round(100 - (s.boot.free / s.boot.size) * 100)} % voll (${mib(s.boot.free)} frei).`, `${s.boot.path} is ${Math.round(100 - (s.boot.free / s.boot.size) * 100)} % full (${mib(s.boot.free, true)} free).`) })
+      out.push({
+        level: 'critical',
+        text: tr(
+          `Auf ${s.boot.path} sind nur noch ${mib(s.boot.free)} frei – ein Kernel mit initramfs braucht ${mib(biggest)}. Das nächste Kernel-Update kann scheitern und den Server unbootbar machen: alte Kernel oder Fallback-Images entfernen.`,
+          `Only ${mib(s.boot.free, true)} left on ${s.boot.path} – a kernel with initramfs needs ${mib(biggest, true)}. The next kernel update can fail and leave the server unbootable: remove old kernels or fallback images.`,
+        ),
+      })
+    else if (s.boot.size && s.boot.free / s.boot.size < 0.15)
+      out.push({
+        level: 'warning',
+        text: tr(
+          `${s.boot.path} ist zu ${Math.round(100 - (s.boot.free / s.boot.size) * 100)} % voll (${mib(s.boot.free)} frei).`,
+          `${s.boot.path} is ${Math.round(100 - (s.boot.free / s.boot.size) * 100)} % full (${mib(s.boot.free, true)} free).`,
+        ),
+      })
   }
   if (s.espVersion && s.packageVersion && versionOlder(s.espVersion, s.packageVersion))
-    out.push({ level: 'warning', text: tr(`systemd-boot auf der ESP (${s.espVersion}) ist älter als das installierte systemd (${s.packageVersion}) – „Bootloader aktualisieren“ (bootctl update).`, `systemd-boot on the ESP (${s.espVersion}) is older than the installed systemd (${s.packageVersion}) – “Update boot loader” (bootctl update).`) })
+    out.push({
+      level: 'warning',
+      text: tr(
+        `systemd-boot auf der ESP (${s.espVersion}) ist älter als das installierte systemd (${s.packageVersion}) – „Bootloader aktualisieren“ (bootctl update).`,
+        `systemd-boot on the ESP (${s.espVersion}) is older than the installed systemd (${s.packageVersion}) – “Update boot loader” (bootctl update).`,
+      ),
+    })
   const kernels = new Set(s.entries.filter((e) => e.type !== 'auto' && e.linux).map((e) => e.linux))
   const ukis = s.entries.filter((e) => e.type === 'type2').length
   if (kernels.size + ukis === 1)
-    out.push({ level: 'info', text: tr(`Nur ein Kernel installiert. Ein zweiter (z. B. linux-lts) ist ein Rettungsweg, falls ein Kernel-Update Probleme macht – dann „einmalig mit linux-lts starten“.${s.kernels ? ' Unten unter „Kernel“ installieren.' : ''}`, `Only one kernel installed. A second one (e.g. linux-lts) is a way out if a kernel update causes trouble – then “boot linux-lts once”.${s.kernels ? ' Install it below under “Kernel”.' : ''}`) })
-  if (!s.entries.some((e) => e.isDefault)) out.push({ level: 'warning', text: tr('Kein Standard-Eintrag erkannt – systemd-boot nimmt dann den ersten in der Liste.', 'No default entry found – systemd-boot then takes the first one in the list.') })
+    out.push({
+      level: 'info',
+      text: tr(
+        `Nur ein Kernel installiert. Ein zweiter (z. B. linux-lts) ist ein Rettungsweg, falls ein Kernel-Update Probleme macht – dann „einmalig mit linux-lts starten“.${s.kernels ? ' Unten unter „Kernel“ installieren.' : ''}`,
+        `Only one kernel installed. A second one (e.g. linux-lts) is a way out if a kernel update causes trouble – then “boot linux-lts once”.${s.kernels ? ' Install it below under “Kernel”.' : ''}`,
+      ),
+    })
+  if (!s.entries.some((e) => e.isDefault))
+    out.push({ level: 'warning', text: tr('Kein Standard-Eintrag erkannt – systemd-boot nimmt dann den ersten in der Liste.', 'No default entry found – systemd-boot then takes the first one in the list.') })
   return out
 }
 
@@ -257,7 +292,10 @@ const params = (): Record<string, string | ((v?: string) => string)> => ({
   loglevel: (v) => tr(`Nur Kernel-Meldungen bis Stufe ${v ?? '?'} anzeigen`, `Only show kernel messages up to level ${v ?? '?'}`),
   nowatchdog: tr('Hardware-Watchdog aus – etwas schneller, aber kein automatischer Neustart bei Hängern', 'Hardware watchdog off – a bit faster, but no automatic restart on hangs'),
   nmi_watchdog: tr('NMI-Watchdog (0 = aus)', 'NMI watchdog (0 = off)'),
-  mitigations: (v) => (v === 'off' ? tr('Schutz gegen CPU-Lücken (Spectre & Co.) ausgeschaltet – schneller, aber unsicherer', 'Protection against CPU vulnerabilities (Spectre & co.) turned off – faster, but less secure') : tr('Schutz gegen CPU-Lücken (Spectre & Co.)', 'Protection against CPU vulnerabilities (Spectre & co.)')),
+  mitigations: (v) =>
+    v === 'off'
+      ? tr('Schutz gegen CPU-Lücken (Spectre & Co.) ausgeschaltet – schneller, aber unsicherer', 'Protection against CPU vulnerabilities (Spectre & co.) turned off – faster, but less secure')
+      : tr('Schutz gegen CPU-Lücken (Spectre & Co.)', 'Protection against CPU vulnerabilities (Spectre & co.)'),
   'i915.enable_guc': tr('Intel-GPU: GuC/HuC laden – nötig für Hardware-Transcoding (QuickSync) bei Jellyfin, Plex, Immich', 'Intel GPU: load GuC/HuC – needed for hardware transcoding (QuickSync) in Jellyfin, Plex, Immich'),
   'i915.enable_fbc': tr('Intel-GPU: Bildspeicher-Komprimierung (Strom sparen)', 'Intel GPU: framebuffer compression (saves power)'),
   'xe.force_probe': tr('Intel-GPU (Arc/Xe): neuen xe-Treiber erzwingen', 'Intel GPU (Arc/Xe): force the new xe driver'),
@@ -265,9 +303,20 @@ const params = (): Record<string, string | ((v?: string) => string)> => ({
   'amdgpu.ppfeaturemask': tr('AMD-GPU: Energie- und Übertaktungsfunktionen', 'AMD GPU: power and overclocking features'),
   'nvidia-drm.modeset': tr('NVIDIA: Kernel-Modesetting (für Wayland und manche Container nötig)', 'NVIDIA: kernel mode setting (needed for Wayland and some containers)'),
   'nvidia_drm.modeset': tr('NVIDIA: Kernel-Modesetting (für Wayland und manche Container nötig)', 'NVIDIA: kernel mode setting (needed for Wayland and some containers)'),
-  'usbcore.autosuspend': (v) => (v === '-1' ? tr('USB-Stromsparen aus – hilft gegen USB-Platten, die sich abmelden', 'USB power saving off – helps against USB disks that drop off') : tr('USB-Geräte nach so vielen Sekunden Ruhe schlafen legen', 'Suspend USB devices after this many idle seconds')),
-  'nvme_core.default_ps_max_latency_us': (v) => (v === '0' ? tr('NVMe-Stromsparmodi aus – hilft gegen SSDs, die unter Last verschwinden', 'NVMe power saving states off – helps against SSDs that vanish under load') : tr('NVMe: tiefste erlaubte Stromsparstufe', 'NVMe: deepest allowed power saving state')),
-  pcie_aspm: (v) => (v === 'off' ? tr('PCIe-Stromsparen aus', 'PCIe power saving off') : v === 'force' ? tr('PCIe-Stromsparen erzwingen (auch wo das BIOS es nicht meldet)', 'Force PCIe power saving (even where the BIOS does not report it)') : tr('PCIe-Stromsparen', 'PCIe power saving')),
+  'usbcore.autosuspend': (v) =>
+    v === '-1'
+      ? tr('USB-Stromsparen aus – hilft gegen USB-Platten, die sich abmelden', 'USB power saving off – helps against USB disks that drop off')
+      : tr('USB-Geräte nach so vielen Sekunden Ruhe schlafen legen', 'Suspend USB devices after this many idle seconds'),
+  'nvme_core.default_ps_max_latency_us': (v) =>
+    v === '0'
+      ? tr('NVMe-Stromsparmodi aus – hilft gegen SSDs, die unter Last verschwinden', 'NVMe power saving states off – helps against SSDs that vanish under load')
+      : tr('NVMe: tiefste erlaubte Stromsparstufe', 'NVMe: deepest allowed power saving state'),
+  pcie_aspm: (v) =>
+    v === 'off'
+      ? tr('PCIe-Stromsparen aus', 'PCIe power saving off')
+      : v === 'force'
+        ? tr('PCIe-Stromsparen erzwingen (auch wo das BIOS es nicht meldet)', 'Force PCIe power saving (even where the BIOS does not report it)')
+        : tr('PCIe-Stromsparen', 'PCIe power saving'),
   'pcie_aspm.policy': tr('PCIe-Stromsparstufe (powersupersave spart am meisten)', 'PCIe power saving level (powersupersave saves the most)'),
   intel_iommu: (v) => (v === 'on' ? tr('IOMMU an – Geräte an VMs durchreichen (VFIO)', 'IOMMU on – pass devices through to VMs (VFIO)') : tr('Intel-IOMMU', 'Intel IOMMU')),
   amd_iommu: tr('AMD-IOMMU – Geräte an VMs durchreichen', 'AMD IOMMU – pass devices through to VMs'),
@@ -284,26 +333,26 @@ const params = (): Record<string, string | ((v?: string) => string)> => ({
   'udev.log_level': tr('Meldungen von udev', 'Messages of udev'),
   ipv6: 'IPv6',
   'ipv6.disable': (v) => (v === '1' ? tr('IPv6 ganz aus', 'IPv6 off entirely') : 'IPv6'),
-  'transparent_hugepage': tr('Große Speicherseiten (Hugepages) automatisch nutzen', 'Use huge pages automatically'),
+  transparent_hugepage: tr('Große Speicherseiten (Hugepages) automatisch nutzen', 'Use huge pages automatically'),
   hugepages: tr('Feste Anzahl großer Speicherseiten reservieren', 'Reserve a fixed number of huge pages'),
-  'amd_pstate': tr('AMD-CPU: Taktsteuerung über CPPC (active spart meist mehr)', 'AMD CPU: frequency scaling via CPPC (active usually saves more)'),
-  'intel_pstate': tr('Intel-CPU: Taktsteuerung', 'Intel CPU: frequency scaling'),
-  'acpi_osi': tr('Betriebssystem, das dem BIOS gemeldet wird (Workaround für Firmware-Fehler)', 'Operating system reported to the BIOS (workaround for firmware bugs)'),
-  'acpi_enforce_resources': tr('ACPI-Ressourcen (lax: Sensoren mancher Mainboards lesbar)', 'ACPI resources (lax: sensors of some mainboards become readable)'),
+  amd_pstate: tr('AMD-CPU: Taktsteuerung über CPPC (active spart meist mehr)', 'AMD CPU: frequency scaling via CPPC (active usually saves more)'),
+  intel_pstate: tr('Intel-CPU: Taktsteuerung', 'Intel CPU: frequency scaling'),
+  acpi_osi: tr('Betriebssystem, das dem BIOS gemeldet wird (Workaround für Firmware-Fehler)', 'Operating system reported to the BIOS (workaround for firmware bugs)'),
+  acpi_enforce_resources: tr('ACPI-Ressourcen (lax: Sensoren mancher Mainboards lesbar)', 'ACPI resources (lax: sensors of some mainboards become readable)'),
   'libata.force': tr('Einstellungen für SATA-Ports erzwingen (z. B. Geschwindigkeit)', 'Force settings for SATA ports (e.g. speed)'),
   'random.trust_cpu': tr('Zufallszahlen der CPU für den Start vertrauen', 'Trust the CPU’s random numbers at boot'),
   apparmor: tr('AppArmor (Sicherheitsmodul)', 'AppArmor (security module)'),
   lsm: tr('Aktive Sicherheitsmodule', 'Active security modules'),
   selinux: 'SELinux',
   audit: tr('Audit-Protokoll des Kernels', 'Audit log of the kernel'),
-  'module_blacklist': tr('Diese Kernel-Module nie laden', 'Never load these kernel modules'),
+  module_blacklist: tr('Diese Kernel-Module nie laden', 'Never load these kernel modules'),
   'modprobe.blacklist': tr('Diese Kernel-Module nie laden', 'Never load these kernel modules'),
   fbcon: tr('Konsole auf dem Bildschirm', 'Console on the screen'),
   nomodeset: tr('Kein Grafik-Modesetting – nur zur Fehlersuche, schaltet Hardware-Beschleunigung ab', 'No graphics mode setting – only for troubleshooting, turns off hardware acceleration'),
-  'init': tr('Programm, das als erstes startet (sonst systemd)', 'Program that starts first (otherwise systemd)'),
+  init: tr('Programm, das als erstes startet (sonst systemd)', 'Program that starts first (otherwise systemd)'),
   panic: (v) => tr(`Bei einem Kernel-Absturz nach ${v ?? '?'} s neu starten`, `Reboot ${v ?? '?'} s after a kernel panic`),
   'kvm.ignore_msrs': tr('KVM: unbekannte CPU-Register ignorieren (Windows-VMs)', 'KVM: ignore unknown CPU registers (Windows VMs)'),
-  'split_lock_detect': tr('Erkennung von Split-Locks (off: manche Spiele, VMs schneller)', 'Split lock detection (off: some games, VMs faster)'),
+  split_lock_detect: tr('Erkennung von Split-Locks (off: manche Spiele, VMs schneller)', 'Split lock detection (off: some games, VMs faster)'),
 })
 
 export function explainParam(name: string, value?: string): string | undefined {
@@ -328,7 +377,11 @@ const flavor = (pkg: KernelFlavor, label: [string, string], text: [string, strin
 /** `label` and `text` are getters: read in the viewer's language. */
 export const KERNEL_FLAVORS: { pkg: KernelFlavor; readonly label: string; readonly text: string }[] = [
   flavor('linux', ['Aktuell', 'Current'], ['Neueste stabile Version – der Standard-Kernel von Arch.', 'Latest stable version – the default kernel of Arch.']),
-  flavor('linux-lts', ['LTS', 'LTS'], ['Langzeit-Kernel, ändert sich selten – der klassische Rückweg, wenn ein Update von linux Probleme macht.', 'Long-term kernel, rarely changes – the classic way back when an update of linux causes trouble.']),
+  flavor(
+    'linux-lts',
+    ['LTS', 'LTS'],
+    ['Langzeit-Kernel, ändert sich selten – der klassische Rückweg, wenn ein Update von linux Probleme macht.', 'Long-term kernel, rarely changes – the classic way back when an update of linux causes trouble.'],
+  ),
   flavor('linux-zen', ['Zen', 'Zen'], ['Auf kurze Reaktionszeiten getrimmt – eher für Desktop und Spiele.', 'Tuned for short response times – more for desktops and gaming.']),
   flavor('linux-hardened', ['Hardened', 'Hardened'], ['Mit zusätzlicher Absicherung; manche Programme laufen damit nicht.', 'With extra hardening; some programs do not run with it.']),
 ]
@@ -389,14 +442,7 @@ export function kernelEntry(template: string, pkg: KernelFlavor): string {
   const initrd = lines.filter((l) => /^\s*initrd\s/.test(l))
   const ucode = initrd.filter((l) => /ucode/.test(l))
   const rest = lines.filter((l) => !/^\s*initrd\s/.test(l) && l.trim())
-  return [
-    '# Angelegt von Quadeck',
-    `title   Arch Linux (${pkg})`,
-    `linux   /vmlinuz-${pkg}`,
-    ...ucode,
-    `initrd  /initramfs-${pkg}.img`,
-    ...rest,
-  ].join('\n') + '\n'
+  return ['# Angelegt von Quadeck', `title   Arch Linux (${pkg})`, `linux   /vmlinuz-${pkg}`, ...ucode, `initrd  /initramfs-${pkg}.img`, ...rest].join('\n') + '\n'
 }
 
 /** File name of the new entry. */

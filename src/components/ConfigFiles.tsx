@@ -107,13 +107,7 @@ function ConfigDialog({ f, onClose, onDone }: { f: ConfigFileInfo; onClose: () =
       {f.binary && <p className="m-0 text-[13px] text-muted">{c.binary}</p>}
       {!f.binary && f.kind === 'new' && merge === null && (
         <>
-          <p className="m-0 text-[12px] text-muted">
-            {f.liveExists ? (
-              c.diffIntro(<span className="text-[#ff8a80]">−</span>, <span className="text-[#7ee2a8]">+</span>)
-            ) : (
-              c.noLive(f.live)
-            )}
-          </p>
+          <p className="m-0 text-[12px] text-muted">{f.liveExists ? c.diffIntro(<span className="text-[#ff8a80]">−</span>, <span className="text-[#7ee2a8]">+</span>) : c.noLive(f.live)}</p>
           <DiffView before={f.liveContent ?? ''} after={f.content ?? ''} />
         </>
       )}

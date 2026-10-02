@@ -219,7 +219,23 @@ const gbps = (s?: string) => Number(s?.match(/^([\d.]+)\s*Gbps/)?.[1]) || undefi
 
 /** DMI chassis type → name. */
 export const chassisName = (type: string): string | undefined =>
-  ({ '3': 'Desktop', '4': tr('Desktop (flach)', 'Desktop (low profile)'), '6': 'Mini-Tower', '7': 'Tower', '8': 'Laptop', '9': 'Laptop', '10': 'Notebook', '13': 'All-in-One', '17': tr('Rack-Server', 'Rack server'), '23': 'Rack', '24': 'Tower', '30': 'Tablet', '31': 'Convertible', '35': 'Mini-PC', '36': tr('Stick-PC', 'Stick PC') })[type]
+  ({
+    '3': 'Desktop',
+    '4': tr('Desktop (flach)', 'Desktop (low profile)'),
+    '6': 'Mini-Tower',
+    '7': 'Tower',
+    '8': 'Laptop',
+    '9': 'Laptop',
+    '10': 'Notebook',
+    '13': 'All-in-One',
+    '17': tr('Rack-Server', 'Rack server'),
+    '23': 'Rack',
+    '24': 'Tower',
+    '30': 'Tablet',
+    '31': 'Convertible',
+    '35': 'Mini-PC',
+    '36': tr('Stick-PC', 'Stick PC'),
+  })[type]
 
 export type PciKind = 'nvme' | 'storage' | 'network' | 'graphics' | 'media' | 'usb' | 'bridge' | 'other'
 
@@ -272,7 +288,7 @@ export const PCI_VENDORS: Record<string, string> = {
   '15b7': 'Western Digital',
   '1c5c': 'SK hynix',
   '126f': 'Silicon Motion',
-  'c0a9': 'Micron/Crucial',
+  c0a9: 'Micron/Crucial',
   '1cc1': 'ADATA',
   '1e0f': 'KIOXIA',
   '1b4b': 'Marvell',
@@ -316,18 +332,63 @@ export function buildHardware(raw: HardwareRaw, now = Date.now()): Hardware {
     .sort((a, b) => a.group.localeCompare(b.group) || a.address.localeCompare(b.address))
   const gpus = pci
     .filter((p) => p.kind === 'graphics')
-    .map((p) => ({ pci: p.address, name: [p.vendorName?.replace(/ Corporation| Inc\.|, Inc\.| \[AMD\/ATI\]/g, ''), p.deviceName].filter(Boolean).join(' ') || `${p.vendor}:${p.device}`, driver: p.driver, nodes: raw.drm.filter((d) => d.pci === p.address).map((d) => d.node).sort() }))
+    .map((p) => ({
+      pci: p.address,
+      name: [p.vendorName?.replace(/ Corporation| Inc\.|, Inc\.| \[AMD\/ATI\]/g, ''), p.deviceName].filter(Boolean).join(' ') || `${p.vendor}:${p.device}`,
+      driver: p.driver,
+      nodes: raw.drm
+        .filter((d) => d.pci === p.address)
+        .map((d) => d.node)
+        .sort(),
+    }))
   const sata = raw.ata.map((a) => ({ ...a, slow: !!(gbps(a.speed) && gbps(a.limit) && gbps(a.speed)! < gbps(a.limit)!) }))
 
   const warnings: Hardware['warnings'] = []
   // downgraded and sensor labels may carry both languages already (tr() inside tr() would not resolve): pick each side.
   const de = (t: string) => localize(t, 'de')
   const en = (t: string) => localize(t, 'en')
-  for (const p of pci) if (p.downgraded) { const who = p.names?.[0] ?? p.deviceName ?? p.address; warnings.push({ level: 'warning', text: tr(`${who} ${de(p.downgraded)} – meist ein Steckplatz, der weniger Lanes hat oder sie mit einem anderen teilt (Handbuch des Mainboards).`, `${who} ${en(p.downgraded)} – usually a slot that has fewer lanes or shares them with another one (see the mainboard manual).`) }) }
-  for (const a of sata) if (a.slow && a.disk) warnings.push({ level: 'warning', text: tr(`${a.disk}${a.model ? ` (${a.model})` : ''} ist mit ${a.speed} statt ${a.limit} angebunden – oft Kabel oder Port; passt zu CRC-Fehlern in SMART.`, `${a.disk}${a.model ? ` (${a.model})` : ''} is linked at ${a.speed} instead of ${a.limit} – often the cable or port; matches CRC errors in SMART.`) })
-  for (const s of raw.sensors) if (s.kind === 'temp' && s.crit && s.value >= s.crit - 5) warnings.push({ level: 'warning', text: tr(`${s.chip} ${de(s.label)}: ${Math.round(s.value)} °C – nahe am kritischen Wert (${s.crit} °C).`, `${s.chip} ${en(s.label)}: ${Math.round(s.value)} °C – close to the critical value (${s.crit} °C).`) })
-  if (year && new Date(now).getUTCFullYear() - year >= 4) warnings.push({ level: 'info', text: tr(`Das BIOS ist von ${year}. Neuere Versionen beheben oft Fehler und Sicherheitslücken – auf der Seite des Mainboard-Herstellers nachsehen.`, `The BIOS is from ${year}. Newer versions often fix bugs and security holes – check the mainboard maker’s website.`) })
-  if (raw.virt && raw.virt !== 'none') warnings.push({ level: 'info', text: tr(`Läuft in einer virtuellen Maschine (${raw.virt}) – Steckplätze, Sensoren und Anbindungen zeigen dann die virtuelle Hardware.`, `Runs in a virtual machine (${raw.virt}) – slots, sensors and links then show the virtual hardware.`) })
+  for (const p of pci)
+    if (p.downgraded) {
+      const who = p.names?.[0] ?? p.deviceName ?? p.address
+      warnings.push({
+        level: 'warning',
+        text: tr(
+          `${who} ${de(p.downgraded)} – meist ein Steckplatz, der weniger Lanes hat oder sie mit einem anderen teilt (Handbuch des Mainboards).`,
+          `${who} ${en(p.downgraded)} – usually a slot that has fewer lanes or shares them with another one (see the mainboard manual).`,
+        ),
+      })
+    }
+  for (const a of sata)
+    if (a.slow && a.disk)
+      warnings.push({
+        level: 'warning',
+        text: tr(
+          `${a.disk}${a.model ? ` (${a.model})` : ''} ist mit ${a.speed} statt ${a.limit} angebunden – oft Kabel oder Port; passt zu CRC-Fehlern in SMART.`,
+          `${a.disk}${a.model ? ` (${a.model})` : ''} is linked at ${a.speed} instead of ${a.limit} – often the cable or port; matches CRC errors in SMART.`,
+        ),
+      })
+  for (const s of raw.sensors)
+    if (s.kind === 'temp' && s.crit && s.value >= s.crit - 5)
+      warnings.push({
+        level: 'warning',
+        text: tr(`${s.chip} ${de(s.label)}: ${Math.round(s.value)} °C – nahe am kritischen Wert (${s.crit} °C).`, `${s.chip} ${en(s.label)}: ${Math.round(s.value)} °C – close to the critical value (${s.crit} °C).`),
+      })
+  if (year && new Date(now).getUTCFullYear() - year >= 4)
+    warnings.push({
+      level: 'info',
+      text: tr(
+        `Das BIOS ist von ${year}. Neuere Versionen beheben oft Fehler und Sicherheitslücken – auf der Seite des Mainboard-Herstellers nachsehen.`,
+        `The BIOS is from ${year}. Newer versions often fix bugs and security holes – check the mainboard maker’s website.`,
+      ),
+    })
+  if (raw.virt && raw.virt !== 'none')
+    warnings.push({
+      level: 'info',
+      text: tr(
+        `Läuft in einer virtuellen Maschine (${raw.virt}) – Steckplätze, Sensoren und Anbindungen zeigen dann die virtuelle Hardware.`,
+        `Runs in a virtual machine (${raw.virt}) – slots, sensors and links then show the virtual hardware.`,
+      ),
+    })
 
   return {
     system: {
