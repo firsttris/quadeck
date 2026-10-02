@@ -1,5 +1,6 @@
 import { HttpError } from '../auth'
 import type { Privileged, UnitAction } from './actions'
+import type { ImageUpdatesReport, InstalledPackage, JobInfo, JobSpec, JobState, PackageDetail, PackageOverview, RemovePreview, UpdatesReport } from '~/shared/packages'
 import type { UnlockInfo } from './gate'
 
 /** Privileged over the root helper's Unix socket. */
@@ -52,5 +53,33 @@ export class HelperClient implements Privileged {
   }
   async podmanContainer(token: string | undefined, id: string, action: UnitAction) {
     await this.call('POST', '/podman/container', { token, id, action })
+  }
+
+  overview() {
+    return this.call<PackageOverview>('POST', '/pkg/overview', {})
+  }
+  async installed() {
+    return (await this.call<{ data: InstalledPackage[] }>('POST', '/pkg/installed', {}, 120_000)).data
+  }
+  async detail(name: string) {
+    return (await this.call<{ data: PackageDetail | null }>('POST', '/pkg/detail', { name })).data
+  }
+  updates(refresh: boolean) {
+    return this.call<UpdatesReport>('POST', '/pkg/updates', { refresh }, 600_000)
+  }
+  removePreview(names: string[]) {
+    return this.call<RemovePreview>('POST', '/pkg/remove-preview', { names }, 120_000)
+  }
+  imageUpdates(refresh: boolean) {
+    return this.call<ImageUpdatesReport>('POST', '/images/updates', { refresh }, 300_000)
+  }
+  async jobs() {
+    return (await this.call<{ data: JobInfo[] }>('POST', '/jobs/list', {})).data
+  }
+  async job(id: string, from: number) {
+    return (await this.call<{ data: JobState | null }>('POST', '/jobs/get', { id, from })).data
+  }
+  startJob(token: string | undefined, spec: JobSpec) {
+    return this.call<JobInfo>('POST', '/jobs/start', { token, spec }, 120_000)
   }
 }

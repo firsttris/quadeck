@@ -1,4 +1,6 @@
 import { existsSync } from 'node:fs'
+import type { JobSpec } from '~/shared/packages'
+import type { MaintenanceBackend } from '../packages/maintenance'
 import { HttpError } from '../auth'
 import { runOk } from '../exec'
 import { assertContainerId, assertPodmanRead, assertUnitName, type Privileged, type UnitAction } from './actions'
@@ -18,6 +20,7 @@ export class LocalPrivileged implements Privileged {
   constructor(
     readonly gate: Gate,
     private podmanSocket: string,
+    private maint: MaintenanceBackend,
   ) {}
 
   async info() {
@@ -76,5 +79,36 @@ export class LocalPrivileged implements Privileged {
     }
     const res = await this.podman(`/containers/${id}/${action}`, { method: 'POST' })
     if (!res.ok && res.status !== 304) throw new Error(`Podman: ${action} fehlgeschlagen (HTTP ${res.status}) ${await res.text()}`)
+  }
+
+  // ---------- packages & images ----------
+
+  overview() {
+    return this.maint.overview()
+  }
+  installed() {
+    return this.maint.installed()
+  }
+  detail(name: string) {
+    return this.maint.detail(name)
+  }
+  updates(refresh: boolean) {
+    return this.maint.updates(refresh)
+  }
+  removePreview(names: string[]) {
+    return this.maint.removePreview(names)
+  }
+  imageUpdates(refresh: boolean) {
+    return this.maint.imageUpdates(refresh)
+  }
+  jobs() {
+    return this.maint.jobs()
+  }
+  job(id: string, from: number) {
+    return this.maint.job(id, from)
+  }
+  async startJob(token: string | undefined, spec: JobSpec) {
+    this.gate.check(token)
+    return this.maint.startJob(spec)
   }
 }

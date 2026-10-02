@@ -1,8 +1,9 @@
-import { useEffect, useRef, type ReactNode } from 'react'
+import { useEffect, useId, useRef, type ReactNode } from 'react'
 
 /** Native <dialog> (focus trap, Esc, backdrop handled by the browser). */
-export function Modal({ open, onClose, title, children }: { open: boolean; onClose: () => void; title: string; children: ReactNode }) {
+export function Modal({ open, onClose, title, children, wide }: { open: boolean; onClose: () => void; title: string; children: ReactNode; wide?: boolean }) {
   const ref = useRef<HTMLDialogElement>(null)
+  const titleId = useId() // dialogs can stack (details → confirm)
   useEffect(() => {
     const d = ref.current
     if (!d) return
@@ -10,10 +11,10 @@ export function Modal({ open, onClose, title, children }: { open: boolean; onClo
     if (!open && d.open) d.close()
   }, [open])
   return (
-    <dialog ref={ref} className="modal" onClose={onClose} aria-labelledby="modal-title">
+    <dialog ref={ref} className={wide ? 'modal wide' : 'modal'} onClose={onClose} aria-labelledby={titleId}>
       {open && (
         <div className="flex flex-col gap-4 p-5">
-          <h2 id="modal-title" className="h2 font-cond text-[17px]">
+          <h2 id={titleId} className="h2 font-cond text-[17px]">
             {title}
           </h2>
           {children}

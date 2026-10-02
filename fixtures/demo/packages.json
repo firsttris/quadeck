@@ -1,0 +1,366 @@
+{
+ "overview": {
+  "manager": "pacman",
+  "label": "pacman",
+  "canRemove": true,
+  "aur": {
+   "helper": "yay",
+   "user": "tristan"
+  },
+  "rebootRequired": false,
+  "configFiles": [
+   "/etc/pacman.d/mirrorlist.pacnew",
+   "/etc/samba/smb.conf.pacnew"
+  ],
+  "configHint": "Mit „pacdiff“ (pacman-contrib) vergleichen und zusammenführen.",
+  "lastUpgrade": 1722330000000,
+  "protected": [
+   "base",
+   "linux",
+   "linux-lts",
+   "linux-zen",
+   "linux-hardened",
+   "linux-firmware",
+   "systemd",
+   "glibc",
+   "pacman",
+   "bash",
+   "coreutils",
+   "filesystem",
+   "util-linux",
+   "shadow",
+   "pam",
+   "sudo",
+   "openssh",
+   "podman",
+   "iproute2",
+   "grub",
+   "mkinitcpio",
+   "archlinux-keyring",
+   "ca-certificates"
+  ]
+ },
+ "installed": [
+  {
+   "name": "base",
+   "version": "3-2",
+   "description": "Minimal package set to define a basic Arch Linux installation",
+   "size": 0,
+   "reason": "explicit",
+   "depends": [
+    "bash",
+    "coreutils",
+    "filesystem",
+    "glibc",
+    "pacman",
+    "systemd"
+   ],
+   "requiredBy": []
+  },
+  {
+   "name": "bash",
+   "version": "5.2.037-1",
+   "description": "The GNU Bourne Again shell",
+   "size": 9646899,
+   "reason": "dependency",
+   "depends": [
+    "glibc",
+    "readline"
+   ],
+   "requiredBy": [
+    "base"
+   ]
+  },
+  {
+   "name": "caddy",
+   "version": "2.8.4-1",
+   "description": "Fast web server with automatic HTTPS",
+   "size": 39950745,
+   "reason": "explicit",
+   "depends": [
+    "glibc"
+   ],
+   "requiredBy": []
+  },
+  {
+   "name": "coreutils",
+   "version": "9.5-2",
+   "description": "The basic file, shell and text manipulation utilities",
+   "size": 17196646,
+   "reason": "dependency",
+   "depends": [
+    "glibc"
+   ],
+   "requiredBy": [
+    "base"
+   ]
+  },
+  {
+   "name": "docker-compose",
+   "version": "2.29.1-1",
+   "description": "Fast, isolated development environments using Docker",
+   "size": 65011712,
+   "reason": "explicit",
+   "depends": [],
+   "requiredBy": []
+  },
+  {
+   "name": "filesystem",
+   "version": "2024.04.07-1",
+   "description": "Base Arch Linux files",
+   "size": 31457,
+   "reason": "dependency",
+   "depends": [],
+   "requiredBy": [
+    "base"
+   ]
+  },
+  {
+   "name": "glibc",
+   "version": "2.40+r16-1",
+   "description": "GNU C Library",
+   "size": 50226790,
+   "reason": "dependency",
+   "depends": [],
+   "requiredBy": [
+    "base",
+    "bash",
+    "coreutils",
+    "caddy",
+    "podman",
+    "systemd"
+   ]
+  },
+  {
+   "name": "htop",
+   "version": "3.3.0-3",
+   "description": "Interactive process viewer",
+   "size": 419430,
+   "reason": "explicit",
+   "depends": [
+    "ncurses"
+   ],
+   "requiredBy": []
+  },
+  {
+   "name": "linux",
+   "version": "6.10.1.arch1-1",
+   "description": "The Linux kernel and modules",
+   "size": 146486067,
+   "reason": "explicit",
+   "depends": [],
+   "requiredBy": []
+  },
+  {
+   "name": "linux-firmware",
+   "version": "20240703.e94a4b2-1",
+   "description": "Firmware files for Linux",
+   "size": 0,
+   "reason": "explicit",
+   "depends": [],
+   "requiredBy": []
+  },
+  {
+   "name": "ncurses",
+   "version": "6.5-3",
+   "description": "System V Release 4.0 curses emulation library",
+   "size": 9542041,
+   "reason": "dependency",
+   "depends": [],
+   "requiredBy": [
+    "htop",
+    "readline"
+   ]
+  },
+  {
+   "name": "netavark",
+   "version": "1.12.1-1",
+   "description": "Container network stack",
+   "size": 9017753,
+   "reason": "dependency",
+   "depends": [],
+   "requiredBy": [
+    "podman"
+   ]
+  },
+  {
+   "name": "pacman",
+   "version": "7.0.0.r3.g7736133-1",
+   "description": "A library-based package manager with dependency support",
+   "size": 5138022,
+   "reason": "dependency",
+   "depends": [
+    "bash",
+    "glibc"
+   ],
+   "requiredBy": [
+    "base",
+    "yay"
+   ]
+  },
+  {
+   "name": "podman",
+   "version": "5.2.0-1",
+   "description": "Tool and library for running OCI-based containers in pods",
+   "size": 74763468,
+   "reason": "explicit",
+   "depends": [
+    "glibc",
+    "netavark"
+   ],
+   "requiredBy": []
+  },
+  {
+   "name": "python-old-lib",
+   "version": "1.0-4",
+   "description": "Leftover library nothing needs anymore",
+   "size": 3355443,
+   "reason": "dependency",
+   "orphan": true,
+   "depends": [],
+   "requiredBy": []
+  },
+  {
+   "name": "readline",
+   "version": "8.2.013-1",
+   "description": "GNU readline library",
+   "size": 943718,
+   "reason": "dependency",
+   "depends": [
+    "ncurses"
+   ],
+   "requiredBy": [
+    "bash"
+   ]
+  },
+  {
+   "name": "samba",
+   "version": "4.20.4-1",
+   "description": "SMB Fileserver and AD Domain server",
+   "size": 147010355,
+   "reason": "explicit",
+   "depends": [],
+   "requiredBy": []
+  },
+  {
+   "name": "systemd",
+   "version": "256.4-1",
+   "description": "system and service manager",
+   "size": 34603008,
+   "reason": "dependency",
+   "depends": [
+    "glibc"
+   ],
+   "requiredBy": [
+    "base"
+   ]
+  },
+  {
+   "name": "tealdeer",
+   "version": "1.6.1-6",
+   "description": "A very fast implementation of tldr in Rust",
+   "size": 2621440,
+   "reason": "explicit",
+   "depends": [
+    "tealdeer-data"
+   ],
+   "requiredBy": []
+  },
+  {
+   "name": "tealdeer-data",
+   "version": "1.0-1",
+   "description": "Pages for tealdeer",
+   "size": 4194304,
+   "reason": "dependency",
+   "depends": [],
+   "requiredBy": [
+    "tealdeer"
+   ]
+  },
+  {
+   "name": "visual-studio-code-bin",
+   "version": "1.92.0-1",
+   "description": "Editor for building and debugging modern web and cloud applications",
+   "size": 390070272,
+   "reason": "explicit",
+   "foreign": true,
+   "depends": [],
+   "requiredBy": []
+  },
+  {
+   "name": "yay",
+   "version": "12.3.5-1",
+   "description": "Yet another yogurt. Pacman wrapper and AUR helper written in go.",
+   "size": 9332326,
+   "reason": "explicit",
+   "foreign": true,
+   "depends": [
+    "pacman"
+   ],
+   "requiredBy": []
+  }
+ ],
+ "updates": {
+  "repo": [
+   {
+    "name": "linux",
+    "from": "6.10.1.arch1-1",
+    "to": "6.10.3.arch1-2",
+    "repo": "core",
+    "downloadSize": 143200000
+   },
+   {
+    "name": "podman",
+    "from": "5.2.0-1",
+    "to": "5.2.1-1",
+    "repo": "extra",
+    "downloadSize": 18400000
+   },
+   {
+    "name": "caddy",
+    "from": "2.8.4-1",
+    "to": "2.8.4-2",
+    "repo": "extra",
+    "downloadSize": 14100000
+   },
+   {
+    "name": "glibc",
+    "from": "2.40+r16-1",
+    "to": "2.40+r16-2",
+    "repo": "core",
+    "downloadSize": 10200000
+   }
+  ],
+  "aur": [
+   {
+    "name": "visual-studio-code-bin",
+    "from": "1.92.0-1",
+    "to": "1.92.1-1",
+    "repo": "aur"
+   }
+  ]
+ },
+ "images": [
+  {
+   "unit": "jellyfin.service",
+   "container": "jellyfin",
+   "image": "docker.io/jellyfin/jellyfin:latest",
+   "policy": "registry",
+   "updated": "pending"
+  },
+  {
+   "unit": "immich.service",
+   "container": "immich",
+   "image": "ghcr.io/immich-app/immich-server:release",
+   "policy": "registry",
+   "updated": "pending"
+  },
+  {
+   "unit": "caddy.service",
+   "container": "caddy",
+   "image": "docker.io/library/caddy:2",
+   "policy": "registry",
+   "updated": "false"
+  }
+ ]
+}

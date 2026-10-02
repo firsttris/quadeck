@@ -52,6 +52,8 @@ ExecStart=/usr/local/bin/quadeck helper
 Group=quadeck
 RuntimeDirectory=quadeck
 RuntimeDirectoryMode=0750
+# temporäre pacman-Datenbanken für die Update-Prüfung
+CacheDirectory=quadeck
 Restart=on-failure
 RestartSec=3
 UMask=0077

@@ -1,7 +1,7 @@
 import type { Snapshot } from '~/shared/types'
 
 export type PaletteAction =
-  | { kind: 'navigate'; to: '/' | '/units' | '/journal'; search?: Record<string, string> }
+  | { kind: 'navigate'; to: '/' | '/units' | '/journal' | '/system'; search?: Record<string, string> }
   | { kind: 'open'; url: string }
   | { kind: 'unit'; action: 'start' | 'stop' | 'restart'; name: string }
 
@@ -21,6 +21,8 @@ export function paletteItems(s: Snapshot, readonly: boolean): PaletteItem[] {
     { id: 'p:/units', section: 'Seiten', label: 'Units', keywords: 'container dienste systemd quadlets', action: { kind: 'navigate', to: '/units' } },
     { id: 'p:/units?failed', section: 'Seiten', label: 'Fehlgeschlagene Units', keywords: 'failed fehler', action: { kind: 'navigate', to: '/units', search: { filter: 'failed' } } },
     { id: 'p:/journal', section: 'Seiten', label: 'Journal', keywords: 'logs journalctl', action: { kind: 'navigate', to: '/journal' } },
+    { id: 'p:/system', section: 'Seiten', label: 'Updates', keywords: 'system pakete upgrade pacman apt dnf aur images auto-update', action: { kind: 'navigate', to: '/system' } },
+    { id: 'p:/system?packages', section: 'Seiten', label: 'Installierte Pakete', keywords: 'system pakete deinstallieren entfernen verwaist orphans', action: { kind: 'navigate', to: '/system', search: { tab: 'packages' } } },
   ]
   for (const g of s.services) {
     for (const svc of g.items) {
