@@ -6,7 +6,7 @@
 
 import { HttpError } from '../auth'
 import { assertUnitName } from '../privileged/actions'
-import { PACKAGE_NAME, PROTECTED_PACKAGES, type JobSpec } from '~/shared/packages'
+import { FEATURES, PACKAGE_NAME, PROTECTED_PACKAGES, type Feature, type JobSpec } from '~/shared/packages'
 import { aurHelper, aurUser, runAurUpgrade } from './aur'
 import { imageUpdates } from './images'
 import { detectProvider, type Step } from './providers'
@@ -43,6 +43,10 @@ export function parseJobSpec(v: unknown): JobSpec {
       }
       return { kind: 'image-update', unit }
     }
+    case 'install': {
+      if (typeof o.feature !== 'string' || !(o.feature in FEATURES)) throw new HttpError(400, 'Unbekannte Funktion')
+      return { kind: 'install', feature: o.feature as Feature }
+    }
     default:
       throw new HttpError(400, 'Unbekannter Job')
   }
@@ -60,6 +64,8 @@ export function jobTitle(spec: JobSpec): string {
       return 'Container-Images aktualisieren'
     case 'image-update':
       return `Image aktualisieren: ${spec.unit}`
+    case 'install':
+      return `Installieren: ${FEATURES[spec.feature].label}`
   }
 }
 
@@ -103,6 +109,11 @@ async function execute(spec: JobSpec): Promise<number> {
       if (!helper) throw new Error('Weder yay noch paru ist installiert')
       if (!user) throw new Error('Kein Benutzer für AUR-Updates (QUADECK_AUR_USER setzen)')
       return runAurUpgrade(helper, user, exec, out)
+    }
+    case 'install': {
+      const p = detectProvider()
+      if (!p) throw new Error('Kein unterstützter Paketmanager gefunden')
+      return steps(p.installSteps(FEATURES[spec.feature].packages[p.id]))
     }
     case 'images-update':
       // Rolls back to the previous image if the restarted unit fails.

@@ -27,6 +27,7 @@ export interface Provider {
   removePreview(names: string[]): Promise<{ packages: { name: string; version?: string }[]; error?: string }>
   upgradeSteps(): Step[]
   removeSteps(names: string[]): Step[]
+  installSteps(names: string[]): Step[]
   /** Reason when a reboot is needed (undefined = no). */
   rebootRequired(): Promise<string | undefined>
   configFiles: RegExp
@@ -123,6 +124,10 @@ export class Pacman implements Provider {
   removeSteps(names: string[]): Step[] {
     return [{ argv: ['pacman', '-Rs', '--noconfirm', '--noprogressbar', '--color', 'never', '--', ...names] }]
   }
+  installSteps(names: string[]): Step[] {
+    return [{ argv: ['pacman', '-S', '--needed', '--noconfirm', '--noprogressbar', '--color', 'never', '--', ...names] }]
+  }
+
 
   async rebootRequired() {
     return kernelReplaced()
@@ -203,6 +208,10 @@ export class Apt implements Provider {
   removeSteps(names: string[]): Step[] {
     return [{ argv: ['apt-get', '-y', '-q', 'remove', '--autoremove', '--', ...names], env: APT_ENV }]
   }
+  installSteps(names: string[]): Step[] {
+    return [{ argv: ['apt-get', 'update', '-q'], env: APT_ENV }, { argv: ['apt-get', 'install', '-y', '-q', ...APT_KEEP_CONF, '--', ...names], env: APT_ENV }]
+  }
+
 
   async rebootRequired() {
     if (existsSync('/run/reboot-required')) {
@@ -321,6 +330,10 @@ export class Dnf implements Provider {
   removeSteps(names: string[]): Step[] {
     return [{ argv: [this.bin, '-y', 'remove', '--', ...names] }]
   }
+  installSteps(names: string[]): Step[] {
+    return [{ argv: [this.bin, '-y', 'install', '--', ...names] }]
+  }
+
 
   async rebootRequired() {
     const r = this.dnf5 ? await run([this.bin, 'needs-restarting', '-r']) : Bun.which('needs-restarting') ? await run(['needs-restarting', '-r']) : undefined
@@ -382,6 +395,10 @@ export class Zypper implements Provider {
   removeSteps(names: string[]): Step[] {
     return [{ argv: ['zypper', '-n', 'rm', '-u', '--', ...names] }]
   }
+  installSteps(names: string[]): Step[] {
+    return [{ argv: ['zypper', '-n', 'install', '--', ...names] }]
+  }
+
 
   async rebootRequired() {
     const r = await run(['zypper', 'needs-rebooting'])
@@ -449,6 +466,10 @@ export class Apk implements Provider {
   removeSteps(names: string[]): Step[] {
     return [{ argv: ['apk', 'del', '--no-progress', '--', ...names] }]
   }
+  installSteps(names: string[]): Step[] {
+    return [{ argv: ['apk', 'add', '--no-progress', '--', ...names] }]
+  }
+
 
   async rebootRequired() {
     return kernelReplaced()
@@ -500,6 +521,11 @@ export class RpmOstree implements Provider {
   removeSteps(): Step[] {
     throw new Error('Entfernen wird auf rpm-ostree nicht unterstützt')
   }
+  installSteps(names: string[]): Step[] {
+    // Layered package; active after the next reboot.
+    return [{ argv: ['rpm-ostree', 'install', '--idempotent', '--allow-inactive', '--', ...names] }]
+  }
+
 
   async rebootRequired() {
     const st = await this.status()

@@ -13,6 +13,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppDisksRouteImport } from './routes/_app/disks'
 import { Route as AppJournalRouteImport } from './routes/_app/journal'
 import { Route as AppQuadletsRouteImport } from './routes/_app/quadlets'
 import { Route as AppSharesRouteImport } from './routes/_app/shares'
@@ -28,6 +29,7 @@ import { Route as ApiUnlockRouteImport } from './routes/api/unlock'
 import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
 import { Route as ApiAuthSetupRouteImport } from './routes/api/auth/setup'
+import { Route as ApiDisksSmartRouteImport } from './routes/api/disks/smart'
 import { Route as ApiFaviconKeyRouteImport } from './routes/api/favicon/$key'
 import { Route as ApiIconsSlugRouteImport } from './routes/api/icons/$slug'
 import { Route as ApiIconsSearchRouteImport } from './routes/api/icons/search'
@@ -71,6 +73,11 @@ const SetupRoute = SetupRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppDisksRoute = AppDisksRouteImport.update({
+  id: '/disks',
+  path: '/disks',
   getParentRoute: () => AppRoute,
 } as any)
 const AppJournalRoute = AppJournalRouteImport.update({
@@ -146,6 +153,11 @@ const ApiAuthLogoutRoute = ApiAuthLogoutRouteImport.update({
 const ApiAuthSetupRoute = ApiAuthSetupRouteImport.update({
   id: '/api/auth/setup',
   path: '/api/auth/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDisksSmartRoute = ApiDisksSmartRouteImport.update({
+  id: '/api/disks/smart',
+  path: '/api/disks/smart',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiFaviconKeyRoute = ApiFaviconKeyRouteImport.update({
@@ -278,6 +290,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/disks': typeof AppDisksRoute
   '/journal': typeof AppJournalRoute
   '/quadlets': typeof AppQuadletsRoute
   '/shares': typeof AppSharesRoute
@@ -293,6 +306,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/setup': typeof ApiAuthSetupRoute
+  '/api/disks/smart': typeof ApiDisksSmartRoute
   '/api/favicon/$key': typeof ApiFaviconKeyRoute
   '/api/icons/$slug': typeof ApiIconsSlugRoute
   '/api/icons/search': typeof ApiIconsSearchRoute
@@ -322,6 +336,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/disks': typeof AppDisksRoute
   '/journal': typeof AppJournalRoute
   '/quadlets': typeof AppQuadletsRoute
   '/shares': typeof AppSharesRoute
@@ -338,6 +353,7 @@ export interface FileRoutesByTo {
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/setup': typeof ApiAuthSetupRoute
+  '/api/disks/smart': typeof ApiDisksSmartRoute
   '/api/favicon/$key': typeof ApiFaviconKeyRoute
   '/api/icons/$slug': typeof ApiIconsSlugRoute
   '/api/icons/search': typeof ApiIconsSearchRoute
@@ -369,6 +385,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/_app/disks': typeof AppDisksRoute
   '/_app/journal': typeof AppJournalRoute
   '/_app/quadlets': typeof AppQuadletsRoute
   '/_app/shares': typeof AppSharesRoute
@@ -385,6 +402,7 @@ export interface FileRoutesById {
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/setup': typeof ApiAuthSetupRoute
+  '/api/disks/smart': typeof ApiDisksSmartRoute
   '/api/favicon/$key': typeof ApiFaviconKeyRoute
   '/api/icons/$slug': typeof ApiIconsSlugRoute
   '/api/icons/search': typeof ApiIconsSearchRoute
@@ -417,6 +435,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/setup'
+    | '/disks'
     | '/journal'
     | '/quadlets'
     | '/shares'
@@ -432,6 +451,7 @@ export interface FileRouteTypes {
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/setup'
+    | '/api/disks/smart'
     | '/api/favicon/$key'
     | '/api/icons/$slug'
     | '/api/icons/search'
@@ -461,6 +481,7 @@ export interface FileRouteTypes {
   to:
     | '/login'
     | '/setup'
+    | '/disks'
     | '/journal'
     | '/quadlets'
     | '/shares'
@@ -477,6 +498,7 @@ export interface FileRouteTypes {
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/setup'
+    | '/api/disks/smart'
     | '/api/favicon/$key'
     | '/api/icons/$slug'
     | '/api/icons/search'
@@ -507,6 +529,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/setup'
+    | '/_app/disks'
     | '/_app/journal'
     | '/_app/quadlets'
     | '/_app/shares'
@@ -523,6 +546,7 @@ export interface FileRouteTypes {
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/setup'
+    | '/api/disks/smart'
     | '/api/favicon/$key'
     | '/api/icons/$slug'
     | '/api/icons/search'
@@ -563,6 +587,7 @@ export interface RootRouteChildren {
   ApiAuthLoginRoute: typeof ApiAuthLoginRoute
   ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
   ApiAuthSetupRoute: typeof ApiAuthSetupRoute
+  ApiDisksSmartRoute: typeof ApiDisksSmartRoute
   ApiFaviconKeyRoute: typeof ApiFaviconKeyRoute
   ApiIconsSlugRoute: typeof ApiIconsSlugRoute
   ApiIconsSearchRoute: typeof ApiIconsSearchRoute
@@ -618,6 +643,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/disks': {
+      id: '/_app/disks'
+      path: '/disks'
+      fullPath: '/disks'
+      preLoaderRoute: typeof AppDisksRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/journal': {
@@ -723,6 +755,13 @@ declare module '@tanstack/react-router' {
       path: '/api/auth/setup'
       fullPath: '/api/auth/setup'
       preLoaderRoute: typeof ApiAuthSetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/disks/smart': {
+      id: '/api/disks/smart'
+      path: '/api/disks/smart'
+      fullPath: '/api/disks/smart'
+      preLoaderRoute: typeof ApiDisksSmartRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/favicon/$key': {
@@ -904,6 +943,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppDisksRoute: typeof AppDisksRoute
   AppJournalRoute: typeof AppJournalRoute
   AppQuadletsRoute: typeof AppQuadletsRoute
   AppSharesRoute: typeof AppSharesRoute
@@ -914,6 +954,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppDisksRoute: AppDisksRoute,
   AppJournalRoute: AppJournalRoute,
   AppQuadletsRoute: AppQuadletsRoute,
   AppSharesRoute: AppSharesRoute,
@@ -938,6 +979,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthLoginRoute: ApiAuthLoginRoute,
   ApiAuthLogoutRoute: ApiAuthLogoutRoute,
   ApiAuthSetupRoute: ApiAuthSetupRoute,
+  ApiDisksSmartRoute: ApiDisksSmartRoute,
   ApiFaviconKeyRoute: ApiFaviconKeyRoute,
   ApiIconsSlugRoute: ApiIconsSlugRoute,
   ApiIconsSearchRoute: ApiIconsSearchRoute,

@@ -1,0 +1,61 @@
+import { useEffect, useState } from 'react'
+import { FEATURES, installCommand, type Feature, type ManagerId } from '~/shared/packages'
+import { useActions } from './Actions'
+import { Glyph } from './Glyph'
+import { useJobs } from './Jobs'
+
+/**
+ * „Not installed“ with a way out: one click installs the package through
+ * the package job (live output, unlock), or the command for the console.
+ */
+export function InstallHint({ feature, what, onInstalled }: { feature: Feature; what: string; onInstalled: () => void }) {
+  const jobs = useJobs()
+  const { readonly } = useActions()
+  const [manager, setManager] = useState<ManagerId | null>(null)
+  const [jobId, setJobId] = useState<string | null>(null)
+
+  useEffect(() => {
+    fetch('/api/system/overview')
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d: { manager?: ManagerId | null } | null) => setManager(d?.manager ?? null))
+      .catch(() => {})
+  }, [])
+
+  // Reload once our install job has ended.
+  useEffect(() => {
+    if (jobId && jobs.running?.id !== jobId) {
+      setJobId(null)
+      onInstalled()
+    }
+  }, [jobs.running, jobs.finished, jobId, onInstalled])
+
+  const f = FEATURES[feature]
+  return (
+    <div className="flex flex-col gap-2 px-[18px] py-3 text-[13px]" data-testid={`install-${feature}`}>
+      <p className="m-0 text-muted">{what}</p>
+      {manager ? (
+        <>
+          {!readonly && (
+            <button
+              type="button"
+              className="btn primary sm self-start"
+              disabled={!!jobs.running}
+              onClick={async () => {
+                const job = await jobs.start({ kind: 'install', feature })
+                if (job) setJobId(job.id)
+              }}
+            >
+              <Glyph name="download" size={14} /> {f.packages[manager].join(', ')} installieren
+            </button>
+          )}
+          <div className="text-[12px] text-muted">
+            oder auf der Konsole: <code className="rounded bg-[#0e1319] px-1.5 py-0.5 font-mono text-[12px] text-fg select-all">{installCommand(manager, feature)}</code>
+          </div>
+          {manager === 'rpm-ostree' && <div className="text-[12px] text-[#e3b341]">rpm-ostree: das Paket ist erst nach einem Neustart aktiv.</div>}
+        </>
+      ) : (
+        <div className="text-[12px] text-muted">Paket: {Object.values(f.packages).flat().filter((v, i, a) => a.indexOf(v) === i).join(' bzw. ')}</div>
+      )}
+    </div>
+  )
+}

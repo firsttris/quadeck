@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
 import { useActions } from '~/components/Actions'
 import { Glyph } from '~/components/Glyph'
+import { InstallHint } from '~/components/InstallHint'
 import { Modal } from '~/components/Modal'
 import { PageHeader } from '~/components/PageHeader'
 import { DiffView } from '~/components/QuadletEditor'
@@ -63,10 +64,11 @@ function SharesPage() {
       {!state && !error && <p className="m-0 text-muted">Wird geladen …</p>}
       {state && (
         <div className="grid grid-cols-1 gap-[18px] xl:grid-cols-2">
-          <SmbPanel state={state} onState={setState} onEdit={(original) => setSmbEdit({ original })} onDelete={(s) => setPending({ change: { kind: 'smb', original: s.name, spec: null }, title: `SMB-Freigabe „${s.name}“ löschen?`, confirm: 'Löschen', danger: true })} />
+          <SmbPanel state={state} onState={setState} onReload={load} onEdit={(original) => setSmbEdit({ original })} onDelete={(s) => setPending({ change: { kind: 'smb', original: s.name, spec: null }, title: `SMB-Freigabe „${s.name}“ löschen?`, confirm: 'Löschen', danger: true })} />
           <NfsPanel
             state={state}
             onState={setState}
+            onReload={load}
             onEdit={(original) => setNfsEdit({ original })}
             onDelete={(e) => setPending({ change: { kind: 'nfs', original: { file: e.file, path: e.path }, spec: null }, title: `NFS-Export ${e.path} löschen?`, confirm: 'Löschen', danger: true })}
           />
@@ -158,7 +160,7 @@ function Services({ kind, services, onState }: { kind: 'smb' | 'nfs'; services: 
 
 // ---------- SMB ----------
 
-function SmbPanel({ state, onState, onEdit, onDelete }: { state: SharesState; onState: (s: SharesState) => void; onEdit: (s?: SmbShareInfo) => void; onDelete: (s: SmbShareInfo) => void }) {
+function SmbPanel({ state, onState, onEdit, onDelete, onReload }: { state: SharesState; onState: (s: SharesState) => void; onEdit: (s?: SmbShareInfo) => void; onDelete: (s: SmbShareInfo) => void; onReload: () => void }) {
   const { readonly } = useActions()
   const smb = state.smb
   return (
@@ -172,7 +174,11 @@ function SmbPanel({ state, onState, onEdit, onDelete }: { state: SharesState; on
           </button>
         )}
       </div>
-      {!smb.installed && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">Samba ist nicht installiert (Paket „samba“, z. B. über die Seite System).</p>}
+      {!smb.installed && (
+        <div className="border-t border-line">
+          <InstallHint feature="samba" what="Samba ist nicht installiert." onInstalled={onReload} />
+        </div>
+      )}
       {smb.installed && smb.shares.length === 0 && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">Noch keine Freigaben in {smb.file}.</p>}
       {smb.shares.map((s) => (
         <div key={s.name} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line px-[18px] py-[10px]" data-testid="smb-share">
@@ -295,7 +301,7 @@ function SmbDialog({ open, original, onClose, onNext }: { open: boolean; origina
 
 // ---------- NFS ----------
 
-function NfsPanel({ state, onState, onEdit, onDelete }: { state: SharesState; onState: (s: SharesState) => void; onEdit: (e?: NfsExportInfo) => void; onDelete: (e: NfsExportInfo) => void }) {
+function NfsPanel({ state, onState, onEdit, onDelete, onReload }: { state: SharesState; onState: (s: SharesState) => void; onEdit: (e?: NfsExportInfo) => void; onDelete: (e: NfsExportInfo) => void; onReload: () => void }) {
   const { readonly } = useActions()
   const nfs = state.nfs
   return (
@@ -309,7 +315,11 @@ function NfsPanel({ state, onState, onEdit, onDelete }: { state: SharesState; on
           </button>
         )}
       </div>
-      {!nfs.installed && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">Kein NFS-Server installiert (Paket „nfs-utils“ bzw. „nfs-kernel-server“).</p>}
+      {!nfs.installed && (
+        <div className="border-t border-line">
+          <InstallHint feature="nfs" what="Kein NFS-Server installiert." onInstalled={onReload} />
+        </div>
+      )}
       {nfs.installed && nfs.exports.length === 0 && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">Noch keine Exporte.</p>}
       {nfs.exports.map((e) => (
         <div key={`${e.file}:${e.path}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line px-[18px] py-[10px]" data-testid="nfs-export">

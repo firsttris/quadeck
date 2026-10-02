@@ -8,7 +8,9 @@ import { join } from 'node:path'
 import type { Container, Disk, GpuMetrics, HiddenService, Share, Snapshot, SourceStatus, SystemMetrics, Unit } from '~/shared/types'
 import { collectDisks } from './collectors/disks'
 import { GpuCollector } from './collectors/gpu'
-import { metricRows, pruneHistory, SAMPLE_EVERY_MS, seedFixtureHistory } from './metrics'
+import { metricRows, pruneHistory, SAMPLE_EVERY_MS, seedFixtureHistory, seedSmartHistory } from './metrics'
+import { assessSmart } from '~/shared/smart'
+import { smartSamples } from '~/shared/smart-metrics'
 import { collectShares, sharesSummary } from './collectors/shares'
 import { PodmanCollector } from './collectors/podman'
 import { readHostInfo, SystemCollector } from './collectors/system'
@@ -67,8 +69,11 @@ export class Hub {
     systemd: { ok: false },
     caddy: { ok: false },
     shares: { ok: false },
+    smart: { ok: false },
   }
   private shares: Share[] = []
+  private smart: Snapshot['smart'] = []
+  private lastSmartSampleAt = 0
   private current?: Snapshot
   private lastStateJson = ''
   private listeners = new Set<(e: HubEvent) => void>()
@@ -130,6 +135,12 @@ export class Hub {
       await Promise.allSettled([this.collectPodman(), this.collectSystemd()])
       this.publish()
     })
+    // SMART reads every disk (seconds each): every 30 min, trends stored hourly.
+    const smart = every(30 * 60_000, async () => {
+      await this.collectSmart()
+      this.publish()
+    })
+    setTimeout(() => void smart(), 5_000)
     const slow = every(30_000, async () => {
       await Promise.allSettled([this.collectDisks(), this.collectCaddy(), this.collectShares()])
       this.publish()
@@ -233,6 +244,24 @@ export class Hub {
     }
   }
 
+  /** SMART verdicts for the overview; hourly trend samples into the metric history. */
+  async collectSmart(refresh = false) {
+    try {
+      const report = await this.priv.smartReport(refresh)
+      this.smart = report.disks.map((d) => ({ name: d.name, level: assessSmart(d).level, supported: d.supported, standby: d.standby }))
+      if (this.fixtures) seedSmartHistory(db(), report.disks.map((d) => ({ id: d.id, samples: smartSamples(d) })))
+      if (Date.now() - this.lastSmartSampleAt >= 55 * 60_000) {
+        const rows = report.disks.flatMap((d) => smartSamples(d).map((r) => ({ ts: report.checkedAt, metric: `smart:${d.id}:${r.key}`, value: r.value })))
+        if (rows.length) db().insert(schema.metricSamples).values(rows).run()
+        this.lastSmartSampleAt = Date.now()
+      }
+      if (report.installed) this.ok('smart')
+      else this.sources.smart = { ok: false, updatedAt: Date.now() } // not an error: see the disks page
+    } catch (e) {
+      this.fail('smart', e)
+    }
+  }
+
   /** After a change on the shares page. */
   async refreshShares() {
     await this.collectShares()
@@ -286,6 +315,7 @@ export class Hub {
       services,
       hiddenServices,
       shares: this.shares,
+      smart: this.smart,
       sources: this.sources,
       readonly: config().readonly,
     }

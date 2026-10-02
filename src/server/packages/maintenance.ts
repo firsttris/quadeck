@@ -5,6 +5,7 @@
 import { readdirSync, readFileSync, type Dirent } from 'node:fs'
 import { join } from 'node:path'
 import {
+  FEATURES,
   PROTECTED_PACKAGES,
   type ImageUpdatesReport,
   type InstalledPackage,
@@ -269,6 +270,10 @@ export class FixtureMaintenance implements MaintenanceBackend {
         await say(`$ systemctl restart ${i.unit}`)
         i.updated = 'false'
       }
+    } else if (spec.kind === 'install') {
+      const pkgs = FEATURES[spec.feature].packages.pacman
+      await say(`$ pacman -S --needed --noconfirm -- ${pkgs.join(' ')}`)
+      for (const n of pkgs) await say(`installing ${n}...`)
     }
     sink.exit(0)
   }

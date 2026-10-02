@@ -164,7 +164,9 @@ export interface Snapshot {
   services: ServiceGroup[]
   hiddenServices: HiddenService[]
   shares: Share[]
-  sources: Record<'system' | 'disks' | 'podman' | 'systemd' | 'caddy' | 'shares', SourceStatus>
+  /** SMART verdict per disk (kernel name), for the storage card and the nav badge. */
+  smart: { name: string; level: 'ok' | 'warning' | 'critical'; supported: boolean; standby?: boolean }[]
+  sources: Record<'system' | 'disks' | 'podman' | 'systemd' | 'caddy' | 'shares' | 'smart', SourceStatus>
   readonly: boolean
 }
 

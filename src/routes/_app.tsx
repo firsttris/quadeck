@@ -60,6 +60,7 @@ function Sidebar({ onSearch }: { onSearch: () => void }) {
     { to: '/units', label: 'Units', glyph: 'units', badge: failed },
     { to: '/journal', label: 'Journal', glyph: 'journal', badge: 0 },
     { to: '/quadlets', label: 'Quadlets', glyph: 'edit', badge: 0 },
+    { to: '/disks', label: 'Festplatten', glyph: 'disk', badge: (snapshot.smart ?? []).filter((d) => d.level !== 'ok').length },
     { to: '/shares', label: 'Freigaben', glyph: 'folder', badge: 0 },
     { to: '/ssh', label: 'SSH', glyph: 'key', badge: 0 },
     { to: '/system', label: 'System', glyph: 'package', badge: 0 },
@@ -126,4 +127,4 @@ function Sidebar({ onSearch }: { onSearch: () => void }) {
   )
 }
 
-const SOURCE_LABEL: Record<string, string> = { podman: 'Podman', systemd: 'systemd', caddy: 'Caddy', disks: 'Platten', system: 'System' }
+const SOURCE_LABEL: Record<string, string> = { podman: 'Podman', systemd: 'systemd', caddy: 'Caddy', disks: 'Platten', system: 'System', smart: 'SMART' }

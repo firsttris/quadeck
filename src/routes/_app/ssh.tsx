@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
 import { useActions } from '~/components/Actions'
 import { Glyph } from '~/components/Glyph'
+import { InstallHint } from '~/components/InstallHint'
 import { Modal } from '~/components/Modal'
 import { PageHeader } from '~/components/PageHeader'
 import { DiffView } from '~/components/QuadletEditor'
@@ -51,7 +52,11 @@ function SshPage() {
         </p>
       )}
       {!state && !error && <p className="m-0 text-muted">Wird geladen …</p>}
-      {state && !state.installed && <p className="m-0 text-[13px] text-muted">Kein SSH-Server installiert (Paket „openssh“ bzw. „openssh-server“, z. B. über die Seite System).</p>}
+      {state && !state.installed && (
+        <section className="panel" aria-label="SSH installieren">
+          <InstallHint feature="ssh" what="Kein SSH-Server installiert – ohne ihn ist der Server nur direkt an Bildschirm und Tastatur erreichbar." onInstalled={load} />
+        </section>
+      )}
       {state?.installed && (
         <div className="grid grid-cols-1 gap-[18px] xl:grid-cols-[minmax(0,5fr)_minmax(0,7fr)]">
           <div className="flex flex-col gap-[18px]">

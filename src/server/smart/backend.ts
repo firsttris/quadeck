@@ -49,7 +49,8 @@ export class SystemSmart implements SmartBackend {
 
   async smartReport(refresh: boolean) {
     const c = this.cache
-    if (c && Date.now() - c.checkedAt < (refresh ? MIN_REFRESH : TTL)) return c
+    // Not installed is not cached: the page asks again right after the install job.
+    if (c?.installed && Date.now() - c.checkedAt < (refresh ? MIN_REFRESH : TTL)) return c
     this.inflight ??= this.collect()
       .then((r) => (this.cache = r))
       .finally(() => (this.inflight = undefined))

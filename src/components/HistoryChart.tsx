@@ -59,8 +59,14 @@ export function smoothPath(pts: [number, number][]): string {
   return d
 }
 
+const DAY = 24 * 3600_000
 const timeLabel = (ts: number, span: number) =>
-  new Date(ts).toLocaleString('de-DE', span > 36 * 3600_000 ? { weekday: 'short', hour: '2-digit', minute: '2-digit' } : { hour: '2-digit', minute: '2-digit' })
+  new Date(ts).toLocaleString(
+    'de-DE',
+    span > 10 * DAY ? { day: '2-digit', month: '2-digit', year: span > 200 * DAY ? '2-digit' : undefined } : span > 1.5 * DAY ? { weekday: 'short', hour: '2-digit', minute: '2-digit' } : { hour: '2-digit', minute: '2-digit' },
+  )
+const tooltipLabel = (ts: number, span: number) =>
+  new Date(ts).toLocaleString('de-DE', span > 10 * DAY ? { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' } : { weekday: 'short', hour: '2-digit', minute: '2-digit' })
 
 /**
  * Area chart over a time window. Gaps in the data (Quadeck was not running)
@@ -213,7 +219,7 @@ export function HistoryChart({ series, span, now, format, yMin, yMax, height = 4
           style={hover! > width / 2 ? { right: width - hover! + 10 } : { left: hover! + 10 }}
           role="tooltip"
         >
-          <div className="font-mono text-[11px] text-muted">{new Date(hoverRows[0]!.p[0]).toLocaleString('de-DE', { weekday: 'short', hour: '2-digit', minute: '2-digit' })}</div>
+          <div className="font-mono text-[11px] text-muted">{tooltipLabel(hoverRows[0]!.p[0], span)}</div>
           {hoverRows.map(({ s, p }) => (
             <div key={s.label} className="flex items-center gap-1.5 whitespace-nowrap">
               <span className="inline-block h-2 w-2 rounded-full" style={{ background: s.color }} />

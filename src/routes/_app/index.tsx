@@ -154,7 +154,7 @@ function Overview() {
 
   const nodes: Record<CardId, React.ReactNode> = {
     services: <Services groups={snapshot.services} editing={editing} saved={layout.layouts.tiles} onSave={(bp, items) => save('tiles', bp, items)} />,
-    storage: <Storage disks={snapshot.disks} />,
+    storage: <Storage disks={snapshot.disks} smart={snapshot.smart ?? []} />,
     timers: <Timers units={snapshot.units} />,
     shares: <Shares shares={snapshot.shares} error={snapshot.sources.shares?.error} />,
     cpu: metric('cpu'),
@@ -274,14 +274,22 @@ function AlertCard({ unit, snapshot }: { unit: Unit; snapshot: Snapshot }) {
 
 // ---------- storage ----------
 
-function Storage({ disks }: { disks: Disk[] }) {
+const SMART_DOT = { ok: { tone: 'ok', label: 'SMART gesund' }, warning: { tone: 'warn', label: 'SMART: Warnung' }, critical: { tone: 'bad', label: 'SMART: kritisch' } } as const
+
+function Storage({ disks, smart }: { disks: Disk[]; smart: Snapshot['smart'] }) {
+  const smartOf = (dev: string) => smart.find((x) => x.name === dev && x.supported && !x.standby)
   const total = disks.reduce((a, d) => a + d.size, 0)
   const used = disks.reduce((a, d) => a + d.used, 0)
   return (
     <section className="flex flex-col gap-[14px] p-[18px]" aria-label="Speicher">
       <div className="flex items-baseline justify-between">
         <h2 className="h2">Speicher</h2>
-        <span className="text-[12px] text-muted">{disks.length ? `${diskSize(used)} von ${diskSize(total)}` : ''}</span>
+        <span className="flex items-center gap-2 text-[12px] text-muted">
+          {disks.length ? `${diskSize(used)} von ${diskSize(total)}` : ''}
+          <Link to="/disks" className="btn sm no-drag">
+            SMART
+          </Link>
+        </span>
       </div>
       {disks.length === 0 && <p className="m-0 text-[13px] text-muted">Keine eingehängten Dateisysteme gefunden.</p>}
       {disks.map((d) => {
@@ -290,7 +298,8 @@ function Storage({ disks }: { disks: Disk[] }) {
         return (
           <div key={d.path} className="flex flex-col gap-1.5" data-testid="disk">
             <div className="flex items-center gap-2">
-              <span className="w-[72px] truncate font-mono text-[13px]">{d.dev}</span>
+              {smartOf(d.dev) ? <Dot tone={SMART_DOT[smartOf(d.dev)!.level].tone} label={SMART_DOT[smartOf(d.dev)!.level].label} /> : <span className="w-2" />}
+              <span className="w-[64px] truncate font-mono text-[13px]">{d.dev}</span>
               <span className="min-w-0 grow truncate text-[12px] text-muted">
                 {[d.mount, diskSize(d.size), d.fstype].filter(Boolean).join(' · ')}
               </span>
