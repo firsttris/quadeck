@@ -7,13 +7,12 @@ import { Glyph } from '~/components/Glyph'
 import { ConfirmDialog } from '~/components/Modal'
 import { PageHeader } from '~/components/PageHeader'
 import { ServiceTile } from '~/components/ServiceTile'
-import { Sparkline } from '~/components/Sparkline'
-import { Dot, Pill, unitTone, type Tone } from '~/components/Status'
+import { Dot, Pill } from '~/components/Status'
 import { useToast } from '~/components/Toast'
 import { api } from '~/lib/api'
 import { bytes, calendarLabel, diskSize, num, pct, rate, relative } from '~/lib/format'
 import { useLive } from '~/lib/live'
-import type { Container, Disk, Service, Snapshot, Unit } from '~/shared/types'
+import type { Disk, Service, Snapshot, Unit } from '~/shared/types'
 import { failureReason } from '~/shared/units'
 
 export const Route = createFileRoute('/_app/')({
@@ -31,9 +30,8 @@ function Overview() {
       ))}
       <div className="grid grid-cols-12 gap-4">
         <Gauges snapshot={snapshot} />
-        <Storage disks={snapshot.disks} />
-        <Containers containers={snapshot.containers} />
         <Services snapshot={snapshot} />
+        <Storage disks={snapshot.disks} />
         <Timers units={snapshot.units} />
       </div>
     </>
@@ -103,7 +101,7 @@ function Storage({ disks }: { disks: Disk[] }) {
   const total = disks.reduce((a, d) => a + d.size, 0)
   const used = disks.reduce((a, d) => a + d.used, 0)
   return (
-    <section className="panel order-4 col-span-12 flex flex-col gap-[14px] p-[18px] md:order-none lg:col-span-5" aria-label="Speicher">
+    <section className="panel order-4 col-span-12 flex flex-col gap-[14px] self-start p-[18px] md:order-none 2xl:col-span-4" aria-label="Speicher">
       <div className="flex items-baseline justify-between">
         <h2 className="h2">Speicher</h2>
         <span className="text-[12px] text-muted">{disks.length ? `${diskSize(used)} von ${diskSize(total)}` : ''}</span>
@@ -136,101 +134,6 @@ function Storage({ disks }: { disks: Disk[] }) {
   )
 }
 
-// ---------- containers ----------
-
-function containerTone(c: Container): { tone: Tone; label: string } {
-  if (c.state !== 'running') return { tone: c.state === 'exited' && c.status.match(/Exited \((?!0\))/) ? 'bad' : 'idle', label: c.state === 'exited' ? 'gestoppt' : c.state }
-  if (c.health === 'unhealthy') return { tone: 'bad', label: 'unhealthy' }
-  if (c.health === 'starting') return { tone: 'warn', label: 'startet' }
-  return { tone: 'ok', label: c.health ?? 'running' }
-}
-
-function Containers({ containers }: { containers: Container[] }) {
-  const { run, busy, readonly } = useActions()
-  const { connected } = useLive()
-  return (
-    <section className="panel order-5 col-span-12 flex flex-col gap-2 pt-[18px] pr-1 pb-[10px] pl-1 md:order-none lg:col-span-7" aria-label="Container">
-      <div className="flex items-baseline gap-3 px-[14px]">
-        <h2 className="h2 grow">Container</h2>
-        <span className={`live ${connected ? '' : 'off'}`}>{connected ? 'live' : 'getrennt'}</span>
-      </div>
-      {containers.length === 0 ? (
-        <p className="m-0 px-[14px] text-[13px] text-muted">Keine Container gefunden.</p>
-      ) : (
-        <div className="relative overflow-x-auto">
-          <table className="tbl">
-            <thead>
-              <tr>
-                <th>Name</th>
-                <th>Status</th>
-                <th className="hidden sm:table-cell">CPU · 15 min</th>
-                <th>RAM</th>
-                <th className="hidden 2xl:table-cell">Unit</th>
-                {!readonly && (
-                  <th>
-                    <span className="sr-only">Aktionen</span>
-                  </th>
-                )}
-              </tr>
-            </thead>
-            <tbody>
-              {containers.map((c) => {
-                const st = containerTone(c)
-                const target = { kind: 'container' as const, name: c.name, unit: c.unit }
-                return (
-                  <tr key={c.id} data-testid="container-row">
-                    <td>
-                      <div className="flex items-center gap-2">
-                        <span className="font-mono text-[13px] font-medium">{c.name}</span>
-                        <span className={c.unit ? 'chip q' : 'chip'} title={c.unit ?? 'ohne Unit, Steuerung über die Podman-API'}>
-                          {c.unit ? 'Quadlet' : 'Podman'}
-                        </span>
-                      </div>
-                    </td>
-                    <td>
-                      <Pill tone={st.tone}>{st.label}</Pill>
-                    </td>
-                    <td className="hidden sm:table-cell">
-                      <div className="flex items-center gap-2">
-                        <Sparkline values={c.cpuHistory} />
-                        <span className="w-12 font-mono text-[12px]">{c.cpu !== undefined ? `${num(c.cpu, c.cpu < 10 ? 1 : 0)} %` : '–'}</span>
-                      </div>
-                    </td>
-                    <td className="font-mono text-[12px]">{bytes(c.memUsage)}</td>
-                    <td className="hidden font-mono text-[11px] text-muted 2xl:table-cell">{c.unit ?? 'Podman-API'}</td>
-                    {!readonly && (
-                      <td>
-                        <div className="flex justify-end gap-1.5">
-                          {c.state === 'running' ? (
-                            <>
-                              <IconBtn label={`${c.name} neu starten`} glyph="restart" disabled={busy === c.name} onClick={() => run('restart', target)} />
-                              <IconBtn label={`${c.name} stoppen`} glyph="stop" danger disabled={busy === c.name} onClick={() => run('stop', target)} />
-                            </>
-                          ) : (
-                            <IconBtn label={`${c.name} starten`} glyph="start" disabled={busy === c.name} onClick={() => run('start', target)} />
-                          )}
-                        </div>
-                      </td>
-                    )}
-                  </tr>
-                )
-              })}
-            </tbody>
-          </table>
-        </div>
-      )}
-    </section>
-  )
-}
-
-function IconBtn({ label, glyph, onClick, danger, disabled }: { label: string; glyph: string; onClick: () => void; danger?: boolean; disabled?: boolean }) {
-  return (
-    <button type="button" className={`btn sm ${danger ? 'danger' : ''} !px-2`} aria-label={label} title={label} onClick={onClick} disabled={disabled}>
-      <Glyph name={glyph} size={14} />
-    </button>
-  )
-}
-
 // ---------- services ----------
 
 function Services({ snapshot }: { snapshot: Snapshot }) {
@@ -239,7 +142,7 @@ function Services({ snapshot }: { snapshot: Snapshot }) {
   const say = useToast()
   const groups = snapshot.services
   return (
-    <section className="panel order-1 col-span-12 flex flex-col gap-[14px] p-[18px] md:order-none" aria-label="Services">
+    <section className="@container panel order-1 col-span-12 flex flex-col gap-[14px] self-start p-[18px] md:order-none 2xl:col-span-8" aria-label="Services">
       <div className="flex flex-wrap items-center gap-3">
         <h2 className="h2">Services</h2>
         <span className="grow text-[12px] text-muted">automatisch aus Caddy und Quadlets erkannt</span>
@@ -261,7 +164,7 @@ function Services({ snapshot }: { snapshot: Snapshot }) {
             <span className="text-[11px] tracking-[.08em] text-muted uppercase">{g.name}</span>
             <span className="text-[11px] text-[#4a525e]">{g.note}</span>
           </div>
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6 2xl:grid-cols-8">
+          <div className="grid grid-cols-2 gap-3 @md:grid-cols-3 @2xl:grid-cols-4 @4xl:grid-cols-5 @5xl:grid-cols-6 @7xl:grid-cols-8">
             {g.items.map((s) => (
               <ServiceTile key={s.key} s={s} onDelete={s.manualId !== undefined && !snapshot.readonly ? () => setRemoving(s) : undefined} />
             ))}
