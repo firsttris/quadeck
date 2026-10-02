@@ -13,6 +13,7 @@ import type { NetworkAdmin } from '../network/collect'
 import type { FstabBackend } from '../fstab/backend'
 import type { BootBackend } from '../boot/backend'
 import type { UsersBackend } from '../users/backend'
+import type { HardwareAdmin } from '../hardware/collect'
 import type { UserChange } from '~/shared/users'
 import type { FstabChange } from '~/shared/fstab'
 import type { TimerAction, TimerSpec } from '~/shared/timers'
@@ -49,6 +50,7 @@ export class LocalPrivileged implements Privileged {
     private fstab: FstabBackend,
     private boot: BootBackend,
     private users: UsersBackend,
+    private hw: HardwareAdmin,
   ) {}
 
   async info() {
@@ -359,5 +361,9 @@ export class LocalPrivileged implements Privileged {
   async applyUser(token: string | undefined, change: UserChange) {
     this.gate.check(token)
     return this.users.applyUser(change)
+  }
+
+  hardware() {
+    return this.hw.hardware()
   }
 }

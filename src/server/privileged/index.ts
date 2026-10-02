@@ -16,6 +16,7 @@ import { FixtureNetwork, SystemNetwork } from '../network/collect'
 import { FixtureFstabHost, FstabManager, SystemFstabHost } from '../fstab/backend'
 import { FixtureBoot, SystemBoot } from '../boot/backend'
 import { FixtureUsers, SystemUsers } from '../users/backend'
+import { FixtureHardware, SystemHardware } from '../hardware/collect'
 
 export function unlockMode(helperProcess: boolean): UnlockMode {
   const m = (process.env.QUADECK_UNLOCK ?? '').trim().toLowerCase()
@@ -58,6 +59,7 @@ export function privileged(): Privileged {
           new FstabManager(fixtures ? new FixtureFstabHost(fixtures) : new SystemFstabHost()),
           fixtures ? new FixtureBoot(fixtures) : new SystemBoot(),
           fixtures ? new FixtureUsers(fixtures) : new SystemUsers(),
+          fixtures ? new FixtureHardware(fixtures) : new SystemHardware(),
         )
       : new HelperClient(config().helperSocket)
   return instance

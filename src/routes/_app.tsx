@@ -163,7 +163,7 @@ function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => vo
             <Glyph name="close" size={18} strokeWidth={2} />
           </button>
         </div>
-        <div className="mx-1 flex flex-col gap-[3px] rounded-[10px] border border-edge p-3 text-[12px] text-subtle">
+        <Link to="/hardware" title="Hardware dieses Rechners" aria-label={`${h.hostname}: Hardware dieses Rechners`} className={`mx-1 flex flex-col gap-[3px] rounded-[10px] border p-3 text-[12px] text-subtle no-underline hover:border-[#3a4452] ${path === '/hardware' ? 'border-accent' : 'border-edge'}`}>
           <div className="flex items-center gap-2 text-[13px] font-medium text-fg">
             <Dot tone={connected ? 'ok' : 'warn'} label={connected ? 'live verbunden' : 'Verbindung wird hergestellt'} />
             {h.hostname}
@@ -175,7 +175,7 @@ function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => vo
           <span>
             {h.podmanVersion ? `Podman ${h.podmanVersion} · ` : ''}up {duration(h.uptimeSec)}
           </span>
-        </div>
+        </Link>
         <button type="button" className="btn mx-1 justify-start text-muted" onClick={onSearch} aria-keyshortcuts="Control+K">
           <Glyph name="search" size={15} strokeWidth={2} />
           <span className="grow text-left">Suchen</span>

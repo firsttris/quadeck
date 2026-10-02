@@ -19,6 +19,7 @@ import type { NetworkAdmin } from '../network/collect'
 import type { FstabAdmin } from '../fstab/backend'
 import type { BootAdmin } from '../boot/backend'
 import type { UsersAdmin } from '../users/backend'
+import type { HardwareAdmin } from '../hardware/collect'
 import type { UserChange, UsersState } from '~/shared/users'
 import type { BootState } from '~/shared/boot'
 import type { FstabChange, FstabState } from '~/shared/fstab'
@@ -33,7 +34,7 @@ export type UnitAction = 'start' | 'stop' | 'restart'
 export const UNIT_ACTIONS: readonly UnitAction[] = ['start', 'stop', 'restart']
 
 /** Package/image reads need no unlock (they change nothing); jobs do. */
-export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAdmin, SmartAdmin, FilesAdmin, TimersAdmin, UnitEditorAdmin, NetworkAdmin, FstabAdmin, BootAdmin, UsersAdmin {
+export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAdmin, SmartAdmin, FilesAdmin, TimersAdmin, UnitEditorAdmin, NetworkAdmin, FstabAdmin, BootAdmin, UsersAdmin, HardwareAdmin {
   readonly kind: 'local' | 'helper'
   info(): Promise<UnlockInfo>
   unlock(user: string, password: string): Promise<{ token: string; expiresAt: number }>

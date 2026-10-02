@@ -14,6 +14,7 @@ import type { NetworkState } from '~/shared/network'
 import type { FstabChange, FstabCheck, FstabState } from '~/shared/fstab'
 import type { BootState } from '~/shared/boot'
 import type { UserChange, UsersState } from '~/shared/users'
+import type { Hardware } from '~/shared/hardware'
 import type { UnlockInfo } from './gate'
 
 /** Privileged over the root helper's Unix socket. */
@@ -265,5 +266,8 @@ export class HelperClient implements Privileged {
   }
   applyUser(token: string | undefined, change: UserChange) {
     return this.call<UsersState>('POST', '/users/apply', { token, change }, 120_000)
+  }
+  hardware() {
+    return this.call<Hardware>('POST', '/hardware', {}, 60_000)
   }
 }

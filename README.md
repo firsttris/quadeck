@@ -68,6 +68,9 @@ on it. That is Quadeck.
   explains the options and checks every change (device, driver, `findmnt --verify`, systemd's
   generator, a test mount) so a disk never stops the boot; a small file explorer for the data areas
   with copy, move and delete as jobs
+- **Hardware**: a spec sheet behind the host card – memory slots, GPUs with the ready `AddDevice=`
+  line, USB devices with their stable `/dev/serial/by-id` path, sensors, PCIe and SATA links with
+  warnings when a drive runs with fewer lanes or a slower link than it could
 - **Users**: accounts on the server with groups (what `video`, `render`, `systemd-journal` … give),
   password, lock, Samba password, SSH keys and login history; key-only accounts; a guard that never
   locks out the last administrator
@@ -170,6 +173,7 @@ More in the [documentation](docs/README.md).
 | [Units and Quadlets](docs/quadlets.md) | units page, actions, journal, Quadlet editor, validation, history, templates, compose import, Podman settings |
 | [systemd editor and timers](docs/systemd.md) | unit files and overrides, form and text, verification, history, new units, timers, schedule builder, cron import |
 | [Updates and packages](docs/updates.md) | package managers, AUR, reboot hints, jobs, installed packages, removal, container images, boot and reboot (systemd-boot) |
+| [Hardware](docs/hardware.md) | CPU, memory slots, GPUs, USB paths, sensors, PCIe and SATA links, warnings |
 | [Users](docs/users.md) | accounts, groups, passwords, lock, Samba password, keys, login history, lock-out guard |
 | [Disks and files](docs/disks.md) | SMART verdicts and advice, history, self-tests, fstab configurator and its checks, file explorer, data areas |
 | [Shares](docs/shares.md) | SMB shares, NFS exports, services, what is checked, what is never touched |
