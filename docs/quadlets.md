@@ -29,7 +29,10 @@ its own list can be acted on.
 
 ## Quadlet editor
 
-**Quadlets** lists every file in `/etc/containers/systemd` (`QUADECK_QUADLET_DIR`): `.container`,
+The Quadlet editor is not a menu entry of its own; like the [systemd editor](systemd.md) it is
+reached from the units page: **Bearbeiten** on a container, **+ Neuer Container** (template or
+empty file) or **Quadlet-Dateien**. It lists every file in `/etc/containers/systemd`
+(`QUADECK_QUADLET_DIR`): `.container`,
 `.pod`, `.network`, `.volume`, `.kube`, `.image` and `.build`, including one level of
 subdirectories, each with the state of the unit it generates.
 
@@ -98,7 +101,7 @@ can be restored from there.
 
 ## Podman settings
 
-The **Podman-Einstellungen** tab on the Quadlets page:
+The **Podman** tab on the System page (next to the container image updates):
 
 - **`podman-auto-update.timer`**: on/off and schedule. Custom schedules are written as a drop-in
   `/etc/systemd/system/podman-auto-update.timer.d/50-quadeck.conf` after

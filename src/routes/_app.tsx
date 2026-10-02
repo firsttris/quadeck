@@ -60,7 +60,7 @@ function AppLayout() {
   )
 }
 
-type NavItem = { to: '/' | '/units' | '/journal' | '/quadlets' | '/disks' | '/files' | '/shares' | '/ssh' | '/network' | '/system' | '/notifications'; label: string; glyph: string; badge: number }
+type NavItem = { to: '/' | '/units' | '/journal' | '/disks' | '/files' | '/shares' | '/ssh' | '/network' | '/system' | '/notifications'; label: string; glyph: string; badge: number }
 
 function useNav(): { title?: string; items: NavItem[] }[] {
   const { snapshot } = useLive()
@@ -72,7 +72,6 @@ function useNav(): { title?: string; items: NavItem[] }[] {
       title: 'Dienste',
       items: [
         { to: '/units', label: 'Units', glyph: 'units', badge: failed },
-        { to: '/quadlets', label: 'Quadlets', glyph: 'edit', badge: 0 },
         { to: '/journal', label: 'Journal', glyph: 'journal', badge: 0 },
       ],
     },

@@ -52,6 +52,11 @@ local), orphans. Per package: version, size, description; details show dependenc
 afterwards. Packages the system needs (kernel, systemd, glibc, the package manager, sudo, OpenSSH,
 Podman, Quadeck's own tools) are protected; the helper refuses them too, not only the UI.
 
+## Podman tab
+
+Podman's own settings (auto-update timer, `AutoUpdate=registry` for all containers, registries and
+`containers.conf`) are described in [Units and Quadlets](quadlets.md#podman-settings).
+
 ## Jobs
 
 Everything that changes packages or files runs as a job with live output, one at a time:

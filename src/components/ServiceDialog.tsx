@@ -6,7 +6,7 @@ import { Modal } from './Modal'
 import { useToast } from './Toast'
 
 /** Icon picker over the dashboard-icons index; empty value = automatic. */
-function IconPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+export function IconPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [query, setQuery] = useState(value)
   const [icons, setIcons] = useState<string[]>([])
   const [available, setAvailable] = useState(true)

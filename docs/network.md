@@ -2,7 +2,8 @@
 
 The **Netzwerk** page shows the network side of the server and changes nothing: interfaces,
 listening ports with who is behind them, the firewall's view on those ports, routes and DNS. It
-answers "why can't I reach it?" and "what is listening on 8080?" without a terminal.
+answers "why can't I reach it?" and "what is listening on 8080?" without a terminal. Three tabs:
+**Schnittstellen** (interfaces, routes and DNS), **Ports** and **Firewall**.
 
 <img src="screenshot-network.png" alt="Network page: interfaces, listening ports with program, unit or container, firewall verdicts, routes and DNS" width="900">
 
@@ -43,7 +44,7 @@ Quadeck detects **firewalld** (default zone, services resolved to their ports, o
 | **offen (Podman)** | a published container port; Podman adds its own forwarding rules |
 | **unklar** | hand-written nftables rules with a drop policy; Quadeck does not interpret them |
 
-Ports that are listening but blocked are listed in the firewall card with the command to open
+Ports that are listening but blocked are listed in the firewall tab with the command to open
 them (`firewall-cmd --permanent --add-port=… && firewall-cmd --reload` or `ufw allow …`).
 Whether that is what you want is your call; often a blocked port is exactly right.
 

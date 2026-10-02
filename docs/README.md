@@ -47,15 +47,14 @@ and the unlock countdown in reach.
 | Page | Group | Content |
 |---|---|---|
 | **Übersicht** (overview) | | gauges with history, failed units, services, storage, timers, shares |
-| **Units** | Dienste | services, timers and Quadlet units with actions; the *Timer* filter is the schedule editor |
-| **Quadlets** | Dienste | Quadlet files and Podman settings |
+| **Units** | Dienste | services, timers and containers with actions; the *Timer* filter is the schedule editor; from here the Quadlet and systemd editors open |
 | **Journal** | Dienste | `journalctl` live, per unit and priority, searchable |
 | **Festplatten** (disks) | Speicher | SMART verdicts, history, self-tests |
 | **Dateien** (files) | Speicher | file explorer for the data areas |
 | **Freigaben** (shares) | Speicher | SMB and NFS |
 | **Netzwerk** (network) | Server | interfaces, ports, firewall |
 | **SSH** | Server | keys, hardening, logins |
-| **System** | Server | updates and installed packages |
+| **System** | Server | updates, installed packages, Podman settings |
 | **Benachrichtigungen** (notifications) | Server | channels and rules |
 
 The UI is in German; the documentation names the German labels where you need to find them.

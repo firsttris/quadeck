@@ -5,6 +5,7 @@ import { Glyph } from '~/components/Glyph'
 import { STATUS_LABEL, statusTone, useJobs } from '~/components/Jobs'
 import { ConfirmDialog, Modal } from '~/components/Modal'
 import { PageHeader } from '~/components/PageHeader'
+import { PodmanSettingsView } from '~/components/PodmanSettings'
 import { Pill } from '~/components/Status'
 import { api } from '~/lib/api'
 import { bytes, relative } from '~/lib/format'
@@ -21,10 +22,10 @@ import {
   type UpdatesReport,
 } from '~/shared/packages'
 
-type Tab = 'updates' | 'packages'
+type Tab = 'updates' | 'packages' | 'podman'
 
 export const Route = createFileRoute('/_app/system')({
-  validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({ tab: s.tab === 'packages' ? 'packages' : undefined }),
+  validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({ tab: s.tab === 'packages' || s.tab === 'podman' ? s.tab : undefined }),
   head: () => ({ meta: [{ title: 'System · Quadeck' }] }),
   component: SystemPage,
 })
@@ -70,6 +71,9 @@ function SystemPage() {
         <Link to="/system" search={{ tab: 'packages' }} role="tab" aria-selected={tab === 'packages'} className={`seg ${tab === 'packages' ? 'on' : ''}`}>
           Installiert
         </Link>
+        <Link to="/system" search={{ tab: 'podman' }} role="tab" aria-selected={tab === 'podman'} className={`seg ${tab === 'podman' ? 'on' : ''}`}>
+          Podman
+        </Link>
       </div>
       {overview.error && <p className="m-0 text-[13px] text-[#e3b341]">{overview.error}</p>}
       {o?.rebootRequired && (
@@ -81,7 +85,7 @@ function SystemPage() {
           </div>
         </section>
       )}
-      {tab === 'updates' ? <Updates overview={o} /> : <Packages overview={o} />}
+      {tab === 'updates' ? <Updates overview={o} /> : tab === 'packages' ? <Packages overview={o} /> : <PodmanSettingsView />}
     </>
   )
 }

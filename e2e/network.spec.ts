@@ -20,6 +20,9 @@ test('network: interfaces, ports with programs and containers, firewall', async 
   await page.getByLabel(/auch Loopback und Container-Verbindungen/).check()
   await expect(ifaces.filter({ hasText: 'veth0' })).toHaveCount(1)
 
+  await expect(page.getByRole('region', { name: 'Routen und DNS' })).toContainText('192.168.1.1 über enp3s0')
+
+  await page.getByRole('tab', { name: /Ports/ }).click()
   const ports = page.getByRole('region', { name: 'Offene Ports' })
   const row = (port: string) => ports.getByTestId('port-row').filter({ has: page.getByText(port, { exact: true }) })
   await expect(row('22')).toContainText('sshd')
@@ -31,8 +34,9 @@ test('network: interfaces, ports with programs and containers, firewall', async 
   await ports.getByLabel('nur aus dem Netz erreichbare').check()
   await expect(row('631')).toHaveCount(0)
 
+  await page.getByRole('tab', { name: 'Firewall' }).click()
+  await expect(page).toHaveURL(/tab=firewall/)
   const fw = page.getByRole('region', { name: 'Firewall' })
   await expect(fw).toContainText('firewalld aktiv')
   await expect(fw).toContainText('111/tcp')
-  await expect(page.getByRole('region', { name: 'Routen und DNS' })).toContainText('192.168.1.1 über enp3s0')
 })

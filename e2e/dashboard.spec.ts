@@ -129,7 +129,7 @@ test.describe.serial('Quadeck', () => {
     await login(page)
     await page.getByRole('link', { name: /Units/ }).click()
     // Containers are the default filter; the Quadlet row carries the container's health and CPU
-    await expect(page.getByRole('link', { name: /Container/ })).toHaveAttribute('aria-current', 'true')
+    await expect(page.getByRole('group', { name: 'Filter' }).getByRole('link', { name: /Container/ })).toHaveAttribute('aria-current', 'true')
     const jf = page.getByTestId('unit-row').filter({ hasText: 'jellyfin.service' })
     await expect(jf).toContainText('healthy')
     await expect(jf).toContainText('12 %')
@@ -172,10 +172,12 @@ test.describe.serial('Quadeck', () => {
     const dialog = page.getByRole('dialog', { name: 'Link hinzufügen' })
     await dialog.getByLabel('Name').fill('Router')
     await dialog.getByLabel('URL').fill('http://192.168.1.1')
+    await dialog.getByLabel('Icon suchen').fill('openwrt') // the icon can be chosen right away, not only when editing
     await dialog.getByLabel('Erreichbarkeit alle 60 s prüfen').uncheck()
     await dialog.getByRole('button', { name: 'Hinzufügen' }).click()
     const tile = page.getByTestId('service-tile').filter({ hasText: 'Router' })
     await expect(tile).toHaveAttribute('href', 'http://192.168.1.1/')
+    await expect(tile.locator('img')).toHaveAttribute('src', '/api/icons/openwrt')
     await expect(page.getByText('manuell angelegt')).toBeVisible()
 
     await tile.focus() // the remove button shows on hover and on keyboard focus
