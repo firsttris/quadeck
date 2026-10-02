@@ -3,26 +3,35 @@
 // helper; writes to EFI variables run through systemd-run, because the
 // helper's own sandbox (ProtectKernelTunables) keeps /sys read-only.
 
-import { existsSync, readFileSync, statSync } from 'node:fs'
+import { existsSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { release } from 'node:os'
 import { statfs } from 'node:fs/promises'
-import { join } from 'node:path'
+import { dirname, join } from 'node:path'
 import { HttpError } from '../auth'
 import { run } from '../exec'
 import {
   ENTRY_ID,
   bootWarnings,
   decodeEfiString,
+  isFlavor,
+  kernelEntry,
+  kernelEntryId,
+  kernelInfos,
   loaderConfValue,
+  parsePacmanQ,
   parseBootctlList,
   parseBootctlStatus,
   parseSystemdVersion,
   parseTimeout,
   type BootEntry,
   type BootState,
+  type KernelFlavor,
 } from '~/shared/boot'
 
 export interface BootAdmin {
   bootState(): Promise<BootState>
+  /** The entry Quadeck would write for an installed flavour without one. */
+  kernelEntryPreview(pkg: string): Promise<{ path: string; content: string }>
 }
 
 /** Writes; the caller has checked the unlock. */
@@ -33,6 +42,39 @@ export interface BootBackend extends BootAdmin {
   updateBootLoader(): Promise<BootState>
   /** Reboots after a short delay (the answer still reaches the browser), optionally once into `entry` or the firmware setup. */
   reboot(opts: { entry?: string; firmware?: boolean }): Promise<{ at: number }>
+  createKernelEntry(pkg: string): Promise<BootState>
+  /** Only entries that point to missing files or were written by Quadeck, never the default or the running one. */
+  removeBootEntry(id: string): Promise<BootState>
+}
+
+export const QUADECK_ENTRY = '# Angelegt von Quadeck'
+
+/** Checks shared by the real machine and the demo. */
+export function entryForFlavor(state: BootState, pkg: string, read: (p: string) => string | undefined, exists: (p: string) => boolean) {
+  if (!isFlavor(pkg)) throw new HttpError(400, 'Unbekannter Kernel')
+  if (state.loader !== 'systemd-boot' || !state.canCreateEntries) throw new HttpError(409, 'Boot-Einträge legt hier das System selbst an (kernel-install/UKI) – oder es ist kein systemd-boot')
+  const k = state.kernels?.find((x) => x.pkg === pkg)
+  if (!k?.installed) throw new HttpError(409, `${pkg} ist nicht installiert`)
+  if (k.entries.length) throw new HttpError(409, `${pkg} hat schon einen Eintrag`)
+  const def = state.entries.find((e) => e.isDefault && e.type === 'type1' && e.path)
+  const template = def?.path ? read(def.path) : undefined
+  if (!def?.path || !template) throw new HttpError(409, 'Kein Standard-Eintrag als Vorlage lesbar')
+  const boot = state.boot?.path ?? dirname(dirname(dirname(def.path)))
+  for (const f of [`/vmlinuz-${pkg}`, `/initramfs-${pkg}.img`]) if (!exists(join(boot, f))) throw new HttpError(409, `${boot}${f} fehlt – erst die Installation abwarten (mkinitcpio legt das initramfs an)`)
+  const dir = dirname(def.path)
+  let path = join(dir, kernelEntryId(pkg as KernelFlavor))
+  if (exists(path)) path = join(dir, `quadeck-${pkg}.conf`)
+  return { path, content: kernelEntry(template, pkg as KernelFlavor) }
+}
+
+export function removableEntry(state: BootState, id: string, read: (p: string) => string | undefined) {
+  if (!ENTRY_ID.test(id)) throw new HttpError(400, 'Ungültiger Eintrag')
+  const e = state.entries.find((x) => x.id === id)
+  if (!e) throw new HttpError(404, `Eintrag ${id} gibt es nicht`)
+  if (e.type !== 'type1' || !e.path || !e.path.endsWith('.conf') || !/\/loader\/entries\/[^/]+$/.test(e.path)) throw new HttpError(409, 'Nur Einträge unter loader/entries')
+  if (e.isDefault || e.isSelected) throw new HttpError(409, 'Standard-Eintrag und der laufende Eintrag bleiben')
+  if (!e.missing.length && !read(e.path)?.startsWith(QUADECK_ENTRY)) throw new HttpError(409, 'Nur Einträge mit fehlenden Dateien oder solche, die Quadeck angelegt hat')
+  return e.path
 }
 
 export const TIMEOUT_VALUE = /^(menu-force|menu-hidden|\d{1,3})$/
@@ -121,9 +163,18 @@ export class SystemBoot implements BootBackend {
     }
     const efiTimeout = efiVar('LoaderConfigTimeout')
     const confTimeout = loaderConfValue(read(join(esp, 'loader/loader.conf')) ?? '', 'timeout')
+    let kernels: BootState['kernels']
+    if (Bun.which('pacman')) {
+      const q = await run(['pacman', '-Q', 'linux', 'linux-lts', 'linux-zen', 'linux-hardened'])
+      kernels = kernelInfos(parsePacmanQ(q.stdout), release(), entries)
+    }
+    const def = entries.find((e) => e.isDefault)
     const state: Omit<BootState, 'warnings'> = {
       ...base,
       ...info,
+      kernels,
+      dkms: !!Bun.which('dkms'),
+      canCreateEntries: !!kernels && def?.type === 'type1' && !!def.path && /^\/vmlinuz-/.test(def.linux ?? ''),
       packageVersion: parseSystemdVersion(version.stdout),
       boot: fs,
       timeout: parseTimeout(efiTimeout ?? confTimeout),
@@ -166,6 +217,23 @@ export class SystemBoot implements BootBackend {
     return this.bootState()
   }
 
+  async kernelEntryPreview(pkg: string) {
+    return entryForFlavor(await this.bootState(), pkg, read, existsSync)
+  }
+
+  async createKernelEntry(pkg: string) {
+    const { path, content } = entryForFlavor(await this.bootState(), pkg, read, existsSync)
+    const tmp = `${path}.quadeck-tmp`
+    writeFileSync(tmp, content, { mode: 0o644 })
+    renameSync(tmp, path)
+    return this.bootState()
+  }
+
+  async removeBootEntry(id: string) {
+    rmSync(removableEntry(await this.bootState(), id, read), { force: true })
+    return this.bootState()
+  }
+
   async reboot(opts: { entry?: string; firmware?: boolean }) {
     if (opts.entry) {
       assertEntry(opts.entry, (await this.systemdBoot()).entries)
@@ -181,18 +249,50 @@ export class SystemBoot implements BootBackend {
 // ---------- demo fixtures ----------
 
 export class FixtureBoot implements BootBackend {
-  private state: Omit<BootState, 'warnings'>
+  private state: Omit<BootState, 'warnings'> & { entryFiles?: Record<string, string> }
   /** Reboots the demo pretended to do. */
   reboots: { entry?: string; firmware?: boolean }[] = []
 
-  constructor(dir: string) {
+  /** `installed`: the demo's package list (kernels come and go with the package jobs). */
+  constructor(
+    dir: string,
+    private installed: () => Promise<Map<string, string>> = async () => new Map([['linux', '6.10.1.arch1-1']]),
+  ) {
     this.state = JSON.parse(read(join(dir, 'boot.json')) ?? '{"loader":"unknown","entries":[],"firmwareSetup":false,"cmdline":""}') as Omit<BootState, 'warnings'>
   }
 
+  private files = () => this.state.entryFiles ?? {}
+
   async bootState(): Promise<BootState> {
-    const entries = this.state.entries.map((e) => ({ ...e, isOneshot: e.id === this.state.oneshot }))
-    const s = { ...this.state, entries }
+    const inst = await this.installed()
+    const entries = this.state.entries.map((e) => {
+      const pkg = e.linux?.replace(/^\/vmlinuz-/, '')
+      const missing = e.type === 'type1' && pkg && !inst.has(pkg) ? [e.linux!, ...e.initrd.filter((i) => !/ucode/.test(i))] : e.missing
+      return { ...e, isOneshot: e.id === this.state.oneshot, missing }
+    })
+    const kernels = this.state.loader === 'systemd-boot' ? kernelInfos(inst, '6.10.1-arch1-1', entries) : undefined
+    const s = { ...this.state, entryFiles: undefined, entries, kernels, dkms: false, canCreateEntries: !!kernels }
     return { ...s, warnings: bootWarnings(s) }
+  }
+
+  async kernelEntryPreview(pkg: string) {
+    const inst = await this.installed()
+    return entryForFlavor(await this.bootState(), pkg, (p) => this.files()[p], (p) => (p.includes('/vmlinuz-') || p.includes('/initramfs-') ? inst.has(p.replace(/^.*\/(vmlinuz|initramfs)-/, '').replace(/\.img$/, '')) : !!this.files()[p]))
+  }
+
+  async createKernelEntry(pkg: string) {
+    const { path, content } = await this.kernelEntryPreview(pkg)
+    this.state.entryFiles = { ...this.files(), [path]: content }
+    const version = (await this.installed()).get(pkg)
+    const id = path.split('/').pop()!
+    this.state.entries = [...this.state.entries.filter((e) => e.type !== 'auto'), { id, path, title: `Arch Linux (${pkg})`, version: version?.replace(/\.(\w+)-/, '-$1-'), type: 'type1', linux: `/vmlinuz-${pkg}`, initrd: ['/intel-ucode.img', `/initramfs-${pkg}.img`], isDefault: false, isSelected: false, isOneshot: false, missing: [], size: 90_000_000 }, ...this.state.entries.filter((e) => e.type === 'auto')]
+    return this.bootState()
+  }
+
+  async removeBootEntry(id: string) {
+    const path = removableEntry(await this.bootState(), id, (p) => this.files()[p])
+    this.state.entries = this.state.entries.filter((e) => e.path !== path)
+    return this.bootState()
   }
 
   async setBootDefault(id: string) {

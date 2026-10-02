@@ -2,22 +2,30 @@
   "loader": "systemd-boot",
   "firmware": "UEFI 2.80 (American Megatrends 5.27)",
   "secureBoot": "disabled",
-  "runningVersion": "256.11-1.fc42",
-  "espVersion": "256.11-1.fc42",
-  "packageVersion": "257.9-1.fc42",
-  "boot": { "path": "/boot", "size": 1073741824, "free": 412090368 },
+  "runningVersion": "256.11-1-arch",
+  "espVersion": "256.11-1-arch",
+  "packageVersion": "257.9-1-arch",
+  "boot": {
+    "path": "/boot",
+    "size": 1073741824,
+    "free": 412090368
+  },
   "timeout": 3,
   "timeoutSource": "loader.conf",
   "firmwareSetup": true,
   "entries": [
     {
-      "id": "8b6a3f0c2d4e4f5a9b7c1d2e3f4a5b6c-6.16.8-200.fc42.x86_64.conf",
-      "title": "Fedora Linux 42 (Server Edition)",
-      "version": "6.16.8-200.fc42.x86_64",
+      "id": "arch.conf",
+      "title": "Arch Linux",
+      "version": "6.10.1-arch1-1",
       "type": "type1",
-      "linux": "/8b6a3f0c2d4e4f5a9b7c1d2e3f4a5b6c/6.16.8-200.fc42.x86_64/linux",
-      "initrd": ["/8b6a3f0c2d4e4f5a9b7c1d2e3f4a5b6c/6.16.8-200.fc42.x86_64/initrd"],
-      "options": "root=UUID=8c1f3e2a-5d4b-4c6e-9f1a-2b3c4d5e6f70 ro rootflags=subvol=root i915.enable_guc=3 usbcore.autosuspend=-1 quiet",
+      "path": "/boot/loader/entries/arch.conf",
+      "linux": "/vmlinuz-linux",
+      "initrd": [
+        "/intel-ucode.img",
+        "/initramfs-linux.img"
+      ],
+      "options": "root=UUID=8c1f3e2a-5d4b-4c6e-9f1a-2b3c4d5e6f70 rw rootflags=subvol=@ i915.enable_guc=3 usbcore.autosuspend=-1 quiet",
       "isDefault": true,
       "isSelected": true,
       "isOneshot": false,
@@ -25,18 +33,22 @@
       "size": 98566144
     },
     {
-      "id": "8b6a3f0c2d4e4f5a9b7c1d2e3f4a5b6c-6.15.11-200.fc42.x86_64.conf",
-      "title": "Fedora Linux 42 (Server Edition)",
-      "version": "6.15.11-200.fc42.x86_64",
+      "id": "arch-fallback.conf",
+      "title": "Arch Linux (Fallback-initramfs)",
+      "version": "6.10.1-arch1-1",
       "type": "type1",
-      "linux": "/8b6a3f0c2d4e4f5a9b7c1d2e3f4a5b6c/6.15.11-200.fc42.x86_64/linux",
-      "initrd": ["/8b6a3f0c2d4e4f5a9b7c1d2e3f4a5b6c/6.15.11-200.fc42.x86_64/initrd"],
-      "options": "root=UUID=8c1f3e2a-5d4b-4c6e-9f1a-2b3c4d5e6f70 ro rootflags=subvol=root i915.enable_guc=3 usbcore.autosuspend=-1 quiet",
+      "path": "/boot/loader/entries/arch-fallback.conf",
+      "linux": "/vmlinuz-linux",
+      "initrd": [
+        "/intel-ucode.img",
+        "/initramfs-linux-fallback.img"
+      ],
+      "options": "root=UUID=8c1f3e2a-5d4b-4c6e-9f1a-2b3c4d5e6f70 rw rootflags=subvol=@ i915.enable_guc=3 usbcore.autosuspend=-1 quiet",
       "isDefault": false,
       "isSelected": false,
       "isOneshot": false,
       "missing": [],
-      "size": 97517568
+      "size": 176160768
     },
     {
       "id": "auto-reboot-to-firmware-setup",
@@ -49,5 +61,8 @@
       "missing": []
     }
   ],
-  "cmdline": "initrd=\\8b6a3f0c2d4e4f5a9b7c1d2e3f4a5b6c\\6.16.8-200.fc42.x86_64\\initrd root=UUID=8c1f3e2a-5d4b-4c6e-9f1a-2b3c4d5e6f70 ro rootflags=subvol=root i915.enable_guc=3 usbcore.autosuspend=-1 quiet"
+  "cmdline": "initrd=\\intel-ucode.img initrd=\\initramfs-linux.img root=UUID=8c1f3e2a-5d4b-4c6e-9f1a-2b3c4d5e6f70 rw rootflags=subvol=@ i915.enable_guc=3 usbcore.autosuspend=-1 quiet",
+  "entryFiles": {
+    "/boot/loader/entries/arch.conf": "title   Arch Linux\nlinux   /vmlinuz-linux\ninitrd  /intel-ucode.img\ninitrd  /initramfs-linux.img\noptions root=UUID=8c1f3e2a-5d4b-4c6e-9f1a-2b3c4d5e6f70 rw rootflags=subvol=@ i915.enable_guc=3 usbcore.autosuspend=-1 quiet\n"
+  }
 }

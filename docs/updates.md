@@ -79,6 +79,19 @@ and making sure the server comes back.
 - **Warnings** before they bite: `$BOOT` too small for another kernel with its initramfs (the
   classic reason a kernel update leaves an unbootable system), entries pointing to files that are
   gone, an outdated loader on the ESP, no second kernel as a way back, no default entry.
+- **Kernel** (Arch): `linux`, `linux-lts`, `linux-zen` and `linux-hardened` can be installed side
+  by side – one older version of the same kernel cannot, so a second flavour is the way to jump
+  back and forth. Per flavour: installed version, which one is running, whether it has a boot
+  entry. **Installieren** runs pacman as a job (with the `-headers` package when DKMS modules
+  such as NVIDIA or ZFS are installed, so they are built for it too). systemd-boot with classic
+  `.conf` entries does not get an entry for a new kernel by itself: **Boot-Eintrag anlegen**
+  copies the default entry (same `options`, microcode kept) with kernel and initramfs swapped,
+  shows the file first and writes `loader/entries/arch-lts.conf` – existing entries are not
+  touched. Then use **Einmalig damit starten** or **Als Standard**. **Entfernen** refuses the
+  running kernel, the one of the default entry and the last one (checked again inside the job);
+  the entry left behind is marked as pointing to missing files and can be removed with
+  **Eintrag entfernen** (only such entries and the ones Quadeck wrote). On Fedora and Debian the
+  installed kernel versions come with their own entries and show up in the list of entries.
 - **Kernel parameters of this boot** from `/proc/cmdline`, each known one explained
   (`i915.enable_guc`, `usbcore.autosuspend`, `nvme_core.default_ps_max_latency_us`,
   `pcie_aspm`, IOMMU, …). Quadeck shows them and says where they are set; it does not edit them –

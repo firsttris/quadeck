@@ -258,6 +258,15 @@ export class HelperClient implements Privileged {
   updateBootLoader(token: string | undefined) {
     return this.call<BootState>('POST', '/boot/update', { token }, 90_000)
   }
+  kernelEntryPreview(pkg: string) {
+    return this.call<{ path: string; content: string }>('POST', '/boot/entry-preview', { pkg })
+  }
+  createKernelEntry(token: string | undefined, pkg: string) {
+    return this.call<BootState>('POST', '/boot/entry-create', { token, pkg }, 60_000)
+  }
+  removeBootEntry(token: string | undefined, id: string) {
+    return this.call<BootState>('POST', '/boot/entry-remove', { token, id }, 60_000)
+  }
   reboot(token: string | undefined, opts: { entry?: string; firmware?: boolean }) {
     return this.call<{ at: number }>('POST', '/boot/reboot', { token, ...opts }, 90_000)
   }

@@ -291,6 +291,16 @@ export class FixtureMaintenance implements MaintenanceBackend {
         await say(`Fehler: ${(e as Error).message}`)
         return sink.exit(1)
       }
+    } else if (spec.kind === 'kernel-install') {
+      await say(`$ pacman -S --needed --noconfirm --noprogressbar --color never -- ${spec.flavor}`)
+      await say(`installing ${spec.flavor}...`)
+      await say(`==> Building image from preset: /etc/mkinitcpio.d/${spec.flavor}.preset: 'default'`)
+      await say(`==> Image generation successful`)
+      d.installed = [...d.installed.filter((p) => p.name !== spec.flavor), { ...d.installed.find((p) => p.name === 'linux')!, name: spec.flavor, version: spec.flavor === 'linux-lts' ? '6.12.48-1' : '6.10.1.arch1-1', reason: 'explicit' }]
+    } else if (spec.kind === 'kernel-remove') {
+      await say(`$ pacman -Rns --noconfirm --noprogressbar --color never -- ${spec.flavor}`)
+      await say(`removing ${spec.flavor}...`)
+      d.installed = d.installed.filter((p) => p.name !== spec.flavor)
     } else if (spec.kind === 'install') {
       const pkgs = FEATURES[spec.feature].packages.pacman
       await say(`$ pacman -S --needed --noconfirm -- ${pkgs.join(' ')}`)

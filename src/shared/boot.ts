@@ -6,6 +6,8 @@ export type BootLoader = 'systemd-boot' | 'grub' | 'unknown'
 
 export interface BootEntry {
   id: string
+  /** The .conf file (type1). */
+  path?: string
   title: string
   version?: string
   /** type1 (.conf), type2 (UKI), auto (firmware, shell, reboot into firmware), other. */
@@ -49,6 +51,12 @@ export interface BootState {
   /** `systemctl reboot --firmware-setup` works. */
   firmwareSetup: boolean
   cmdline: string
+  /** Kernel flavours (Arch): installed, running, boot entries. Absent elsewhere. */
+  kernels?: KernelInfo[]
+  /** DKMS modules (NVIDIA, ZFS …) need the headers of every kernel. */
+  dkms?: boolean
+  /** Entries for a new kernel can be written by Quadeck (systemd-boot with classic .conf entries). */
+  canCreateEntries?: boolean
   warnings: BootWarning[]
   error?: string
 }
@@ -61,6 +69,7 @@ export const ENTRY_ID = /^[A-Za-z0-9@_.+~-]{1,200}$/
 interface ListJson {
   type?: string
   id?: string
+  path?: string
   title?: string
   showTitle?: string
   version?: string
@@ -85,6 +94,7 @@ export function parseBootctlList(json: string, oneshot?: string): (Omit<BootEntr
     .filter((e) => e && typeof e.id === 'string')
     .map((e) => ({
       id: e.id!,
+      path: e.path || undefined,
       title: e.showTitle || e.title || e.id!,
       version: e.version || undefined,
       type: e.type === 'type1' || e.type === 'type2' || e.type === 'auto' ? e.type : e.id!.startsWith('auto-') ? 'auto' : 'other',
@@ -186,7 +196,8 @@ export function bootWarnings(s: Omit<BootState, 'warnings'>): BootWarning[] {
   const out: BootWarning[] = []
   if (s.loader !== 'systemd-boot') return out
   for (const e of s.entries)
-    if (e.missing.length) out.push({ level: e.isDefault ? 'critical' : 'warning', text: `„${e.title}“ zeigt auf fehlende Dateien (${e.missing.join(', ')}) – mit diesem Eintrag startet der Server nicht${e.isDefault ? '. Es ist der Standard-Eintrag!' : ''}` })
+    if (e.missing.length) out.push({ level: e.isDefault ? 'critical' : 'warning', text: `„${e.title}“ zeigt auf fehlende Dateien (${e.missing.join(', ')}) – mit diesem Eintrag startet der Server nicht${e.isDefault ? '. Es ist der Standard-Eintrag!' : ' (z. B. nach dem Entfernen eines Kernels – Eintrag entfernen)'}` })
+  for (const k of s.kernels ?? []) if (k.installed && !k.entries.length && s.canCreateEntries) out.push({ level: 'warning', text: `${k.pkg} ist installiert, hat aber keinen Boot-Eintrag – „Boot-Eintrag anlegen“` })
   if (s.boot) {
     const biggest = Math.max(0, ...s.entries.map((e) => e.size ?? 0))
     if (biggest && s.boot.free < biggest)
@@ -198,7 +209,7 @@ export function bootWarnings(s: Omit<BootState, 'warnings'>): BootWarning[] {
   const kernels = new Set(s.entries.filter((e) => e.type !== 'auto' && e.linux).map((e) => e.linux))
   const ukis = s.entries.filter((e) => e.type === 'type2').length
   if (kernels.size + ukis === 1)
-    out.push({ level: 'info', text: 'Nur ein Kernel installiert. Ein zweiter (z. B. linux-lts) ist ein Rettungsweg, falls ein Kernel-Update Probleme macht – dann „einmalig mit linux-lts starten“.' })
+    out.push({ level: 'info', text: `Nur ein Kernel installiert. Ein zweiter (z. B. linux-lts) ist ein Rettungsweg, falls ein Kernel-Update Probleme macht – dann „einmalig mit linux-lts starten“.${s.kernels ? ' Unten unter „Kernel“ installieren.' : ''}` })
   if (!s.entries.some((e) => e.isDefault)) out.push({ level: 'warning', text: 'Kein Standard-Eintrag erkannt – systemd-boot nimmt dann den ersten in der Liste.' })
   return out
 }
@@ -296,3 +307,83 @@ export function explainParam(name: string, value?: string): string | undefined {
   const p = PARAMS[name]
   return typeof p === 'function' ? p(value) : p
 }
+
+// ---------- kernel flavours (Arch) ----------
+
+export type KernelFlavor = 'linux' | 'linux-lts' | 'linux-zen' | 'linux-hardened'
+
+export const KERNEL_FLAVORS: { pkg: KernelFlavor; label: string; text: string }[] = [
+  { pkg: 'linux', label: 'Aktuell', text: 'Neueste stabile Version – der Standard-Kernel von Arch.' },
+  { pkg: 'linux-lts', label: 'LTS', text: 'Langzeit-Kernel, ändert sich selten – der klassische Rückweg, wenn ein Update von linux Probleme macht.' },
+  { pkg: 'linux-zen', label: 'Zen', text: 'Auf kurze Reaktionszeiten getrimmt – eher für Desktop und Spiele.' },
+  { pkg: 'linux-hardened', label: 'Hardened', text: 'Mit zusätzlicher Absicherung; manche Programme laufen damit nicht.' },
+]
+
+export const isFlavor = (v: unknown): v is KernelFlavor => KERNEL_FLAVORS.some((k) => k.pkg === v)
+
+export interface KernelInfo {
+  pkg: KernelFlavor
+  installed: boolean
+  version?: string
+  running: boolean
+  /** Ids of the entries that boot it. */
+  entries: string[]
+  /** One of its entries is the default. */
+  isDefault: boolean
+}
+
+/** `uname -r` → flavour: 6.12.48-1-lts, 6.16.8-zen1-1-zen, 6.16.8-hardened1-1-hardened, 6.16.8-arch1-1. */
+export function flavorOfRelease(release: string): KernelFlavor {
+  if (/-lts$/.test(release)) return 'linux-lts'
+  if (/-zen$/.test(release)) return 'linux-zen'
+  if (/-hardened$/.test(release)) return 'linux-hardened'
+  return 'linux'
+}
+
+/** `pacman -Q linux linux-lts …` lines → installed versions. */
+export function parsePacmanQ(out: string): Map<string, string> {
+  const m = new Map<string, string>()
+  for (const l of out.split('\n')) {
+    const [name, version] = l.trim().split(/\s+/)
+    if (name && version && !l.startsWith('error')) m.set(name, version)
+  }
+  return m
+}
+
+export function kernelInfos(installed: Map<string, string>, release: string, entries: BootEntry[]): KernelInfo[] {
+  const running = flavorOfRelease(release)
+  return KERNEL_FLAVORS.map(({ pkg }) => {
+    const own = entries.filter((e) => e.type === 'type1' && e.linux === `/vmlinuz-${pkg}`)
+    return { pkg, installed: installed.has(pkg), version: installed.get(pkg), running: pkg === running && installed.has(pkg), entries: own.map((e) => e.id), isDefault: own.some((e) => e.isDefault) }
+  })
+}
+
+/** Why a flavour may not be removed, or undefined. */
+export function kernelRemoveProblem(k: KernelInfo, all: KernelInfo[]): string | undefined {
+  if (k.running) return 'Läuft gerade – erst mit einem anderen Kernel starten'
+  if (k.isDefault) return 'Ist der Standard-Eintrag – erst einen anderen Kernel als Standard setzen'
+  if (!all.some((x) => x.installed && x.pkg !== k.pkg)) return 'Der letzte installierte Kernel'
+  return undefined
+}
+
+/**
+ * A boot entry for another flavour, made from an existing one: same options
+ * (root=, rootflags …) and microcode, kernel and initramfs swapped.
+ */
+export function kernelEntry(template: string, pkg: KernelFlavor): string {
+  const lines = template.split('\n').filter((l) => !/^\s*(title|linux|version|sort-key|machine-id)\s/.test(l) && !/^#/.test(l))
+  const initrd = lines.filter((l) => /^\s*initrd\s/.test(l))
+  const ucode = initrd.filter((l) => /ucode/.test(l))
+  const rest = lines.filter((l) => !/^\s*initrd\s/.test(l) && l.trim())
+  return [
+    '# Angelegt von Quadeck',
+    `title   Arch Linux (${pkg})`,
+    `linux   /vmlinuz-${pkg}`,
+    ...ucode,
+    `initrd  /initramfs-${pkg}.img`,
+    ...rest,
+  ].join('\n') + '\n'
+}
+
+/** File name of the new entry. */
+export const kernelEntryId = (pkg: KernelFlavor) => `${pkg === 'linux' ? 'arch' : `arch-${pkg.replace(/^linux-/, '')}`}.conf`

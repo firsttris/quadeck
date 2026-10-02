@@ -13,6 +13,8 @@ import { fsJobSteps, prepareFsJob, systemFsOps } from '../files/transfer'
 import { baseName, validatePath } from '~/shared/files'
 import { imageUpdates } from './images'
 import { detectProvider, type Step } from './providers'
+import { release } from 'node:os'
+import { isFlavor, kernelInfos, kernelRemoveProblem, parseBootctlList, parsePacmanQ } from '~/shared/boot'
 
 export const EXIT_MARKER = '::quadeck-exit '
 
@@ -59,6 +61,10 @@ export function parseJobSpec(v: unknown): JobSpec {
       if (typeof o.toDir !== 'string' || validatePath(o.toDir)) throw new HttpError(400, 'Ungültiges Ziel')
       return { kind: o.kind, paths: paths as string[], toDir: o.toDir, overwrite: o.overwrite === true }
     }
+    case 'kernel-install':
+    case 'kernel-remove':
+      if (!isFlavor(o.flavor)) throw new HttpError(400, 'Unbekannter Kernel')
+      return { kind: o.kind, flavor: o.flavor }
     default:
       throw new HttpError(400, 'Unbekannter Job')
   }
@@ -78,6 +84,10 @@ export function jobTitle(spec: JobSpec): string {
       return `Image aktualisieren: ${spec.unit}`
     case 'install':
       return `Installieren: ${FEATURES[spec.feature].label}`
+    case 'kernel-install':
+      return `Kernel installieren: ${spec.flavor}`
+    case 'kernel-remove':
+      return `Kernel entfernen: ${spec.flavor}`
     case 'fs-copy':
     case 'fs-move':
     case 'fs-delete': {
@@ -93,6 +103,12 @@ async function exec(argv: string[], env: Record<string, string> = {}): Promise<n
   out(`$ ${argv.join(' ')}`)
   const proc = Bun.spawn(argv, { stdin: 'ignore', stdout: 'inherit', stderr: 'inherit', env: { ...process.env, LC_ALL: 'C.UTF-8', ...env } })
   return proc.exited
+}
+
+async function capture(argv: string[]) {
+  const proc = Bun.spawn(argv, { stdin: 'ignore', stdout: 'pipe', stderr: 'pipe', env: { ...process.env, LC_ALL: 'C' } })
+  const [stdout, code] = await Promise.all([new Response(proc.stdout).text(), proc.exited])
+  return { stdout, code }
 }
 
 async function steps(list: Step[]) {
@@ -143,6 +159,24 @@ async function execute(spec: JobSpec): Promise<number> {
         if (code !== 0) return code
       }
       return 0
+    }
+    case 'kernel-install': {
+      if (detectProvider()?.id !== 'pacman') throw new Error('Kernel-Varianten gibt es hier nur für Arch (pacman)')
+      // DKMS modules (NVIDIA, ZFS …) are built for every kernel that has its headers.
+      const pkgs = [spec.flavor, ...(Bun.which('dkms') ? [`${spec.flavor}-headers`] : [])]
+      return exec(['pacman', '-S', '--needed', '--noconfirm', '--noprogressbar', '--color', 'never', '--', ...pkgs])
+    }
+    case 'kernel-remove': {
+      if (detectProvider()?.id !== 'pacman') throw new Error('Kernel-Varianten gibt es hier nur für Arch (pacman)')
+      // Checked again here, where root acts: never the running, the default or the last kernel.
+      const installed = parsePacmanQ((await capture(['pacman', '-Q', 'linux', 'linux-lts', 'linux-zen', 'linux-hardened', `${spec.flavor}-headers`])).stdout)
+      const entries = Bun.which('bootctl') ? parseBootctlList((await capture(['bootctl', '--no-pager', 'list', '--json=short'])).stdout).map((e) => ({ ...e, missing: [] })) : []
+      const kernels = kernelInfos(installed, release(), entries)
+      const k = kernels.find((x) => x.pkg === spec.flavor)!
+      if (!k.installed) throw new Error(`${spec.flavor} ist nicht installiert`)
+      const problem = kernelRemoveProblem(k, kernels)
+      if (problem) throw new Error(`${spec.flavor}: ${problem}`)
+      return exec(['pacman', '-Rns', '--noconfirm', '--noprogressbar', '--color', 'never', '--', spec.flavor, ...(installed.has(`${spec.flavor}-headers`) ? [`${spec.flavor}-headers`] : [])])
     }
     case 'images-update':
       // Rolls back to the previous image if the restarted unit fails.

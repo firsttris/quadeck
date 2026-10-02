@@ -143,7 +143,7 @@ describe('demo machine', () => {
   it('sets default and timeout, reboots once into another entry', async () => {
     const b = new FixtureBoot('fixtures/demo')
     let s = await b.bootState()
-    expect(s.warnings.map((w) => w.text)).toEqual([expect.stringMatching(/älter als das installierte systemd/)])
+    expect(s.warnings.map((w) => w.text)).toEqual([expect.stringMatching(/älter als das installierte systemd/), expect.stringMatching(/Nur ein Kernel/)])
     const lts = s.entries[1]!
     s = await b.setBootDefault(lts.id)
     expect(s.entries.find((e) => e.isDefault)!.id).toBe(lts.id)
@@ -153,8 +153,77 @@ describe('demo machine', () => {
     expect((await b.bootState()).entries[0]!.isOneshot).toBe(true)
     expect(b.reboots).toEqual([{ entry: s.entries[0]!.id }])
     expect((await b.cancelOneshot()).oneshot).toBeUndefined()
-    expect((await b.updateBootLoader()).warnings).toEqual([])
+    expect((await b.updateBootLoader()).warnings.map((w) => w.level)).toEqual(['info'])
     await expect(b.setBootDefault('nope.conf')).rejects.toThrow(/gibt es nicht/)
     await expect(b.reboot({ entry: '../x' })).rejects.toThrow(/Ungültiger Eintrag/)
+  })
+})
+
+describe('kernel flavours', () => {
+  const ARCH = 'title   Arch Linux\nlinux   /vmlinuz-linux\ninitrd  /intel-ucode.img\ninitrd  /initramfs-linux.img\noptions root=UUID=0a1b rw rootflags=subvol=@ quiet\n'
+
+  it('maps uname -r and pacman -Q', async () => {
+    const { flavorOfRelease, parsePacmanQ } = await import('~/shared/boot')
+    expect(['6.16.8-arch1-1', '6.12.48-1-lts', '6.16.8-zen1-1-zen', '6.16.8-hardened1-1-hardened'].map(flavorOfRelease)).toEqual(['linux', 'linux-lts', 'linux-zen', 'linux-hardened'])
+    expect([...parsePacmanQ('linux 6.16.8.arch1-1\nerror: package \'linux-zen\' was not found\nlinux-lts 6.12.48-1\n')]).toEqual([
+      ['linux', '6.16.8.arch1-1'],
+      ['linux-lts', '6.12.48-1'],
+    ])
+  })
+
+  it('writes an entry for another flavour from the default one', async () => {
+    const { kernelEntry, kernelEntryId } = await import('~/shared/boot')
+    expect(kernelEntry(ARCH, 'linux-lts')).toBe('# Angelegt von Quadeck\ntitle   Arch Linux (linux-lts)\nlinux   /vmlinuz-linux-lts\ninitrd  /intel-ucode.img\ninitrd  /initramfs-linux-lts.img\noptions root=UUID=0a1b rw rootflags=subvol=@ quiet\n')
+    expect(kernelEntryId('linux-lts')).toBe('arch-lts.conf')
+    expect(kernelEntryId('linux')).toBe('arch.conf')
+  })
+
+  it('never removes the running, the default or the last kernel', async () => {
+    const { kernelInfos, kernelRemoveProblem } = await import('~/shared/boot')
+    const entries = parseBootctlList(LIST).map((e) => ({ ...e, missing: [] }))
+    const ks = kernelInfos(new Map([['linux', '6.16.8'], ['linux-lts', '6.12.48']]), '6.16.8-arch1-1', entries)
+    const by = (p: string) => ks.find((k) => k.pkg === p)!
+    expect(by('linux')).toMatchObject({ installed: true, running: true, isDefault: true, entries: ['arch.conf'] })
+    expect(by('linux-lts')).toMatchObject({ installed: true, running: false, isDefault: false, entries: ['arch-lts.conf'] })
+    expect(by('linux-zen')).toMatchObject({ installed: false, entries: [] })
+    expect(kernelRemoveProblem(by('linux'), ks)).toMatch(/Läuft gerade/)
+    expect(kernelRemoveProblem(by('linux-lts'), ks)).toBeUndefined()
+    const only = kernelInfos(new Map([['linux-lts', '6.12.48']]), '6.16.8-arch1-1', [])
+    expect(kernelRemoveProblem(only.find((k) => k.pkg === 'linux-lts')!, only)).toMatch(/letzte/)
+    const lts = kernelInfos(new Map([['linux', '1'], ['linux-lts', '2']]), '6.12.48-1-lts', entries.map((e) => ({ ...e, isDefault: e.id === 'arch.conf' })))
+    expect(kernelRemoveProblem(lts.find((k) => k.pkg === 'linux')!, lts)).toMatch(/Standard-Eintrag/)
+  })
+
+  it('demo: install linux-lts, add its entry, remove it again', async () => {
+    const installed = new Map([['linux', '6.10.1.arch1-1']])
+    const b = new FixtureBoot('fixtures/demo', async () => installed)
+    let s = await b.bootState()
+    expect(s.kernels!.find((k) => k.pkg === 'linux')).toMatchObject({ running: true, isDefault: true })
+    expect(s.warnings.map((w) => w.text)).toEqual([expect.stringMatching(/älter als/), expect.stringMatching(/Nur ein Kernel.*Unten unter „Kernel“/)])
+    await expect(b.kernelEntryPreview('linux-lts')).rejects.toThrow(/nicht installiert/)
+    installed.set('linux-lts', '6.12.48-1')
+    s = await b.bootState()
+    expect(s.warnings.map((w) => w.text)).toContainEqual(expect.stringMatching(/linux-lts ist installiert, hat aber keinen Boot-Eintrag/))
+    const preview = await b.kernelEntryPreview('linux-lts')
+    expect(preview).toEqual({ path: '/boot/loader/entries/arch-lts.conf', content: expect.stringMatching(/^# Angelegt von Quadeck\ntitle   Arch Linux \(linux-lts\)\nlinux   \/vmlinuz-linux-lts\ninitrd  \/intel-ucode.img\ninitrd  \/initramfs-linux-lts.img\noptions root=UUID=/) })
+    s = await b.createKernelEntry('linux-lts')
+    expect(s.kernels!.find((k) => k.pkg === 'linux-lts')!.entries).toEqual(['arch-lts.conf'])
+    expect(s.warnings.some((w) => /Nur ein Kernel/.test(w.text))).toBe(false)
+    await expect(b.removeBootEntry('arch.conf')).rejects.toThrow(/Standard-Eintrag/)
+    installed.delete('linux-lts')
+    s = await b.bootState()
+    expect(s.entries.find((e) => e.id === 'arch-lts.conf')!.missing).toEqual(['/vmlinuz-linux-lts', '/initramfs-linux-lts.img'])
+    s = await b.removeBootEntry('arch-lts.conf')
+    expect(s.entries.some((e) => e.id === 'arch-lts.conf')).toBe(false)
+    await expect(b.removeBootEntry('arch-fallback.conf')).rejects.toThrow(/fehlenden Dateien oder solche, die Quadeck angelegt hat/)
+  })
+})
+
+describe('kernel jobs', () => {
+  it('accepts only known flavours', async () => {
+    const { parseJobSpec, jobTitle } = await import('~/server/packages/job')
+    expect(parseJobSpec({ kind: 'kernel-install', flavor: 'linux-lts' })).toEqual({ kind: 'kernel-install', flavor: 'linux-lts' })
+    expect(() => parseJobSpec({ kind: 'kernel-remove', flavor: 'linux; rm -rf /' })).toThrow(/Unbekannter Kernel/)
+    expect(jobTitle({ kind: 'kernel-install', flavor: 'linux-lts' })).toBe('Kernel installieren: linux-lts')
   })
 })
