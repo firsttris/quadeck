@@ -23,6 +23,7 @@ export function paletteItems(s: Snapshot, readonly: boolean): PaletteItem[] {
     { id: 'p:/journal', section: 'Seiten', label: 'Journal', keywords: 'logs journalctl', action: { kind: 'navigate', to: '/journal' } },
     { id: 'p:/quadlets', section: 'Seiten', label: 'Quadlets bearbeiten', keywords: 'editor container datei compose import', action: { kind: 'navigate', to: '/quadlets' } },
     { id: 'p:/quadlets?new', section: 'Seiten', label: 'Neuer Container', keywords: 'quadlet container anlegen neu', action: { kind: 'navigate', to: '/quadlets', search: { new: 'true' } } },
+    { id: 'p:/system?boot', section: 'Seiten', label: 'Boot und Neustart', keywords: 'neustart reboot boot systemd-boot bootctl kernel parameter cmdline uefi bios', action: { kind: 'navigate', to: '/system', search: { tab: 'boot' } } },
     { id: 'p:/system?podman', section: 'Seiten', label: 'Podman-Einstellungen', keywords: 'auto-update timer registries containers.conf podman', action: { kind: 'navigate', to: '/system', search: { tab: 'podman' } } },
     { id: 'p:/shares', section: 'Seiten', label: 'Freigaben', keywords: 'shares smb samba nfs exports netzlaufwerk', action: { kind: 'navigate', to: '/shares' } },
     { id: 'p:/disks', section: 'Seiten', label: 'Festplatten (SMART)', keywords: 'smart smartctl platten disks hdd ssd nvme selbsttest sektoren', action: { kind: 'navigate', to: '/disks' } },

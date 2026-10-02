@@ -12,6 +12,7 @@ import type { CalendarPreview, TimerAction, TimerSpec, TimersState } from '~/sha
 import type { UnitDetail, UnitValidateResult, UnitWriteResult } from '~/shared/unit-files'
 import type { NetworkState } from '~/shared/network'
 import type { FstabChange, FstabCheck, FstabState } from '~/shared/fstab'
+import type { BootState } from '~/shared/boot'
 import type { UnlockInfo } from './gate'
 
 /** Privileged over the root helper's Unix socket. */
@@ -238,5 +239,24 @@ export class HelperClient implements Privileged {
   }
   mountAction(token: string | undefined, target: string, action: 'mount' | 'unmount') {
     return this.call<FstabState>('POST', '/fstab/mount', { token, target, action }, 180_000)
+  }
+
+  bootState() {
+    return this.call<BootState>('POST', '/boot/state', {})
+  }
+  setBootDefault(token: string | undefined, id: string) {
+    return this.call<BootState>('POST', '/boot/default', { token, id }, 90_000)
+  }
+  setBootTimeout(token: string | undefined, value: string) {
+    return this.call<BootState>('POST', '/boot/timeout', { token, value }, 90_000)
+  }
+  cancelOneshot(token: string | undefined) {
+    return this.call<BootState>('POST', '/boot/oneshot-cancel', { token }, 90_000)
+  }
+  updateBootLoader(token: string | undefined) {
+    return this.call<BootState>('POST', '/boot/update', { token }, 90_000)
+  }
+  reboot(token: string | undefined, opts: { entry?: string; firmware?: boolean }) {
+    return this.call<{ at: number }>('POST', '/boot/reboot', { token, ...opts }, 90_000)
   }
 }

@@ -1,0 +1,53 @@
+{
+  "loader": "systemd-boot",
+  "firmware": "UEFI 2.80 (American Megatrends 5.27)",
+  "secureBoot": "disabled",
+  "runningVersion": "256.11-1.fc42",
+  "espVersion": "256.11-1.fc42",
+  "packageVersion": "257.9-1.fc42",
+  "boot": { "path": "/boot", "size": 1073741824, "free": 412090368 },
+  "timeout": 3,
+  "timeoutSource": "loader.conf",
+  "firmwareSetup": true,
+  "entries": [
+    {
+      "id": "8b6a3f0c2d4e4f5a9b7c1d2e3f4a5b6c-6.16.8-200.fc42.x86_64.conf",
+      "title": "Fedora Linux 42 (Server Edition)",
+      "version": "6.16.8-200.fc42.x86_64",
+      "type": "type1",
+      "linux": "/8b6a3f0c2d4e4f5a9b7c1d2e3f4a5b6c/6.16.8-200.fc42.x86_64/linux",
+      "initrd": ["/8b6a3f0c2d4e4f5a9b7c1d2e3f4a5b6c/6.16.8-200.fc42.x86_64/initrd"],
+      "options": "root=UUID=8c1f3e2a-5d4b-4c6e-9f1a-2b3c4d5e6f70 ro rootflags=subvol=root i915.enable_guc=3 usbcore.autosuspend=-1 quiet",
+      "isDefault": true,
+      "isSelected": true,
+      "isOneshot": false,
+      "missing": [],
+      "size": 98566144
+    },
+    {
+      "id": "8b6a3f0c2d4e4f5a9b7c1d2e3f4a5b6c-6.15.11-200.fc42.x86_64.conf",
+      "title": "Fedora Linux 42 (Server Edition)",
+      "version": "6.15.11-200.fc42.x86_64",
+      "type": "type1",
+      "linux": "/8b6a3f0c2d4e4f5a9b7c1d2e3f4a5b6c/6.15.11-200.fc42.x86_64/linux",
+      "initrd": ["/8b6a3f0c2d4e4f5a9b7c1d2e3f4a5b6c/6.15.11-200.fc42.x86_64/initrd"],
+      "options": "root=UUID=8c1f3e2a-5d4b-4c6e-9f1a-2b3c4d5e6f70 ro rootflags=subvol=root i915.enable_guc=3 usbcore.autosuspend=-1 quiet",
+      "isDefault": false,
+      "isSelected": false,
+      "isOneshot": false,
+      "missing": [],
+      "size": 97517568
+    },
+    {
+      "id": "auto-reboot-to-firmware-setup",
+      "title": "Reboot Into Firmware Interface",
+      "type": "auto",
+      "initrd": [],
+      "isDefault": false,
+      "isSelected": false,
+      "isOneshot": false,
+      "missing": []
+    }
+  ],
+  "cmdline": "initrd=\\8b6a3f0c2d4e4f5a9b7c1d2e3f4a5b6c\\6.16.8-200.fc42.x86_64\\initrd root=UUID=8c1f3e2a-5d4b-4c6e-9f1a-2b3c4d5e6f70 ro rootflags=subvol=root i915.enable_guc=3 usbcore.autosuspend=-1 quiet"
+}

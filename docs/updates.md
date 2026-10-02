@@ -57,6 +57,36 @@ Podman, Quadeck's own tools) are protected; the helper refuses them too, not onl
 Podman's own settings (auto-update timer, `AutoUpdate=registry` for all containers, registries and
 `containers.conf`) are described in [Units and Quadlets](quadlets.md#podman-settings).
 
+## Boot and reboot
+
+The **Boot und Neustart** tab is about the step after an update: restarting into the new kernel,
+and making sure the server comes back.
+
+- **Neustart**: reboots the server after a confirmation that names what boots and warns about a
+  running job. The page waits and reloads itself when the server is back. **In die
+  UEFI-Einstellungen** reboots into the firmware setup when the firmware supports it (the server
+  then waits there for someone at the machine). The "reboot recommended" banner on the other
+  tabs links here.
+- **Entries** (systemd-boot, from `bootctl list`): kernel version, which one is the default,
+  which one is running. **Als Standard** sets the default (`bootctl set-default`). **Einmalig
+  damit starten** boots once into another entry (`bootctl set-oneshot`) – for trying a new kernel
+  or falling back to linux-lts; the reboot after that uses the default again, so a reset is
+  enough when something goes wrong. A pending one-time entry is shown and can be withdrawn.
+- **Bootloader**: running systemd-boot version, firmware, Secure Boot, free space on `$BOOT`,
+  and the menu timeout (`bootctl set-timeout`; the EFI variable wins over `loader.conf`).
+  **Bootloader aktualisieren** runs `bootctl update` when the binary on the ESP is older than the
+  installed systemd.
+- **Warnings** before they bite: `$BOOT` too small for another kernel with its initramfs (the
+  classic reason a kernel update leaves an unbootable system), entries pointing to files that are
+  gone, an outdated loader on the ESP, no second kernel as a way back, no default entry.
+- **Kernel parameters of this boot** from `/proc/cmdline`, each known one explained
+  (`i915.enable_guc`, `usbcore.autosuspend`, `nvme_core.default_ps_max_latency_us`,
+  `pcie_aspm`, IOMMU, …). Quadeck shows them and says where they are set; it does not edit them –
+  a wrong parameter can keep the server from booting, and they are changed once, at the console.
+
+With GRUB the tab shows the reboot and the kernel parameters only. Writes to EFI variables go
+through `systemd-run`, because the helper's own sandbox keeps `/sys` read-only.
+
 ## Jobs
 
 Everything that changes packages or files runs as a job with live output, one at a time:

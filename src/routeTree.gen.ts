@@ -33,6 +33,7 @@ import { Route as ApiUnlockRouteImport } from './routes/api/unlock'
 import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
 import { Route as ApiAuthSetupRouteImport } from './routes/api/auth/setup'
+import { Route as ApiBootIndexRouteImport } from './routes/api/boot/index'
 import { Route as ApiDisksSmartRouteImport } from './routes/api/disks/smart'
 import { Route as ApiFaviconKeyRouteImport } from './routes/api/favicon/$key'
 import { Route as ApiFilesIndexRouteImport } from './routes/api/files/index'
@@ -183,6 +184,11 @@ const ApiAuthLogoutRoute = ApiAuthLogoutRouteImport.update({
 const ApiAuthSetupRoute = ApiAuthSetupRouteImport.update({
   id: '/api/auth/setup',
   path: '/api/auth/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBootIndexRoute = ApiBootIndexRouteImport.update({
+  id: '/api/boot/',
+  path: '/api/boot/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiDisksSmartRoute = ApiDisksSmartRouteImport.update({
@@ -388,6 +394,7 @@ export interface FileRoutesByFullPath {
   '/api/system/overview': typeof ApiSystemOverviewRoute
   '/api/system/remove-preview': typeof ApiSystemRemovePreviewRoute
   '/api/system/updates': typeof ApiSystemUpdatesRoute
+  '/api/boot/': typeof ApiBootIndexRoute
   '/api/files/': typeof ApiFilesIndexRoute
   '/api/fstab/': typeof ApiFstabIndexRoute
   '/api/jobs/': typeof ApiJobsIndexRoute
@@ -445,6 +452,7 @@ export interface FileRoutesByTo {
   '/api/system/overview': typeof ApiSystemOverviewRoute
   '/api/system/remove-preview': typeof ApiSystemRemovePreviewRoute
   '/api/system/updates': typeof ApiSystemUpdatesRoute
+  '/api/boot': typeof ApiBootIndexRoute
   '/api/files': typeof ApiFilesIndexRoute
   '/api/fstab': typeof ApiFstabIndexRoute
   '/api/jobs': typeof ApiJobsIndexRoute
@@ -504,6 +512,7 @@ export interface FileRoutesById {
   '/api/system/overview': typeof ApiSystemOverviewRoute
   '/api/system/remove-preview': typeof ApiSystemRemovePreviewRoute
   '/api/system/updates': typeof ApiSystemUpdatesRoute
+  '/api/boot/': typeof ApiBootIndexRoute
   '/api/files/': typeof ApiFilesIndexRoute
   '/api/fstab/': typeof ApiFstabIndexRoute
   '/api/jobs/': typeof ApiJobsIndexRoute
@@ -563,6 +572,7 @@ export interface FileRouteTypes {
     | '/api/system/overview'
     | '/api/system/remove-preview'
     | '/api/system/updates'
+    | '/api/boot/'
     | '/api/files/'
     | '/api/fstab/'
     | '/api/jobs/'
@@ -620,6 +630,7 @@ export interface FileRouteTypes {
     | '/api/system/overview'
     | '/api/system/remove-preview'
     | '/api/system/updates'
+    | '/api/boot'
     | '/api/files'
     | '/api/fstab'
     | '/api/jobs'
@@ -678,6 +689,7 @@ export interface FileRouteTypes {
     | '/api/system/overview'
     | '/api/system/remove-preview'
     | '/api/system/updates'
+    | '/api/boot/'
     | '/api/files/'
     | '/api/fstab/'
     | '/api/jobs/'
@@ -725,6 +737,7 @@ export interface RootRouteChildren {
   ApiSystemOverviewRoute: typeof ApiSystemOverviewRoute
   ApiSystemRemovePreviewRoute: typeof ApiSystemRemovePreviewRoute
   ApiSystemUpdatesRoute: typeof ApiSystemUpdatesRoute
+  ApiBootIndexRoute: typeof ApiBootIndexRoute
   ApiFilesIndexRoute: typeof ApiFilesIndexRoute
   ApiFstabIndexRoute: typeof ApiFstabIndexRoute
   ApiJobsIndexRoute: typeof ApiJobsIndexRoute
@@ -909,6 +922,13 @@ declare module '@tanstack/react-router' {
       path: '/api/auth/setup'
       fullPath: '/api/auth/setup'
       preLoaderRoute: typeof ApiAuthSetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/boot/': {
+      id: '/api/boot/'
+      path: '/api/boot'
+      fullPath: '/api/boot/'
+      preLoaderRoute: typeof ApiBootIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/disks/smart': {
@@ -1201,6 +1221,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSystemOverviewRoute: ApiSystemOverviewRoute,
   ApiSystemRemovePreviewRoute: ApiSystemRemovePreviewRoute,
   ApiSystemUpdatesRoute: ApiSystemUpdatesRoute,
+  ApiBootIndexRoute: ApiBootIndexRoute,
   ApiFilesIndexRoute: ApiFilesIndexRoute,
   ApiFstabIndexRoute: ApiFstabIndexRoute,
   ApiJobsIndexRoute: ApiJobsIndexRoute,
