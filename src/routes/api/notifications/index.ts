@@ -5,6 +5,7 @@ import { hub } from '~/server/hub'
 import { notifier } from '~/server/notify'
 import { tr } from '~/shared/i18n'
 import { maskSettings, parseSettings, type NotifyState } from '~/shared/notify'
+import { outsideRequest } from '~/server/lang'
 
 const masked = (s: NotifyState): NotifyState => ({ ...s, settings: maskSettings(s.settings) })
 
@@ -26,11 +27,13 @@ export const Route = createFileRoute('/api/notifications/')({
             throw new HttpError(400, (e as Error).message)
           }
           const host = hub().snapshot().host.hostname
-          const sent = await n.deliver(
-            { title: tr(`${host}: Testnachricht`, `${host}: test message`), body: tr('Benachrichtigungen von Quadeck kommen an.', 'Notifications from Quadeck are getting through.'), severity: 'info' },
-            s.channels,
-            true,
-          )
+          // Kept in the log in both languages, like every other message.
+          const notice = outsideRequest(() => ({
+            title: tr(`${host}: Testnachricht`, `${host}: test message`),
+            body: tr('Benachrichtigungen von Quadeck kommen an.', 'Notifications from Quadeck are getting through.'),
+            severity: 'info' as const,
+          }))
+          const sent = await n.deliver(notice, s.channels, true)
           return Response.json({ ...masked(n.state()), sent })
         }
         if (b.settings === undefined) throw new HttpError(400, tr('Unbekannte Anfrage', 'Unknown request'))

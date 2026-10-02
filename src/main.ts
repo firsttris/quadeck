@@ -180,7 +180,26 @@ export async function main(argv: string[], opts: MainOptions) {
       }
       cleanupSudoers()
       installNoLang()
-      serveHelper(config().helperSocket, new LocalPrivileged(createGate(true), config().podmanSocket, new SystemMaintenance(), new SystemPodmanAdmin(), new SystemShares(), new SystemSsh(), new SystemSmart(), new SystemFiles(), new SystemTimers(), new SystemUnitEditor(), new SystemNetwork(), new FstabManager(new SystemFstabHost()), new SystemBoot(), new SystemUsers(), new SystemHardware()))
+      serveHelper(
+        config().helperSocket,
+        new LocalPrivileged(
+          createGate(true),
+          config().podmanSocket,
+          new SystemMaintenance(),
+          new SystemPodmanAdmin(),
+          new SystemShares(),
+          new SystemSsh(),
+          new SystemSmart(),
+          new SystemFiles(),
+          new SystemTimers(),
+          new SystemUnitEditor(),
+          new SystemNetwork(),
+          new FstabManager(new SystemFstabHost()),
+          new SystemBoot(),
+          new SystemUsers(),
+          new SystemHardware(),
+        ),
+      )
       return
     }
     case 'job':

@@ -47,24 +47,25 @@ export function privileged(): Privileged {
   instance =
     isRoot || fixtures
       ? // In one process, privileged work runs as if it were the helper (see bilingual()).
-        bilingual(new LocalPrivileged(
-          createGate(false),
-          config().podmanSocket,
-          maint,
-          fixtures ? new FixturePodmanAdmin(fixtures) : new SystemPodmanAdmin(),
-          fixtures ? new FixtureShares(fixtures) : new SystemShares(),
-          fixtures ? new FixtureSsh(fixtures) : new SystemSsh(),
-          fixtures ? new FixtureSmart(fixtures) : new SystemSmart(),
-          files,
-          fixtures ? new FixtureTimers(fixtures) : new SystemTimers(),
-          fixtures ? new FixtureUnitEditor(fixtures) : new SystemUnitEditor(),
-          fixtures ? new FixtureNetwork(fixtures) : new SystemNetwork(),
-          new FstabManager(fixtures ? new FixtureFstabHost(fixtures) : new SystemFstabHost()),
-          fixtures ? new FixtureBoot(fixtures, async () => new Map((await maint.installed()).map((p) => [p.name, p.version]))) : new SystemBoot(),
-          fixtures ? new FixtureUsers(fixtures) : new SystemUsers(),
-          fixtures ? new FixtureHardware(fixtures) : new SystemHardware(),
-        ))
+        bilingual(
+          new LocalPrivileged(
+            createGate(false),
+            config().podmanSocket,
+            maint,
+            fixtures ? new FixturePodmanAdmin(fixtures) : new SystemPodmanAdmin(),
+            fixtures ? new FixtureShares(fixtures) : new SystemShares(),
+            fixtures ? new FixtureSsh(fixtures) : new SystemSsh(),
+            fixtures ? new FixtureSmart(fixtures) : new SystemSmart(),
+            files,
+            fixtures ? new FixtureTimers(fixtures) : new SystemTimers(),
+            fixtures ? new FixtureUnitEditor(fixtures) : new SystemUnitEditor(),
+            fixtures ? new FixtureNetwork(fixtures) : new SystemNetwork(),
+            new FstabManager(fixtures ? new FixtureFstabHost(fixtures) : new SystemFstabHost()),
+            fixtures ? new FixtureBoot(fixtures, async () => new Map((await maint.installed()).map((p) => [p.name, p.version]))) : new SystemBoot(),
+            fixtures ? new FixtureUsers(fixtures) : new SystemUsers(),
+            fixtures ? new FixtureHardware(fixtures) : new SystemHardware(),
+          ),
+        )
       : new HelperClient(config().helperSocket)
   return instance
 }
-

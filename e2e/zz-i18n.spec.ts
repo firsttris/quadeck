@@ -10,7 +10,8 @@ import { join } from 'node:path'
 
 const PASSWORD = 'e2e-password-123'
 
-const GERMAN = /[äöüÄÖÜß]|\b(der|die|das|den|dem|und|oder|nicht|wird|werden|keine?n?|mit|für|auf|von|ein|eine|ist|sind|zum|zur|neu|alle|Datei|Dateien|bitte|noch|nur|schon|Benutzer|Speichern|Abbrechen|Schließen|Löschen|Bearbeiten|Starten|Stoppen|Hinzufügen|Übersicht|Einstellungen|Fehler|läuft|gestoppt|Aktionen|Neue?r?|Freigaben?|Festplatten?|Netzwerk|Benachrichtigungen|Zeitplan|jetzt|vor|seit|Sekunden|Minuten|Stunden|Tage)\b/
+const GERMAN =
+  /[äöüÄÖÜß]|\b(der|die|das|den|dem|und|oder|nicht|wird|werden|keine?n?|mit|für|auf|von|ein|eine|ist|sind|zum|zur|neu|alle|Datei|Dateien|bitte|noch|nur|schon|Benutzer|Speichern|Abbrechen|Schließen|Löschen|Bearbeiten|Starten|Stoppen|Hinzufügen|Übersicht|Einstellungen|Fehler|läuft|gestoppt|Aktionen|Neue?r?|Freigaben?|Festplatten?|Netzwerk|Benachrichtigungen|Zeitplan|jetzt|vor|seit|Sekunden|Minuten|Stunden|Tage)\b/
 
 /**
  * Words that only occur in the German texts (namespace `de` objects, first
@@ -120,6 +121,11 @@ test.describe('English', () => {
     await page.getByRole('button', { name: /sign in|log in/i }).click()
     await expect(page).toHaveURL('/')
     const hits: string[] = []
+    // Server render and browser must agree on the language: no hydration mismatches.
+    const mismatches: string[] = []
+    page.on('console', (m) => {
+      if (m.type() === 'error' && /hydrat/i.test(m.text())) mismatches.push(m.text().slice(0, 300))
+    })
     const pages = ['/', '/units', '/units?filter=timer', '/units?filter=socket', '/journal', '/disks', '/files', '/shares', '/ssh', '/network', '/system', '/notifications', '/users', '/hardware', '/quadlets', '/systemd']
     for (const p of pages) {
       await page.goto(p)
@@ -130,6 +136,7 @@ test.describe('English', () => {
       await tabs(page, p, hits)
     }
     expect(hits).toEqual([])
+    expect(mismatches).toEqual([])
   })
 })
 

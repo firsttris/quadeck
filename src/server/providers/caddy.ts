@@ -135,8 +135,17 @@ export function candidatesFromCaddyfile(src: string): ServiceCandidate[] {
 
   const emit = (upstreams: string[], inlinePath?: string) => {
     if (!site || !upstreams.length) return
-    const path = inlinePath ?? pathAt.slice(1, depth + 1).filter(Boolean).pop() ?? ''
-    const override = hostsAt.slice(1, depth + 1).filter(Boolean).pop()
+    const path =
+      inlinePath ??
+      pathAt
+        .slice(1, depth + 1)
+        .filter(Boolean)
+        .pop() ??
+      ''
+    const override = hostsAt
+      .slice(1, depth + 1)
+      .filter(Boolean)
+      .pop()
     const targets = override ? override.map((h) => ({ host: h, scheme: site!.addrs[0]?.scheme ?? 'https', port: site!.addrs[0]?.port })) : site.addrs
     for (const a of targets) {
       if (isWildcardOrIp(a.host)) continue
