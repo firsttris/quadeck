@@ -1,6 +1,8 @@
 // Types shared by the package/update views and the server side
 // (web app, root helper and the `quadeck job` runner).
 
+import type { KernelFlavor } from './boot'
+
 export type ManagerId = 'pacman' | 'apt' | 'dnf' | 'zypper' | 'apk' | 'rpm-ostree'
 
 export interface InstalledPackage {
@@ -100,6 +102,8 @@ export type JobSpec =
   | { kind: 'fs-copy'; paths: string[]; toDir: string; overwrite: boolean }
   | { kind: 'fs-move'; paths: string[]; toDir: string; overwrite: boolean }
   | { kind: 'fs-delete'; paths: string[] }
+  | { kind: 'kernel-install'; flavor: KernelFlavor }
+  | { kind: 'kernel-remove'; flavor: KernelFlavor }
 
 export type JobStatus = 'running' | 'ok' | 'failed'
 

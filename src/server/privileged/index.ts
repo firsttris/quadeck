@@ -42,12 +42,13 @@ export function privileged(): Privileged {
   const isRoot = process.getuid?.() === 0
   const fixtures = config().fixturesDir
   const files = fixtures ? new FixtureFiles() : new SystemFiles()
+  const maint = fixtures ? new FixtureMaintenance(fixtures, files as FixtureFiles) : new SystemMaintenance()
   instance =
     isRoot || fixtures
       ? new LocalPrivileged(
           createGate(false),
           config().podmanSocket,
-          fixtures ? new FixtureMaintenance(fixtures, files as FixtureFiles) : new SystemMaintenance(),
+          maint,
           fixtures ? new FixturePodmanAdmin(fixtures) : new SystemPodmanAdmin(),
           fixtures ? new FixtureShares(fixtures) : new SystemShares(),
           fixtures ? new FixtureSsh(fixtures) : new SystemSsh(),
@@ -57,7 +58,7 @@ export function privileged(): Privileged {
           fixtures ? new FixtureUnitEditor(fixtures) : new SystemUnitEditor(),
           fixtures ? new FixtureNetwork(fixtures) : new SystemNetwork(),
           new FstabManager(fixtures ? new FixtureFstabHost(fixtures) : new SystemFstabHost()),
-          fixtures ? new FixtureBoot(fixtures) : new SystemBoot(),
+          fixtures ? new FixtureBoot(fixtures, async () => new Map((await maint.installed()).map((p) => [p.name, p.version]))) : new SystemBoot(),
           fixtures ? new FixtureUsers(fixtures) : new SystemUsers(),
           fixtures ? new FixtureHardware(fixtures) : new SystemHardware(),
         )

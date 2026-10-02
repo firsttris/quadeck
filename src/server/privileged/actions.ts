@@ -75,6 +75,8 @@ export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAd
   cancelOneshot(token: string | undefined): Promise<BootState>
   updateBootLoader(token: string | undefined): Promise<BootState>
   reboot(token: string | undefined, opts: { entry?: string; firmware?: boolean }): Promise<{ at: number }>
+  createKernelEntry(token: string | undefined, pkg: string): Promise<BootState>
+  removeBootEntry(token: string | undefined, id: string): Promise<BootState>
   applyUser(token: string | undefined, change: UserChange): Promise<UsersState>
 }
 

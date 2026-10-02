@@ -348,6 +348,17 @@ export class LocalPrivileged implements Privileged {
     this.gate.check(token)
     return this.boot.updateBootLoader()
   }
+  kernelEntryPreview(pkg: string) {
+    return this.boot.kernelEntryPreview(pkg)
+  }
+  async createKernelEntry(token: string | undefined, pkg: string) {
+    this.gate.check(token)
+    return this.boot.createKernelEntry(pkg)
+  }
+  async removeBootEntry(token: string | undefined, id: string) {
+    this.gate.check(token)
+    return this.boot.removeBootEntry(id)
+  }
   async reboot(token: string | undefined, opts: { entry?: string; firmware?: boolean }) {
     this.gate.check(token)
     return this.boot.reboot(opts)

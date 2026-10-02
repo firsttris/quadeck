@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useState } from 'react'
 import { diskSize } from '~/lib/format'
-import { TIMEOUT_CHOICES, describeTimeout, parseCmdline, type BootEntry, type BootState } from '~/shared/boot'
+import { KERNEL_FLAVORS, TIMEOUT_CHOICES, describeTimeout, kernelRemoveProblem, parseCmdline, type BootEntry, type BootState, type KernelFlavor } from '~/shared/boot'
 import { useActions } from './Actions'
 import { Glyph } from './Glyph'
 import { useJobs } from './Jobs'
-import { ConfirmDialog } from './Modal'
+import { ConfirmDialog, Modal } from './Modal'
 import { Pill } from './Status'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
@@ -43,6 +43,8 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState('')
   const [reboot, setReboot] = useState<null | { entry?: BootEntry; firmware?: boolean }>(null)
+  const [entryPreview, setEntryPreview] = useState<null | { pkg: KernelFlavor; path: string; content: string }>(null)
+  const [removeKernel, setRemoveKernel] = useState<KernelFlavor | null>(null)
   const [waiting, waitForServer] = useComeBack()
 
   const load = useCallback(async () => {
@@ -57,7 +59,7 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
   }, [])
   useEffect(() => {
     void load()
-  }, [load])
+  }, [load, jobs.finished])
 
   const change = async (what: string, body: Record<string, unknown>, msg: string) => {
     setBusy(what)
@@ -237,14 +239,88 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
                                 Als Standard
                               </button>
                             )}
-                            <button type="button" className="btn sm" disabled={e.missing.length > 0} onClick={() => setReboot({ entry: e })} aria-label={`Einmalig mit ${e.title} ${e.version ?? ''} neu starten`}>
-                              Einmalig damit starten …
-                            </button>
+                            {e.missing.length > 0 && !e.isDefault && !e.isSelected ? (
+                              <button type="button" className="btn sm danger" disabled={!!busy} onClick={() => void change('entry', { removeEntry: e.id }, `Eintrag ${e.title} entfernt`)} aria-label={`Eintrag ${e.title} entfernen`}>
+                                Eintrag entfernen
+                              </button>
+                            ) : (
+                              <button type="button" className="btn sm" disabled={e.missing.length > 0} onClick={() => setReboot({ entry: e })} aria-label={`Einmalig mit ${e.title} ${e.version ?? ''} neu starten`}>
+                                Einmalig damit starten …
+                              </button>
+                            )}
                           </div>
                         )}
                       </td>
                     </tr>
                   ))}
+                </tbody>
+              </table>
+            </section>
+          )}
+
+          {state.kernels && (
+            <section className="panel relative flex flex-col overflow-x-auto" aria-label="Kernel">
+              <div className="px-[18px] pt-4 pb-2">
+                <h2 className="h2">Kernel</h2>
+                <p className="m-0 mt-1 text-[12px] text-muted">Mehrere Kernel-Varianten können nebeneinander installiert sein; mit „Einmalig damit starten“ springst du hin und her.{state.dkms ? ' DKMS-Module (z. B. NVIDIA, ZFS) werden mit den passenden Headers für jeden Kernel gebaut.' : ''}</p>
+              </div>
+              <table className="tbl">
+                <tbody>
+                  {state.kernels.map((k) => {
+                    const flavor = KERNEL_FLAVORS.find((f) => f.pkg === k.pkg)!
+                    const removeProblem = k.installed ? kernelRemoveProblem(k, state.kernels!) : undefined
+                    return (
+                      <tr key={k.pkg} data-testid="kernel">
+                        <td>
+                          <div className="font-medium">
+                            <span className="font-mono">{k.pkg}</span> <span className="text-[12px] font-normal text-muted">{flavor.label}</span>
+                          </div>
+                          <div className="text-[12px] text-muted">{flavor.text}</div>
+                        </td>
+                        <td>
+                          <div className="flex flex-wrap gap-1.5">
+                            {k.running && <span className="chip">läuft gerade</span>}
+                            {k.installed ? <Pill tone="ok">{k.version ?? 'installiert'}</Pill> : <span className="text-[12px] text-muted">nicht installiert</span>}
+                            {k.installed && !k.entries.length && <Pill tone="warn">kein Boot-Eintrag</Pill>}
+                          </div>
+                        </td>
+                        <td className="whitespace-nowrap text-right">
+                          {!readonly && (
+                            <div className="inline-flex gap-1.5">
+                              {!k.installed && (
+                                <button type="button" className="btn sm" disabled={!!jobs.running} onClick={() => void jobs.start({ kind: 'kernel-install', flavor: k.pkg })}>
+                                  Installieren
+                                </button>
+                              )}
+                              {k.installed && !k.entries.length && state.canCreateEntries && (
+                                <button
+                                  type="button"
+                                  className="btn sm primary"
+                                  onClick={async () => {
+                                    try {
+                                      const r = await fetch(`/api/boot?entryPreview=${k.pkg}`)
+                                      const d = (await r.json()) as { path: string; content: string; error?: string }
+                                      if (!r.ok) throw new Error(d.error ?? `HTTP ${r.status}`)
+                                      setEntryPreview({ pkg: k.pkg, ...d })
+                                    } catch (e) {
+                                      say((e as Error).message, 'bad')
+                                    }
+                                  }}
+                                >
+                                  Boot-Eintrag anlegen …
+                                </button>
+                              )}
+                              {k.installed && (
+                                <button type="button" className="btn sm" disabled={!!removeProblem || !!jobs.running} title={removeProblem} onClick={() => setRemoveKernel(k.pkg)} aria-label={`${k.pkg} entfernen`}>
+                                  Entfernen …
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )
+                  })}
                 </tbody>
               </table>
             </section>
@@ -268,6 +344,49 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
             ))}
           </section>
         </>
+      )}
+
+      {entryPreview && (
+        <Modal open onClose={() => setEntryPreview(null)} title={`Boot-Eintrag für ${entryPreview.pkg} anlegen?`}>
+          <p className="m-0 text-[13px]">
+            Neue Datei <span className="font-mono">{entryPreview.path}</span> – eine Kopie des Standard-Eintrags mit denselben Parametern, nur Kernel und initramfs getauscht. Bestehende Einträge bleiben unverändert.
+          </p>
+          <pre className="joblog !min-h-0 whitespace-pre-wrap" aria-label="Neuer Eintrag">
+            {entryPreview.content}
+          </pre>
+          <div className="flex justify-end gap-2">
+            <button type="button" className="btn" onClick={() => setEntryPreview(null)}>
+              Abbrechen
+            </button>
+            <button
+              type="button"
+              className="btn primary"
+              disabled={!!busy}
+              onClick={async () => {
+                await change('entry', { createEntry: entryPreview.pkg }, `Boot-Eintrag für ${entryPreview.pkg} angelegt`)
+                setEntryPreview(null)
+              }}
+            >
+              Anlegen
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {removeKernel && (
+        <ConfirmDialog
+          open
+          title={`${removeKernel} entfernen?`}
+          body={<p className="m-0 text-[13px]">Entfernt das Paket {removeKernel} (und die Headers, falls installiert) mit pacman. Der Boot-Eintrag zeigt danach ins Leere und lässt sich hier entfernen.</p>}
+          confirm="Entfernen"
+          danger
+          onConfirm={() => {
+            const flavor = removeKernel
+            setRemoveKernel(null)
+            void jobs.start({ kind: 'kernel-remove', flavor })
+          }}
+          onClose={() => setRemoveKernel(null)}
+        />
       )}
 
       {reboot && (
