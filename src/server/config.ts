@@ -12,6 +12,9 @@ export interface Config {
   caddyAdmin: string
   caddyfile: string
   iconsBase: string
+  smbConf: string
+  exports: string
+  exportsDir: string
   trustedProxies: string[]
   publicHost?: string
   fixturesDir?: string
@@ -30,6 +33,9 @@ export function config(): Config {
     caddyAdmin: env('QUADECK_CADDY_ADMIN') ?? 'http://localhost:2019',
     caddyfile: env('QUADECK_CADDYFILE') ?? '/etc/caddy/Caddyfile',
     iconsBase: env('QUADECK_ICONS_BASE') ?? 'https://cdn.jsdelivr.net/gh/homarr-labs/dashboard-icons',
+    smbConf: env('QUADECK_SMB_CONF') ?? '/etc/samba/smb.conf',
+    exports: env('QUADECK_EXPORTS') ?? '/etc/exports',
+    exportsDir: '/etc/exports.d',
     // Reverse proxies whose X-Forwarded-For is trusted (IP prefixes), e.g. "10.88." for Caddy in rootful Podman.
     trustedProxies: (env('QUADECK_TRUSTED_PROXIES') ?? '').split(',').map((s) => s.trim()).filter(Boolean),
     // Public URL when a proxy rewrites the Host header (for the same-origin check).

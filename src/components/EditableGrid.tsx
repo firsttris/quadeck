@@ -24,6 +24,10 @@ export interface GridSpec {
   defaults: (bp: string, cols: number) => DefaultItem[]
 }
 
+// The click that ends a drag must not count as a click on the item.
+let lastGestureAt = 0
+export const recentlyDragged = () => Date.now() - lastGestureAt < 400
+
 const rowsFor = (px: number, rowHeight: number, gap: number) => Math.max(1, Math.ceil((px + gap) / (rowHeight + gap)))
 
 /**
@@ -170,9 +174,13 @@ export function EditableGrid({ spec, items, saved, editing, onSave, handle, clas
         onResizeStop={(l: Layout, _old: LayoutItem | null, item: LayoutItem | null) => {
           // A resized item keeps its height from now on (no longer automatic).
           if (item) resized.current.add(item.i)
+          lastGestureAt = Date.now()
           persist(l)
         }}
-        onDragStop={(l: Layout) => persist(l)}
+        onDragStop={(l: Layout) => {
+          lastGestureAt = Date.now()
+          persist(l)
+        }}
       >
         {children}
       </Responsive>

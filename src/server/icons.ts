@@ -220,3 +220,14 @@ export function colorFor(key: string) {
   for (const ch of key) h = (h * 31 + ch.charCodeAt(0)) >>> 0
   return PALETTE[h % PALETTE.length]!
 }
+
+/** Icon picker search: prefix matches first, then substring matches, then aliases. */
+export function searchIcons(index: IconIndex, query: string, limit = 48): string[] {
+  const q = slugify(query)
+  const all = [...new Set([...index.svg, ...index.png])].sort()
+  if (!q) return all.slice(0, limit)
+  const prefix = all.filter((s) => s.startsWith(q))
+  const contains = all.filter((s) => !s.startsWith(q) && s.includes(q))
+  const alias = [...index.aliases.entries()].filter(([a]) => a.includes(q)).map(([, s]) => s)
+  return [...new Set([...prefix, ...contains, ...alias])].slice(0, limit)
+}

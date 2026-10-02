@@ -104,9 +104,12 @@ export interface Service {
   container?: string
   unit?: string
   source: 'caddy' | 'label' | 'manual'
+  /** Values set in the UI (service_overrides); empty fields follow discovery. */
+  overridden?: { name?: string; group?: string; url?: string; icon?: string }
   /** Direct upstream (e.g. http://10.88.0.5:8096), probed when the public URL is not reachable from the server itself. */
   probe?: string
   manualId?: number
+  healthCheck?: boolean // manual links: whether the URL is checked
   pinned?: boolean
 }
 
@@ -116,6 +119,19 @@ export interface ServiceGroup {
   items: Service[]
 }
 
+export interface Share {
+  type: 'SMB' | 'NFS'
+  name: string
+  path: string
+  access: string // "lesen", "lesen/schreiben", NFS client list …
+  note?: string // valid users, guest …
+}
+
+export interface HiddenService {
+  key: string
+  name: string
+}
+
 export interface Snapshot {
   host: HostInfo
   system: SystemMetrics | null
@@ -123,7 +139,9 @@ export interface Snapshot {
   containers: Container[]
   units: Unit[]
   services: ServiceGroup[]
-  sources: Record<'system' | 'disks' | 'podman' | 'systemd' | 'caddy', SourceStatus>
+  hiddenServices: HiddenService[]
+  shares: Share[]
+  sources: Record<'system' | 'disks' | 'podman' | 'systemd' | 'caddy' | 'shares', SourceStatus>
   readonly: boolean
 }
 

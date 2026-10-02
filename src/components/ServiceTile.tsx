@@ -36,7 +36,7 @@ export function ServiceIcon({ s }: { s: Service }) {
 }
 
 /** In edit mode the tile is not a link, so dragging it never opens the service. */
-export function ServiceTile({ s, onDelete, editing }: { s: Service; onDelete?: () => void; editing?: boolean }) {
+export function ServiceTile({ s, onDelete, onEdit, editing }: { s: Service; onDelete?: () => void; onEdit?: () => void; editing?: boolean }) {
   const body = (
     <>
       <div className="flex items-center justify-between">
@@ -52,7 +52,20 @@ export function ServiceTile({ s, onDelete, editing }: { s: Service; onDelete?: (
   return (
     <div className="group @container relative h-full">
       {editing ? (
-        <div className="tile h-full cursor-grab select-none @min-[260px]:justify-center" data-testid="service-tile">
+        <div
+          className="tile h-full cursor-grab select-none @min-[260px]:justify-center"
+          data-testid="service-tile"
+          role="button"
+          tabIndex={0}
+          aria-label={`${s.name} bearbeiten`}
+          onClick={onEdit}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault()
+              onEdit?.()
+            }
+          }}
+        >
           {body}
         </div>
       ) : (

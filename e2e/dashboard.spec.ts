@@ -37,6 +37,9 @@ test.describe.serial('Quadeck', () => {
     // Disks, gauges; the container table is gone (containers live on the units page)
     await expect(page.getByRole('region', { name: 'Container' })).toHaveCount(0)
     await expect(page.getByTestId('disk')).toHaveCount(5)
+    // Shares from smb.conf (printers/homes skipped) and /etc/exports
+    await expect(page.getByTestId('share')).toHaveCount(4)
+    await expect(page.getByTestId('share').filter({ hasText: 'Fotos' })).toContainText('lesen/schreiben')
     await expect(page.getByTestId('gauge-cpu')).toBeVisible()
     await expect(page.getByRole('region', { name: 'Nächste Timer' })).toContainText('podman-auto-update.timer')
   })
@@ -149,6 +152,51 @@ test.describe.serial('Quadeck', () => {
     await expect
       .poll(async () => Math.abs((await page.getByTestId('grid-item-ct:jellyfin').boundingBox())!.width - (await page.getByTestId('grid-item-ct:immich-server').boundingBox())!.width))
       .toBeLessThan(2)
+  })
+
+  test('edit a service: rename, hide and restore, back to automatic', async ({ page }) => {
+    await login(page)
+    await page.getByRole('img', { name: 'live verbunden' }).waitFor()
+    await page.getByRole('button', { name: 'Bearbeiten' }).click()
+    await page.getByRole('button', { name: 'Jellyfin bearbeiten' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Jellyfin bearbeiten' })
+    await dialog.getByLabel('Name').fill('Kino')
+    await dialog.getByRole('button', { name: 'Speichern' }).click()
+    await expect(dialog).toBeHidden()
+    await expect(page.getByRole('button', { name: 'Kino bearbeiten' })).toBeVisible()
+
+    // Hide via the dialog, bring it back from the edit bar
+    await page.getByRole('button', { name: 'Kino bearbeiten' }).click()
+    await page.getByRole('dialog').getByLabel('Ausblenden').check()
+    await page.getByRole('dialog').getByRole('button', { name: 'Speichern' }).click()
+    await expect(page.getByRole('button', { name: 'Kino bearbeiten' })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Kino wieder anzeigen' }).click()
+    await expect(page.getByRole('button', { name: 'Kino bearbeiten' })).toBeVisible()
+
+    // Reset the override
+    await page.getByRole('button', { name: 'Kino bearbeiten' }).click()
+    await page.getByRole('dialog').getByRole('button', { name: 'Auf automatisch zurücksetzen' }).click()
+    await expect(page.getByRole('button', { name: 'Jellyfin bearbeiten' })).toBeVisible()
+    await page.getByRole('button', { name: 'Fertig' }).click()
+    await expect(page.getByTestId('service-tile').filter({ hasText: 'Jellyfin' })).toHaveAttribute('href', 'https://jellyfin.home.example')
+  })
+
+  test('command palette: Ctrl+K, search, navigate and unit actions', async ({ page }) => {
+    await login(page)
+    await page.getByRole('img', { name: 'live verbunden' }).waitFor()
+    await page.keyboard.press('Control+k')
+    const input = page.getByRole('combobox', { name: 'Suchen' })
+    await input.fill('qbit')
+    await expect(page.getByRole('option').first()).toContainText('qBittorrent')
+    await input.fill('fehlgeschlagene')
+    await page.keyboard.press('Enter')
+    await expect(page).toHaveURL(/\/units\?filter=failed/)
+    // Unit action from the palette goes through the usual confirmation
+    await page.getByRole('button', { name: /Suchen/ }).click()
+    await page.getByRole('combobox', { name: 'Suchen' }).fill('caddy neu')
+    await page.keyboard.press('Enter')
+    await expect(page.getByRole('dialog')).toContainText('systemctl restart caddy.service')
+    await page.getByRole('dialog').getByRole('button', { name: 'Abbrechen' }).click()
   })
 
   test('units filter and journal', async ({ page }) => {
