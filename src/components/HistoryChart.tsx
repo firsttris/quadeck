@@ -15,6 +15,8 @@ export interface ChartProps {
   /** Fixed y range (e.g. 0..1 for percent); otherwise from the data. */
   yMin?: number
   yMax?: number
+  /** Take the height of the surrounding box instead of `height` (min. 16 px, otherwise hidden). */
+  fill?: boolean
   height?: number
   /** Axis labels and hover tooltip (detail view). */
   detailed?: boolean
@@ -72,18 +74,23 @@ const tooltipLabel = (ts: number, span: number) =>
  * Area chart over a time window. Gaps in the data (Quadeck was not running)
  * stay gaps instead of being bridged by a straight line.
  */
-export function HistoryChart({ series, span, now, format, yMin, yMax, height = 44, detailed = false, label }: ChartProps) {
+export function HistoryChart({ series, span, now, format, yMin, yMax, height = 44, detailed = false, label, fill = false }: ChartProps) {
   const wrap = useRef<HTMLDivElement>(null)
   const [width, setWidth] = useState(0)
+  const [boxH, setBoxH] = useState(0)
   const [hover, setHover] = useState<number | null>(null)
   const uid = useId().replace(/:/g, '')
 
   useEffect(() => {
     const el = wrap.current
     if (!el || typeof ResizeObserver === 'undefined') return
-    const ro = new ResizeObserver(() => setWidth(el.clientWidth))
+    const read = () => {
+      setWidth(el.clientWidth)
+      setBoxH(el.clientHeight)
+    }
+    const ro = new ResizeObserver(read)
     ro.observe(el)
-    setWidth(el.clientWidth)
+    read()
     return () => ro.disconnect()
   }, [])
 
@@ -95,7 +102,8 @@ export function HistoryChart({ series, span, now, format, yMin, yMax, height = 4
   const lo = yMin ?? Math.floor(dataMin - Math.max(2, (dataMax - dataMin) * 0.15))
   const hi = yMax ?? (dataMax > lo ? dataMax + (dataMax - lo) * 0.12 : lo + 1)
   const padTop = detailed ? 8 : 3
-  const h = height
+  // fill: as tall as the box it sits in (cards resized by the user).
+  const h = fill && boxH > 0 ? boxH : height
   const x = (t: number) => ((t - start) / span) * width
   const y = (v: number) => padTop + (1 - (Math.min(hi, Math.max(lo, v)) - lo) / (hi - lo)) * (h - padTop - 1)
   // A gap is anything longer than three of the usual steps (and at least 90 s).
@@ -153,8 +161,8 @@ export function HistoryChart({ series, span, now, format, yMin, yMax, height = 4
           <span className="absolute right-0 bottom-[-5px]">{format(lo)}</span>
         </div>
       )}
-    <div ref={wrap} className="relative min-w-0 grow" style={{ height: h }} role="img" aria-label={label}>
-      {width > 0 && (
+    <div ref={wrap} className="relative min-w-0 grow" style={{ height: fill ? '100%' : h }} role="img" aria-label={label}>
+      {width > 0 && h >= 16 && (
         <svg
           width={width}
           height={h}

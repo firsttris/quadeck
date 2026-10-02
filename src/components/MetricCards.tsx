@@ -109,7 +109,7 @@ export function MetricCard({ id, snapshot, history, now, onOpen }: { id: MetricC
   return (
     <button
       type="button"
-      className="no-drag flex w-full cursor-pointer flex-col rounded-[inherit] text-left transition-colors duration-200 hover:bg-[rgba(255,255,255,.025)]"
+      className="no-drag @container flex h-full min-h-[120px] w-full cursor-pointer flex-col rounded-[inherit] text-left transition-colors duration-200 hover:bg-[rgba(255,255,255,.025)]"
       aria-label={`${METRIC_LABEL[id]}: Verlauf öffnen`}
       data-testid={`metric-card-${id}`}
       onClick={() => {
@@ -117,8 +117,9 @@ export function MetricCard({ id, snapshot, history, now, onOpen }: { id: MetricC
       }}
     >
       {gauge(id, snapshot)}
-      <div className="px-4 pb-3">
+      <div className="flex min-h-0 flex-1 px-4 pb-3 @max-[259px]:px-3">
         <HistoryChart
+          fill
           label={`${METRIC_LABEL[id]}, letzte Stunde`}
           series={def.series.map((s) => ({ label: s.label, color: s.color, points: history[s.metric] ?? [] }))}
           span={HISTORY_RANGES['1h']}

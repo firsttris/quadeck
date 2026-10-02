@@ -5,8 +5,9 @@ export function Gauge({ id, label, value, sub, p, bare }: { id: string; label: s
   const clamped = Math.max(0, Math.min(1, p || 0))
   const color = clamped > 0.85 ? '#f85149' : clamped > 0.7 ? '#d29922' : '#7cc4b8'
   return (
-    <div className={`${bare ? '' : 'panel'} flex items-center gap-4 p-4`} data-testid={`gauge-${id}`}>
-      <svg width="84" height="84" viewBox="0 0 84 84" className="shrink-0" role="img" aria-label={`${label} ${Math.round(clamped * 100)} %`}>
+    // Narrow cards (container query on the card): smaller ring and text, stacked when very narrow.
+    <div className={`${bare ? '' : 'panel'} flex items-center gap-4 p-4 @max-[259px]:gap-3 @max-[259px]:p-3 @max-[169px]:flex-col @max-[169px]:items-start @max-[169px]:gap-2`} data-testid={`gauge-${id}`}>
+      <svg viewBox="0 0 84 84" className="size-[84px] shrink-0 @max-[259px]:size-[60px] @max-[169px]:size-[52px]" role="img" aria-label={`${label} ${Math.round(clamped * 100)} %`}>
         <defs>
           <filter id={`glow-${id}`} x="-50%" y="-50%" width="200%" height="200%">
             <feGaussianBlur stdDeviation="2.6" result="b" />
@@ -35,10 +36,10 @@ export function Gauge({ id, label, value, sub, p, bare }: { id: string; label: s
           {Math.round(clamped * 100)}%
         </text>
       </svg>
-      <div className="flex min-w-0 flex-col gap-[3px]">
+      <div className="flex w-full min-w-0 flex-col gap-[3px]">
         <span className="label-caps">{label}</span>
-        <span className="font-cond text-[22px] font-semibold tabular-nums">{value}</span>
-        <span className="truncate font-mono text-[11px] text-muted">{sub}</span>
+        <span className="truncate font-cond text-[22px] font-semibold tabular-nums @max-[259px]:text-[18px]">{value}</span>
+        <span className="truncate font-mono text-[11px] text-muted @max-[259px]:text-[10px]">{sub}</span>
       </div>
     </div>
   )

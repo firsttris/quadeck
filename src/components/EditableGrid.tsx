@@ -128,12 +128,15 @@ export function EditableGrid({ spec, items, saved, editing, onSave, handle, clas
     resized.current.clear()
   }
 
+  const fixed = new Set((layouts[bp] ?? []).filter((l) => !l.auto).map((l) => l.i))
   const children = items.map((it) => (
     <div key={it.i} className={`grid-item ${itemClassName ?? ''} ${editing ? 'editing' : ''}`} data-testid={`grid-item-${it.i}`}>
       {editing && renderChrome?.(it.i)}
       {measureItems ? (
         <div className="grid-item-scroll">
-          <div ref={measure(it.i)}>{it.node}</div>
+          <div ref={measure(it.i)} className={fixed.has(it.i) ? 'h-full' : undefined}>
+            {it.node}
+          </div>
         </div>
       ) : (
         it.node
