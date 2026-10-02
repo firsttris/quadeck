@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { useT } from '~/i18n'
 import { api } from '~/lib/api'
 import type { Service } from '~/shared/types'
 import { Glyph } from './Glyph'
@@ -10,6 +11,7 @@ export function IconPicker({ value, onChange }: { value: string; onChange: (v: s
   const [query, setQuery] = useState(value)
   const [icons, setIcons] = useState<string[]>([])
   const [available, setAvailable] = useState(true)
+  const t = useT().overview.dialog
   useEffect(() => {
     const t = setTimeout(() => {
       fetch(`/api/icons/search?q=${encodeURIComponent(query)}`)
@@ -27,8 +29,8 @@ export function IconPicker({ value, onChange }: { value: string; onChange: (v: s
       <div className="flex gap-2">
         <input
           className="field grow font-mono"
-          aria-label="Icon suchen"
-          placeholder="automatisch – oder suchen, z. B. jellyfin"
+          aria-label={t.searchIcon}
+          placeholder={t.iconPlaceholder}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value)
@@ -44,7 +46,7 @@ export function IconPicker({ value, onChange }: { value: string; onChange: (v: s
               onChange('')
             }}
           >
-            Automatisch
+            {t.automatic}
           </button>
         )}
       </div>
@@ -69,7 +71,7 @@ export function IconPicker({ value, onChange }: { value: string; onChange: (v: s
           ))}
         </div>
       ) : (
-        <p className="m-0 text-[12px] text-muted">Icon-Sammlung offline nicht verfügbar – Slug direkt eingeben (z. B. „home-assistant“).</p>
+        <p className="m-0 text-[12px] text-muted">{t.iconsOffline}</p>
       )}
     </div>
   )
@@ -83,6 +85,8 @@ const label = 'flex flex-col gap-1 text-[12px] font-medium text-muted'
  */
 export function ServiceDialog({ service, groups, onClose }: { service: Service | null; groups: string[]; onClose: () => void }) {
   const say = useToast()
+  const tt = useT()
+  const t = tt.overview.dialog
   const [error, setError] = useState('')
   const [icon, setIcon] = useState('')
   const s = service
@@ -106,7 +110,7 @@ export function ServiceDialog({ service, groups, onClose }: { service: Service |
           body: { key: s.key, name: f.get('name'), group: f.get('group'), url: f.get('url'), icon, pinned: f.get('pinned') === 'on', hidden: f.get('hidden') === 'on' },
         })
       }
-      say(`${f.get('name') || s.name} gespeichert`)
+      say(t.saved(String(f.get('name') || s.name)))
       onClose()
     } catch (e) {
       setError((e as Error).message)
@@ -116,7 +120,7 @@ export function ServiceDialog({ service, groups, onClose }: { service: Service |
   const reset = async () => {
     try {
       await api('/api/services/override', { method: 'DELETE', body: { key: s.key } })
-      say(`${s.name}: wieder automatisch`)
+      say(t.automaticAgain(s.name))
       onClose()
     } catch (e) {
       setError((e as Error).message)
@@ -125,7 +129,7 @@ export function ServiceDialog({ service, groups, onClose }: { service: Service |
 
   const o = s.overridden ?? {}
   return (
-    <Modal open onClose={onClose} title={manual ? `Link „${s.name}“ bearbeiten` : `${s.name} bearbeiten`}>
+    <Modal open onClose={onClose} title={manual ? t.editLink(s.name) : t.editService(s.name)}>
       <form
         key={s.key}
         className="flex flex-col gap-3"
@@ -136,18 +140,19 @@ export function ServiceDialog({ service, groups, onClose }: { service: Service |
       >
         {!manual && (
           <p className="m-0 text-[12px] text-muted">
-            Erkannt aus {s.source === 'caddy' ? 'Caddy' : 'Container-Label'}
-            {s.container ? ` · Container ${s.container}` : ''}
-            {s.unit ? ` · ${s.unit}` : ''}. Leere Felder folgen der automatischen Erkennung.
+            {t.detectedFrom(s.source === 'caddy' ? 'Caddy' : t.sourceLabel)}
+            {s.container ? ` · ${tt.overview.alert.container(s.container)}` : ''}
+            {s.unit ? ` · ${s.unit}` : ''}
+            {t.emptyFollows}
           </p>
         )}
         <label className={label}>
-          Name
+          {tt.common.name}
           <input name="name" maxLength={60} required={manual} className="field" defaultValue={manual ? s.name : (o.name ?? '')} placeholder={s.name} autoFocus />
         </label>
         <div className="grid grid-cols-2 gap-3">
           <label className={label}>
-            Gruppe
+            {t.group}
             <input name="group" maxLength={40} className="field" defaultValue={manual ? s.group : (o.group ?? '')} placeholder={s.group} list="service-groups" />
             <datalist id="service-groups">
               {groups.map((g) => (
@@ -166,15 +171,15 @@ export function ServiceDialog({ service, groups, onClose }: { service: Service |
         </div>
         {manual ? (
           <label className="flex items-center gap-2 text-[13px]">
-            <input name="health" type="checkbox" defaultChecked={s.healthCheck !== false} /> Erreichbarkeit alle 60 s prüfen
+            <input name="health" type="checkbox" defaultChecked={s.healthCheck !== false} /> {t.healthCheck}
           </label>
         ) : (
           <div className="flex flex-wrap gap-4 text-[13px]">
             <label className="flex items-center gap-2">
-              <input name="pinned" type="checkbox" defaultChecked={!!s.pinned} /> Anpinnen (zuerst in der Gruppe)
+              <input name="pinned" type="checkbox" defaultChecked={!!s.pinned} /> {t.pin}
             </label>
             <label className="flex items-center gap-2">
-              <input name="hidden" type="checkbox" /> Ausblenden
+              <input name="hidden" type="checkbox" /> {t.hide}
             </label>
           </div>
         )}
@@ -186,14 +191,14 @@ export function ServiceDialog({ service, groups, onClose }: { service: Service |
         <div className="flex flex-wrap justify-end gap-2">
           {!manual && (s.overridden || s.pinned) && (
             <button type="button" className="btn mr-auto" onClick={reset}>
-              <Glyph name="restart" size={14} /> Auf automatisch zurücksetzen
+              <Glyph name="restart" size={14} /> {t.resetAuto}
             </button>
           )}
           <button type="button" className="btn" onClick={onClose}>
-            Abbrechen
+            {tt.common.cancel}
           </button>
           <button type="submit" className="btn primary">
-            Speichern
+            {tt.common.save}
           </button>
         </div>
       </form>

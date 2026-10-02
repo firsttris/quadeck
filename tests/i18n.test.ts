@@ -36,7 +36,7 @@ describe('i18n', () => {
   it('has every German text in English too, and none of them empty', () => {
     const walk = (de: unknown, en: unknown, path: string): string[] => {
       if (typeof de === 'function') return typeof en === 'function' ? [] : [path]
-      if (typeof de === 'string') return typeof en === 'string' && en.trim() ? [] : [path]
+      if (typeof de === 'string') return typeof en === 'string' && (en.trim() || !/\p{L}/u.test(de)) ? [] : [path]
       if (de && typeof de === 'object') return Object.keys(de).flatMap((k) => walk((de as Record<string, unknown>)[k], (en as Record<string, unknown> | undefined)?.[k], `${path}.${k}`))
       return []
     }

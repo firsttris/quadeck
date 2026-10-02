@@ -1,4 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
+import { useT } from '~/i18n'
+import { localeOf } from '~/shared/i18n'
 
 export interface ChartSeries {
   label: string
@@ -64,11 +66,11 @@ export function smoothPath(pts: [number, number][]): string {
 const DAY = 24 * 3600_000
 const timeLabel = (ts: number, span: number) =>
   new Date(ts).toLocaleString(
-    'de-DE',
+    localeOf(),
     span > 10 * DAY ? { day: '2-digit', month: '2-digit', year: span > 200 * DAY ? '2-digit' : undefined } : span > 1.5 * DAY ? { weekday: 'short', hour: '2-digit', minute: '2-digit' } : { hour: '2-digit', minute: '2-digit' },
   )
 const tooltipLabel = (ts: number, span: number) =>
-  new Date(ts).toLocaleString('de-DE', span > 10 * DAY ? { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' } : { weekday: 'short', hour: '2-digit', minute: '2-digit' })
+  new Date(ts).toLocaleString(localeOf(), span > 10 * DAY ? { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' } : { weekday: 'short', hour: '2-digit', minute: '2-digit' })
 
 /**
  * Area chart over a time window. Gaps in the data (Quadeck was not running)
@@ -80,6 +82,7 @@ export function HistoryChart({ series, span, now, format, yMin, yMax, height = 4
   const [boxH, setBoxH] = useState(0)
   const [hover, setHover] = useState<number | null>(null)
   const uid = useId().replace(/:/g, '')
+  const t = useT().overview.chart
 
   useEffect(() => {
     const el = wrap.current
@@ -161,83 +164,80 @@ export function HistoryChart({ series, span, now, format, yMin, yMax, height = 4
           <span className="absolute right-0 bottom-[-5px]">{format(lo)}</span>
         </div>
       )}
-    <div ref={wrap} className="relative min-w-0 grow" style={{ height: fill ? '100%' : h }} role="img" aria-label={label}>
-      {width > 0 && h >= 16 && (
-        <svg
-          width={width}
-          height={h}
-          className="block overflow-visible"
-          onPointerMove={detailed ? (e) => setHover(e.clientX - e.currentTarget.getBoundingClientRect().left) : undefined}
-          onPointerLeave={detailed ? () => setHover(null) : undefined}
-        >
-          {detailed &&
-            [0, 0.5, 1].map((f) => (
-              <line key={f} x1={0} x2={width} y1={padTop + f * (h - padTop - 1)} y2={padTop + f * (h - padTop - 1)} stroke="#1d242d" strokeDasharray={f === 1 ? undefined : '3 4'} />
-            ))}
-          <defs>
-            {paths.map((p, i) => (
-              <linearGradient key={p.label} id={`${uid}-g${i}`} x1="0" x2="0" y1="0" y2="1">
-                <stop offset="0%" stopColor={p.color} stopOpacity={detailed ? 0.28 : 0.22} />
-                <stop offset="100%" stopColor={p.color} stopOpacity={0} />
-              </linearGradient>
-            ))}
-          </defs>
-          {/* key: draw in again when the range changes */}
-          <g key={span} className="chart-in">
-            {paths.map((p, i) => (
-              <g key={p.label}>
-                <path d={p.area} fill={`url(#${uid}-g${i})`} className="chart-area" />
-                <path d={p.line} fill="none" stroke={p.color} strokeWidth={detailed ? 1.8 : 1.5} strokeLinejoin="round" strokeLinecap="round" pathLength={1} className="chart-line" />
-              </g>
-            ))}
-          </g>
-          {!detailed &&
-            paths.map(
-              (p) =>
-                p.last &&
-                p.last[0] > width - 24 && (
-                  <g key={p.label} transform={`translate(${p.last[0].toFixed(1)} ${p.last[1].toFixed(1)})`} className="chart-dot">
-                    <circle r={5} fill={p.color} className="chart-pulse" />
-                    <circle r={2.4} fill={p.color} />
-                  </g>
-                ),
-            )}
-          {hoverTs !== null && hoverRows.length > 0 && (
-            <g>
-              <line x1={hover!} x2={hover!} y1={0} y2={h} stroke="#3a4350" />
-              {hoverRows.map(({ s, p }) => (
-                <circle key={s.label} cx={x(p[0])} cy={y(p[1])} r={3.2} fill={s.color} stroke="#0b0f14" strokeWidth={1.5} />
+      <div ref={wrap} className="relative min-w-0 grow" style={{ height: fill ? '100%' : h }} role="img" aria-label={label}>
+        {width > 0 && h >= 16 && (
+          <svg
+            width={width}
+            height={h}
+            className="block overflow-visible"
+            onPointerMove={detailed ? (e) => setHover(e.clientX - e.currentTarget.getBoundingClientRect().left) : undefined}
+            onPointerLeave={detailed ? () => setHover(null) : undefined}
+          >
+            {detailed && [0, 0.5, 1].map((f) => <line key={f} x1={0} x2={width} y1={padTop + f * (h - padTop - 1)} y2={padTop + f * (h - padTop - 1)} stroke="#1d242d" strokeDasharray={f === 1 ? undefined : '3 4'} />)}
+            <defs>
+              {paths.map((p, i) => (
+                <linearGradient key={p.label} id={`${uid}-g${i}`} x1="0" x2="0" y1="0" y2="1">
+                  <stop offset="0%" stopColor={p.color} stopOpacity={detailed ? 0.28 : 0.22} />
+                  <stop offset="100%" stopColor={p.color} stopOpacity={0} />
+                </linearGradient>
+              ))}
+            </defs>
+            {/* key: draw in again when the range changes */}
+            <g key={span} className="chart-in">
+              {paths.map((p, i) => (
+                <g key={p.label}>
+                  <path d={p.area} fill={`url(#${uid}-g${i})`} className="chart-area" />
+                  <path d={p.line} fill="none" stroke={p.color} strokeWidth={detailed ? 1.8 : 1.5} strokeLinejoin="round" strokeLinecap="round" pathLength={1} className="chart-line" />
+                </g>
               ))}
             </g>
-          )}
-        </svg>
-      )}
-      {detailed && width > 0 && (
-        <>
-          <div className="pointer-events-none absolute -bottom-5 left-0 flex w-full justify-between font-mono text-[10px] text-subtle">
-            <span>{timeLabel(start, span)}</span>
-            <span>{timeLabel(start + span / 2, span)}</span>
-            <span>jetzt</span>
-          </div>
-        </>
-      )}
-      {detailed && hoverTs !== null && hoverRows.length > 0 && (
-        <div
-          className="pointer-events-none absolute top-1 z-10 rounded-lg border border-edge bg-[#141a22] px-2.5 py-1.5 text-[12px] shadow-lg"
-          style={hover! > width / 2 ? { right: width - hover! + 10 } : { left: hover! + 10 }}
-          role="tooltip"
-        >
-          <div className="font-mono text-[11px] text-muted">{tooltipLabel(hoverRows[0]!.p[0], span)}</div>
-          {hoverRows.map(({ s, p }) => (
-            <div key={s.label} className="flex items-center gap-1.5 whitespace-nowrap">
-              <span className="inline-block h-2 w-2 rounded-full" style={{ background: s.color }} />
-              {s.label}: <span className="font-mono">{format(p[1])}</span>
+            {!detailed &&
+              paths.map(
+                (p) =>
+                  p.last &&
+                  p.last[0] > width - 24 && (
+                    <g key={p.label} transform={`translate(${p.last[0].toFixed(1)} ${p.last[1].toFixed(1)})`} className="chart-dot">
+                      <circle r={5} fill={p.color} className="chart-pulse" />
+                      <circle r={2.4} fill={p.color} />
+                    </g>
+                  ),
+              )}
+            {hoverTs !== null && hoverRows.length > 0 && (
+              <g>
+                <line x1={hover!} x2={hover!} y1={0} y2={h} stroke="#3a4350" />
+                {hoverRows.map(({ s, p }) => (
+                  <circle key={s.label} cx={x(p[0])} cy={y(p[1])} r={3.2} fill={s.color} stroke="#0b0f14" strokeWidth={1.5} />
+                ))}
+              </g>
+            )}
+          </svg>
+        )}
+        {detailed && width > 0 && (
+          <>
+            <div className="pointer-events-none absolute -bottom-5 left-0 flex w-full justify-between font-mono text-[10px] text-subtle">
+              <span>{timeLabel(start, span)}</span>
+              <span>{timeLabel(start + span / 2, span)}</span>
+              <span>{t.now}</span>
             </div>
-          ))}
-        </div>
-      )}
-      {detailed && empty && width > 0 && <div className="absolute inset-0 flex items-center justify-center text-[13px] text-muted">Noch keine Daten in diesem Zeitraum.</div>}
-    </div>
+          </>
+        )}
+        {detailed && hoverTs !== null && hoverRows.length > 0 && (
+          <div
+            className="pointer-events-none absolute top-1 z-10 rounded-lg border border-edge bg-[#141a22] px-2.5 py-1.5 text-[12px] shadow-lg"
+            style={hover! > width / 2 ? { right: width - hover! + 10 } : { left: hover! + 10 }}
+            role="tooltip"
+          >
+            <div className="font-mono text-[11px] text-muted">{tooltipLabel(hoverRows[0]!.p[0], span)}</div>
+            {hoverRows.map(({ s, p }) => (
+              <div key={s.label} className="flex items-center gap-1.5 whitespace-nowrap">
+                <span className="inline-block h-2 w-2 rounded-full" style={{ background: s.color }} />
+                {s.label}: <span className="font-mono">{format(p[1])}</span>
+              </div>
+            ))}
+          </div>
+        )}
+        {detailed && empty && width > 0 && <div className="absolute inset-0 flex items-center justify-center text-[13px] text-muted">{t.empty}</div>}
+      </div>
     </div>
   )
 }

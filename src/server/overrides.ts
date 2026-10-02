@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 import { HttpError } from './auth'
 import { db, schema } from './db'
 import { safeUrl } from './registry'
+import { tr } from '~/shared/i18n'
 
 export interface OverrideInput {
   key: string
@@ -20,12 +21,12 @@ const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice
 /** Empty fields mean "follow discovery". */
 export function validateOverride(body: Record<string, unknown>): OverrideInput {
   const key = str(body.key, 200)
-  if (!KEY.test(key)) throw new HttpError(400, 'Ungültiger Service-Schlüssel')
-  if (key.startsWith('manual:')) throw new HttpError(400, 'Eigene Links werden direkt bearbeitet')
+  if (!KEY.test(key)) throw new HttpError(400, tr('Ungültiger Service-Schlüssel', 'Invalid service key'))
+  if (key.startsWith('manual:')) throw new HttpError(400, tr('Eigene Links werden direkt bearbeitet', 'Custom links are edited directly'))
   const url = str(body.url, 500)
-  if (url && !safeUrl(url)) throw new HttpError(400, 'URL muss mit http:// oder https:// beginnen')
+  if (url && !safeUrl(url)) throw new HttpError(400, tr('URL muss mit http:// oder https:// beginnen', 'URL must start with http:// or https://'))
   const icon = str(body.icon, 90).toLowerCase()
-  if (icon && !ICON.test(icon)) throw new HttpError(400, 'Icon: Slug aus dashboard-icons, z. B. "home-assistant"')
+  if (icon && !ICON.test(icon)) throw new HttpError(400, tr('Icon: Slug aus dashboard-icons, z. B. "home-assistant"', 'Icon: a slug from dashboard-icons, e.g. "home-assistant"'))
   return {
     key,
     name: str(body.name, 60) || undefined,
@@ -47,12 +48,8 @@ export function saveOverride(o: OverrideInput) {
 }
 
 export function setHidden(key: string, hidden: boolean) {
-  if (!KEY.test(key)) throw new HttpError(400, 'Ungültiger Service-Schlüssel')
-  db()
-    .insert(schema.serviceOverrides)
-    .values({ serviceKey: key, hidden })
-    .onConflictDoUpdate({ target: schema.serviceOverrides.serviceKey, set: { hidden } })
-    .run()
+  if (!KEY.test(key)) throw new HttpError(400, tr('Ungültiger Service-Schlüssel', 'Invalid service key'))
+  db().insert(schema.serviceOverrides).values({ serviceKey: key, hidden }).onConflictDoUpdate({ target: schema.serviceOverrides.serviceKey, set: { hidden } }).run()
 }
 
 export function deleteOverride(key: string) {

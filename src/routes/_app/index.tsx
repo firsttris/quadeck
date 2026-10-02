@@ -11,6 +11,7 @@ import { ServiceDialog } from '~/components/ServiceDialog'
 import { ServiceTile } from '~/components/ServiceTile'
 import { Dot, Pill } from '~/components/Status'
 import { useToast } from '~/components/Toast'
+import { useT } from '~/i18n'
 import { api } from '~/lib/api'
 import { calendarLabel, diskSize, pct, relative } from '~/lib/format'
 import { useMetricHistory } from '~/lib/history'
@@ -27,17 +28,8 @@ export const Route = createFileRoute('/_app/')({
 
 // ---------- card grid (level 1) ----------
 
-const CARDS = [
-  { id: 'services', label: 'Services' },
-  { id: 'storage', label: 'Speicher' },
-  { id: 'timers', label: 'Nächste Timer' },
-  { id: 'shares', label: 'Freigaben' },
-  { id: 'cpu', label: 'CPU' },
-  { id: 'ram', label: 'RAM' },
-  { id: 'temp', label: 'CPU-Temp' },
-  { id: 'net', label: 'Netz' },
-  { id: 'gpu', label: 'GPU' },
-] as const
+// Labels come from t.overview.cards.
+const CARDS = [{ id: 'services' }, { id: 'storage' }, { id: 'timers' }, { id: 'shares' }, { id: 'cpu' }, { id: 'ram' }, { id: 'temp' }, { id: 'net' }, { id: 'gpu' }] as const
 type CardId = (typeof CARDS)[number]['id']
 
 // Gauge + one-hour chart; height follows the content.
@@ -100,6 +92,9 @@ function Overview() {
   const [layout, setLayout] = useState<DashboardLayout>(initial)
   const [editing, setEditing] = useState(false)
   const say = useToast()
+  const tt = useT()
+  const t = tt.overview
+  const cardLabel = (id: string) => (id in t.cards ? t.cards[id as CardId] : id)
   const failed = snapshot.units.filter((u) => u.active === 'failed')
 
   // "E" toggles edit mode (not while typing or in a dialog).
@@ -121,9 +116,9 @@ function Overview() {
         for (const it of items) byId.set(it.i, it)
         return { ...l, layouts: { ...l.layouts, [scope]: { ...l.layouts[scope], [bp]: [...byId.values()] } } }
       })
-      api('/api/layout', { body: { scope, breakpoint: bp, items } }).catch((e) => say(`Layout nicht gespeichert: ${(e as Error).message}`, 'bad'))
+      api('/api/layout', { body: { scope, breakpoint: bp, items } }).catch((e) => say(t.edit.layoutNotSaved((e as Error).message), 'bad'))
     },
-    [say],
+    [say, t],
   )
 
   const setHidden = (id: string, hidden: boolean) => {
@@ -135,7 +130,7 @@ function Overview() {
     try {
       await api('/api/layout', { method: 'DELETE' })
       setLayout({ layouts: { page: {}, tiles: {} }, hidden: [] })
-      say('Auto-Layout wiederhergestellt')
+      say(t.edit.layoutReset)
     } catch (e) {
       say((e as Error).message, 'bad')
     }
@@ -167,35 +162,35 @@ function Overview() {
 
   return (
     <>
-      <PageHeader title="Übersicht" subtitle={`${snapshot.host.hostname} · live über Podman-Socket und D-Bus`}>
-        <button type="button" className={editing ? 'btn primary' : 'btn'} onClick={() => setEditing(!editing)} aria-pressed={editing} title="Layout bearbeiten (Taste E)">
+      <PageHeader title={t.title} subtitle={t.subtitle(snapshot.host.hostname)}>
+        <button type="button" className={editing ? 'btn primary' : 'btn'} onClick={() => setEditing(!editing)} aria-pressed={editing} title={t.edit.toggleTitle}>
           <Glyph name="edit" size={15} strokeWidth={2} />
-          {editing ? 'Fertig' : 'Bearbeiten'}
+          {editing ? t.edit.done : t.edit.edit}
         </button>
       </PageHeader>
       {editing && (
         <div className="flex flex-wrap items-center gap-3 rounded-[10px] border border-[rgba(124,196,184,.35)] bg-[rgba(124,196,184,.08)] px-[14px] py-[10px] text-[13px] text-[#b6e3da]" role="status">
-          <span className="grow">Bearbeiten-Modus: Karten am Griff ziehen, an der Ecke unten rechts vergrößern. Kacheln lassen sich ebenso verschieben und vergrößern; ein Klick auf eine Kachel öffnet Name, Icon, Gruppe und URL.</span>
+          <span className="grow">{t.edit.help}</span>
           {layout.hidden.length > 0 && (
             <span className="flex flex-wrap items-center gap-1.5">
-              Ausgeblendet:
+              {t.edit.hidden}
               {layout.hidden.map((id) => (
-                <button key={id} type="button" className="seg" onClick={() => setHidden(id, false)} aria-label={`${CARDS.find((c) => c.id === id)?.label ?? id} einblenden`}>
+                <button key={id} type="button" className="seg" onClick={() => setHidden(id, false)} aria-label={t.edit.show(cardLabel(id))}>
                   <Glyph name="plus" size={12} strokeWidth={2} />
-                  {CARDS.find((c) => c.id === id)?.label ?? id}
+                  {cardLabel(id)}
                 </button>
               ))}
             </span>
           )}
           {snapshot.hiddenServices.length > 0 && (
             <span className="flex flex-wrap items-center gap-1.5">
-              Ausgeblendete Services:
+              {t.edit.hiddenServices}
               {snapshot.hiddenServices.map((h) => (
                 <button
                   key={h.key}
                   type="button"
                   className="seg"
-                  aria-label={`${h.name} wieder anzeigen`}
+                  aria-label={t.edit.showAgain(h.name)}
                   onClick={() => api('/api/services/override', { body: { key: h.key, hidden: false, onlyHidden: true } }).catch((e) => say((e as Error).message, 'bad'))}
                 >
                   <Glyph name="plus" size={12} strokeWidth={2} />
@@ -205,7 +200,7 @@ function Overview() {
             </span>
           )}
           <button type="button" className="btn sm" onClick={reset}>
-            Auf Auto-Layout zurücksetzen
+            {t.edit.resetLayout}
           </button>
         </div>
       )}
@@ -222,13 +217,13 @@ function Overview() {
         handle=".card-handle"
         itemClassName="card"
         renderChrome={(id) => {
-          const label = CARDS.find((c) => c.id === id)?.label ?? id
+          const label = cardLabel(id)
           return (
             <div className="card-chrome">
-              <button type="button" className="card-handle" aria-label={`${label} verschieben`} title="Ziehen zum Verschieben">
+              <button type="button" className="card-handle" aria-label={t.edit.move(label)} title={t.edit.dragToMove}>
                 <Glyph name="grip" size={15} strokeWidth={3.2} />
               </button>
-              <button type="button" className="no-drag" onClick={() => setHidden(id, true)} aria-label={`${label} ausblenden`} title="Ausblenden">
+              <button type="button" className="no-drag" onClick={() => setHidden(id, true)} aria-label={t.edit.hide(label)} title={t.edit.hideTitle}>
                 <Glyph name="eyeOff" size={15} />
               </button>
             </div>
@@ -244,30 +239,32 @@ function Overview() {
 
 function AlertCard({ unit, snapshot }: { unit: Unit; snapshot: Snapshot }) {
   const { run, busy, readonly } = useActions()
+  const tt = useT()
+  const t = tt.overview.alert
   const reason = failureReason(unit)
   const container = snapshot.containers.find((c) => c.unit === unit.name)
   return (
-    <section className="panel alertcard flex flex-col gap-[10px] px-[18px] py-4" aria-label={`Fehlgeschlagen: ${unit.name}`}>
+    <section className="panel alertcard flex flex-col gap-[10px] px-[18px] py-4" aria-label={t.label(unit.name)}>
       <div className="flex flex-wrap items-center gap-[10px]">
-        <Pill tone="bad">fehlgeschlagen</Pill>
+        <Pill tone="bad">{t.pill}</Pill>
         <span className="font-cond text-[16px] font-semibold" suppressHydrationWarning>
-          {unit.name} ist {relative(unit.since)} ausgefallen
+          {t.failed(unit.name, relative(unit.since))}
         </span>
       </div>
       <p className="m-0 text-[#c9d1d9]">
-        {reason ?? 'Die Unit ist im Zustand failed.'}
+        {reason ?? t.stateFailed}
         {unit.description && unit.description !== unit.name ? ` · ${unit.description}` : ''}
       </p>
       <div className="flex flex-wrap gap-2">
         <Link to="/journal" search={{ unit: unit.name }} className="btn sm">
-          Journal anzeigen
+          {t.showJournal}
         </Link>
         {!readonly && (
           <button type="button" className="btn sm primary" disabled={busy === unit.name} onClick={() => run('restart', { kind: 'unit', name: unit.name })}>
-            Neu starten
+            {tt.common.restart}
           </button>
         )}
-        {container && <span className="self-center text-[12px] text-muted">Container {container.name}</span>}
+        {container && <span className="self-center text-[12px] text-muted">{t.container(container.name)}</span>}
       </div>
     </section>
   )
@@ -275,43 +272,43 @@ function AlertCard({ unit, snapshot }: { unit: Unit; snapshot: Snapshot }) {
 
 // ---------- storage ----------
 
-const SMART_DOT = { ok: { tone: 'ok', label: 'SMART gesund' }, warning: { tone: 'warn', label: 'SMART: Warnung' }, critical: { tone: 'bad', label: 'SMART: kritisch' } } as const
+const SMART_TONE = { ok: 'ok', warning: 'warn', critical: 'bad' } as const
 
 function Storage({ disks, smart }: { disks: Disk[]; smart: Snapshot['smart'] }) {
+  const t = useT().overview
+  const smartLabel = { ok: t.storage.smartOk, warning: t.storage.smartWarning, critical: t.storage.smartCritical }
   const smartOf = (dev: string) => smart.find((x) => x.name === dev && x.supported && !x.standby)
   const total = disks.reduce((a, d) => a + d.size, 0)
   const used = disks.reduce((a, d) => a + d.used, 0)
   return (
-    <section className="flex flex-col gap-[14px] p-[18px]" aria-label="Speicher">
+    <section className="flex flex-col gap-[14px] p-[18px]" aria-label={t.cards.storage}>
       <div className="flex items-baseline justify-between">
-        <h2 className="h2">Speicher</h2>
+        <h2 className="h2">{t.cards.storage}</h2>
         <span className="flex items-center gap-2 text-[12px] text-muted">
-          {disks.length ? `${diskSize(used)} von ${diskSize(total)}` : ''}
+          {disks.length ? t.storage.usedOf(diskSize(used), diskSize(total)) : ''}
           <Link to="/disks" className="btn sm no-drag">
             SMART
           </Link>
         </span>
       </div>
-      {disks.length === 0 && <p className="m-0 text-[13px] text-muted">Keine eingehängten Dateisysteme gefunden.</p>}
+      {disks.length === 0 && <p className="m-0 text-[13px] text-muted">{t.storage.empty}</p>}
       {disks.map((d) => {
         const p = d.size ? d.used / d.size : 0
         const c = p >= 0.9 ? '#f85149' : p >= 0.8 ? '#d29922' : '#7cc4b8'
         return (
           <div key={d.path} className="flex flex-col gap-1.5" data-testid="disk">
             <div className="flex items-center gap-2">
-              {smartOf(d.dev) ? <Dot tone={SMART_DOT[smartOf(d.dev)!.level].tone} label={SMART_DOT[smartOf(d.dev)!.level].label} /> : <span className="w-2" />}
+              {smartOf(d.dev) ? <Dot tone={SMART_TONE[smartOf(d.dev)!.level]} label={smartLabel[smartOf(d.dev)!.level]} /> : <span className="w-2" />}
               <span className="w-[64px] truncate font-mono text-[13px]">{d.dev}</span>
-              <span className="min-w-0 grow truncate text-[12px] text-muted">
-                {[d.mount, diskSize(d.size), d.fstype].filter(Boolean).join(' · ')}
-              </span>
+              <span className="min-w-0 grow truncate text-[12px] text-muted">{[d.mount, diskSize(d.size), d.fstype].filter(Boolean).join(' · ')}</span>
               <span className="text-[12px] text-subtle">{d.tempC !== undefined ? `${Math.round(d.tempC)} °C` : ''}</span>
               <span className="chip">{d.role}</span>
             </div>
-            <div className="bar" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(p * 100)} aria-label={`${d.mount} belegt`}>
+            <div className="bar" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(p * 100)} aria-label={t.storage.used(d.mount)}>
               <div className="fill" style={{ width: `${(p * 100).toFixed(1)}%`, background: `linear-gradient(90deg, ${c}66, ${c})`, boxShadow: `0 0 12px ${c}88` }} />
             </div>
             <div className="flex justify-between text-[11px] text-muted tabular-nums">
-              <span>{diskSize(d.used)} belegt</span>
+              <span>{t.storage.used(diskSize(d.used))}</span>
               <span>{pct(p)}</span>
             </div>
           </div>
@@ -328,24 +325,22 @@ function Services({ groups, editing, saved, onSave }: { groups: ServiceGroup[]; 
   const [removing, setRemoving] = useState<Service | null>(null)
   const [editingKey, setEditingKey] = useState<string | null>(null)
   const say = useToast()
+  const tt = useT()
+  const t = tt.overview
   const groupNames = useMemo(() => groups.map((g) => g.name), [groups])
   // Look the service up live, so the dialog follows SSE updates.
   const edited = editingKey ? (groups.flatMap((g) => g.items).find((s) => s.key === editingKey) ?? null) : null
   return (
-    <section className="flex flex-col gap-[14px] p-[18px]" aria-label="Services">
+    <section className="flex flex-col gap-[14px] p-[18px]" aria-label={t.cards.services}>
       <div className="flex flex-wrap items-center gap-3 pr-16">
-        <h2 className="h2">Services</h2>
-        <span className="grow text-[12px] text-muted">automatisch aus Caddy und Quadlets erkannt, dazu eigene Links</span>
+        <h2 className="h2">{t.cards.services}</h2>
+        <span className="grow text-[12px] text-muted">{t.services.detected}</span>
         <button type="button" className="btn sm no-drag" onClick={() => setAdding(true)}>
           <Glyph name="plus" size={14} strokeWidth={2} />
-          Link hinzufügen
+          {t.services.addLink}
         </button>
       </div>
-      {groups.length === 0 && (
-        <p className="m-0 text-[13px] text-muted">
-          Noch keine Services. Quadeck liest die Routen aus Caddy (Admin-API oder /etc/caddy/Caddyfile); eigene Links lassen sich oben hinzufügen.
-        </p>
-      )}
+      {groups.length === 0 && <p className="m-0 text-[13px] text-muted">{t.services.empty}</p>}
       {groups.map((g) => (
         <TileGroup
           key={g.name}
@@ -363,16 +358,16 @@ function Services({ groups, editing, saved, onSave }: { groups: ServiceGroup[]; 
       <ServiceDialog service={edited} groups={groupNames} onClose={() => setEditingKey(null)} />
       <ConfirmDialog
         open={!!removing}
-        title={`Link „${removing?.name}“ entfernen?`}
-        body={<p className="m-0">Der manuell angelegte Link wird gelöscht.</p>}
-        confirm="Entfernen"
+        title={t.services.removeTitle(removing?.name ?? '')}
+        body={<p className="m-0">{t.services.removeBody}</p>}
+        confirm={tt.common.remove}
         danger
         onClose={() => setRemoving(null)}
         onConfirm={async () => {
           if (!removing) return
           try {
             await api(`/api/links/${removing.manualId}`, { method: 'DELETE' })
-            say(`${removing.name} entfernt`)
+            say(t.services.removed(removing.name))
           } catch (e) {
             say((e as Error).message, 'bad')
           }
@@ -435,26 +430,27 @@ function Timers({ units }: { units: Unit[] }) {
     .sort((a, b) => (a.timer?.next ?? Infinity) - (b.timer?.next ?? Infinity))
     .slice(0, 6)
   const byService = new Map(units.map((u) => [u.name, u]))
+  const t = useT().overview
   return (
-    <section className="pt-[18px] pb-1.5" aria-label="Nächste Timer">
+    <section className="pt-[18px] pb-1.5" aria-label={t.cards.timers}>
       <div className="flex items-baseline justify-between px-[18px] pb-2">
-        <h2 className="h2">Nächste Timer</h2>
+        <h2 className="h2">{t.cards.timers}</h2>
         <Link to="/units" search={{ filter: 'timer' }} className="btn sm">
-          Alle
+          {t.timers.all}
         </Link>
       </div>
-      {timers.length === 0 && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">Keine aktiven Timer.</p>}
-      {timers.map((t) => {
-        const svc = t.timer?.unit ? byService.get(t.timer.unit) : undefined
+      {timers.length === 0 && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{t.timers.empty}</p>}
+      {timers.map((tm) => {
+        const svc = tm.timer?.unit ? byService.get(tm.timer.unit) : undefined
         return (
-          <div key={t.name} className="flex items-center gap-[10px] border-t border-line px-[18px] py-[9px]">
-            <Dot tone={svc?.active === 'failed' ? 'bad' : 'ok'} label={svc?.active === 'failed' ? 'letzter Lauf fehlgeschlagen' : 'ok'} />
+          <div key={tm.name} className="flex items-center gap-[10px] border-t border-line px-[18px] py-[9px]">
+            <Dot tone={svc?.active === 'failed' ? 'bad' : 'ok'} label={svc?.active === 'failed' ? t.timers.lastRunFailed : t.timers.ok} />
             <div className="min-w-0 grow">
-              <div className="truncate font-mono text-[13px]">{t.name}</div>
-              <div className="text-[12px] text-muted">{calendarLabel(t.timer?.calendar)}</div>
+              <div className="truncate font-mono text-[13px]">{tm.name}</div>
+              <div className="text-[12px] text-muted">{calendarLabel(tm.timer?.calendar)}</div>
             </div>
             <span className="font-mono text-[12px] text-subtle" suppressHydrationWarning>
-              {relative(t.timer?.next)}
+              {relative(tm.timer?.next)}
             </span>
           </div>
         )
@@ -466,17 +462,16 @@ function Timers({ units }: { units: Unit[] }) {
 // ---------- shares ----------
 
 function Shares({ shares, error }: { shares: Share[]; error?: string }) {
+  const t = useT().overview
   return (
-    <section className="pt-[18px] pb-1.5" aria-label="Freigaben">
+    <section className="pt-[18px] pb-1.5" aria-label={t.cards.shares}>
       <div className="flex items-baseline justify-between px-[18px] pb-2">
-        <h2 className="h2">Freigaben</h2>
+        <h2 className="h2">{t.cards.shares}</h2>
         <Link to="/shares" className="btn sm no-drag">
-          Verwalten
+          {t.shares.manage}
         </Link>
       </div>
-      {shares.length === 0 && (
-        <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{error ? `Nicht lesbar: ${error}` : 'Keine Freigaben in smb.conf oder /etc/exports.'}</p>
-      )}
+      {shares.length === 0 && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{error ? t.shares.unreadable(error) : t.shares.empty}</p>}
       {shares.map((sh) => (
         <div key={`${sh.type}:${sh.name}:${sh.path}`} className="flex items-center gap-[10px] border-t border-line px-[18px] py-[9px]" data-testid="share">
           <span className={`${sh.type === 'SMB' ? 'chip q' : 'chip'} w-[30px] text-center`}>{sh.type}</span>
