@@ -9,6 +9,7 @@ import type { SelfTestType, SmartBackend } from '../smart/backend'
 import type { FilesBackend } from '../files/backend'
 import type { TimersBackend } from '../timers/backend'
 import type { UnitEditorBackend } from '../systemd/editor'
+import type { NetworkAdmin } from '../network/collect'
 import type { TimerAction, TimerSpec } from '~/shared/timers'
 import type { SshChange } from '~/shared/ssh'
 import type { ShareChange, ShareServiceAction } from '~/shared/shares'
@@ -39,6 +40,7 @@ export class LocalPrivileged implements Privileged {
     private files: FilesBackend,
     private timers: TimersBackend,
     private editor: UnitEditorBackend,
+    private network: NetworkAdmin,
   ) {}
 
   async info() {
@@ -261,6 +263,10 @@ export class LocalPrivileged implements Privileged {
   }
 
   // ---------- unit editor ----------
+
+  networkState() {
+    return this.network.networkState()
+  }
 
   unitDetail(unit: string) {
     return this.editor.unitDetail(unit)

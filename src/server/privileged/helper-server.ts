@@ -118,6 +118,7 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/timers/delete': (b, p) => p.deleteTimer(str(b.token), str(b.name) ?? ''),
   '/timers/schedule': (b, p) => p.setTimerSchedule(str(b.token), str(b.name) ?? '', str(b.calendar) ?? ''),
   '/timers/action': (b, p) => p.timerAction(str(b.token), str(b.name) ?? '', parseTimerAction(b.action)),
+  '/network/state': (_b, p) => p.networkState(),
   '/units/detail': (b, p) => p.unitDetail(str(b.unit) ?? ''),
   '/units/validate': (b, p) => p.validateUnitFile(str(b.unit) ?? '', str(b.path) ?? '', str(b.content) ?? ''),
   '/units/history': async (b, p) => ({ data: await p.unitFileHistory(str(b.unit) ?? '', str(b.path) ?? '') }),

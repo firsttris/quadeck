@@ -25,6 +25,7 @@ import { privileged } from './privileged'
 import { CaddyProvider, candidatesFromConfig } from './providers/caddy'
 import type { ServiceCandidate } from './providers/types'
 import { localHostSet, mergeServices } from './registry'
+import { notifier } from './notify'
 
 type Source = keyof Snapshot['sources']
 export type HubEvent = { type: 'system'; data: SystemMetrics } | { type: 'state'; data: Snapshot }
@@ -152,6 +153,8 @@ export class Hub {
     })
     const gpu = every(5000, async () => this.collectGpus())
     every(3600_000, async () => pruneHistory(db()))
+    const updates = every(15 * 60_000, () => notifier().checkUpdates(this.host.hostname, this.priv))
+    setTimeout(() => void updates(), 60_000)
     if (this.fixtures) seedFixtureHistory(db())
     // First round right away (timers are already registered, so a failure here
     // does not leave the hub dead).
@@ -325,6 +328,9 @@ export class Hub {
   publish() {
     const snap = this.build()
     this.current = snap
+    notifier()
+      .evaluate(snap)
+      .catch((e) => console.warn('[quadeck] Benachrichtigung:', (e as Error).message))
     const json = JSON.stringify({ ...snap, system: null, host: { ...snap.host, uptimeSec: 0 } })
     if (json !== this.lastStateJson) {
       this.lastStateJson = json

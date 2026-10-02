@@ -10,6 +10,7 @@ import type { SelfTestType } from '../smart/backend'
 import type { DirListing, FileRoot } from '~/shared/files'
 import type { CalendarPreview, TimerAction, TimerSpec, TimersState } from '~/shared/timers'
 import type { UnitDetail, UnitValidateResult, UnitWriteResult } from '~/shared/unit-files'
+import type { NetworkState } from '~/shared/network'
 import type { UnlockInfo } from './gate'
 
 /** Privileged over the root helper's Unix socket. */
@@ -194,6 +195,9 @@ export class HelperClient implements Privileged {
     return this.call<TimersState>('POST', '/timers/action', { token, name, action }, 120_000)
   }
 
+  networkState() {
+    return this.call<NetworkState>('POST', '/network/state', {}, 60_000)
+  }
   unitDetail(unit: string) {
     return this.call<UnitDetail>('POST', '/units/detail', { unit })
   }

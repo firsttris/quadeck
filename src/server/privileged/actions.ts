@@ -15,6 +15,7 @@ import type { SelfTestType, SmartAdmin } from '../smart/backend'
 import type { FilesAdmin } from '../files/backend'
 import type { TimersAdmin } from '../timers/backend'
 import type { UnitEditorAdmin } from '../systemd/editor'
+import type { NetworkAdmin } from '../network/collect'
 import type { UnitWriteResult } from '~/shared/unit-files'
 import type { TimerAction, TimerSpec, TimersState } from '~/shared/timers'
 import type { SmartReport } from '~/shared/smart'
@@ -26,7 +27,7 @@ export type UnitAction = 'start' | 'stop' | 'restart'
 export const UNIT_ACTIONS: readonly UnitAction[] = ['start', 'stop', 'restart']
 
 /** Package/image reads need no unlock (they change nothing); jobs do. */
-export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAdmin, SmartAdmin, FilesAdmin, TimersAdmin, UnitEditorAdmin {
+export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAdmin, SmartAdmin, FilesAdmin, TimersAdmin, UnitEditorAdmin, NetworkAdmin {
   readonly kind: 'local' | 'helper'
   info(): Promise<UnlockInfo>
   unlock(user: string, password: string): Promise<{ token: string; expiresAt: number }>

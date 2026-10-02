@@ -155,7 +155,7 @@
     align-items: center;
     gap: 10px;
     width: 100%;
-    min-height: 40px;
+    min-height: 36px;
     padding: 0 12px;
     border-radius: 9px;
     color: var(--color-subtle);

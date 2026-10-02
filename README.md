@@ -187,6 +187,23 @@ In der Units-Liste führt **Bearbeiten** bei jeder System-Unit zum Editor (Quadl
 - **Neue Unit** (Units → „+ Neue Unit“) aus Vorlagen: dauerhafter Dienst, einmaliges Skript beim Start, abgesicherter Dienst.
 - Quadecks eigene Units (`quadeck.service`, `quadeck-helper.service`) sind nur lesbar.
 
+## Benachrichtigungen
+
+Unter **Benachrichtigungen** meldet sich der Server, wenn etwas nicht stimmt – über **ntfy** (Push aufs Handy, ntfy.sh oder eigener Server), **Gotify**, **Telegram** oder einen **Webhook** (Discord, Slack, Mattermost, Home Assistant, eigene Skripte).
+
+- **Was gemeldet wird** (einzeln abschaltbar): fehlgeschlagene Dienste und Timer, nicht erreichbare Webdienste der Übersicht, ungesunde oder abgestürzte Container, SMART-Warnungen, fast volle Platten (Schwellwert einstellbar) und einmal am Tag verfügbare Updates (Pakete und Container-Images, nur wenn sich seit der letzten Meldung etwas geändert hat).
+- **Ohne Spam:** jedes Problem wird einmal gemeldet, mehrere gleichzeitig in einer Nachricht; flatternde Checks (Webdienste, Container) erst nach 2 Minuten. Ist es behoben, kommt auf Wunsch eine Entwarnung. Was schon gemeldet wurde, überlebt einen Neustart; ist eine Quelle (z. B. systemd) gerade nicht lesbar, gibt es keine falsche Entwarnung. Erreicht eine Meldung keinen Kanal, wird sie nach 5 Minuten erneut versucht.
+- **Test-Knopf** pro Kanal, Liste der gemeldeten Probleme und der zuletzt gesendeten Nachrichten mit Ergebnis pro Kanal. Tokens werden in der Datenbank gespeichert (nur für Quadeck lesbar) und in der Oberfläche nicht angezeigt.
+
+## Netzwerk
+
+Die Seite **Netzwerk** zeigt nur an, sie ändert nichts:
+
+- **Schnittstellen** mit Art (LAN, WLAN, VPN, Bridge), Zustand, IPv4/IPv6 (DHCP markiert), Gateway, Geschwindigkeit, MAC, MTU und übertragenen Daten; Loopback und Container-Verbindungen auf Wunsch.
+- **Offene Ports** (`ss -tulpn` über den Root-Helfer, dazu die veröffentlichten Ports der Container): wer lauscht (Programm, systemd-Unit mit Link zum Editor, Container) und ob von überall oder nur lokal erreichbar.
+- **Firewall:** firewalld oder ufw werden erkannt, pro Port steht, ob er offen oder blockiert ist – ein Port, auf dem etwas lauscht, der aber blockiert wird, fällt so auf (mit dem passenden Befehl zum Freigeben). Ohne Firewall steht da, was das bedeutet. Podman öffnet veröffentlichte Container-Ports selbst.
+- **Routen und DNS:** Gateway, DNS-Server (auch hinter systemd-resolved), Suchdomänen, alle Routen.
+
 ## Layout anpassen
 
 Das Dashboard ist beim ersten Start fertig angeordnet. Mit **Bearbeiten** (oder Taste `E`) lässt es sich auf zwei Ebenen ändern:

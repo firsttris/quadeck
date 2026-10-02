@@ -15,6 +15,8 @@ import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppDisksRouteImport } from './routes/_app/disks'
 import { Route as AppJournalRouteImport } from './routes/_app/journal'
+import { Route as AppNetworkRouteImport } from './routes/_app/network'
+import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
 import { Route as AppQuadletsRouteImport } from './routes/_app/quadlets'
 import { Route as AppSharesRouteImport } from './routes/_app/shares'
 import { Route as AppSshRouteImport } from './routes/_app/ssh'
@@ -42,6 +44,8 @@ import { Route as ApiLayoutHiddenRouteImport } from './routes/api/layout/hidden'
 import { Route as ApiLinksIndexRouteImport } from './routes/api/links/index'
 import { Route as ApiLinksIdRouteImport } from './routes/api/links/$id'
 import { Route as ApiMetricsHistoryRouteImport } from './routes/api/metrics/history'
+import { Route as ApiNetworkIndexRouteImport } from './routes/api/network/index'
+import { Route as ApiNotificationsIndexRouteImport } from './routes/api/notifications/index'
 import { Route as ApiPodmanSettingsRouteImport } from './routes/api/podman/settings'
 import { Route as ApiQuadletsIndexRouteImport } from './routes/api/quadlets/index'
 import { Route as ApiQuadletsComposeRouteImport } from './routes/api/quadlets/compose'
@@ -87,6 +91,16 @@ const AppDisksRoute = AppDisksRouteImport.update({
 const AppJournalRoute = AppJournalRouteImport.update({
   id: '/journal',
   path: '/journal',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNetworkRoute = AppNetworkRouteImport.update({
+  id: '/network',
+  path: '/network',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNotificationsRoute = AppNotificationsRouteImport.update({
+  id: '/notifications',
+  path: '/notifications',
   getParentRoute: () => AppRoute,
 } as any)
 const AppQuadletsRoute = AppQuadletsRouteImport.update({
@@ -224,6 +238,16 @@ const ApiMetricsHistoryRoute = ApiMetricsHistoryRouteImport.update({
   path: '/api/metrics/history',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiNetworkIndexRoute = ApiNetworkIndexRouteImport.update({
+  id: '/api/network/',
+  path: '/api/network/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiNotificationsIndexRoute = ApiNotificationsIndexRouteImport.update({
+  id: '/api/notifications/',
+  path: '/api/notifications/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPodmanSettingsRoute = ApiPodmanSettingsRouteImport.update({
   id: '/api/podman/settings',
   path: '/api/podman/settings',
@@ -316,6 +340,8 @@ export interface FileRoutesByFullPath {
   '/setup': typeof SetupRoute
   '/disks': typeof AppDisksRoute
   '/journal': typeof AppJournalRoute
+  '/network': typeof AppNetworkRoute
+  '/notifications': typeof AppNotificationsRoute
   '/quadlets': typeof AppQuadletsRoute
   '/shares': typeof AppSharesRoute
   '/ssh': typeof AppSshRoute
@@ -353,6 +379,8 @@ export interface FileRoutesByFullPath {
   '/api/jobs/': typeof ApiJobsIndexRoute
   '/api/layout/': typeof ApiLayoutIndexRoute
   '/api/links/': typeof ApiLinksIndexRoute
+  '/api/network/': typeof ApiNetworkIndexRoute
+  '/api/notifications/': typeof ApiNotificationsIndexRoute
   '/api/quadlets/': typeof ApiQuadletsIndexRoute
   '/api/shares/': typeof ApiSharesIndexRoute
   '/api/ssh/': typeof ApiSshIndexRoute
@@ -366,6 +394,8 @@ export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
   '/disks': typeof AppDisksRoute
   '/journal': typeof AppJournalRoute
+  '/network': typeof AppNetworkRoute
+  '/notifications': typeof AppNotificationsRoute
   '/quadlets': typeof AppQuadletsRoute
   '/shares': typeof AppSharesRoute
   '/ssh': typeof AppSshRoute
@@ -404,6 +434,8 @@ export interface FileRoutesByTo {
   '/api/jobs': typeof ApiJobsIndexRoute
   '/api/layout': typeof ApiLayoutIndexRoute
   '/api/links': typeof ApiLinksIndexRoute
+  '/api/network': typeof ApiNetworkIndexRoute
+  '/api/notifications': typeof ApiNotificationsIndexRoute
   '/api/quadlets': typeof ApiQuadletsIndexRoute
   '/api/shares': typeof ApiSharesIndexRoute
   '/api/ssh': typeof ApiSshIndexRoute
@@ -419,6 +451,8 @@ export interface FileRoutesById {
   '/setup': typeof SetupRoute
   '/_app/disks': typeof AppDisksRoute
   '/_app/journal': typeof AppJournalRoute
+  '/_app/network': typeof AppNetworkRoute
+  '/_app/notifications': typeof AppNotificationsRoute
   '/_app/quadlets': typeof AppQuadletsRoute
   '/_app/shares': typeof AppSharesRoute
   '/_app/ssh': typeof AppSshRoute
@@ -457,6 +491,8 @@ export interface FileRoutesById {
   '/api/jobs/': typeof ApiJobsIndexRoute
   '/api/layout/': typeof ApiLayoutIndexRoute
   '/api/links/': typeof ApiLinksIndexRoute
+  '/api/network/': typeof ApiNetworkIndexRoute
+  '/api/notifications/': typeof ApiNotificationsIndexRoute
   '/api/quadlets/': typeof ApiQuadletsIndexRoute
   '/api/shares/': typeof ApiSharesIndexRoute
   '/api/ssh/': typeof ApiSshIndexRoute
@@ -473,6 +509,8 @@ export interface FileRouteTypes {
     | '/setup'
     | '/disks'
     | '/journal'
+    | '/network'
+    | '/notifications'
     | '/quadlets'
     | '/shares'
     | '/ssh'
@@ -510,6 +548,8 @@ export interface FileRouteTypes {
     | '/api/jobs/'
     | '/api/layout/'
     | '/api/links/'
+    | '/api/network/'
+    | '/api/notifications/'
     | '/api/quadlets/'
     | '/api/shares/'
     | '/api/ssh/'
@@ -523,6 +563,8 @@ export interface FileRouteTypes {
     | '/setup'
     | '/disks'
     | '/journal'
+    | '/network'
+    | '/notifications'
     | '/quadlets'
     | '/shares'
     | '/ssh'
@@ -561,6 +603,8 @@ export interface FileRouteTypes {
     | '/api/jobs'
     | '/api/layout'
     | '/api/links'
+    | '/api/network'
+    | '/api/notifications'
     | '/api/quadlets'
     | '/api/shares'
     | '/api/ssh'
@@ -575,6 +619,8 @@ export interface FileRouteTypes {
     | '/setup'
     | '/_app/disks'
     | '/_app/journal'
+    | '/_app/network'
+    | '/_app/notifications'
     | '/_app/quadlets'
     | '/_app/shares'
     | '/_app/ssh'
@@ -613,6 +659,8 @@ export interface FileRouteTypes {
     | '/api/jobs/'
     | '/api/layout/'
     | '/api/links/'
+    | '/api/network/'
+    | '/api/notifications/'
     | '/api/quadlets/'
     | '/api/shares/'
     | '/api/ssh/'
@@ -657,6 +705,8 @@ export interface RootRouteChildren {
   ApiJobsIndexRoute: typeof ApiJobsIndexRoute
   ApiLayoutIndexRoute: typeof ApiLayoutIndexRoute
   ApiLinksIndexRoute: typeof ApiLinksIndexRoute
+  ApiNetworkIndexRoute: typeof ApiNetworkIndexRoute
+  ApiNotificationsIndexRoute: typeof ApiNotificationsIndexRoute
   ApiQuadletsIndexRoute: typeof ApiQuadletsIndexRoute
   ApiSharesIndexRoute: typeof ApiSharesIndexRoute
   ApiSshIndexRoute: typeof ApiSshIndexRoute
@@ -708,6 +758,20 @@ declare module '@tanstack/react-router' {
       path: '/journal'
       fullPath: '/journal'
       preLoaderRoute: typeof AppJournalRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/network': {
+      id: '/_app/network'
+      path: '/network'
+      fullPath: '/network'
+      preLoaderRoute: typeof AppNetworkRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/notifications': {
+      id: '/_app/notifications'
+      path: '/notifications'
+      fullPath: '/notifications'
+      preLoaderRoute: typeof AppNotificationsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/quadlets': {
@@ -899,6 +963,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiMetricsHistoryRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/network/': {
+      id: '/api/network/'
+      path: '/api/network'
+      fullPath: '/api/network/'
+      preLoaderRoute: typeof ApiNetworkIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/notifications/': {
+      id: '/api/notifications/'
+      path: '/api/notifications'
+      fullPath: '/api/notifications/'
+      preLoaderRoute: typeof ApiNotificationsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/podman/settings': {
       id: '/api/podman/settings'
       path: '/api/podman/settings'
@@ -1024,6 +1102,8 @@ declare module '@tanstack/react-router' {
 interface AppRouteChildren {
   AppDisksRoute: typeof AppDisksRoute
   AppJournalRoute: typeof AppJournalRoute
+  AppNetworkRoute: typeof AppNetworkRoute
+  AppNotificationsRoute: typeof AppNotificationsRoute
   AppQuadletsRoute: typeof AppQuadletsRoute
   AppSharesRoute: typeof AppSharesRoute
   AppSshRoute: typeof AppSshRoute
@@ -1036,6 +1116,8 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppDisksRoute: AppDisksRoute,
   AppJournalRoute: AppJournalRoute,
+  AppNetworkRoute: AppNetworkRoute,
+  AppNotificationsRoute: AppNotificationsRoute,
   AppQuadletsRoute: AppQuadletsRoute,
   AppSharesRoute: AppSharesRoute,
   AppSshRoute: AppSshRoute,
@@ -1082,6 +1164,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiJobsIndexRoute: ApiJobsIndexRoute,
   ApiLayoutIndexRoute: ApiLayoutIndexRoute,
   ApiLinksIndexRoute: ApiLinksIndexRoute,
+  ApiNetworkIndexRoute: ApiNetworkIndexRoute,
+  ApiNotificationsIndexRoute: ApiNotificationsIndexRoute,
   ApiQuadletsIndexRoute: ApiQuadletsIndexRoute,
   ApiSharesIndexRoute: ApiSharesIndexRoute,
   ApiSshIndexRoute: ApiSshIndexRoute,

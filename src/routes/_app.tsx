@@ -63,11 +63,13 @@ function Sidebar({ onSearch }: { onSearch: () => void }) {
     { to: '/disks', label: 'Festplatten', glyph: 'disk', badge: (snapshot.smart ?? []).filter((d) => d.level !== 'ok').length },
     { to: '/shares', label: 'Freigaben', glyph: 'folder', badge: 0 },
     { to: '/ssh', label: 'SSH', glyph: 'key', badge: 0 },
+    { to: '/network', label: 'Netzwerk', glyph: 'network', badge: 0 },
     { to: '/system', label: 'System', glyph: 'package', badge: 0 },
+    { to: '/notifications', label: 'Benachrichtigungen', glyph: 'bell', badge: 0 },
   ] as const
   const problems = Object.entries(snapshot.sources).filter(([, s]) => !s.ok && s.error)
   return (
-    <aside className="flex flex-col gap-[18px] border-b border-line bg-[rgba(13,17,23,.85)] px-[14px] py-5 md:sticky md:top-0 md:h-screen md:border-r md:border-b-0">
+    <aside className="flex flex-col gap-[18px] border-b border-line bg-[rgba(13,17,23,.85)] px-[14px] py-5 md:sticky md:top-0 md:h-screen md:overflow-y-auto md:border-r md:border-b-0">
       <div className="flex items-center gap-[10px] px-[6px]">
         <Logo />
         <div className="font-cond text-[21px] font-semibold tracking-[.01em]">Quadeck</div>
