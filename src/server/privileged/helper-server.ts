@@ -6,6 +6,7 @@ import { chmodSync, chownSync, existsSync, readFileSync, rmSync } from 'node:fs'
 import { HttpError } from '../auth'
 import { PACKAGE_NAME } from '~/shared/packages'
 import { parseJobSpec } from '../packages/job'
+import type { PodmanConfigName } from '~/shared/quadlets'
 import { UNIT_ACTIONS, type Privileged, type UnitAction } from './actions'
 
 type Handler = (body: Record<string, unknown>, p: Privileged) => Promise<unknown>
@@ -54,6 +55,29 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/jobs/list': async (_b, p) => ({ data: await p.jobs() }),
   '/jobs/get': async (b, p) => ({ data: await p.job(str(b.id) ?? '', Number(b.from) || 0) }),
   '/jobs/start': (b, p) => p.startJob(str(b.token), parseJobSpec(b.spec)),
+  '/quadlets/list': async (_b, p) => ({ data: await p.quadlets() }),
+  '/quadlets/read': async (b, p) => ({ data: await p.readQuadlet(str(b.name) ?? '') }),
+  '/quadlets/validate': (b, p) => p.validateQuadlet(str(b.name) ?? '', str(b.content) ?? ''),
+  '/quadlets/history': async (b, p) => ({ data: await p.quadletHistory(str(b.name) ?? '') }),
+  '/quadlets/revision': async (b, p) => ({ data: await p.quadletRevision(str(b.name) ?? '', str(b.id) ?? '') }),
+  '/quadlets/write': (b, p) => p.writeQuadlet(str(b.token), str(b.name) ?? '', str(b.content) ?? '', b.restart === true),
+  '/quadlets/delete': async (b, p) => {
+    await p.deleteQuadlet(str(b.token), str(b.name) ?? '')
+    return { ok: true }
+  },
+  '/podman/settings': (_b, p) => p.podmanSettings(),
+  '/podman/timer': async (b, p) => {
+    await p.setAutoUpdateTimer(str(b.token), b.enabled === true, str(b.calendar) ?? '')
+    return { ok: true }
+  },
+  '/podman/autoupdate-default': async (b, p) => {
+    await p.setAutoUpdateDefault(str(b.token), b.enabled === true)
+    return { ok: true }
+  },
+  '/podman/config': async (b, p) => {
+    await p.writePodmanConfig(str(b.token), str(b.name) as PodmanConfigName, str(b.content) ?? '')
+    return { ok: true }
+  },
 }
 
 export async function handleHelperRequest(req: Request, p: Privileged, routes = HELPER_ROUTES): Promise<Response> {

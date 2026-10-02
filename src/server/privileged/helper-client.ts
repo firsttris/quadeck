@@ -1,6 +1,8 @@
 import { HttpError } from '../auth'
 import type { Privileged, UnitAction } from './actions'
 import type { ImageUpdatesReport, InstalledPackage, JobInfo, JobSpec, JobState, PackageDetail, PackageOverview, RemovePreview, UpdatesReport } from '~/shared/packages'
+import type { PodmanConfigName, PodmanSettings, QuadletFile, Revision, ValidateResult } from '~/shared/quadlets'
+import type { WriteResult } from '../quadlets/backend'
 import type { UnlockInfo } from './gate'
 
 /** Privileged over the root helper's Unix socket. */
@@ -81,5 +83,39 @@ export class HelperClient implements Privileged {
   }
   startJob(token: string | undefined, spec: JobSpec) {
     return this.call<JobInfo>('POST', '/jobs/start', { token, spec }, 120_000)
+  }
+
+  async quadlets() {
+    return (await this.call<{ data: QuadletFile[] }>('POST', '/quadlets/list', {})).data
+  }
+  async readQuadlet(name: string) {
+    return (await this.call<{ data: string }>('POST', '/quadlets/read', { name })).data
+  }
+  validateQuadlet(name: string, content: string) {
+    return this.call<ValidateResult>('POST', '/quadlets/validate', { name, content })
+  }
+  async quadletHistory(name: string) {
+    return (await this.call<{ data: Revision[] }>('POST', '/quadlets/history', { name })).data
+  }
+  async quadletRevision(name: string, id: string) {
+    return (await this.call<{ data: string }>('POST', '/quadlets/revision', { name, id })).data
+  }
+  podmanSettings() {
+    return this.call<PodmanSettings>('POST', '/podman/settings', {})
+  }
+  writeQuadlet(token: string | undefined, name: string, content: string, restart: boolean) {
+    return this.call<WriteResult>('POST', '/quadlets/write', { token, name, content, restart }, 180_000)
+  }
+  async deleteQuadlet(token: string | undefined, name: string) {
+    await this.call('POST', '/quadlets/delete', { token, name }, 120_000)
+  }
+  async setAutoUpdateTimer(token: string | undefined, enabled: boolean, calendar: string) {
+    await this.call('POST', '/podman/timer', { token, enabled, calendar })
+  }
+  async setAutoUpdateDefault(token: string | undefined, enabled: boolean) {
+    await this.call('POST', '/podman/autoupdate-default', { token, enabled })
+  }
+  async writePodmanConfig(token: string | undefined, name: PodmanConfigName, content: string) {
+    await this.call('POST', '/podman/config', { token, name, content })
   }
 }

@@ -59,6 +59,7 @@ function Sidebar({ onSearch }: { onSearch: () => void }) {
     { to: '/', label: 'Übersicht', glyph: 'overview', badge: 0 },
     { to: '/units', label: 'Units', glyph: 'units', badge: failed },
     { to: '/journal', label: 'Journal', glyph: 'journal', badge: 0 },
+    { to: '/quadlets', label: 'Quadlets', glyph: 'edit', badge: 0 },
     { to: '/system', label: 'System', glyph: 'package', badge: 0 },
   ] as const
   const problems = Object.entries(snapshot.sources).filter(([, s]) => !s.ok && s.error)

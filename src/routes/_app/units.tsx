@@ -145,6 +145,11 @@ function UnitRow({ row, run, busy, readonly }: { row: Row; run: ReturnType<typeo
               Journal
             </Link>
           )}
+          {u?.quadlet && (
+            <Link to="/quadlets" search={{ file: u.quadlet.file }} className="btn sm" aria-label={`${u.quadlet.file} bearbeiten`}>
+              Bearbeiten
+            </Link>
+          )}
           {!readonly &&
             (active ? (
               <>

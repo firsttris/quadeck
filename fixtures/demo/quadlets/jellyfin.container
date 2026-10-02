@@ -1,0 +1,22 @@
+[Unit]
+Description=Jellyfin Mediaserver
+After=network-online.target
+
+[Container]
+Image=docker.io/jellyfin/jellyfin:latest
+ContainerName=jellyfin
+AutoUpdate=registry
+PublishPort=8096:8096
+Volume=/srv/jellyfin/config:/config:Z
+Volume=/mnt/storage/media:/media:ro
+AddDevice=/dev/dri
+# Hardware-Transcoding über die iGPU
+Environment=TZ=Europe/Berlin
+Label=quadeck.group=Medien
+
+[Service]
+Restart=always
+TimeoutStartSec=900
+
+[Install]
+WantedBy=multi-user.target

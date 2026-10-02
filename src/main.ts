@@ -13,6 +13,7 @@ import { statSync } from 'node:fs'
 import { cleanupSudoers } from './server/packages/aur'
 import { runJobCommand } from './server/packages/job'
 import { SystemMaintenance } from './server/packages/maintenance'
+import { SystemPodmanAdmin } from './server/quadlets/backend'
 
 export interface StartServer {
   fetch(request: Request): Response | Promise<Response>
@@ -108,7 +109,7 @@ const HELP = `quadeck – Dashboard für Podman-Server mit Quadlets
 
 Umgebung: QUADECK_HOST (0.0.0.0), QUADECK_PORT (8484), QUADECK_DATA_DIR (/var/lib/quadeck),
           QUADECK_READONLY, QUADECK_PODMAN_SOCKET, QUADECK_CADDY_ADMIN, QUADECK_CADDYFILE,
-          QUADECK_UNLOCK, QUADECK_PACKAGE_MANAGER, QUADECK_AUR_USER`
+          QUADECK_UNLOCK, QUADECK_PACKAGE_MANAGER, QUADECK_AUR_USER, QUADECK_QUADLET_DIR`
 
 /**
  * CLI commands that touch the database run as the owner of the data
@@ -164,7 +165,7 @@ export async function main(argv: string[], opts: MainOptions) {
         process.exit(1)
       }
       cleanupSudoers()
-      serveHelper(config().helperSocket, new LocalPrivileged(createGate(true), config().podmanSocket, new SystemMaintenance()))
+      serveHelper(config().helperSocket, new LocalPrivileged(createGate(true), config().podmanSocket, new SystemMaintenance(), new SystemPodmanAdmin()))
       return
     }
     case 'job':

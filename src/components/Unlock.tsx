@@ -1,5 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
-import { api } from '~/lib/api'
+import { api, ApiError } from '~/lib/api'
 import { Glyph } from './Glyph'
 import { Modal } from './Modal'
 
@@ -176,5 +176,28 @@ export function UnlockChip() {
       </span>
       <span className="text-[12px]">Sperren</span>
     </button>
+  )
+}
+
+/**
+ * API call that changes the host: unlocks first and, if the unlock ran out
+ * in between (423), asks once more and retries. Resolves undefined when the
+ * user cancels the unlock.
+ */
+export function useGuardedApi() {
+  const unlock = useUnlock()
+  return useCallback(
+    async <T,>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T | undefined> => {
+      if (!(await unlock.ensure())) return undefined
+      try {
+        return await api<T>(path, init)
+      } catch (e) {
+        if (!(e instanceof ApiError && e.status === 423)) throw e
+        unlock.markLocked()
+        if (!(await unlock.ensure())) return undefined
+        return await api<T>(path, init)
+      }
+    },
+    [unlock],
   )
 }

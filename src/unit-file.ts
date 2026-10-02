@@ -54,6 +54,9 @@ RuntimeDirectory=quadeck
 RuntimeDirectoryMode=0750
 # temporäre pacman-Datenbanken für die Update-Prüfung
 CacheDirectory=quadeck
+# Verlauf der Quadlet-Dateien (git)
+StateDirectory=quadeck-helper
+StateDirectoryMode=0700
 Restart=on-failure
 RestartSec=3
 UMask=0077

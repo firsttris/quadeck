@@ -1,6 +1,8 @@
 import { existsSync } from 'node:fs'
 import type { JobSpec } from '~/shared/packages'
 import type { MaintenanceBackend } from '../packages/maintenance'
+import type { PodmanAdminBackend } from '../quadlets/backend'
+import type { PodmanConfigName } from '~/shared/quadlets'
 import { HttpError } from '../auth'
 import { runOk } from '../exec'
 import { assertContainerId, assertPodmanRead, assertUnitName, type Privileged, type UnitAction } from './actions'
@@ -21,6 +23,7 @@ export class LocalPrivileged implements Privileged {
     readonly gate: Gate,
     private podmanSocket: string,
     private maint: MaintenanceBackend,
+    private admin: PodmanAdminBackend,
   ) {}
 
   async info() {
@@ -110,5 +113,46 @@ export class LocalPrivileged implements Privileged {
   async startJob(token: string | undefined, spec: JobSpec) {
     this.gate.check(token)
     return this.maint.startJob(spec)
+  }
+
+  // ---------- Quadlets & Podman settings ----------
+
+  quadlets() {
+    return this.admin.quadlets()
+  }
+  readQuadlet(name: string) {
+    return this.admin.readQuadlet(name)
+  }
+  validateQuadlet(name: string, content: string) {
+    return this.admin.validateQuadlet(name, content)
+  }
+  quadletHistory(name: string) {
+    return this.admin.quadletHistory(name)
+  }
+  quadletRevision(name: string, id: string) {
+    return this.admin.quadletRevision(name, id)
+  }
+  podmanSettings() {
+    return this.admin.podmanSettings()
+  }
+  async writeQuadlet(token: string | undefined, name: string, content: string, restart: boolean) {
+    this.gate.check(token)
+    return this.admin.writeQuadlet(name, content, restart)
+  }
+  async deleteQuadlet(token: string | undefined, name: string) {
+    this.gate.check(token)
+    return this.admin.deleteQuadlet(name)
+  }
+  async setAutoUpdateTimer(token: string | undefined, enabled: boolean, calendar: string) {
+    this.gate.check(token)
+    return this.admin.setAutoUpdateTimer(enabled, calendar)
+  }
+  async setAutoUpdateDefault(token: string | undefined, enabled: boolean) {
+    this.gate.check(token)
+    return this.admin.setAutoUpdateDefault(enabled)
+  }
+  async writePodmanConfig(token: string | undefined, name: PodmanConfigName, content: string) {
+    this.gate.check(token)
+    return this.admin.writePodmanConfig(name, content)
   }
 }

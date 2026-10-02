@@ -1,0 +1,19 @@
+[Unit]
+Description=Immich Server
+Requires=immich-network.service
+After=immich-network.service
+
+[Container]
+Image=ghcr.io/immich-app/immich-server:release
+ContainerName=immich
+AutoUpdate=registry
+Network=immich.network
+PublishPort=2283:2283
+Volume=/srv/immich/upload:/usr/src/app/upload:Z
+EnvironmentFile=/etc/immich/immich.env
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target

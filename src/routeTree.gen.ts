@@ -14,6 +14,7 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppJournalRouteImport } from './routes/_app/journal'
+import { Route as AppQuadletsRouteImport } from './routes/_app/quadlets'
 import { Route as AppSystemRouteImport } from './routes/_app/system'
 import { Route as AppUnitsRouteImport } from './routes/_app/units'
 import { Route as ApiContainersRouteImport } from './routes/api/containers'
@@ -34,6 +35,12 @@ import { Route as ApiLayoutIndexRouteImport } from './routes/api/layout/index'
 import { Route as ApiLayoutHiddenRouteImport } from './routes/api/layout/hidden'
 import { Route as ApiLinksIndexRouteImport } from './routes/api/links/index'
 import { Route as ApiLinksIdRouteImport } from './routes/api/links/$id'
+import { Route as ApiPodmanSettingsRouteImport } from './routes/api/podman/settings'
+import { Route as ApiQuadletsIndexRouteImport } from './routes/api/quadlets/index'
+import { Route as ApiQuadletsComposeRouteImport } from './routes/api/quadlets/compose'
+import { Route as ApiQuadletsFileRouteImport } from './routes/api/quadlets/file'
+import { Route as ApiQuadletsRevisionRouteImport } from './routes/api/quadlets/revision'
+import { Route as ApiQuadletsValidateRouteImport } from './routes/api/quadlets/validate'
 import { Route as ApiServicesOverrideRouteImport } from './routes/api/services/override'
 import { Route as ApiSystemImagesRouteImport } from './routes/api/system/images'
 import { Route as ApiSystemOverviewRouteImport } from './routes/api/system/overview'
@@ -64,6 +71,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppJournalRoute = AppJournalRouteImport.update({
   id: '/journal',
   path: '/journal',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppQuadletsRoute = AppQuadletsRouteImport.update({
+  id: '/quadlets',
+  path: '/quadlets',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSystemRoute = AppSystemRouteImport.update({
@@ -166,6 +178,36 @@ const ApiLinksIdRoute = ApiLinksIdRouteImport.update({
   path: '/api/links/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPodmanSettingsRoute = ApiPodmanSettingsRouteImport.update({
+  id: '/api/podman/settings',
+  path: '/api/podman/settings',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiQuadletsIndexRoute = ApiQuadletsIndexRouteImport.update({
+  id: '/api/quadlets/',
+  path: '/api/quadlets/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiQuadletsComposeRoute = ApiQuadletsComposeRouteImport.update({
+  id: '/api/quadlets/compose',
+  path: '/api/quadlets/compose',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiQuadletsFileRoute = ApiQuadletsFileRouteImport.update({
+  id: '/api/quadlets/file',
+  path: '/api/quadlets/file',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiQuadletsRevisionRoute = ApiQuadletsRevisionRouteImport.update({
+  id: '/api/quadlets/revision',
+  path: '/api/quadlets/revision',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiQuadletsValidateRoute = ApiQuadletsValidateRouteImport.update({
+  id: '/api/quadlets/validate',
+  path: '/api/quadlets/validate',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiServicesOverrideRoute = ApiServicesOverrideRouteImport.update({
   id: '/api/services/override',
   path: '/api/services/override',
@@ -207,6 +249,7 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/journal': typeof AppJournalRoute
+  '/quadlets': typeof AppQuadletsRoute
   '/system': typeof AppSystemRoute
   '/units': typeof AppUnitsRoute
   '/api/containers': typeof ApiContainersRoute
@@ -224,6 +267,11 @@ export interface FileRoutesByFullPath {
   '/api/jobs/$id': typeof ApiJobsIdRoute
   '/api/layout/hidden': typeof ApiLayoutHiddenRoute
   '/api/links/$id': typeof ApiLinksIdRoute
+  '/api/podman/settings': typeof ApiPodmanSettingsRoute
+  '/api/quadlets/compose': typeof ApiQuadletsComposeRoute
+  '/api/quadlets/file': typeof ApiQuadletsFileRoute
+  '/api/quadlets/revision': typeof ApiQuadletsRevisionRoute
+  '/api/quadlets/validate': typeof ApiQuadletsValidateRoute
   '/api/services/override': typeof ApiServicesOverrideRoute
   '/api/system/images': typeof ApiSystemImagesRoute
   '/api/system/overview': typeof ApiSystemOverviewRoute
@@ -232,6 +280,7 @@ export interface FileRoutesByFullPath {
   '/api/jobs/': typeof ApiJobsIndexRoute
   '/api/layout/': typeof ApiLayoutIndexRoute
   '/api/links/': typeof ApiLinksIndexRoute
+  '/api/quadlets/': typeof ApiQuadletsIndexRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages/': typeof ApiSystemPackagesIndexRoute
 }
@@ -239,6 +288,7 @@ export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/journal': typeof AppJournalRoute
+  '/quadlets': typeof AppQuadletsRoute
   '/system': typeof AppSystemRoute
   '/units': typeof AppUnitsRoute
   '/api/containers': typeof ApiContainersRoute
@@ -257,6 +307,11 @@ export interface FileRoutesByTo {
   '/api/jobs/$id': typeof ApiJobsIdRoute
   '/api/layout/hidden': typeof ApiLayoutHiddenRoute
   '/api/links/$id': typeof ApiLinksIdRoute
+  '/api/podman/settings': typeof ApiPodmanSettingsRoute
+  '/api/quadlets/compose': typeof ApiQuadletsComposeRoute
+  '/api/quadlets/file': typeof ApiQuadletsFileRoute
+  '/api/quadlets/revision': typeof ApiQuadletsRevisionRoute
+  '/api/quadlets/validate': typeof ApiQuadletsValidateRoute
   '/api/services/override': typeof ApiServicesOverrideRoute
   '/api/system/images': typeof ApiSystemImagesRoute
   '/api/system/overview': typeof ApiSystemOverviewRoute
@@ -265,6 +320,7 @@ export interface FileRoutesByTo {
   '/api/jobs': typeof ApiJobsIndexRoute
   '/api/layout': typeof ApiLayoutIndexRoute
   '/api/links': typeof ApiLinksIndexRoute
+  '/api/quadlets': typeof ApiQuadletsIndexRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages': typeof ApiSystemPackagesIndexRoute
 }
@@ -274,6 +330,7 @@ export interface FileRoutesById {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/_app/journal': typeof AppJournalRoute
+  '/_app/quadlets': typeof AppQuadletsRoute
   '/_app/system': typeof AppSystemRoute
   '/_app/units': typeof AppUnitsRoute
   '/api/containers': typeof ApiContainersRoute
@@ -292,6 +349,11 @@ export interface FileRoutesById {
   '/api/jobs/$id': typeof ApiJobsIdRoute
   '/api/layout/hidden': typeof ApiLayoutHiddenRoute
   '/api/links/$id': typeof ApiLinksIdRoute
+  '/api/podman/settings': typeof ApiPodmanSettingsRoute
+  '/api/quadlets/compose': typeof ApiQuadletsComposeRoute
+  '/api/quadlets/file': typeof ApiQuadletsFileRoute
+  '/api/quadlets/revision': typeof ApiQuadletsRevisionRoute
+  '/api/quadlets/validate': typeof ApiQuadletsValidateRoute
   '/api/services/override': typeof ApiServicesOverrideRoute
   '/api/system/images': typeof ApiSystemImagesRoute
   '/api/system/overview': typeof ApiSystemOverviewRoute
@@ -300,6 +362,7 @@ export interface FileRoutesById {
   '/api/jobs/': typeof ApiJobsIndexRoute
   '/api/layout/': typeof ApiLayoutIndexRoute
   '/api/links/': typeof ApiLinksIndexRoute
+  '/api/quadlets/': typeof ApiQuadletsIndexRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages/': typeof ApiSystemPackagesIndexRoute
 }
@@ -310,6 +373,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/journal'
+    | '/quadlets'
     | '/system'
     | '/units'
     | '/api/containers'
@@ -327,6 +391,11 @@ export interface FileRouteTypes {
     | '/api/jobs/$id'
     | '/api/layout/hidden'
     | '/api/links/$id'
+    | '/api/podman/settings'
+    | '/api/quadlets/compose'
+    | '/api/quadlets/file'
+    | '/api/quadlets/revision'
+    | '/api/quadlets/validate'
     | '/api/services/override'
     | '/api/system/images'
     | '/api/system/overview'
@@ -335,6 +404,7 @@ export interface FileRouteTypes {
     | '/api/jobs/'
     | '/api/layout/'
     | '/api/links/'
+    | '/api/quadlets/'
     | '/api/system/packages/$name'
     | '/api/system/packages/'
   fileRoutesByTo: FileRoutesByTo
@@ -342,6 +412,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/journal'
+    | '/quadlets'
     | '/system'
     | '/units'
     | '/api/containers'
@@ -360,6 +431,11 @@ export interface FileRouteTypes {
     | '/api/jobs/$id'
     | '/api/layout/hidden'
     | '/api/links/$id'
+    | '/api/podman/settings'
+    | '/api/quadlets/compose'
+    | '/api/quadlets/file'
+    | '/api/quadlets/revision'
+    | '/api/quadlets/validate'
     | '/api/services/override'
     | '/api/system/images'
     | '/api/system/overview'
@@ -368,6 +444,7 @@ export interface FileRouteTypes {
     | '/api/jobs'
     | '/api/layout'
     | '/api/links'
+    | '/api/quadlets'
     | '/api/system/packages/$name'
     | '/api/system/packages'
   id:
@@ -376,6 +453,7 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/_app/journal'
+    | '/_app/quadlets'
     | '/_app/system'
     | '/_app/units'
     | '/api/containers'
@@ -394,6 +472,11 @@ export interface FileRouteTypes {
     | '/api/jobs/$id'
     | '/api/layout/hidden'
     | '/api/links/$id'
+    | '/api/podman/settings'
+    | '/api/quadlets/compose'
+    | '/api/quadlets/file'
+    | '/api/quadlets/revision'
+    | '/api/quadlets/validate'
     | '/api/services/override'
     | '/api/system/images'
     | '/api/system/overview'
@@ -402,6 +485,7 @@ export interface FileRouteTypes {
     | '/api/jobs/'
     | '/api/layout/'
     | '/api/links/'
+    | '/api/quadlets/'
     | '/api/system/packages/$name'
     | '/api/system/packages/'
   fileRoutesById: FileRoutesById
@@ -425,6 +509,11 @@ export interface RootRouteChildren {
   ApiJobsIdRoute: typeof ApiJobsIdRoute
   ApiLayoutHiddenRoute: typeof ApiLayoutHiddenRoute
   ApiLinksIdRoute: typeof ApiLinksIdRoute
+  ApiPodmanSettingsRoute: typeof ApiPodmanSettingsRoute
+  ApiQuadletsComposeRoute: typeof ApiQuadletsComposeRoute
+  ApiQuadletsFileRoute: typeof ApiQuadletsFileRoute
+  ApiQuadletsRevisionRoute: typeof ApiQuadletsRevisionRoute
+  ApiQuadletsValidateRoute: typeof ApiQuadletsValidateRoute
   ApiServicesOverrideRoute: typeof ApiServicesOverrideRoute
   ApiSystemImagesRoute: typeof ApiSystemImagesRoute
   ApiSystemOverviewRoute: typeof ApiSystemOverviewRoute
@@ -433,6 +522,7 @@ export interface RootRouteChildren {
   ApiJobsIndexRoute: typeof ApiJobsIndexRoute
   ApiLayoutIndexRoute: typeof ApiLayoutIndexRoute
   ApiLinksIndexRoute: typeof ApiLinksIndexRoute
+  ApiQuadletsIndexRoute: typeof ApiQuadletsIndexRoute
   ApiSystemPackagesNameRoute: typeof ApiSystemPackagesNameRoute
   ApiSystemPackagesIndexRoute: typeof ApiSystemPackagesIndexRoute
 }
@@ -472,6 +562,13 @@ declare module '@tanstack/react-router' {
       path: '/journal'
       fullPath: '/journal'
       preLoaderRoute: typeof AppJournalRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/quadlets': {
+      id: '/_app/quadlets'
+      path: '/quadlets'
+      fullPath: '/quadlets'
+      preLoaderRoute: typeof AppQuadletsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/system': {
@@ -614,6 +711,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiLinksIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/podman/settings': {
+      id: '/api/podman/settings'
+      path: '/api/podman/settings'
+      fullPath: '/api/podman/settings'
+      preLoaderRoute: typeof ApiPodmanSettingsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/quadlets/': {
+      id: '/api/quadlets/'
+      path: '/api/quadlets'
+      fullPath: '/api/quadlets/'
+      preLoaderRoute: typeof ApiQuadletsIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/quadlets/compose': {
+      id: '/api/quadlets/compose'
+      path: '/api/quadlets/compose'
+      fullPath: '/api/quadlets/compose'
+      preLoaderRoute: typeof ApiQuadletsComposeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/quadlets/file': {
+      id: '/api/quadlets/file'
+      path: '/api/quadlets/file'
+      fullPath: '/api/quadlets/file'
+      preLoaderRoute: typeof ApiQuadletsFileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/quadlets/revision': {
+      id: '/api/quadlets/revision'
+      path: '/api/quadlets/revision'
+      fullPath: '/api/quadlets/revision'
+      preLoaderRoute: typeof ApiQuadletsRevisionRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/quadlets/validate': {
+      id: '/api/quadlets/validate'
+      path: '/api/quadlets/validate'
+      fullPath: '/api/quadlets/validate'
+      preLoaderRoute: typeof ApiQuadletsValidateRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/services/override': {
       id: '/api/services/override'
       path: '/api/services/override'
@@ -668,6 +807,7 @@ declare module '@tanstack/react-router' {
 
 interface AppRouteChildren {
   AppJournalRoute: typeof AppJournalRoute
+  AppQuadletsRoute: typeof AppQuadletsRoute
   AppSystemRoute: typeof AppSystemRoute
   AppUnitsRoute: typeof AppUnitsRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -675,6 +815,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppJournalRoute: AppJournalRoute,
+  AppQuadletsRoute: AppQuadletsRoute,
   AppSystemRoute: AppSystemRoute,
   AppUnitsRoute: AppUnitsRoute,
   AppIndexRoute: AppIndexRoute,
@@ -701,6 +842,11 @@ const rootRouteChildren: RootRouteChildren = {
   ApiJobsIdRoute: ApiJobsIdRoute,
   ApiLayoutHiddenRoute: ApiLayoutHiddenRoute,
   ApiLinksIdRoute: ApiLinksIdRoute,
+  ApiPodmanSettingsRoute: ApiPodmanSettingsRoute,
+  ApiQuadletsComposeRoute: ApiQuadletsComposeRoute,
+  ApiQuadletsFileRoute: ApiQuadletsFileRoute,
+  ApiQuadletsRevisionRoute: ApiQuadletsRevisionRoute,
+  ApiQuadletsValidateRoute: ApiQuadletsValidateRoute,
   ApiServicesOverrideRoute: ApiServicesOverrideRoute,
   ApiSystemImagesRoute: ApiSystemImagesRoute,
   ApiSystemOverviewRoute: ApiSystemOverviewRoute,
@@ -709,6 +855,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiJobsIndexRoute: ApiJobsIndexRoute,
   ApiLayoutIndexRoute: ApiLayoutIndexRoute,
   ApiLinksIndexRoute: ApiLinksIndexRoute,
+  ApiQuadletsIndexRoute: ApiQuadletsIndexRoute,
   ApiSystemPackagesNameRoute: ApiSystemPackagesNameRoute,
   ApiSystemPackagesIndexRoute: ApiSystemPackagesIndexRoute,
 }

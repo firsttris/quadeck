@@ -7,3 +7,6 @@ test-results
 playwright-report
 *.db
 .e2e-data
+*.db-shm
+*.db-wal
+.shot-data

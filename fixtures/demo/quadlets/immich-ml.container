@@ -1,0 +1,9 @@
+[Container]
+Image=ghcr.io/immich-app/immich-machine-learning:release
+ContainerName=immich-ml
+Network=immich.network
+Volume=/srv/immich/model-cache:/cache:Z
+
+[Service]
+Restart=always
+MemoryMax=2G
