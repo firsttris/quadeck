@@ -104,6 +104,8 @@ export interface Service {
   container?: string
   unit?: string
   source: 'caddy' | 'label' | 'manual'
+  /** Direct upstream (e.g. http://10.88.0.5:8096), probed when the public URL is not reachable from the server itself. */
+  probe?: string
   manualId?: number
   pinned?: boolean
 }

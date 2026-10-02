@@ -25,21 +25,40 @@ export async function checkUrl(url: string): Promise<HttpHealth> {
   }
 }
 
+export interface HealthTarget {
+  url: string
+  probe?: string
+}
+
+/**
+ * Checks the public URL first. If that fails from the server itself (typical:
+ * *.home names that only the LAN's DNS resolves, or hairpin NAT), the
+ * upstream from the Caddy route is checked directly instead.
+ */
+export async function checkTarget(t: HealthTarget, check = checkUrl): Promise<HttpHealth> {
+  const direct = await check(t.url)
+  if (direct.health !== 'bad' || !t.probe) return direct
+  const viaUpstream = await check(t.probe)
+  if (viaUpstream.health === 'bad') return { health: 'bad', note: `${direct.note}; Upstream ${t.probe}: ${viaUpstream.note?.replace(/^nicht erreichbar: /, '')}` }
+  return { health: viaUpstream.health, note: `Upstream ${t.probe} · ${viaUpstream.note} (URL vom Server aus nicht erreichbar)` }
+}
+
 export class HealthChecker {
   readonly results = new Map<string, HttpHealth>()
   private running = false
 
-  async checkAll(urls: string[]) {
+  async checkAll(targets: HealthTarget[]) {
     if (this.running) return
     this.running = true
     try {
-      const unique = [...new Set(urls)]
-      for (const u of this.results.keys()) if (!unique.includes(u)) this.results.delete(u)
+      const unique = [...new Map(targets.map((t) => [t.url, t])).values()]
+      const urls = new Set(unique.map((t) => t.url))
+      for (const u of this.results.keys()) if (!urls.has(u)) this.results.delete(u)
       // Small concurrency limit; LAN targets answer fast.
       const queue = [...unique]
       await Promise.all(
         Array.from({ length: 6 }, async () => {
-          for (let u = queue.shift(); u; u = queue.shift()) this.results.set(u, await checkUrl(u))
+          for (let t = queue.shift(); t; t = queue.shift()) this.results.set(t.url, await checkTarget(t))
         }),
       )
     } finally {
