@@ -88,9 +88,27 @@ export class SystemMaintenance implements MaintenanceBackend {
   private updatesCache?: UpdatesReport
   private imagesCache?: ImageUpdatesReport
   private overviewCache?: { at: number; data: PackageOverview }
+  /** Bumped when a job ends: a check that started before must not store its (old) result. */
+  private gen = { updates: 0, images: 0 }
 
   constructor(launcher: Launcher = defaultLauncher()) {
-    this.jobsMgr = new JobManager(launcher)
+    this.jobsMgr = new JobManager(launcher, (job) => this.jobEnded(job.spec))
+  }
+
+  /**
+   * The lists are stale once a job ends. Dropped right away: the page reloads
+   * the moment it sees the job finish, and must not get the list from before.
+   */
+  private jobEnded(spec: JobSpec) {
+    this.installedCache = undefined
+    this.overviewCache = undefined
+    if (spec.kind === 'images-update' || spec.kind === 'image-update') {
+      this.imagesCache = undefined
+      this.gen.images++
+    } else {
+      this.updatesCache = undefined
+      this.gen.updates++
+    }
   }
 
   private need() {
@@ -134,6 +152,7 @@ export class SystemMaintenance implements MaintenanceBackend {
 
   private refreshUpdates = single(async (): Promise<UpdatesReport> => {
     const p = this.need()
+    const gen = this.gen.updates
     const report: UpdatesReport = { checkedAt: Date.now(), repo: [], aur: [] }
     try {
       report.repo = await p.updates()
@@ -147,7 +166,7 @@ export class SystemMaintenance implements MaintenanceBackend {
         report.aurError = (e as Error).message
       }
     }
-    this.updatesCache = report
+    if (gen === this.gen.updates) this.updatesCache = report
     return report
   })
 
@@ -164,13 +183,14 @@ export class SystemMaintenance implements MaintenanceBackend {
   }
 
   private refreshImages = single(async (): Promise<ImageUpdatesReport> => {
+    const gen = this.gen.images
     const report: ImageUpdatesReport = { checkedAt: Date.now(), items: [] }
     try {
       report.items = await imageUpdates()
     } catch (e) {
       report.error = (e as Error).message
     }
-    this.imagesCache = report
+    if (gen === this.gen.images) this.imagesCache = report
     return report
   })
 
@@ -189,22 +209,7 @@ export class SystemMaintenance implements MaintenanceBackend {
     }
     // Copy/move/delete: refuse now (conflicts, outside the roots) instead of in a failing job.
     if (spec.kind === 'fs-copy' || spec.kind === 'fs-move' || spec.kind === 'fs-delete') prepareFsJob(spec, systemFsOps(fileRootPaths()))
-    const info = await this.jobsMgr.start(spec)
-    // Results are stale once the job ends (checked lazily on the next read).
-    this.watchEnd(info.id, spec)
-    return info
-  }
-
-  private watchEnd(id: string, spec: JobSpec) {
-    const t = setInterval(() => {
-      const j = this.jobsMgr.get(id, Number.MAX_SAFE_INTEGER)
-      if (j && j.status === 'running') return
-      clearInterval(t)
-      this.installedCache = undefined
-      this.overviewCache = undefined
-      if (spec.kind === 'images-update' || spec.kind === 'image-update') this.imagesCache = undefined
-      else this.updatesCache = undefined
-    }, 1000)
+    return this.jobsMgr.start(spec)
   }
 
   async jobs() {

@@ -4,7 +4,7 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { decodeSpec, encodeSpec, parseJobSpec } from '~/server/packages/job'
 import { JobManager, lineSplitter, type JobSink } from '~/server/packages/jobs'
-import { FixtureMaintenance, findConfigFiles } from '~/server/packages/maintenance'
+import { FixtureMaintenance, SystemMaintenance, findConfigFiles } from '~/server/packages/maintenance'
 import * as p from '~/server/packages/parse'
 
 const PACMAN_QI = `Name            : bash
@@ -225,6 +225,43 @@ describe('jobs', () => {
     expect(m.get(j.id, 1)!.lines).toEqual([])
     await m.start({ kind: 'images-update' }) // free again
     expect(m.list()).toHaveLength(2)
+  })
+
+  it('drops the update list the moment the upgrade ends, also against a check that was still running', async () => {
+    let sink: JobSink | undefined
+    const m = new SystemMaintenance({ start: async (_id, _spec, s) => void (sink = s) })
+    let pending = [{ name: 'linux', from: '6.1', to: '6.2' }]
+    let release: (() => void) | undefined
+    let slow = false
+    const provider = {
+      id: 'apt',
+      updates: async () => {
+        const result = pending
+        if (slow) await new Promise<void>((r) => (release = r))
+        return result
+      },
+    }
+    Object.assign(m as unknown as { provider: unknown }, { provider })
+    expect((await m.updates(false)).repo).toHaveLength(1)
+
+    // The page reloads right when it sees the job end: the list must be fresh at once.
+    await m.startJob({ kind: 'upgrade' })
+    pending = []
+    sink!.line('::quadeck-exit 0')
+    expect((await m.updates(false)).repo).toEqual([])
+
+    // A check that started before a job ended must not store its old result.
+    pending = [{ name: 'podman', from: '5.5', to: '5.6' }]
+    Object.assign(m as unknown as { updatesCache: unknown }, { updatesCache: undefined })
+    slow = true
+    const stale = m.updates(false)
+    await m.startJob({ kind: 'upgrade' })
+    pending = []
+    sink!.line('::quadeck-exit 0')
+    release!()
+    expect((await stale).repo).toHaveLength(1) // the caller that asked before still gets its answer
+    slow = false
+    expect((await m.updates(false)).repo).toEqual([])
   })
 
   it('marks a job failed when the launcher throws', async () => {

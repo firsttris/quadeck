@@ -49,7 +49,11 @@ interface Job {
 export class JobManager {
   private jobs: Job[] = []
 
-  constructor(private launcher: Launcher) {}
+  /** onEnd runs as soon as a job is done (ok or failed), before anyone can see the new status. */
+  constructor(
+    private launcher: Launcher,
+    private onEnd?: (job: JobInfo) => void,
+  ) {}
 
   running() {
     return this.jobs.find((j) => j.info.status === 'running')?.info
@@ -71,6 +75,7 @@ export class JobManager {
       exit: (code) => {
         if (job.info.status !== 'running') return
         job.info = { ...job.info, status: code === 0 ? 'ok' : 'failed', exitCode: code, endedAt: Date.now() }
+        this.onEnd?.(job.info)
       },
     }
     try {
