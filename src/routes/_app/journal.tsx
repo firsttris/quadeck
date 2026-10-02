@@ -1,14 +1,16 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { PageHeader } from '~/components/PageHeader'
+import { useT } from '~/i18n'
 import { clock } from '~/lib/format'
 import { useLive } from '~/lib/live'
 import type { JournalEntry } from '~/shared/types'
 
+// Labels come from t.journal.prio.
 const PRIOS = [
-  ['all', 'Alle', undefined],
-  ['err', 'Fehler', 3],
-  ['warning', 'Warnungen', 4],
+  ['all', undefined],
+  ['err', 3],
+  ['warning', 4],
 ] as const
 type Prio = (typeof PRIOS)[number][0]
 const MAX_LINES = 1000
@@ -27,6 +29,7 @@ function lineClass(p: number) {
 }
 
 function Journal() {
+  const t = useT()
   const { snapshot } = useLive()
   const { unit, prio = 'all' } = Route.useSearch()
   const navigate = useNavigate({ from: '/journal' })
@@ -48,11 +51,11 @@ function Journal() {
     setStatus('connecting')
     const q = new URLSearchParams()
     if (unit) q.set('unit', unit)
-    const p = PRIOS.find(([k]) => k === prio)?.[2]
+    const p = PRIOS.find(([k]) => k === prio)?.[1]
     if (p !== undefined) q.set('priority', String(p))
     const es = new EventSource(`/api/journal?${q}`)
     let initial = true
-    const t = setTimeout(() => (initial = false), 1500)
+    const settle = setTimeout(() => (initial = false), 1500)
     es.addEventListener('open', () => setStatus('live'))
     es.addEventListener('entry', (e) => {
       const entry = JSON.parse((e as MessageEvent).data) as JournalEntry
@@ -69,7 +72,7 @@ function Journal() {
     es.addEventListener('end', stop)
     es.addEventListener('error', stop)
     return () => {
-      clearTimeout(t)
+      clearTimeout(settle)
       clearTimeout(retry)
       es.close()
     }
@@ -87,11 +90,11 @@ function Journal() {
 
   return (
     <>
-      <PageHeader title="Journal" subtitle={`journalctl${unit ? ` -u ${unit}` : ''}, live gestreamt`} />
+      <PageHeader title="Journal" subtitle={t.journal.subtitle(unit)} />
       <div className="flex flex-wrap items-center gap-[10px]">
-        <div role="group" aria-label="Unit" className="flex flex-wrap gap-1.5">
+        <div role="group" aria-label={t.journal.unitGroup} className="flex flex-wrap gap-1.5">
           <button type="button" className={`seg ${!unit ? 'on' : ''}`} onClick={() => navigate({ search: (s) => ({ ...s, unit: undefined }) })}>
-            Alle Units
+            {t.journal.allUnits}
           </button>
           {chips.map((u) => (
             <button key={u} type="button" className={`seg ${unit === u ? 'on' : ''}`} onClick={() => navigate({ search: (s) => ({ ...s, unit: u }) })}>
@@ -100,21 +103,21 @@ function Journal() {
           ))}
         </div>
         <span className="hidden h-[22px] w-px bg-[#2a323d] sm:block" />
-        <div role="group" aria-label="Priorität" className="flex gap-1.5">
-          {PRIOS.map(([k, label]) => (
+        <div role="group" aria-label={t.journal.prioGroup} className="flex gap-1.5">
+          {PRIOS.map(([k]) => (
             <button key={k} type="button" className={`seg ${prio === k ? 'on' : ''}`} onClick={() => navigate({ search: (s) => ({ ...s, prio: k === 'all' ? undefined : k }) })}>
-              {label}
+              {t.journal.prio[k]}
             </button>
           ))}
         </div>
         <span className="grow" />
         <label className="sr-only" htmlFor="jsearch">
-          Volltextsuche
+          {t.journal.fullText}
         </label>
-        <input id="jsearch" className="field !w-48 !py-1.5 text-[13px]" placeholder="Suchen…" value={query} onChange={(e) => setQuery(e.target.value)} />
-        <span className={`live ${status === 'live' ? '' : 'off'}`}>{status === 'live' ? 'folgt' : status === 'paused' ? 'pausiert' : status === 'error' ? 'getrennt' : 'verbindet'}</span>
+        <input id="jsearch" className="field !w-48 !py-1.5 text-[13px]" placeholder={t.journal.search} value={query} onChange={(e) => setQuery(e.target.value)} />
+        <span className={`live ${status === 'live' ? '' : 'off'}`}>{t.journal.status[status]}</span>
         <button type="button" className="btn sm" onClick={() => setLive(!live)}>
-          {live ? 'Pause' : 'Folgen'}
+          {live ? t.journal.pause : t.journal.follow}
         </button>
       </div>
       <div
@@ -126,7 +129,7 @@ function Journal() {
         }}
         data-testid="journal"
       >
-        {shown.length === 0 && <p className="m-0 px-4 py-2 text-[13px] text-muted">{status === 'connecting' ? 'Lade Journal…' : 'Keine Einträge.'}</p>}
+        {shown.length === 0 && <p className="m-0 px-4 py-2 text-[13px] text-muted">{status === 'connecting' ? t.journal.loading : t.journal.empty}</p>}
         {shown.map((l) => (
           <div key={l.id} className={`jl ${lineClass(l.priority)} ${l.fresh ? 'new' : ''}`}>
             <span className="text-faint">{clock(l.ts)}</span>

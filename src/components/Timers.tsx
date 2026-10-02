@@ -10,10 +10,12 @@ import { RowMenu } from './RowMenu'
 import { Pill, type Tone } from './Status'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
+import { useT, type Messages } from '~/i18n'
 import { relative } from '~/lib/format'
+import { tr } from '~/shared/i18n'
 import {
   DAYS,
-  DAY_LABEL,
+  dayLabel,
   buildCalendar,
   cronToCalendar,
   describeCalendar,
@@ -33,29 +35,41 @@ import {
 
 const two = (n: number) => String(n).padStart(2, '0')
 
-/** "Mo 05.10. 03:00" */
+/** "Mo 05.10. 03:00" / "Mon 05 Oct 03:00" */
 export function runLabel(ts: number) {
   const d = new Date(ts)
-  return `${['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa'][d.getDay()]} ${two(d.getDate())}.${two(d.getMonth() + 1)}. ${two(d.getHours())}:${two(d.getMinutes())}`
+  const day = tr('So Mo Di Mi Do Fr Sa', 'Sun Mon Tue Wed Thu Fri Sat').split(' ')[d.getDay()]
+  const time = `${two(d.getHours())}:${two(d.getMinutes())}`
+  return tr(`${day} ${two(d.getDate())}.${two(d.getMonth() + 1)}. ${time}`, `${day} ${two(d.getDate())} ${'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')[d.getMonth()]} ${time}`)
 }
 
-function lastRun(t: TimerEntry): { tone: Tone; label: string } {
-  if (t.serviceActive === 'active' || t.serviceActive === 'activating') return { tone: 'ok', label: 'läuft' }
+// Texts of this file come from `tx = useT()` (`t` is taken by the timer entries).
+type Tx = Messages
+
+function lastRun(t: TimerEntry, tx: Tx): { tone: Tone; label: string } {
+  if (t.serviceActive === 'active' || t.serviceActive === 'activating') return { tone: 'ok', label: tx.timers.last.running }
   if (t.serviceActive === 'failed' || (t.result && t.result !== 'success'))
     return {
       tone: 'bad',
-      label: t.result === 'exit-code' ? `Fehler (Exit ${t.exitStatus ?? '?'})` : `Fehler (${t.result ?? 'failed'})`,
+      label: t.result === 'exit-code' ? tx.timers.last.failedExit(t.exitStatus ?? '?') : tx.timers.last.failed(t.result ?? 'failed'),
     }
-  if (!t.last) return { tone: 'idle', label: 'noch nie' }
-  return { tone: 'ok', label: 'ok' }
+  if (!t.last) return { tone: 'idle', label: tx.timers.last.never }
+  return { tone: 'ok', label: tx.timers.last.ok }
 }
 
-const schedules = (t: TimerEntry) => [
-  ...t.calendars.map(describeCalendar),
-  ...t.monotonic.map((m) => m.replace(/^On(\w+?)Sec=/, (_, k: string) => `${{ Boot: 'nach Boot', Startup: 'nach Start', UnitActive: 'alle', UnitInactive: 'nach Ende +', Active: 'nach Aktivierung' }[k] ?? k} `)),
-]
+const monotonicLabel = (k: string): string =>
+  ({
+    Boot: tr('nach Boot', 'after boot'),
+    Startup: tr('nach Start', 'after start'),
+    UnitActive: tr('alle', 'every'),
+    UnitInactive: tr('nach Ende +', 'after end +'),
+    Active: tr('nach Aktivierung', 'after activation'),
+  })[k] ?? k
+
+const schedules = (t: TimerEntry) => [...t.calendars.map(describeCalendar), ...t.monotonic.map((m) => m.replace(/^On(\w+?)Sec=/, (_, k: string) => `${monotonicLabel(k)} `))]
 
 export function TimersView() {
+  const tx = useT()
   const navigate = useNavigate()
   const [state, setState] = useState<TimersState | null>(null)
   const [error, setError] = useState('')
@@ -96,7 +110,7 @@ export function TimersView() {
       })
       if (r) {
         setState(r)
-        say(action === 'run' ? `${t.service ?? t.name} gestartet` : action === 'enable' ? `${t.name} aktiviert` : `${t.name} deaktiviert`)
+        say(action === 'run' ? tx.timers.list.started(t.service ?? t.name) : action === 'enable' ? tx.timers.list.enabled(t.name) : tx.timers.list.disabled(t.name))
       }
     } catch (e) {
       say((e as Error).message, 'bad')
@@ -121,26 +135,26 @@ export function TimersView() {
   return (
     <>
       <div className="flex flex-wrap items-center gap-3">
-        <p className="m-0 grow text-[13px] text-muted">Zeitpläne laufen über systemd-Timer – der Nachfolger von cron. Verpasste Läufe werden nachgeholt, die Ausgabe landet im Journal.</p>
+        <p className="m-0 grow text-[13px] text-muted">{tx.timers.list.intro}</p>
         {!readonly && (
           <button type="button" className="btn primary sm" onClick={() => setEditing({ spec: emptySpec(), enabled: true })}>
-            + Neuer Zeitplan
+            {tx.timers.list.newTimer}
           </button>
         )}
       </div>
       {error && <p className="m-0 text-[13px] text-[#e3b341]">{error}</p>}
       {state?.error && <p className="m-0 text-[13px] text-[#e3b341]">{state.error}</p>}
       <div className="panel relative overflow-x-auto">
-        <table className="tbl" aria-label="Zeitpläne">
+        <table className="tbl" aria-label={tx.timers.list.tableLabel}>
           <thead>
             <tr>
-              <th>Timer</th>
-              <th>Zeitplan</th>
-              <th className="hidden sm:table-cell">Nächster Lauf</th>
-              <th>Letzter Lauf</th>
-              <th className="hidden md:table-cell">Aktiv</th>
+              <th>{tx.timers.list.colTimer}</th>
+              <th>{tx.timers.list.colSchedule}</th>
+              <th className="hidden sm:table-cell">{tx.timers.list.colNext}</th>
+              <th>{tx.timers.list.colLast}</th>
+              <th className="hidden md:table-cell">{tx.timers.list.colActive}</th>
               <th>
-                <span className="sr-only">Aktionen</span>
+                <span className="sr-only">{tx.timers.list.colActions}</span>
               </th>
             </tr>
           </thead>
@@ -148,19 +162,19 @@ export function TimersView() {
             {!state && !error && (
               <tr>
                 <td colSpan={6} className="text-muted">
-                  Wird geladen …
+                  {tx.timers.list.loading}
                 </td>
               </tr>
             )}
             {state && timers.length === 0 && (
               <tr>
                 <td colSpan={6} className="text-muted">
-                  Keine Timer.
+                  {tx.timers.list.empty}
                 </td>
               </tr>
             )}
             {timers.map((t) => {
-              const last = lastRun(t)
+              const last = lastRun(t, tx)
               return (
                 <tr key={t.name} data-testid="timer-row">
                   <td className="max-w-[380px]">
@@ -168,14 +182,14 @@ export function TimersView() {
                       <button
                         type="button"
                         className="cursor-pointer border-0 bg-transparent p-0 font-mono text-[13px] font-medium text-fg hover:underline"
-                        title="Unit-Dateien anzeigen"
-                        aria-label={`Dateien von ${t.name}`}
+                        title={tx.timers.list.showFiles}
+                        aria-label={tx.timers.list.filesOf(t.name)}
                         onClick={() => void showFiles(t)}
                       >
                         {t.name}
                       </button>
                       {t.managed && <span className="chip q">Quadeck</span>}
-                      {t.modified && <span className="chip">von Hand geändert</span>}
+                      {t.modified && <span className="chip">{tx.timers.list.modified}</span>}
                     </div>
                     {t.description && <div className="truncate text-[12px] text-muted">{t.description}</div>}
                     {t.command && (
@@ -186,7 +200,7 @@ export function TimersView() {
                   </td>
                   <td>
                     <div className="text-[13px]">{schedules(t).join(' · ') || '–'}</div>
-                    {t.override && <div className="text-[11px] text-[#e3b341]">angepasst (Drop-in)</div>}
+                    {t.override && <div className="text-[11px] text-[#e3b341]">{tx.timers.list.overridden}</div>}
                   </td>
                   <td className="hidden font-mono text-[12px] sm:table-cell" suppressHydrationWarning>
                     {t.next ? <span title={runLabel(t.next)}>{relative(t.next)}</span> : <span className="text-muted">–</span>}
@@ -201,31 +215,31 @@ export function TimersView() {
                     <input
                       type="checkbox"
                       role="switch"
-                      aria-label={`${t.name} aktiv`}
+                      aria-label={tx.timers.list.activeAria(t.name)}
                       checked={t.enabled}
                       disabled={readonly || busy === t.name || t.unitFileState === 'static' || t.unitFileState === 'masked'}
-                      title={t.unitFileState === 'static' ? 'statisch – wird von einer anderen Unit gestartet' : undefined}
+                      title={t.unitFileState === 'static' ? tx.timers.list.static : undefined}
                       onChange={(e) => void act(t, e.target.checked ? 'enable' : 'disable')}
                     />
                   </td>
                   <td>
                     <div className="flex justify-end gap-1.5">
                       {!readonly && t.service && (
-                        <button type="button" className="btn sm" disabled={busy === t.name} onClick={() => void act(t, 'run')} aria-label={`${t.name} jetzt ausführen`}>
-                          Jetzt ausführen
+                        <button type="button" className="btn sm" disabled={busy === t.name} onClick={() => void act(t, 'run')} aria-label={tx.timers.list.runNowAria(t.name)}>
+                          {tx.timers.list.runNow}
                         </button>
                       )}
                       <RowMenu
-                        label={`Aktionen für ${t.name}`}
+                        label={tx.common.actionsFor(t.name)}
                         items={[
                           ...(readonly
                             ? []
                             : t.managed && !t.modified
-                              ? [{ label: 'Bearbeiten …', onSelect: () => setEditing({ spec: t.managed!, previous: t.managed!.name, enabled: t.enabled }) }]
-                              : [{ label: 'Zeitplan ändern …', onSelect: () => setScheduling(t) }]),
-                          ...(t.service ? [{ label: 'Journal', onSelect: () => void navigate({ to: '/journal', search: { unit: t.service! } }) }] : []),
-                          { label: 'Unit-Dateien anzeigen', onSelect: () => void showFiles(t) },
-                          { label: 'Unit bearbeiten', onSelect: () => void navigate({ to: '/systemd', search: { unit: t.name } }), separator: true },
+                              ? [{ label: tx.timers.list.editDots, onSelect: () => setEditing({ spec: t.managed!, previous: t.managed!.name, enabled: t.enabled }) }]
+                              : [{ label: tx.timers.list.changeSchedule, onSelect: () => setScheduling(t) }]),
+                          ...(t.service ? [{ label: tx.common.journal, onSelect: () => void navigate({ to: '/journal', search: { unit: t.service! } }) }] : []),
+                          { label: tx.timers.list.showFiles, onSelect: () => void showFiles(t) },
+                          { label: tx.timers.list.editUnit, onSelect: () => void navigate({ to: '/systemd', search: { unit: t.name } }), separator: true },
                         ]}
                       />
                     </div>
@@ -238,21 +252,21 @@ export function TimersView() {
       </div>
       {editing && <TimerEditor key={editing.previous ?? 'new'} initial={editing.spec} previous={editing.previous} enabled={editing.enabled} existing={timers} onClose={() => setEditing(null)} onSaved={setState} />}
       {scheduling && <ScheduleDialog timer={scheduling} onClose={() => setScheduling(null)} onSaved={setState} />}
-      <Modal open={files !== null} onClose={() => setFiles(null)} title="Unit-Dateien" wide>
+      <Modal open={files !== null} onClose={() => setFiles(null)} title={tx.timers.list.filesTitle} wide>
         <pre className="m-0 max-h-[60vh] overflow-auto rounded-lg bg-[#0e1319] p-3 font-mono text-[12px] whitespace-pre-wrap">{files?.text}</pre>
         <div className="flex flex-wrap justify-end gap-2">
           {files && (
             <Link to="/systemd" search={{ unit: files.timer.name }} className="btn">
-              {files.timer.name} im Editor
+              {tx.timers.list.inEditor(files.timer.name)}
             </Link>
           )}
           {files?.timer.service && (
             <Link to="/systemd" search={{ unit: files.timer.service }} className="btn">
-              {files.timer.service} im Editor
+              {tx.timers.list.inEditor(files.timer.service)}
             </Link>
           )}
           <button type="button" className="btn" onClick={() => setFiles(null)}>
-            Schließen
+            {tx.common.close}
           </button>
         </div>
       </Modal>
@@ -262,14 +276,8 @@ export function TimersView() {
 
 // ---------- schedule ----------
 
-const KINDS: [Schedule['kind'], string][] = [
-  ['minutes', 'Minuten'],
-  ['hours', 'Stündlich'],
-  ['daily', 'Täglich'],
-  ['weekly', 'Wöchentlich'],
-  ['monthly', 'Monatlich'],
-  ['custom', 'Eigener'],
-]
+// Labels come from tx.timers.field.kinds.
+const KINDS: Schedule['kind'][] = ['minutes', 'hours', 'daily', 'weekly', 'monthly', 'custom']
 
 function defaults(kind: Schedule['kind'], from: Schedule): Schedule {
   const time = 'time' in from ? from.time : '03:00'
@@ -313,7 +321,8 @@ export function useCalendarPreview(expr: string) {
 
 /** Builder for OnCalendar= with presets, cron import and the next runs. */
 export function ScheduleField({ value, onChange, readonly }: { value: string; onChange: (v: string) => void; readonly?: boolean }) {
-  // The builder keeps its own mode so "Eigener" stays selected while typing.
+  const tx = useT()
+  // The builder keeps its own mode so "Eigener" (custom) stays selected while typing.
   const [sched, setSched] = useState<Schedule>(() => parseCalendar(value))
   const [cron, setCron] = useState('')
   const preview = useCalendarPreview(value)
@@ -324,45 +333,45 @@ export function ScheduleField({ value, onChange, readonly }: { value: string; on
   const cronResult = cron.trim() ? cronToCalendar(cron) : null
   return (
     <fieldset className="flex flex-col gap-2.5 rounded-lg border border-line p-3" disabled={readonly}>
-      <legend className="px-1 text-[12px] font-medium text-muted">Zeitplan</legend>
-      <div role="group" aria-label="Art des Zeitplans" className="flex flex-wrap gap-1.5">
-        {KINDS.map(([k, label]) => (
+      <legend className="px-1 text-[12px] font-medium text-muted">{tx.timers.field.legend}</legend>
+      <div role="group" aria-label={tx.timers.field.kindGroup} className="flex flex-wrap gap-1.5">
+        {KINDS.map((k) => (
           <button key={k} type="button" className={`seg ${sched.kind === k ? 'on' : ''}`} aria-pressed={sched.kind === k} onClick={() => set(defaults(k, sched))}>
-            {label}
+            {tx.timers.field.kinds[k]}
           </button>
         ))}
       </div>
       <div className="flex flex-wrap items-center gap-2 text-[13px]">
         {sched.kind === 'minutes' && (
           <>
-            alle
-            <select className="field w-[90px]" aria-label="Minuten" value={sched.every} onChange={(e) => set({ ...sched, every: Number(e.target.value) })}>
+            {tx.timers.field.every}
+            <select className="field w-[90px]" aria-label={tx.timers.field.minutesAria} value={sched.every} onChange={(e) => set({ ...sched, every: Number(e.target.value) })}>
               {[1, 2, 5, 10, 15, 20, 30].map((n) => (
                 <option key={n} value={n}>
                   {n}
                 </option>
               ))}
             </select>
-            Minuten
+            {tx.timers.field.minutes}
           </>
         )}
         {sched.kind === 'hours' && (
           <>
-            alle
-            <select className="field w-[80px]" aria-label="Stunden" value={sched.every} onChange={(e) => set({ ...sched, every: Number(e.target.value) })}>
+            {tx.timers.field.every}
+            <select className="field w-[80px]" aria-label={tx.timers.field.hoursAria} value={sched.every} onChange={(e) => set({ ...sched, every: Number(e.target.value) })}>
               {[1, 2, 3, 4, 6, 8, 12].map((n) => (
                 <option key={n} value={n}>
                   {n}
                 </option>
               ))}
             </select>
-            Stunde(n), Minute
+            {tx.timers.field.hoursMinute}
             <input
               className="field w-[70px]"
               type="number"
               min={0}
               max={59}
-              aria-label="Minute"
+              aria-label={tx.timers.field.minuteAria}
               value={sched.minute}
               onChange={(e) =>
                 set({
@@ -374,7 +383,7 @@ export function ScheduleField({ value, onChange, readonly }: { value: string; on
           </>
         )}
         {sched.kind === 'weekly' && (
-          <div role="group" aria-label="Wochentage" className="flex gap-1">
+          <div role="group" aria-label={tx.timers.field.weekdays} className="flex gap-1">
             {DAYS.map((d) => {
               const on = sched.days.includes(d)
               return (
@@ -388,7 +397,7 @@ export function ScheduleField({ value, onChange, readonly }: { value: string; on
                     if (days.length) set({ ...sched, days })
                   }}
                 >
-                  {DAY_LABEL[d]}
+                  {dayLabel(d)}
                 </button>
               )
             })}
@@ -396,13 +405,13 @@ export function ScheduleField({ value, onChange, readonly }: { value: string; on
         )}
         {sched.kind === 'monthly' && (
           <>
-            am
+            {tx.timers.field.onDayBefore}
             <input
               className="field w-[70px]"
               type="number"
               min={1}
               max={31}
-              aria-label="Tag im Monat"
+              aria-label={tx.timers.field.dayAria}
               value={sched.day}
               onChange={(e) =>
                 set({
@@ -411,21 +420,21 @@ export function ScheduleField({ value, onChange, readonly }: { value: string; on
                 })
               }
             />
-            .
+            {tx.timers.field.onDayAfter}
           </>
         )}
         {(sched.kind === 'daily' || sched.kind === 'weekly' || sched.kind === 'monthly') && (
           <>
-            um
-            <input className="field w-[110px]" type="time" aria-label="Uhrzeit" value={sched.time} onChange={(e) => e.target.value && set({ ...sched, time: e.target.value })} />
+            {tx.timers.field.at}
+            <input className="field w-[110px]" type="time" aria-label={tx.timers.field.timeAria} value={sched.time} onChange={(e) => e.target.value && set({ ...sched, time: e.target.value })} />
           </>
         )}
         {sched.kind === 'custom' && (
           <input
             className="field min-w-[240px] grow font-mono"
-            aria-label="OnCalendar-Ausdruck"
+            aria-label={tx.timers.field.exprAria}
             value={sched.expr}
-            placeholder="z. B. Mon..Fri *-*-* 07:30:00"
+            placeholder={tx.timers.field.exprPlaceholder}
             onChange={(e) => {
               setSched({ kind: 'custom', expr: e.target.value })
               onChange(e.target.value)
@@ -445,14 +454,14 @@ export function ScheduleField({ value, onChange, readonly }: { value: string; on
       </div>
       {preview?.ok && preview.next.length > 0 && (
         <div className="text-[12px] text-muted" data-testid="next-runs">
-          Nächste Läufe: <span className="font-mono text-[#c9d1d9]">{preview.next.map(runLabel).join(' · ')}</span>
+          {tx.timers.field.nextRuns} <span className="font-mono text-[#c9d1d9]">{preview.next.map(runLabel).join(' · ')}</span>
         </div>
       )}
       {sched.kind === 'custom' && (
         <details className="text-[12px] text-muted">
-          <summary className="cursor-pointer">Von cron übernehmen</summary>
+          <summary className="cursor-pointer">{tx.timers.field.fromCron}</summary>
           <div className="mt-2 flex flex-wrap items-center gap-2">
-            <input className="field min-w-[220px] grow font-mono" aria-label="Cron-Ausdruck" placeholder="30 3 * * 1-5" value={cron} onChange={(e) => setCron(e.target.value)} />
+            <input className="field min-w-[220px] grow font-mono" aria-label={tx.timers.field.cronAria} placeholder="30 3 * * 1-5" value={cron} onChange={(e) => setCron(e.target.value)} />
             <button
               type="button"
               className="btn sm"
@@ -463,7 +472,7 @@ export function ScheduleField({ value, onChange, readonly }: { value: string; on
                 setCron('')
               }}
             >
-              Übernehmen
+              {tx.timers.field.apply}
             </button>
           </div>
           {cronResult?.error && <p className="m-0 mt-1 text-[#ff8a80]">{cronResult.error}</p>}
@@ -477,51 +486,51 @@ export function ScheduleField({ value, onChange, readonly }: { value: string; on
 
 // ---------- own timers ----------
 
-const TEMPLATES: { label: string; spec: Partial<TimerSpec> }[] = [
+const templates = (tx: Tx): { label: string; spec: Partial<TimerSpec> }[] => [
   {
-    label: 'Skript ausführen',
+    label: tx.timers.templates.script.label,
     spec: {
       name: 'mein-skript',
-      description: 'Eigenes Skript',
+      description: tx.timers.templates.script.description,
       command: '/usr/local/bin/mein-skript.sh',
       calendar: '*-*-* 03:00:00',
     },
   },
   {
-    label: 'Ordner sichern (rsync)',
+    label: tx.timers.templates.rsync.label,
     spec: {
       name: 'backup-daten',
-      description: 'Daten sichern',
+      description: tx.timers.templates.rsync.description,
       command: 'rsync -a --delete /srv/daten/ /mnt/backup/daten/',
       calendar: '*-*-* 02:30:00',
       lowPriority: true,
     },
   },
   {
-    label: 'Podman aufräumen',
+    label: tx.timers.templates.prune.label,
     spec: {
       name: 'podman-prune',
-      description: 'Ungenutzte Podman-Images entfernen',
+      description: tx.timers.templates.prune.description,
       command: 'podman image prune -af --filter until=168h',
       calendar: 'Sun *-*-* 05:00:00',
       lowPriority: true,
     },
   },
   {
-    label: 'SnapRAID sync + scrub',
+    label: tx.timers.templates.snapraid.label,
     spec: {
       name: 'snapraid-wartung',
-      description: 'SnapRAID sync und scrub',
+      description: tx.timers.templates.snapraid.description,
       command: 'snapraid sync\nsnapraid scrub -p 8 -o 10',
       calendar: '*-*-* 04:00:00',
       lowPriority: true,
     },
   },
   {
-    label: 'Webseite anpingen',
+    label: tx.timers.templates.ping.label,
     spec: {
       name: 'healthcheck-ping',
-      description: 'Lebenszeichen senden',
+      description: tx.timers.templates.ping.description,
       command: 'curl -fsS -m 10 https://hc-ping.com/DEINE-UUID',
       calendar: '*-*-* *:00/5:00',
       persistent: false,
@@ -531,6 +540,7 @@ const TEMPLATES: { label: string; spec: Partial<TimerSpec> }[] = [
 ]
 
 function TimerEditor({ initial, previous, enabled: initialEnabled, existing, onClose, onSaved }: { initial: TimerSpec; previous?: string; enabled: boolean; existing: TimerEntry[]; onClose: () => void; onSaved: (s: TimersState) => void }) {
+  const tx = useT()
   const [spec, setSpec] = useState(initial)
   const [enabled, setEnabled] = useState(initialEnabled)
   const [tab, setTab] = useState<'form' | 'files'>('form')
@@ -552,7 +562,7 @@ function TimerEditor({ initial, previous, enabled: initialEnabled, existing, onC
       })
       if (r) {
         onSaved(r)
-        say(`${spec.name}.timer gespeichert${enabled ? ' und aktiviert' : ''}`)
+        say(tx.timers.editor.saved(spec.name, enabled))
         onClose()
       }
     } catch (e) {
@@ -569,7 +579,7 @@ function TimerEditor({ initial, previous, enabled: initialEnabled, existing, onC
       })
       if (r) {
         onSaved(r)
-        say(`${previous}.timer gelöscht`)
+        say(tx.timers.editor.deleted(previous!))
         onClose()
       }
     } catch (e) {
@@ -580,11 +590,11 @@ function TimerEditor({ initial, previous, enabled: initialEnabled, existing, onC
   }
 
   return (
-    <Modal open onClose={onClose} title={previous ? `Zeitplan ${previous} bearbeiten` : 'Neuer Zeitplan'} wide>
+    <Modal open onClose={onClose} title={previous ? tx.timers.editor.editTitle(previous) : tx.timers.editor.newTitle} wide>
       {!previous && (
         <div className="flex flex-wrap items-center gap-1.5 text-[12px] text-muted">
-          Vorlage:
-          {TEMPLATES.map((t) => (
+          {tx.timers.editor.template}
+          {templates(tx).map((t) => (
             <button
               key={t.label}
               type="button"
@@ -601,10 +611,10 @@ function TimerEditor({ initial, previous, enabled: initialEnabled, existing, onC
       )}
       <div role="tablist" className="flex gap-1.5">
         <button type="button" role="tab" aria-selected={tab === 'form'} className={`seg ${tab === 'form' ? 'on' : ''}`} onClick={() => setTab('form')}>
-          Einstellungen
+          {tx.timers.editor.settings}
         </button>
         <button type="button" role="tab" aria-selected={tab === 'files'} className={`seg ${tab === 'files' ? 'on' : ''}`} onClick={() => setTab('files')} disabled={!!errors.length}>
-          Unit-Dateien
+          {tx.timers.editor.files}
         </button>
       </div>
       {tab === 'files' ? (
@@ -615,61 +625,61 @@ function TimerEditor({ initial, previous, enabled: initialEnabled, existing, onC
         <div className="flex flex-col gap-3">
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-              Name
+              {tx.timers.editor.name}
               <input className="field font-mono" value={spec.name} onChange={(e) => set('name', e.target.value.trim())} placeholder="backup-fotos" autoFocus={!previous} />
-              {taken && <span className="font-normal text-[#ff8a80]">{spec.name}.timer gibt es schon</span>}
+              {taken && <span className="font-normal text-[#ff8a80]">{tx.timers.editor.taken(spec.name)}</span>}
             </label>
             <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-              Beschreibung
-              <input className="field" value={spec.description} onChange={(e) => set('description', e.target.value)} placeholder="Fotos auf die Backup-Platte kopieren" />
+              {tx.timers.editor.description}
+              <input className="field" value={spec.description} onChange={(e) => set('description', e.target.value)} placeholder={tx.timers.editor.descriptionPlaceholder} />
             </label>
           </div>
           <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-            Befehl (läuft mit /bin/sh, mehrere Zeilen erlaubt)
+            {tx.timers.editor.command}
             <textarea className="field h-[90px] font-mono text-[12px]" spellCheck={false} value={spec.command} onChange={(e) => set('command', e.target.value)} placeholder="/usr/local/bin/backup.sh" />
           </label>
           <ScheduleField key={scheduleKey} value={spec.calendar} onChange={(v) => set('calendar', v)} />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-              Als Benutzer
+              {tx.timers.editor.user}
               <input className="field font-mono" value={spec.user} onChange={(e) => set('user', e.target.value.trim())} placeholder="root" />
             </label>
             <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-              Arbeitsverzeichnis
-              <input className="field font-mono" value={spec.workingDirectory} onChange={(e) => set('workingDirectory', e.target.value.trim())} placeholder="(keins)" />
+              {tx.timers.editor.workDir}
+              <input className="field font-mono" value={spec.workingDirectory} onChange={(e) => set('workingDirectory', e.target.value.trim())} placeholder={tx.timers.editor.workDirPlaceholder} />
             </label>
           </div>
           <div className="flex flex-col gap-1.5 text-[13px]">
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={spec.persistent} onChange={(e) => set('persistent', e.target.checked)} />
-              Verpasste Läufe nachholen (Server war aus)
+              {tx.timers.editor.persistent}
             </label>
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={spec.network} onChange={(e) => set('network', e.target.checked)} />
-              Auf Netzwerk warten
+              {tx.timers.editor.network}
             </label>
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={spec.lowPriority} onChange={(e) => set('lowPriority', e.target.checked)} />
-              Niedrige Priorität (CPU und Festplatte)
+              {tx.timers.editor.lowPriority}
             </label>
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={spec.randomDelay > 0} onChange={(e) => set('randomDelay', e.target.checked ? 15 : 0)} />
-              Zufällig bis zu
+              {tx.timers.editor.randomBefore}
               <input
                 className="field w-[70px]"
                 type="number"
                 min={1}
                 max={1440}
-                aria-label="Verzögerung in Minuten"
+                aria-label={tx.timers.editor.randomAria}
                 disabled={!spec.randomDelay}
                 value={spec.randomDelay || 15}
                 onChange={(e) => set('randomDelay', Math.max(1, Math.min(1440, Number(e.target.value) || 1)))}
               />
-              Minuten später starten
+              {tx.timers.editor.randomAfter}
             </label>
             <label className="flex items-center gap-2">
               <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
-              Timer aktiv
+              {tx.timers.editor.active}
             </label>
           </div>
         </div>
@@ -678,22 +688,22 @@ function TimerEditor({ initial, previous, enabled: initialEnabled, existing, onC
       <div className="flex flex-wrap justify-end gap-2">
         {previous && (
           <button type="button" className="btn danger mr-auto" disabled={busy} onClick={() => setConfirmDelete(true)}>
-            Löschen
+            {tx.common.delete}
           </button>
         )}
         <button type="button" className="btn" onClick={onClose}>
-          Abbrechen
+          {tx.common.cancel}
         </button>
         <button type="button" className="btn primary" disabled={busy || errors.length > 0 || taken} onClick={() => void save()}>
-          {busy ? 'Speichert …' : 'Speichern'}
+          {busy ? tx.timers.editor.saving : tx.common.save}
         </button>
       </div>
       <ConfirmDialog
         open={confirmDelete}
-        title={`${previous}.timer löschen?`}
+        title={tx.timers.editor.deleteTitle(previous!)}
         danger
-        confirm="Löschen"
-        body={<p className="m-0">Timer und Service werden gestoppt und die beiden Unit-Dateien entfernt.</p>}
+        confirm={tx.common.delete}
+        body={<p className="m-0">{tx.timers.editor.deleteBody}</p>}
         onConfirm={() => void remove()}
         onClose={() => setConfirmDelete(false)}
       />
@@ -704,6 +714,7 @@ function TimerEditor({ initial, previous, enabled: initialEnabled, existing, onC
 // ---------- foreign timers ----------
 
 function ScheduleDialog({ timer, onClose, onSaved }: { timer: TimerEntry; onClose: () => void; onSaved: (s: TimersState) => void }) {
+  const tx = useT()
   const [calendar, setCalendar] = useState(timer.override ?? timer.calendars[0] ?? '*-*-* 03:00:00')
   const [busy, setBusy] = useState(false)
   const guarded = useGuardedApi()
@@ -716,7 +727,7 @@ function ScheduleDialog({ timer, onClose, onSaved }: { timer: TimerEntry; onClos
       })
       if (r) {
         onSaved(r)
-        say(cal ? `${timer.name}: ${describeCalendar(cal)}` : `${timer.name}: Standard-Zeitplan`)
+        say(cal ? tx.timers.schedule.applied(timer.name, describeCalendar(cal)) : tx.timers.schedule.reset(timer.name))
         onClose()
       }
     } catch (e) {
@@ -726,25 +737,27 @@ function ScheduleDialog({ timer, onClose, onSaved }: { timer: TimerEntry; onClos
     }
   }
   return (
-    <Modal open onClose={onClose} title={`Zeitplan von ${timer.name}`} wide>
+    <Modal open onClose={onClose} title={tx.timers.schedule.title(timer.name)} wide>
       <p className="m-0 text-[13px] text-muted">
-        {timer.vendor ? 'Der Timer kommt aus einem Paket – die Datei bleibt unangetastet. ' : ''}
-        Quadeck legt den neuen Zeitplan als Drop-in <span className="font-mono">{timer.name}.d/50-quadeck.conf</span> ab; „Standard“ entfernt ihn wieder.
-        {timer.modified ? ' (Die Dateien wurden von Hand geändert, darum lässt sich hier nur der Zeitplan anpassen.)' : ''}
+        {timer.vendor ? tx.timers.schedule.vendor : ''}
+        {tx.timers.schedule.dropInBefore}
+        <span className="font-mono">{timer.name}.d/50-quadeck.conf</span>
+        {tx.timers.schedule.dropInAfter}
+        {timer.modified ? tx.timers.schedule.modified : ''}
       </p>
-      {timer.monotonic.length > 0 && <p className="m-0 text-[12px] text-[#e3b341]">Zusätzliche Auslöser bleiben bestehen: {timer.monotonic.join(', ')}</p>}
+      {timer.monotonic.length > 0 && <p className="m-0 text-[12px] text-[#e3b341]">{tx.timers.schedule.extraTriggers(timer.monotonic.join(', '))}</p>}
       <ScheduleField value={calendar} onChange={setCalendar} />
       <div className="flex flex-wrap justify-end gap-2">
         {timer.override && (
           <button type="button" className="btn mr-auto" disabled={busy} onClick={() => void apply('')}>
-            Standard wiederherstellen
+            {tx.timers.schedule.restore}
           </button>
         )}
         <button type="button" className="btn" onClick={onClose}>
-          Abbrechen
+          {tx.common.cancel}
         </button>
         <button type="button" className="btn primary" disabled={busy || !calendar.trim()} onClick={() => void apply(calendar.trim())}>
-          Übernehmen
+          {tx.common.apply}
         </button>
       </div>
     </Modal>
