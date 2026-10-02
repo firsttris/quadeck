@@ -26,6 +26,7 @@ import { CaddyProvider, candidatesFromConfig } from './providers/caddy'
 import type { ServiceCandidate } from './providers/types'
 import { localHostSet, mergeServices } from './registry'
 import { notifier } from './notify'
+import { outsideRequest } from './lang'
 
 type Source = keyof Snapshot['sources']
 export type HubEvent = { type: 'system'; data: SystemMetrics } | { type: 'state'; data: Snapshot }
@@ -441,10 +442,13 @@ const g = globalThis as unknown as { __quadeckHub?: Hub; __quadeckHubStarted?: P
 /** The process-wide hub, started on first use. */
 export function hub(): Hub {
   if (!g.__quadeckHub) {
-    g.__quadeckHub = new Hub()
-    g.__quadeckHubStarted = g.__quadeckHub.start()
+    // Collectors run for every viewer: their texts keep both languages (see src/shared/i18n.ts).
+    outsideRequest(() => {
+      g.__quadeckHub = new Hub()
+      g.__quadeckHubStarted = g.__quadeckHub.start()
+    })
   }
-  return g.__quadeckHub
+  return g.__quadeckHub!
 }
 
 export async function hubReady(): Promise<Hub> {

@@ -30,6 +30,7 @@ import { Route as ApiContainersRouteImport } from './routes/api/containers'
 import { Route as ApiEventsRouteImport } from './routes/api/events'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiJournalRouteImport } from './routes/api/journal'
+import { Route as ApiLangRouteImport } from './routes/api/lang'
 import { Route as ApiUnitsRouteImport } from './routes/api/units'
 import { Route as ApiUnlockRouteImport } from './routes/api/unlock'
 import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
@@ -174,6 +175,11 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
 const ApiJournalRoute = ApiJournalRouteImport.update({
   id: '/api/journal',
   path: '/api/journal',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiLangRoute = ApiLangRouteImport.update({
+  id: '/api/lang',
+  path: '/api/lang',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiUnitsRoute = ApiUnitsRouteImport.update({
@@ -403,6 +409,7 @@ export interface FileRoutesByFullPath {
   '/api/events': typeof ApiEventsRoute
   '/api/health': typeof ApiHealthRoute
   '/api/journal': typeof ApiJournalRoute
+  '/api/lang': typeof ApiLangRoute
   '/api/units': typeof ApiUnitsRoute
   '/api/unlock': typeof ApiUnlockRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
@@ -465,6 +472,7 @@ export interface FileRoutesByTo {
   '/api/events': typeof ApiEventsRoute
   '/api/health': typeof ApiHealthRoute
   '/api/journal': typeof ApiJournalRoute
+  '/api/lang': typeof ApiLangRoute
   '/api/units': typeof ApiUnitsRoute
   '/api/unlock': typeof ApiUnlockRoute
   '/': typeof AppIndexRoute
@@ -530,6 +538,7 @@ export interface FileRoutesById {
   '/api/events': typeof ApiEventsRoute
   '/api/health': typeof ApiHealthRoute
   '/api/journal': typeof ApiJournalRoute
+  '/api/lang': typeof ApiLangRoute
   '/api/units': typeof ApiUnitsRoute
   '/api/unlock': typeof ApiUnlockRoute
   '/_app/': typeof AppIndexRoute
@@ -596,6 +605,7 @@ export interface FileRouteTypes {
     | '/api/events'
     | '/api/health'
     | '/api/journal'
+    | '/api/lang'
     | '/api/units'
     | '/api/unlock'
     | '/api/auth/login'
@@ -658,6 +668,7 @@ export interface FileRouteTypes {
     | '/api/events'
     | '/api/health'
     | '/api/journal'
+    | '/api/lang'
     | '/api/units'
     | '/api/unlock'
     | '/'
@@ -722,6 +733,7 @@ export interface FileRouteTypes {
     | '/api/events'
     | '/api/health'
     | '/api/journal'
+    | '/api/lang'
     | '/api/units'
     | '/api/unlock'
     | '/_app/'
@@ -774,6 +786,7 @@ export interface RootRouteChildren {
   ApiEventsRoute: typeof ApiEventsRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiJournalRoute: typeof ApiJournalRoute
+  ApiLangRoute: typeof ApiLangRoute
   ApiUnitsRoute: typeof ApiUnitsRoute
   ApiUnlockRoute: typeof ApiUnlockRoute
   ApiAuthLoginRoute: typeof ApiAuthLoginRoute
@@ -964,6 +977,13 @@ declare module '@tanstack/react-router' {
       path: '/api/journal'
       fullPath: '/api/journal'
       preLoaderRoute: typeof ApiJournalRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/lang': {
+      id: '/api/lang'
+      path: '/api/lang'
+      fullPath: '/api/lang'
+      preLoaderRoute: typeof ApiLangRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/units': {
@@ -1300,6 +1320,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiEventsRoute: ApiEventsRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiJournalRoute: ApiJournalRoute,
+  ApiLangRoute: ApiLangRoute,
   ApiUnitsRoute: ApiUnitsRoute,
   ApiUnlockRoute: ApiUnlockRoute,
   ApiAuthLoginRoute: ApiAuthLoginRoute,

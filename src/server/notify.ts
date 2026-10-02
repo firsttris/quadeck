@@ -8,6 +8,7 @@ import { getSetting, setSetting } from './settings'
 import type { ImageUpdatesReport, UpdatesReport } from '~/shared/packages'
 import type { Snapshot } from '~/shared/types'
 import { sendMail, type Mail } from './mail'
+import { isLang, localizeDeep, type Lang } from '~/shared/i18n'
 import { DELAY_MS, buildMail, buildRequest, currentAlerts, defaultSettings, problemNotice, recoveryNotice, type Alert, type Channel, type Notice, type NotifySettings, type NotifyState, type SentNotice } from '~/shared/notify'
 
 const KEY = 'notifications'
@@ -15,6 +16,13 @@ const ACTIVE = 'notifications-active'
 const LOG = 'notifications-log'
 const UPDATES = 'notifications-updates'
 const KEEP_LOG = 50
+
+/** Set by the UI's language switch (/api/lang). */
+export const LANG_SETTING = 'lang'
+export const notifyLang = (): Lang => {
+  const l = getSetting<string>(LANG_SETTING)
+  return isLang(l) ? l : 'de'
+}
 
 type Active = Alert & { since: number }
 type Send = (url: string, init: RequestInit) => Promise<Response>
@@ -66,14 +74,16 @@ export class Notifier {
 
   /** Sends to every enabled channel (or the given one); errors end up in the log, not as exceptions. */
   async deliver(n: Notice, channels: Channel[], test = false): Promise<SentNotice> {
+    // Messages go out in the language last picked in the UI; the log keeps both.
+    const out = localizeDeep(n, notifyLang())
     const results = await Promise.all(
       channels.map(async (c) => {
         try {
           if (c.kind === 'email') {
-            await this.mail(c, buildMail(c, n))
+            await this.mail(c, buildMail(c, out))
             return { channel: c.name, ok: true }
           }
-          const { url, init } = buildRequest(c, n)
+          const { url, init } = buildRequest(c, out)
           const res = await this.send(url, init)
           if (!res.ok) return { channel: c.name, ok: false, error: `HTTP ${res.status} ${(await res.text().catch(() => '')).slice(0, 200)}`.trim() }
           return { channel: c.name, ok: true }

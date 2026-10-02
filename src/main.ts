@@ -5,6 +5,7 @@ import { PEER_HEADER, ensureSetupToken, resetPassword } from './server/auth'
 import { config } from './server/config'
 import { db } from './server/db'
 import { selfUpdate } from './server/update'
+import { installNoLang, installRequestLang, withRequestLang } from './server/lang'
 import { HELPER_UNIT, WEB_UNIT } from './unit-file'
 import { serveHelper } from './server/privileged/helper-server'
 import { LocalPrivileged } from './server/privileged/local'
@@ -70,6 +71,7 @@ export function serve(opts: MainOptions) {
   const cfg = config()
   db() // open + migrate before the first request
   const token = ensureSetupToken()
+  installRequestLang()
   const server = Bun.serve({
     hostname: cfg.host,
     port: cfg.port,
@@ -93,7 +95,7 @@ export function serve(opts: MainOptions) {
       headers.set(PEER_HEADER, srv.requestIP(req)?.address ?? 'unknown')
       const forwarded = new Request(req, { headers })
       try {
-        return withHeaders(await opts.server.fetch(forwarded))
+        return withHeaders(await withRequestLang(req, () => opts.server.fetch(forwarded)))
       } catch (e) {
         console.error('[quadeck]', e)
         return withHeaders(new Response('Interner Fehler', { status: 500 }))
@@ -176,11 +178,13 @@ export async function main(argv: string[], opts: MainOptions) {
         process.exit(1)
       }
       cleanupSudoers()
+      installNoLang()
       serveHelper(config().helperSocket, new LocalPrivileged(createGate(true), config().podmanSocket, new SystemMaintenance(), new SystemPodmanAdmin(), new SystemShares(), new SystemSsh(), new SystemSmart(), new SystemFiles(), new SystemTimers(), new SystemUnitEditor(), new SystemNetwork(), new FstabManager(new SystemFstabHost()), new SystemBoot(), new SystemUsers(), new SystemHardware()))
       return
     }
     case 'job':
       // Started by the helper only (systemd-run or child process), as root.
+      installNoLang()
       process.exit(await runJobCommand(argv[1]))
     case 'update':
       await selfUpdate(opts.version, argv.includes('--force'))
