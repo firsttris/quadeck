@@ -139,7 +139,15 @@ export function MountsView() {
                   </tr>
                 )}
                 {own.map((e) => (
-                  <EntryRow key={e.line} e={e} readonly={readonly} busy={busy === e.file} onEdit={() => setEdit({ entry: e })} onMount={(a) => void mount(e, a)} onRemove={() => void review({ kind: 'remove', line: e.line, original: e.raw }, t.removeTitle(e.file))} />
+                  <EntryRow
+                    key={e.line}
+                    e={e}
+                    readonly={readonly}
+                    busy={busy === e.file}
+                    onEdit={() => setEdit({ entry: e })}
+                    onMount={(a) => void mount(e, a)}
+                    onRemove={() => void review({ kind: 'remove', line: e.line, original: e.raw }, t.removeTitle(e.file))}
+                  />
                 ))}
               </tbody>
             </table>
@@ -518,7 +526,11 @@ function EntryDialog({ entry, device, taken, onClose, onReview }: { entry?: Moun
           {check && <Diagnostics items={check.diagnostics} />}
           {check && check.bootCritical.length > 0 && <p className="m-0 text-[13px] text-[#e3b341]">{t.wouldBlock}</p>}
           {check?.ok && !checking && <p className="m-0 text-[13px] text-[#7ee2a8]">{t.checked}</p>}
-          {check?.diagnostics.some((d) => /Treiber für (\S+) fehlt|Driver for (\S+) is missing/.test(d.message)) && FS_PACKAGE[f.vfstype] && <p className="m-0 text-[12px] text-muted">{t.installPackage} <span className="font-mono">sudo pacman -S {FS_PACKAGE[f.vfstype]}</span></p>}
+          {check?.diagnostics.some((d) => /Treiber für (\S+) fehlt|Driver for (\S+) is missing/.test(d.message)) && FS_PACKAGE[f.vfstype] && (
+            <p className="m-0 text-[12px] text-muted">
+              {t.installPackage} <span className="font-mono">sudo pacman -S {FS_PACKAGE[f.vfstype]}</span>
+            </p>
+          )}
         </div>
 
         <div className="flex justify-end gap-2">
@@ -590,9 +602,7 @@ function ApplyDialog({ pending, onClose, onApplied, onConflict }: { pending: { c
       {critical && (
         <label className="flex items-start gap-2 rounded-[10px] border border-[rgba(210,153,34,.5)] p-3 text-[13px] text-[#e3b341]">
           <input type="checkbox" className="mt-[3px]" checked={confirm} onChange={(e) => setConfirm(e.target.checked)} />
-          <span>
-            {t.confirmCritical(check.bootCritical.join(', '))}
-          </span>
+          <span>{t.confirmCritical(check.bootCritical.join(', '))}</span>
         </label>
       )}
       {error && (

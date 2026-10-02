@@ -68,7 +68,13 @@ function SharesPage() {
       {!state && !error && <p className="m-0 text-muted">{t.loading}</p>}
       {state && (
         <div className="grid grid-cols-1 gap-[18px] xl:grid-cols-2">
-          <SmbPanel state={state} onState={setState} onReload={load} onEdit={(original) => setSmbEdit({ original })} onDelete={(s) => setPending({ change: { kind: 'smb', original: s.name, spec: null }, title: t.deleteSmb(s.name), confirm: tt.common.delete, danger: true })} />
+          <SmbPanel
+            state={state}
+            onState={setState}
+            onReload={load}
+            onEdit={(original) => setSmbEdit({ original })}
+            onDelete={(s) => setPending({ change: { kind: 'smb', original: s.name, spec: null }, title: t.deleteSmb(s.name), confirm: tt.common.delete, danger: true })}
+          />
           <NfsPanel
             state={state}
             onState={setState}
@@ -361,10 +367,11 @@ function NfsPanel({ state, onState, onEdit, onDelete, onReload }: { state: Share
           )}
         </div>
       ))}
-      {nfs.clients.length > 0 && <div className="border-t border-line px-[18px] py-2 text-[12px] text-muted">
+      {nfs.clients.length > 0 && (
+        <div className="border-t border-line px-[18px] py-2 text-[12px] text-muted">
           {t.clientsConnected} <span className="font-mono">{nfs.clients.join(', ')}</span>
         </div>
-      }
+      )}
       <Services kind="nfs" services={nfs.services} onState={onState} />
     </section>
   )
@@ -396,7 +403,16 @@ function toForm(c: NfsClient): ClientForm {
 function fromForm(c: ClientForm): NfsClient {
   return {
     host: c.host.trim(),
-    options: [c.rw ? 'rw' : 'ro', c.sync ? 'sync' : 'async', c.subtree ? 'subtree_check' : 'no_subtree_check', ...(c.squash === 'root_squash' ? [] : [c.squash]), ...c.extra.split(',').map((o) => o.trim()).filter(Boolean)],
+    options: [
+      c.rw ? 'rw' : 'ro',
+      c.sync ? 'sync' : 'async',
+      c.subtree ? 'subtree_check' : 'no_subtree_check',
+      ...(c.squash === 'root_squash' ? [] : [c.squash]),
+      ...c.extra
+        .split(',')
+        .map((o) => o.trim())
+        .filter(Boolean),
+    ],
   }
 }
 
@@ -416,7 +432,7 @@ function NfsDialog({ open, original, onClose, onNext }: { open: boolean; origina
   const tt = useT()
   const t = tt.shares.nfsDialog
   return (
-    <Modal open={open} onClose={onClose} title={original ? `NFS-Export ${original.path}` : t.newTitle} wide>
+    <Modal open={open} onClose={onClose} title={original ? t.editTitle(original.path) : t.newTitle} wide>
       <form
         className="flex flex-col gap-3"
         onSubmit={(e) => {

@@ -22,9 +22,35 @@ export interface SmbShareInfo extends SmbShareSpec {
 
 /** All flag options of exports(5), so exports written by hand stay editable. */
 export const NFS_OPTIONS = [
-  'rw', 'ro', 'sync', 'async', 'no_subtree_check', 'subtree_check', 'root_squash', 'no_root_squash', 'all_squash', 'no_all_squash',
-  'insecure', 'secure', 'crossmnt', 'nohide', 'hide', 'no_wdelay', 'wdelay', 'insecure_locks', 'no_auth_nlm', 'secure_locks', 'auth_nlm',
-  'mountpoint', 'mp', 'nordirplus', 'pnfs', 'no_pnfs', 'security_label', 'acl', 'no_acl',
+  'rw',
+  'ro',
+  'sync',
+  'async',
+  'no_subtree_check',
+  'subtree_check',
+  'root_squash',
+  'no_root_squash',
+  'all_squash',
+  'no_all_squash',
+  'insecure',
+  'secure',
+  'crossmnt',
+  'nohide',
+  'hide',
+  'no_wdelay',
+  'wdelay',
+  'insecure_locks',
+  'no_auth_nlm',
+  'secure_locks',
+  'auth_nlm',
+  'mountpoint',
+  'mp',
+  'nordirplus',
+  'pnfs',
+  'no_pnfs',
+  'security_label',
+  'acl',
+  'no_acl',
 ] as const
 
 export interface NfsClient {

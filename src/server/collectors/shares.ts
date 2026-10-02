@@ -90,7 +90,9 @@ export function collectShares(paths: { smbConf: string; exports: string; exports
   const exp = read(paths.exports)
   if (exp) out.push(...parseExports(exp))
   if (existsSync(paths.exportsDir)) {
-    for (const f of readdirSync(paths.exportsDir).filter((f) => f.endsWith('.exports')).sort()) {
+    for (const f of readdirSync(paths.exportsDir)
+      .filter((f) => f.endsWith('.exports'))
+      .sort()) {
       const t = read(join(paths.exportsDir, f))
       if (t) out.push(...parseExports(t))
     }
@@ -101,7 +103,12 @@ export function collectShares(paths: { smbConf: string; exports: string; exports
 /** Overview-card rows from the full shares state. */
 export function sharesSummary(st: SharesState): Share[] {
   const smb: Share[] = st.smb.shares.map((s) => {
-    const notes = [s.guestOk ? tr('Gast erlaubt', 'guests allowed') : '', s.validUsers ? tr(`nur ${s.validUsers}`, `only ${s.validUsers}`) : '', s.browseable ? '' : tr('versteckt', 'hidden'), s.connections ? tr(`${s.connections} verbunden`, `${s.connections} connected`) : ''].filter(Boolean)
+    const notes = [
+      s.guestOk ? tr('Gast erlaubt', 'guests allowed') : '',
+      s.validUsers ? tr(`nur ${s.validUsers}`, `only ${s.validUsers}`) : '',
+      s.browseable ? '' : tr('versteckt', 'hidden'),
+      s.connections ? tr(`${s.connections} verbunden`, `${s.connections} connected`) : '',
+    ].filter(Boolean)
     return { type: 'SMB', name: s.name, path: s.path, access: s.readOnly ? tr('lesen', 'read') : tr('lesen/schreiben', 'read/write'), note: notes.join(' · ') || undefined }
   })
   const nfs: Share[] = st.nfs.exports.map((e) => ({

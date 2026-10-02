@@ -189,9 +189,7 @@ function DiskCard({ disk: d, a, onDetail, onReport }: { disk: SmartDisk; a: Smar
             <Pill tone={pill.tone}>{pill.label}</Pill>
             {d.testRunning !== undefined && <Pill tone="warn">{c.testRunning(d.testRunning)}</Pill>}
           </div>
-          <div className="truncate text-[13px] text-muted">
-            {[d.model, d.sizeBytes ? diskSize(d.sizeBytes) : '', kind(d, t)].filter(Boolean).join(' · ') || d.message}
-          </div>
+          <div className="truncate text-[13px] text-muted">{[d.model, d.sizeBytes ? diskSize(d.sizeBytes) : '', kind(d, t)].filter(Boolean).join(' · ') || d.message}</div>
         </div>
         {d.supported && !d.standby && (
           <button type="button" className="btn sm" onClick={onDetail} aria-label={c.detailsFor(d.name)}>
@@ -260,7 +258,16 @@ function DetailDialog({ disk: d, baseline, onClose }: { disk: SmartDisk | null; 
   }, [d, days])
   const span = days * 24 * 3600_000
   const now = Date.now()
-  const counters = trends ? ([['realloc', tt.disks.card.reallocated, '#e3b341'], ['pending', tt.disks.card.pending, '#ff8a80'], ['crc', t.crcErrors, '#b4a0ff'], ['media', tt.disks.card.mediaErrors, '#ff8a80']] as const).filter(([k]) => trends[k]?.length) : []
+  const counters = trends
+    ? (
+        [
+          ['realloc', tt.disks.card.reallocated, '#e3b341'],
+          ['pending', tt.disks.card.pending, '#ff8a80'],
+          ['crc', t.crcErrors, '#b4a0ff'],
+          ['media', tt.disks.card.mediaErrors, '#ff8a80'],
+        ] as const
+      ).filter(([k]) => trends[k]?.length)
+    : []
   return (
     <Modal open={!!d} onClose={onClose} title={d ? `${d.name} · ${d.model ?? ''}` : ''} wide>
       {d && (
@@ -299,19 +306,45 @@ function DetailDialog({ disk: d, baseline, onClose }: { disk: SmartDisk | null; 
           {!!trends?.temp?.length && (
             <section aria-label={t.tempHistory} className="pb-5">
               <h3 className="m-0 mb-1 text-[13px] font-semibold">{tt.disks.card.temperature}</h3>
-              <HistoryChart detailed label={`${d.name} ${tt.disks.card.temperature}`} series={[{ label: tt.disks.card.temperature, color: '#e3b341', points: trends.temp }]} span={span} now={now} format={(v) => `${Math.round(v)} °C`} height={110} />
+              <HistoryChart
+                detailed
+                label={`${d.name} ${tt.disks.card.temperature}`}
+                series={[{ label: tt.disks.card.temperature, color: '#e3b341', points: trends.temp }]}
+                span={span}
+                now={now}
+                format={(v) => `${Math.round(v)} °C`}
+                height={110}
+              />
             </section>
           )}
           {counters.length > 0 && trends && (
             <section aria-label={t.errorCounters} className="pb-5">
               <h3 className="m-0 mb-1 text-[13px] font-semibold">{t.errorCountersTitle}</h3>
-              <HistoryChart detailed label={`${d.name} ${t.errorCounters}`} series={counters.map(([k, label, color]) => ({ label, color, points: trends[k]! }))} span={span} now={now} format={(v) => String(Math.round(v))} yMin={0} height={110} />
+              <HistoryChart
+                detailed
+                label={`${d.name} ${t.errorCounters}`}
+                series={counters.map(([k, label, color]) => ({ label, color, points: trends[k]! }))}
+                span={span}
+                now={now}
+                format={(v) => String(Math.round(v))}
+                yMin={0}
+                height={110}
+              />
             </section>
           )}
           {!!trends?.wear?.length && (
             <section aria-label={t.wearHistory} className="pb-5">
               <h3 className="m-0 mb-1 text-[13px] font-semibold">{tt.disks.card.wear}</h3>
-              <HistoryChart detailed label={`${d.name} ${tt.disks.card.wear}`} series={[{ label: tt.disks.card.wear, color: '#7cc4b8', points: trends.wear }]} span={span} now={now} format={(v) => `${Math.round(v)} %`} yMin={0} height={90} />
+              <HistoryChart
+                detailed
+                label={`${d.name} ${tt.disks.card.wear}`}
+                series={[{ label: tt.disks.card.wear, color: '#7cc4b8', points: trends.wear }]}
+                span={span}
+                now={now}
+                format={(v) => `${Math.round(v)} %`}
+                yMin={0}
+                height={90}
+              />
             </section>
           )}
 

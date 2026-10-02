@@ -64,7 +64,13 @@ function renderOwned(spec: SmbShareSpec, indent: string): string[] {
   if (spec.comment) l.push(`${indent}comment = ${spec.comment}`)
   l.push(`${indent}read only = ${spec.readOnly ? 'yes' : 'no'}`)
   l.push(`${indent}guest ok = ${spec.guestOk ? 'yes' : 'no'}`)
-  if (spec.validUsers.trim()) l.push(`${indent}valid users = ${spec.validUsers.trim().split(/[\s,]+/).join(' ')}`)
+  if (spec.validUsers.trim())
+    l.push(
+      `${indent}valid users = ${spec.validUsers
+        .trim()
+        .split(/[\s,]+/)
+        .join(' ')}`,
+    )
   l.push(`${indent}browseable = ${spec.browseable ? 'yes' : 'no'}`)
   return l
 }
@@ -131,12 +137,16 @@ export function parseExportsFile(text: string): ExportLine[] {
     if (!m) continue
     const path = m[2] ?? m[3]!
     if (!path.startsWith('/')) continue
-    const clients: NfsClient[] = (m[4]!.match(/[^\s(]*(\([^)]*\))?/g) ?? [])
-      .filter(Boolean)
-      .map((c) => {
-        const cm = c.match(/^([^(]*)(?:\(([^)]*)\))?$/)!
-        return { host: cm[1] || '*', options: (cm[2] ?? '').split(',').map((o) => o.trim()).filter(Boolean) }
-      })
+    const clients: NfsClient[] = (m[4]!.match(/[^\s(]*(\([^)]*\))?/g) ?? []).filter(Boolean).map((c) => {
+      const cm = c.match(/^([^(]*)(?:\(([^)]*)\))?$/)!
+      return {
+        host: cm[1] || '*',
+        options: (cm[2] ?? '')
+          .split(',')
+          .map((o) => o.trim())
+          .filter(Boolean),
+      }
+    })
     out.push({ path, clients, line: start })
   }
   return out

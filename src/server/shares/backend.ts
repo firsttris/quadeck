@@ -8,17 +8,7 @@ import { dirname, join } from 'node:path'
 import { HttpError } from '../auth'
 import { run } from '../exec'
 import { tr } from '~/shared/i18n'
-import {
-  validateNfs,
-  validateSmb,
-  type NfsExportInfo,
-  type ShareChange,
-  type ShareConnection,
-  type SharePreview,
-  type ShareService,
-  type ShareServiceAction,
-  type SharesState,
-} from '~/shared/shares'
+import { validateNfs, validateSmb, type NfsExportInfo, type ShareChange, type ShareConnection, type SharePreview, type ShareService, type ShareServiceAction, type SharesState } from '~/shared/shares'
 import { parseExportsFile, parseNfsdClientInfo, parseSmbstatusShares, setExport, setSmbShare, smbShares } from './config'
 
 export interface SharesAdmin {
@@ -57,7 +47,10 @@ export function parseShareChange(v: unknown): ShareChange {
           path: str(s.path).trim(),
           clients: (Array.isArray(s.clients) ? s.clients : []).map((c: Record<string, unknown>) => ({
             host: str(c?.host).trim(),
-            options: (Array.isArray(c?.options) ? c.options : []).map(str).map((x: string) => x.trim()).filter(Boolean),
+            options: (Array.isArray(c?.options) ? c.options : [])
+              .map(str)
+              .map((x: string) => x.trim())
+              .filter(Boolean),
           })),
         }
       : null
@@ -122,7 +115,12 @@ export class SystemShares implements SharesBackend {
   private exportFiles() {
     const files = [this.exports]
     try {
-      files.push(...readdirSync(this.exportsDir).filter((f) => f.endsWith('.exports')).sort().map((f) => join(this.exportsDir, f)))
+      files.push(
+        ...readdirSync(this.exportsDir)
+          .filter((f) => f.endsWith('.exports'))
+          .sort()
+          .map((f) => join(this.exportsDir, f)),
+      )
     } catch {
       // no exports.d
     }
@@ -149,7 +147,13 @@ export class SystemShares implements SharesBackend {
   private nfsClients(): string[] {
     const dir = '/proc/fs/nfsd/clients'
     try {
-      return [...new Set(readdirSync(dir).map((c) => parseNfsdClientInfo(read(join(dir, c, 'info')) ?? '')).filter((x): x is string => !!x))]
+      return [
+        ...new Set(
+          readdirSync(dir)
+            .map((c) => parseNfsdClientInfo(read(join(dir, c, 'info')) ?? ''))
+            .filter((x): x is string => !!x),
+        ),
+      ]
     } catch {
       return []
     }
@@ -204,7 +208,8 @@ export class SystemShares implements SharesBackend {
       const file = change.original?.file || this.managedExports
       if (!this.exportFiles().includes(file)) throw new HttpError(400, tr(`Unbekannte exports-Datei: ${file}`, `Unknown exports file: ${file}`))
       const before = read(file) ?? ''
-      if (change.spec?.clients.some((c) => c.host === '*' && c.options.includes('rw'))) warnings.push(tr('Schreibzugriff für alle Rechner (*) – besser auf das eigene Netz beschränken', 'Write access for all hosts (*) – better restrict it to your own network'))
+      if (change.spec?.clients.some((c) => c.host === '*' && c.options.includes('rw')))
+        warnings.push(tr('Schreibzugriff für alle Rechner (*) – besser auf das eigene Netz beschränken', 'Write access for all hosts (*) – better restrict it to your own network'))
       if (change.spec?.clients.some((c) => c.options.includes('no_root_squash'))) warnings.push(tr('no_root_squash: root auf dem Client ist auch hier root', 'no_root_squash: root on the client is root here too'))
       return { file, before, after: setExport(before, change.original?.path, change.spec), warnings }
     } catch (e) {
@@ -248,7 +253,13 @@ export class SystemShares implements SharesBackend {
 
   async shareService(kind: 'smb' | 'nfs', action: ShareServiceAction): Promise<SharesState> {
     const units = (await this.services(kind === 'smb' ? SMB_UNITS : NFS_UNITS)).map((s) => s.unit)
-    if (!units.length) throw new HttpError(404, kind === 'smb' ? tr('Samba ist nicht installiert (Paket samba)', 'Samba is not installed (package samba)') : tr('Kein NFS-Server installiert (nfs-utils / nfs-kernel-server)', 'No NFS server installed (nfs-utils / nfs-kernel-server)'))
+    if (!units.length)
+      throw new HttpError(
+        404,
+        kind === 'smb'
+          ? tr('Samba ist nicht installiert (Paket samba)', 'Samba is not installed (package samba)')
+          : tr('Kein NFS-Server installiert (nfs-utils / nfs-kernel-server)', 'No NFS server installed (nfs-utils / nfs-kernel-server)'),
+      )
     const argv = action === 'enable' ? ['systemctl', 'enable', '--now', ...units] : ['systemctl', action, ...units]
     const r = await run(argv, { timeoutMs: 60_000 })
     if (r.code !== 0) throw new HttpError(500, `${argv.join(' ')}: ${r.stderr.trim()}`)
@@ -317,7 +328,8 @@ export class FixtureShares implements SharesBackend {
       }
       const file = change.original?.file || this.managed
       const before = this.files.get(file) ?? ''
-      if (change.spec?.clients.some((c) => c.host === '*' && c.options.includes('rw'))) warnings.push(tr('Schreibzugriff für alle Rechner (*) – besser auf das eigene Netz beschränken', 'Write access for all hosts (*) – better restrict it to your own network'))
+      if (change.spec?.clients.some((c) => c.host === '*' && c.options.includes('rw')))
+        warnings.push(tr('Schreibzugriff für alle Rechner (*) – besser auf das eigene Netz beschränken', 'Write access for all hosts (*) – better restrict it to your own network'))
       if (change.spec?.clients.some((c) => c.options.includes('no_root_squash'))) warnings.push(tr('no_root_squash: root auf dem Client ist auch hier root', 'no_root_squash: root on the client is root here too'))
       return { file, before, after: setExport(before, change.original?.path, change.spec), warnings }
     } catch (e) {
@@ -344,6 +356,9 @@ export class FixtureShares implements SharesBackend {
   /** Current demo files (the hub shows the overview card from them). */
   text(file: 'smb' | 'exports') {
     if (file === 'smb') return this.files.get('/etc/samba/smb.conf') ?? ''
-    return [...this.files].filter(([f]) => f !== '/etc/samba/smb.conf').map(([, t]) => t).join('\n')
+    return [...this.files]
+      .filter(([f]) => f !== '/etc/samba/smb.conf')
+      .map(([, t]) => t)
+      .join('\n')
   }
 }

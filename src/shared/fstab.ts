@@ -106,7 +106,12 @@ export function parseFstab(text: string): { entries: FstabEntry[]; diagnostics: 
     const f = t.split(/\s+/)
     const line = i + 1
     if (f.length < 2) return void diagnostics.push({ line, severity: 'error', message: tr('Zu wenige Felder – mindestens Quelle und Einhängepunkt', 'Too few fields – at least source and mount point') })
-    if (f.length > 6) return void diagnostics.push({ line, severity: 'error', message: tr(`${f.length} Felder – fstab hat höchstens 6 (Leerzeichen in Pfaden als \\040 schreiben)`, `${f.length} fields – fstab has at most 6 (write spaces in paths as \\040)`) })
+    if (f.length > 6)
+      return void diagnostics.push({
+        line,
+        severity: 'error',
+        message: tr(`${f.length} Felder – fstab hat höchstens 6 (Leerzeichen in Pfaden als \\040 schreiben)`, `${f.length} fields – fstab has at most 6 (write spaces in paths as \\040)`),
+      })
     const num = (v: string | undefined, name: string) => {
       if (v === undefined) return 0
       if (!/^\d+$/.test(v)) diagnostics.push({ line, severity: 'error', message: name + tr(` muss eine Zahl sein, nicht „${v}“`, ` must be a number, not “${v}”`) })
@@ -157,7 +162,12 @@ export function applyChange(text: string, change: FstabChange): string {
     // Our own note above the line goes with it, and so does a blank line left alone.
     if (lines[idx - 1]?.startsWith(NOTE)) lines.splice(idx - 1, 1)
   }
-  return lines.join('\n').replace(/\n{3,}/g, '\n\n').replace(/\n+$/, '') + '\n'
+  return (
+    lines
+      .join('\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .replace(/\n+$/, '') + '\n'
+  )
 }
 
 export class FstabConflict extends Error {
@@ -169,7 +179,30 @@ export class FstabConflict extends Error {
 // ---------- what may be touched ----------
 
 const SYSTEM_TARGETS = new Set(['/', '/boot', '/boot/efi', '/efi', '/usr', '/var', '/home', '/sysroot', '/nix', '/gnu'])
-const PSEUDO_FS = new Set(['proc', 'sysfs', 'devpts', 'tmpfs', 'devtmpfs', 'efivarfs', 'securityfs', 'cgroup', 'cgroup2', 'debugfs', 'tracefs', 'hugetlbfs', 'mqueue', 'bpf', 'pstore', 'configfs', 'fusectl', 'ramfs', 'overlay', 'squashfs', 'iso9660', 'udf'])
+const PSEUDO_FS = new Set([
+  'proc',
+  'sysfs',
+  'devpts',
+  'tmpfs',
+  'devtmpfs',
+  'efivarfs',
+  'securityfs',
+  'cgroup',
+  'cgroup2',
+  'debugfs',
+  'tracefs',
+  'hugetlbfs',
+  'mqueue',
+  'bpf',
+  'pstore',
+  'configfs',
+  'fusectl',
+  'ramfs',
+  'overlay',
+  'squashfs',
+  'iso9660',
+  'udf',
+])
 export const NETWORK_FS = new Set(['nfs', 'nfs4', 'cifs', 'smb3', 'smbfs', 'sshfs', 'fuse.sshfs', 'glusterfs', 'ceph', 'davfs', '9p', 'virtiofs'])
 
 /** Directories that must never become (or be hidden under) a mount point. */
@@ -222,7 +255,11 @@ const doc = (d: Omit<OptionDoc, 'text'>, de: string, en: string): OptionDoc => (
 
 export const OPTION_DOCS: OptionDoc[] = [
   doc({ name: 'defaults' }, 'Standardeinstellungen (rw, suid, dev, exec, auto, nouser, async).', 'Default settings (rw, suid, dev, exec, auto, nouser, async).'),
-  doc({ name: 'nofail' }, 'Fehlt die Platte beim Start, bootet der Server trotzdem – ohne diese Option landet er im Notfallmodus.', 'If the disk is missing at boot, the server boots anyway – without this option it ends up in emergency mode.'),
+  doc(
+    { name: 'nofail' },
+    'Fehlt die Platte beim Start, bootet der Server trotzdem – ohne diese Option landet er im Notfallmodus.',
+    'If the disk is missing at boot, the server boots anyway – without this option it ends up in emergency mode.',
+  ),
   doc({ name: 'x-systemd.device-timeout', value: 'seconds' }, 'So lange wartet systemd beim Start auf die Platte (Standard 90 s).', 'How long systemd waits for the disk at boot (default 90 s).'),
   doc({ name: 'noauto' }, 'Beim Start nicht einhängen, nur von Hand oder bei Bedarf.', 'Do not mount at boot, only by hand or on demand.'),
   doc({ name: 'x-systemd.automount' }, 'Erst beim ersten Zugriff einhängen – der Start wartet nicht auf die Platte.', 'Mount on first access only – the boot does not wait for the disk.'),
@@ -307,7 +344,9 @@ export const optionValue = (o: string) => (o.includes('=') ? o.slice(o.indexOf('
 
 export function optionDoc(o: string): OptionDoc | undefined {
   const n = optionName(o)
-  return DOC.get(n) ?? (n.startsWith('x-systemd.') || n.startsWith('x-') ? doc({ name: n }, 'Option für systemd oder andere Programme (wird vom Kernel ignoriert).', 'Option for systemd or other programs (ignored by the kernel).') : undefined)
+  return (
+    DOC.get(n) ?? (n.startsWith('x-systemd.') || n.startsWith('x-') ? doc({ name: n }, 'Option für systemd oder andere Programme (wird vom Kernel ignoriert).', 'Option for systemd or other programs (ignored by the kernel).') : undefined)
+  )
 }
 
 /** Options that need no driver: mount(8) and systemd handle them. */
@@ -348,7 +387,11 @@ export function checkInput(e: EntryInput): Diagnostic[] {
   if (!FSTYPE_RE.test(e.vfstype)) err(tr('Dateisystem: z. B. ext4, xfs, btrfs', 'File system: e.g. ext4, xfs, btrfs'))
   for (const o of e.options) {
     if (!OPTION_RE.test(o)) err(tr(`Option „${o}“ enthält unerlaubte Zeichen`, `Option “${o}” contains invalid characters`))
-    else if (!knownOption(o, e.vfstype)) d.push({ severity: 'warning', message: tr(`Option „${o}“ kennt Quadeck für ${e.vfstype} nicht – der Probemount zeigt, ob der Treiber sie annimmt`, `Quadeck does not know option “${o}” for ${e.vfstype} – the test mount shows whether the driver accepts it`) })
+    else if (!knownOption(o, e.vfstype))
+      d.push({
+        severity: 'warning',
+        message: tr(`Option „${o}“ kennt Quadeck für ${e.vfstype} nicht – der Probemount zeigt, ob der Treiber sie annimmt`, `Quadeck does not know option “${o}” for ${e.vfstype} – the test mount shows whether the driver accepts it`),
+      })
   }
   const names = e.options.map(optionName)
   const dup = names.find((n, i) => names.indexOf(n) !== i)
@@ -358,7 +401,8 @@ export function checkInput(e: EntryInput): Diagnostic[] {
   if (!Number.isInteger(e.freq) || e.freq < 0 || e.freq > 1) err(tr('Feld 5 (dump) ist 0 oder 1', 'Field 5 (dump) is 0 or 1'))
   if (!Number.isInteger(e.passno) || e.passno < 0 || e.passno > 2) err(tr('Feld 6 (Prüfreihenfolge) ist 0, 1 oder 2', 'Field 6 (check order) is 0, 1 or 2'))
   if (e.passno === 1 && e.file !== '/') d.push({ severity: 'warning', message: tr('Prüfreihenfolge 1 ist für / gedacht – Datenplatten 2 oder 0', 'Check order 1 is meant for / – data disks 2 or 0') })
-  if (e.passno > 0 && ['xfs', 'btrfs', 'ntfs3', 'ntfs', 'exfat', 'zfs'].includes(e.vfstype)) d.push({ severity: 'warning', message: tr(`${e.vfstype} wird beim Start nicht mit fsck geprüft – Feld 6 auf 0 setzen`, `${e.vfstype} is not checked with fsck at boot – set field 6 to 0`) })
+  if (e.passno > 0 && ['xfs', 'btrfs', 'ntfs3', 'ntfs', 'exfat', 'zfs'].includes(e.vfstype))
+    d.push({ severity: 'warning', message: tr(`${e.vfstype} wird beim Start nicht mit fsck geprüft – Feld 6 auf 0 setzen`, `${e.vfstype} is not checked with fsck at boot – set field 6 to 0`) })
   for (const o of e.options) {
     const v = optionValue(o)
     const doc = optionDoc(o)
@@ -376,7 +420,8 @@ export function checkFile(text: string, rootSpecs: string[] = []): Diagnostic[] 
   for (const e of entries) {
     if (e.vfstype === 'swap' || e.file === 'none') continue
     const prev = seen.get(e.file)
-    if (prev) diagnostics.push({ line: e.line, severity: 'error', message: tr(`${e.file} steht schon in Zeile ${prev} – ein Einhängepunkt darf nur einmal vorkommen`, `${e.file} is already in line ${prev} – a mount point may appear only once`) })
+    if (prev)
+      diagnostics.push({ line: e.line, severity: 'error', message: tr(`${e.file} steht schon in Zeile ${prev} – ein Einhängepunkt darf nur einmal vorkommen`, `${e.file} is already in line ${prev} – a mount point may appear only once`) })
     else seen.set(e.file, e.line)
   }
   if (!entries.some((e) => e.file === '/') && rootSpecs.length) diagnostics.push({ severity: 'warning', message: tr('Kein Eintrag für / – das ist unüblich', 'No entry for / – that is unusual') })
@@ -401,7 +446,12 @@ export function protectedLinesChanged(before: string, after: string, rootSpecs: 
 
 /** Targets that are boot critical after the change but were not before (or did not exist). */
 export function newlyCritical(before: string, after: string): string[] {
-  const crit = (t: string) => new Set(parseFstab(t).entries.filter(isBootCritical).map((e) => `${e.file}\t${e.spec}`))
+  const crit = (t: string) =>
+    new Set(
+      parseFstab(t)
+        .entries.filter(isBootCritical)
+        .map((e) => `${e.file}\t${e.spec}`),
+    )
   const a = crit(before)
   return [...crit(after)].filter((k) => !a.has(k)).map((k) => k.split('\t')[0]!)
 }
@@ -436,7 +486,11 @@ export function specMatches(spec: string, d: BlockDevice): boolean {
 }
 
 export function suggestTarget(d: BlockDevice, taken: string[]): string {
-  const base = (d.label || d.partlabel || d.name).toLowerCase().replace(/[^a-z0-9_-]+/g, '-').replace(/^-+|-+$/g, '') || d.name
+  const base =
+    (d.label || d.partlabel || d.name)
+      .toLowerCase()
+      .replace(/[^a-z0-9_-]+/g, '-')
+      .replace(/^-+|-+$/g, '') || d.name
   let p = `/mnt/${base}`
   for (let i = 2; taken.includes(p); i++) p = `/mnt/${base}-${i}`
   return p

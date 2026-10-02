@@ -13,7 +13,13 @@ import type { SmartReport } from '~/shared/smart'
 
 // GET: SMART of all disks (cached 15 min); ?history=<disk id>&days=90 → trends.
 // POST {}: read again now. POST { selftest: { disk, type } }: start a self-test (unlock).
-const withBaselines = (r: SmartReport): SmartReport => ({ ...r, baselines: smartBaselines(db(), r.disks.map((d) => d.id)) })
+const withBaselines = (r: SmartReport): SmartReport => ({
+  ...r,
+  baselines: smartBaselines(
+    db(),
+    r.disks.map((d) => d.id),
+  ),
+})
 
 export const Route = createFileRoute('/api/disks/smart')({
   server: {

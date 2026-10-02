@@ -197,17 +197,34 @@ export class FstabManager implements FstabBackend {
       }
       const dev = ctx.devices.find((d) => specMatches(e.spec, d))
       if (!dev) out.push({ line: e.line, severity: isBootCritical(e) || change.kind === 'add' ? 'error' : 'warning', message: label(e) + tr(`Kein Gerät mit ${e.spec} gefunden`, `No device with ${e.spec} found`) })
-      else if (!fsCompatible(e.vfstype, dev.fstype)) out.push({ line: e.line, severity: 'error', message: label(e) + tr(`Auf ${dev.path} ist ${dev.fstype || 'kein Dateisystem'}, nicht ${e.vfstype}`, `${dev.path} has ${dev.fstype || 'no file system'}, not ${e.vfstype}`) })
+      else if (!fsCompatible(e.vfstype, dev.fstype))
+        out.push({ line: e.line, severity: 'error', message: label(e) + tr(`Auf ${dev.path} ist ${dev.fstype || 'kein Dateisystem'}, nicht ${e.vfstype}`, `${dev.path} has ${dev.fstype || 'no file system'}, not ${e.vfstype}`) })
       const type = e.vfstype === 'auto' ? dev?.fstype : e.vfstype
-      if (type && !(await this.host.driver(type))) out.push({ line: e.line, severity: 'error', message: label(e) + tr(`Treiber für ${type} fehlt${FS_PACKAGE[type] ? ` – Paket ${FS_PACKAGE[type]} installieren` : ''}`, `Driver for ${type} is missing${FS_PACKAGE[type] ? ` – install package ${FS_PACKAGE[type]}` : ''}`) })
+      if (type && !(await this.host.driver(type)))
+        out.push({
+          line: e.line,
+          severity: 'error',
+          message: label(e) + tr(`Treiber für ${type} fehlt${FS_PACKAGE[type] ? ` – Paket ${FS_PACKAGE[type]} installieren` : ''}`, `Driver for ${type} is missing${FS_PACKAGE[type] ? ` – install package ${FS_PACKAGE[type]}` : ''}`),
+        })
       const at = ctx.mounts.get(e.file)
       const same = at && dev && (at.source.replace(/\[.*\]$/, '') === dev.path || specMatches(at.source, dev))
       if (at && !same && !(old && old.file === e.file)) out.push({ line: e.line, severity: 'error', message: label(e) + tr(`Unter ${e.file} ist schon ${at.source} eingehängt`, `${at.source} is already mounted at ${e.file}`) })
       const elsewhere = dev?.mountpoints.filter((m) => m !== e.file && m !== old?.file)
-      if (elsewhere?.length) out.push({ line: e.line, severity: 'warning', message: label(e) + tr(`${dev!.path} ist schon unter ${elsewhere.join(', ')} eingehängt – das bleibt so, bis zum nächsten Neustart`, `${dev!.path} is already mounted at ${elsewhere.join(', ')} – that stays so until the next reboot`) })
+      if (elsewhere?.length)
+        out.push({
+          line: e.line,
+          severity: 'warning',
+          message:
+            label(e) + tr(`${dev!.path} ist schon unter ${elsewhere.join(', ')} eingehängt – das bleibt so, bis zum nächsten Neustart`, `${dev!.path} is already mounted at ${elsewhere.join(', ')} – that stays so until the next reboot`),
+        })
       const dir = this.host.dirState(e.file)
       if (dir === 'file') out.push({ line: e.line, severity: 'error', message: label(e) + tr(`${e.file} ist eine Datei, kein Verzeichnis`, `${e.file} is a file, not a directory`) })
-      if (dir === 'nonempty' && !at) out.push({ line: e.line, severity: 'warning', message: label(e) + tr(`${e.file} ist nicht leer – der Inhalt ist verdeckt, solange die Platte eingehängt ist`, `${e.file} is not empty – its content is hidden while the disk is mounted`) })
+      if (dir === 'nonempty' && !at)
+        out.push({
+          line: e.line,
+          severity: 'warning',
+          message: label(e) + tr(`${e.file} ist nicht leer – der Inhalt ist verdeckt, solange die Platte eingehängt ist`, `${e.file} is not empty – its content is hidden while the disk is mounted`),
+        })
       if (dir === 'missing' && change.kind !== 'restore') createDir = e.file
     }
 
@@ -230,10 +247,14 @@ export class FstabManager implements FstabBackend {
       if (ctx.mounts.has(old.file)) actions.push(tr(`${old.file} aushängen (${mountUnit(old.file)} stoppen)`, `Unmount ${old.file} (stop ${mountUnit(old.file)})`))
     }
     for (const e of changed) {
-      if (isBlockSpec(e.spec) && !ctx.mounts.has(e.file) && change.kind !== 'restore') actions.push(tr(`Probemount von ${e.spec} mit ${e.options.join(',') || 'defaults'}`, `Test mount of ${e.spec} with ${e.options.join(',') || 'defaults'}`))
+      if (isBlockSpec(e.spec) && !ctx.mounts.has(e.file) && change.kind !== 'restore')
+        actions.push(tr(`Probemount von ${e.spec} mit ${e.options.join(',') || 'defaults'}`, `Test mount of ${e.spec} with ${e.options.join(',') || 'defaults'}`))
     }
     if (createDir) actions.push(tr(`Verzeichnis ${createDir} anlegen`, `Create directory ${createDir}`))
-    actions.push(tr(`${this.host.path} schreiben (vorherige Fassung als ${this.host.path}.quadeck-bak und im Verlauf)`, `Write ${this.host.path} (previous version as ${this.host.path}.quadeck-bak and in the history)`), 'systemctl daemon-reload')
+    actions.push(
+      tr(`${this.host.path} schreiben (vorherige Fassung als ${this.host.path}.quadeck-bak und im Verlauf)`, `Write ${this.host.path} (previous version as ${this.host.path}.quadeck-bak and in the history)`),
+      'systemctl daemon-reload',
+    )
     if (change.kind === 'add' || change.kind === 'update') {
       const e = change.entry
       const wasMounted = old && ctx.mounts.has(old.file)
@@ -248,7 +269,13 @@ export class FstabManager implements FstabBackend {
     const err = check.diagnostics.find((d) => d.severity === 'error')
     if (err) throw new HttpError(422, (err.line ? tr(`Zeile ${err.line}: `, `Line ${err.line}: `) : '') + err.message)
     if (check.bootCritical.length && !confirmCritical)
-      throw new HttpError(409, tr(`${check.bootCritical.join(', ')} würde den Start blockieren, wenn die Platte fehlt – „nofail“ setzen oder ausdrücklich bestätigen`, `${check.bootCritical.join(', ')} would block the boot if the disk is missing – set “nofail” or confirm explicitly`))
+      throw new HttpError(
+        409,
+        tr(
+          `${check.bootCritical.join(', ')} würde den Start blockieren, wenn die Platte fehlt – „nofail“ setzen oder ausdrücklich bestätigen`,
+          `${check.bootCritical.join(', ')} would block the boot if the disk is missing – set “nofail” or confirm explicitly`,
+        ),
+      )
     const mounts = await this.host.mounts()
     const old = change.kind === 'update' || change.kind === 'remove' ? parseFstab(check.before).entries.find((e) => e.line === change.line) : undefined
 
@@ -264,7 +291,14 @@ export class FstabManager implements FstabBackend {
     // 2. Unmount what goes away or moves.
     if (old && mounts.has(old.file) && (change.kind === 'remove' || (change.kind === 'update' && (change.entry.file !== old.file || change.entry.spec !== old.spec)))) {
       for (const u of [mountUnit(old.file, 'automount'), mountUnit(old.file)]) await this.host.systemctl(['stop', '--', u])
-      if ((await this.host.mounts()).has(old.file)) throw new HttpError(409, tr(`${old.file} lässt sich nicht aushängen – wird gerade benutzt (z. B. von einem Container, einer Freigabe oder einer offenen Shell)`, `${old.file} cannot be unmounted – it is in use (e.g. by a container, a share or an open shell)`))
+      if ((await this.host.mounts()).has(old.file))
+        throw new HttpError(
+          409,
+          tr(
+            `${old.file} lässt sich nicht aushängen – wird gerade benutzt (z. B. von einem Container, einer Freigabe oder einer offenen Shell)`,
+            `${old.file} cannot be unmounted – it is in use (e.g. by a container, a share or an open shell)`,
+          ),
+        )
     }
 
     // 3. Write, reload, mount – and undo everything if a step fails.

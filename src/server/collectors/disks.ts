@@ -86,9 +86,7 @@ function readDriveTemps(): Map<string, number> {
 }
 
 export async function collectDisks(): Promise<Disk[]> {
-  const json = await runOk(['lsblk', '-J', '-b', '-o', 'NAME,PATH,TYPE,SIZE,FSTYPE,MOUNTPOINTS,PKNAME']).catch(() =>
-    runOk(['lsblk', '-J', '-b', '-o', 'NAME,PATH,TYPE,SIZE,FSTYPE,MOUNTPOINT,PKNAME']),
-  )
+  const json = await runOk(['lsblk', '-J', '-b', '-o', 'NAME,PATH,TYPE,SIZE,FSTYPE,MOUNTPOINTS,PKNAME']).catch(() => runOk(['lsblk', '-J', '-b', '-o', 'NAME,PATH,TYPE,SIZE,FSTYPE,MOUNTPOINT,PKNAME']))
   const temps = readDriveTemps()
   const disks: Disk[] = []
   for (const fs of parseLsblk(json)) {

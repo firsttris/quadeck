@@ -120,7 +120,12 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
         <h2 className="h2 px-[18px] pt-4 pb-2">{t.roots}</h2>
         {roots?.length === 0 && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{t.noRoots}</p>}
         {roots?.map((r) => (
-          <button key={r.path} type="button" onClick={() => onNavigate(r.path)} className={`flex flex-col border-t border-line px-[18px] py-[9px] text-left hover:bg-[rgba(255,255,255,.03)] ${r.path === root ? 'bg-[rgba(124,196,184,.10)]' : ''}`}>
+          <button
+            key={r.path}
+            type="button"
+            onClick={() => onNavigate(r.path)}
+            className={`flex flex-col border-t border-line px-[18px] py-[9px] text-left hover:bg-[rgba(255,255,255,.03)] ${r.path === root ? 'bg-[rgba(124,196,184,.10)]' : ''}`}
+          >
             <span className="flex items-center gap-2 font-mono text-[13px]">
               <Glyph name="disk" size={14} />
               {r.label}
@@ -197,12 +202,7 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
             <thead>
               <tr>
                 <th className="w-8">
-                  <input
-                    type="checkbox"
-                    aria-label={t.selectAll}
-                    checked={!!entries.length && selected.size === entries.length}
-                    onChange={(e) => setSelected(e.target.checked ? new Set(entries.map((x) => x.name)) : new Set())}
-                  />
+                  <input type="checkbox" aria-label={t.selectAll} checked={!!entries.length && selected.size === entries.length} onChange={(e) => setSelected(e.target.checked ? new Set(entries.map((x) => x.name)) : new Set())} />
                 </th>
                 <th>{tt.common.name}</th>
                 <th className="hidden sm:table-cell">{tt.common.size}</th>
@@ -238,7 +238,11 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
                         ) : (
                           <span className="truncate">{e.name}</span>
                         )}
-                        {e.type === 'link' && <span className="chip" title={e.target}>→ {e.target}</span>}
+                        {e.type === 'link' && (
+                          <span className="chip" title={e.target}>
+                            → {e.target}
+                          </span>
+                        )}
                       </span>
                     </td>
                     <td className="hidden font-mono text-[12px] sm:table-cell">{e.type === 'file' ? bytes(e.size) : ''}</td>

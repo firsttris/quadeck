@@ -52,7 +52,13 @@ export function prepareFsJob(spec: FsJob, ops: FsOps): { sources: string[]; toDi
   const toDir = ops.dir(spec.toDir)
   const conflicts: string[] = []
   for (const s of sources) {
-    if (toDir === s || toDir.startsWith(s + '/')) throw new HttpError(400, spec.kind === 'fs-copy' ? tr(`${baseName(s)} kann nicht in sich selbst kopiert werden`, `${baseName(s)} cannot be copied into itself`) : tr(`${baseName(s)} kann nicht in sich selbst verschoben werden`, `${baseName(s)} cannot be moved into itself`))
+    if (toDir === s || toDir.startsWith(s + '/'))
+      throw new HttpError(
+        400,
+        spec.kind === 'fs-copy'
+          ? tr(`${baseName(s)} kann nicht in sich selbst kopiert werden`, `${baseName(s)} cannot be copied into itself`)
+          : tr(`${baseName(s)} kann nicht in sich selbst verschoben werden`, `${baseName(s)} cannot be moved into itself`),
+      )
     if (spec.kind === 'fs-move' && parentOf(s) === toDir) throw new HttpError(400, tr(`${baseName(s)} liegt schon in diesem Ordner`, `${baseName(s)} is already in this folder`))
     if (ops.exists(joinPath(toDir, baseName(s)))) conflicts.push(baseName(s))
   }

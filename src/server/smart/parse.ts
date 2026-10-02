@@ -93,7 +93,12 @@ export function parseSmartctl(name: string, text: string): SmartDisk {
     })),
   ]
   const ataRunning = j.ata_smart_data?.self_test?.status
-  const testRunning = ataRunning?.remaining_percent !== undefined && /progress/i.test(ataRunning.string ?? '') ? ataRunning.remaining_percent : j.nvme_self_test_log?.current_self_test_completion_percent !== undefined ? 100 - j.nvme_self_test_log.current_self_test_completion_percent : undefined
+  const testRunning =
+    ataRunning?.remaining_percent !== undefined && /progress/i.test(ataRunning.string ?? '')
+      ? ataRunning.remaining_percent
+      : j.nvme_self_test_log?.current_self_test_completion_percent !== undefined
+        ? 100 - j.nvme_self_test_log.current_self_test_completion_percent
+        : undefined
   let status = statusFromExit(exit)
   // smartctl's exit bits do not see an NVMe critical warning as failure.
   if (nvme?.critical_warning && status === 'OK') status = 'PREFAIL'

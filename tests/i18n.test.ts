@@ -7,6 +7,9 @@ afterEach(() => {
   delete g.__quadeckLang
 })
 
+/** German needs a word here that English does not ("um 6 Uhr" / "at 6"). */
+const EMPTY_IN_EN = ['t.notifications.rules.oclock']
+
 describe('i18n', () => {
   it('answers in the viewer language, or keeps both when nobody is asking', () => {
     setLangResolver(() => 'en')
@@ -36,7 +39,7 @@ describe('i18n', () => {
   it('has every German text in English too, and none of them empty', () => {
     const walk = (de: unknown, en: unknown, path: string): string[] => {
       if (typeof de === 'function') return typeof en === 'function' ? [] : [path]
-      if (typeof de === 'string') return typeof en === 'string' && (en.trim() || !/\p{L}/u.test(de)) ? [] : [path]
+      if (typeof de === 'string') return typeof en === 'string' && (en.trim() || !/\p{L}/u.test(de) || EMPTY_IN_EN.includes(path)) ? [] : [path]
       if (de && typeof de === 'object') return Object.keys(de).flatMap((k) => walk((de as Record<string, unknown>)[k], (en as Record<string, unknown> | undefined)?.[k], `${path}.${k}`))
       return []
     }
