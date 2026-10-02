@@ -24,6 +24,7 @@ import { Route as AppSshRouteImport } from './routes/_app/ssh'
 import { Route as AppSystemRouteImport } from './routes/_app/system'
 import { Route as AppSystemdRouteImport } from './routes/_app/systemd'
 import { Route as AppUnitsRouteImport } from './routes/_app/units'
+import { Route as AppUsersRouteImport } from './routes/_app/users'
 import { Route as ApiContainersRouteImport } from './routes/api/containers'
 import { Route as ApiEventsRouteImport } from './routes/api/events'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
@@ -64,6 +65,7 @@ import { Route as ApiSystemRemovePreviewRouteImport } from './routes/api/system/
 import { Route as ApiSystemUpdatesRouteImport } from './routes/api/system/updates'
 import { Route as ApiSystemdIndexRouteImport } from './routes/api/systemd/index'
 import { Route as ApiTimersIndexRouteImport } from './routes/api/timers/index'
+import { Route as ApiUsersIndexRouteImport } from './routes/api/users/index'
 import { Route as ApiSystemPackagesIndexRouteImport } from './routes/api/system/packages/index'
 import { Route as ApiSystemPackagesNameRouteImport } from './routes/api/system/packages/$name'
 
@@ -139,6 +141,11 @@ const AppSystemdRoute = AppSystemdRouteImport.update({
 const AppUnitsRoute = AppUnitsRouteImport.update({
   id: '/units',
   path: '/units',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppUsersRoute = AppUsersRouteImport.update({
+  id: '/users',
+  path: '/users',
   getParentRoute: () => AppRoute,
 } as any)
 const ApiContainersRoute = ApiContainersRouteImport.update({
@@ -341,6 +348,11 @@ const ApiTimersIndexRoute = ApiTimersIndexRouteImport.update({
   path: '/api/timers/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiUsersIndexRoute = ApiUsersIndexRouteImport.update({
+  id: '/api/users/',
+  path: '/api/users/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSystemPackagesIndexRoute = ApiSystemPackagesIndexRouteImport.update({
   id: '/api/system/packages/',
   path: '/api/system/packages/',
@@ -367,6 +379,7 @@ export interface FileRoutesByFullPath {
   '/system': typeof AppSystemRoute
   '/systemd': typeof AppSystemdRoute
   '/units': typeof AppUnitsRoute
+  '/users': typeof AppUsersRoute
   '/api/containers': typeof ApiContainersRoute
   '/api/events': typeof ApiEventsRoute
   '/api/health': typeof ApiHealthRoute
@@ -407,6 +420,7 @@ export interface FileRoutesByFullPath {
   '/api/ssh/': typeof ApiSshIndexRoute
   '/api/systemd/': typeof ApiSystemdIndexRoute
   '/api/timers/': typeof ApiTimersIndexRoute
+  '/api/users/': typeof ApiUsersIndexRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages/': typeof ApiSystemPackagesIndexRoute
 }
@@ -424,6 +438,7 @@ export interface FileRoutesByTo {
   '/system': typeof AppSystemRoute
   '/systemd': typeof AppSystemdRoute
   '/units': typeof AppUnitsRoute
+  '/users': typeof AppUsersRoute
   '/api/containers': typeof ApiContainersRoute
   '/api/events': typeof ApiEventsRoute
   '/api/health': typeof ApiHealthRoute
@@ -465,6 +480,7 @@ export interface FileRoutesByTo {
   '/api/ssh': typeof ApiSshIndexRoute
   '/api/systemd': typeof ApiSystemdIndexRoute
   '/api/timers': typeof ApiTimersIndexRoute
+  '/api/users': typeof ApiUsersIndexRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages': typeof ApiSystemPackagesIndexRoute
 }
@@ -484,6 +500,7 @@ export interface FileRoutesById {
   '/_app/system': typeof AppSystemRoute
   '/_app/systemd': typeof AppSystemdRoute
   '/_app/units': typeof AppUnitsRoute
+  '/_app/users': typeof AppUsersRoute
   '/api/containers': typeof ApiContainersRoute
   '/api/events': typeof ApiEventsRoute
   '/api/health': typeof ApiHealthRoute
@@ -525,6 +542,7 @@ export interface FileRoutesById {
   '/api/ssh/': typeof ApiSshIndexRoute
   '/api/systemd/': typeof ApiSystemdIndexRoute
   '/api/timers/': typeof ApiTimersIndexRoute
+  '/api/users/': typeof ApiUsersIndexRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages/': typeof ApiSystemPackagesIndexRoute
 }
@@ -545,6 +563,7 @@ export interface FileRouteTypes {
     | '/system'
     | '/systemd'
     | '/units'
+    | '/users'
     | '/api/containers'
     | '/api/events'
     | '/api/health'
@@ -585,6 +604,7 @@ export interface FileRouteTypes {
     | '/api/ssh/'
     | '/api/systemd/'
     | '/api/timers/'
+    | '/api/users/'
     | '/api/system/packages/$name'
     | '/api/system/packages/'
   fileRoutesByTo: FileRoutesByTo
@@ -602,6 +622,7 @@ export interface FileRouteTypes {
     | '/system'
     | '/systemd'
     | '/units'
+    | '/users'
     | '/api/containers'
     | '/api/events'
     | '/api/health'
@@ -643,6 +664,7 @@ export interface FileRouteTypes {
     | '/api/ssh'
     | '/api/systemd'
     | '/api/timers'
+    | '/api/users'
     | '/api/system/packages/$name'
     | '/api/system/packages'
   id:
@@ -661,6 +683,7 @@ export interface FileRouteTypes {
     | '/_app/system'
     | '/_app/systemd'
     | '/_app/units'
+    | '/_app/users'
     | '/api/containers'
     | '/api/events'
     | '/api/health'
@@ -702,6 +725,7 @@ export interface FileRouteTypes {
     | '/api/ssh/'
     | '/api/systemd/'
     | '/api/timers/'
+    | '/api/users/'
     | '/api/system/packages/$name'
     | '/api/system/packages/'
   fileRoutesById: FileRoutesById
@@ -750,6 +774,7 @@ export interface RootRouteChildren {
   ApiSshIndexRoute: typeof ApiSshIndexRoute
   ApiSystemdIndexRoute: typeof ApiSystemdIndexRoute
   ApiTimersIndexRoute: typeof ApiTimersIndexRoute
+  ApiUsersIndexRoute: typeof ApiUsersIndexRoute
   ApiSystemPackagesNameRoute: typeof ApiSystemPackagesNameRoute
   ApiSystemPackagesIndexRoute: typeof ApiSystemPackagesIndexRoute
 }
@@ -859,6 +884,13 @@ declare module '@tanstack/react-router' {
       path: '/units'
       fullPath: '/units'
       preLoaderRoute: typeof AppUnitsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/users': {
+      id: '/_app/users'
+      path: '/users'
+      fullPath: '/users'
+      preLoaderRoute: typeof AppUsersRouteImport
       parentRoute: typeof AppRoute
     }
     '/api/containers': {
@@ -1141,6 +1173,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiTimersIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/users/': {
+      id: '/api/users/'
+      path: '/api/users'
+      fullPath: '/api/users/'
+      preLoaderRoute: typeof ApiUsersIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/system/packages/': {
       id: '/api/system/packages/'
       path: '/api/system/packages'
@@ -1170,6 +1209,7 @@ interface AppRouteChildren {
   AppSystemRoute: typeof AppSystemRoute
   AppSystemdRoute: typeof AppSystemdRoute
   AppUnitsRoute: typeof AppUnitsRoute
+  AppUsersRoute: typeof AppUsersRoute
   AppIndexRoute: typeof AppIndexRoute
 }
 
@@ -1185,6 +1225,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSystemRoute: AppSystemRoute,
   AppSystemdRoute: AppSystemdRoute,
   AppUnitsRoute: AppUnitsRoute,
+  AppUsersRoute: AppUsersRoute,
   AppIndexRoute: AppIndexRoute,
 }
 
@@ -1234,6 +1275,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSshIndexRoute: ApiSshIndexRoute,
   ApiSystemdIndexRoute: ApiSystemdIndexRoute,
   ApiTimersIndexRoute: ApiTimersIndexRoute,
+  ApiUsersIndexRoute: ApiUsersIndexRoute,
   ApiSystemPackagesNameRoute: ApiSystemPackagesNameRoute,
   ApiSystemPackagesIndexRoute: ApiSystemPackagesIndexRoute,
 }

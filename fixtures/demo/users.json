@@ -1,0 +1,42 @@
+{
+ "passwd": "root:x:0:0::/root:/bin/bash\nbin:x:1:1::/:/usr/bin/nologin\nnobody:x:65534:65534:Kernel Overflow User:/:/usr/bin/nologin\nquadeck:x:970:970:Quadeck:/var/lib/quadeck:/usr/bin/nologin\ntristan:x:1000:1000:Tristan:/home/tristan:/bin/bash\nanna:x:1001:1001:Anna:/home/anna:/usr/bin/zsh\n",
+ "group": "root:x:0:root\nwheel:x:998:tristan\nvideo:x:986:tristan\nrender:x:989:\nsystemd-journal:x:190:tristan\nusers:x:984:\nstorage:x:988:\nfamily:x:1100:tristan,anna\nquadeck:x:970:\ntristan:x:1000:\nanna:x:1001:\n",
+ "shadow": "root:!*:19800::::::\nbin:!*:19800::::::\nnobody:!*:19800::::::\nquadeck:!*:19800::::::\ntristan:$6$rounds=65536$demo$Qm0hash:19800:0:99999:7:::\nanna:$y$j9T$demo$hash:20100:0:99999:7:::\n",
+ "shells": "# Pathnames of valid login shells.\n/bin/sh\n/bin/bash\n/usr/bin/bash\n/usr/bin/zsh\n/usr/bin/fish\n",
+ "keys": {
+  "tristan": 2,
+  "root": 0,
+  "anna": 0
+ },
+ "samba": [
+  "tristan"
+ ],
+ "history": [
+  {
+   "user": "tristan",
+   "tty": "pts/0",
+   "from": "192.168.1.31",
+   "startMinutesAgo": 12
+  },
+  {
+   "user": "anna",
+   "tty": "pts/1",
+   "from": "192.168.1.44",
+   "startMinutesAgo": 2880,
+   "durationMinutes": 25
+  },
+  {
+   "user": "tristan",
+   "tty": "pts/0",
+   "from": "192.168.1.31",
+   "startMinutesAgo": 1500,
+   "durationMinutes": 95
+  },
+  {
+   "user": "tristan",
+   "tty": "tty1",
+   "startMinutesAgo": 43000,
+   "durationMinutes": 10
+  }
+ ]
+}

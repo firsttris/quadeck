@@ -11,6 +11,7 @@ disks, shares and the host itself, with the actions you need day to day.
 | [Units and Quadlets](quadlets.md) | units page, actions, journal, Quadlet editor, validation, history, templates, compose import, Podman settings |
 | [systemd editor and timers](systemd.md) | unit files and overrides, form and text, verification, history, new units, timers, schedule builder, cron import |
 | [Updates and packages](updates.md) | package managers, AUR, reboot hints, jobs, installed packages, removal, container images, boot and reboot (systemd-boot) |
+| [Users](users.md) | accounts, groups, passwords, lock, Samba password, keys, login history, lock-out guard |
 | [Disks and files](disks.md) | SMART verdicts and advice, history, self-tests, fstab configurator and its checks, file explorer, data areas |
 | [Shares](shares.md) | SMB shares, NFS exports, services, what is checked, what is never touched |
 | [SSH](ssh.md) | keys, hardening, lock-out guard, logins, connecting a new device |
@@ -53,6 +54,7 @@ and the unlock countdown in reach.
 | **Dateien** (files) | Speicher | file explorer for the data areas |
 | **Freigaben** (shares) | Speicher | SMB and NFS |
 | **Netzwerk** (network) | Server | interfaces, ports, firewall |
+| **Benutzer** (users) | Server | accounts, groups, passwords, Samba, keys |
 | **SSH** | Server | keys, hardening, logins |
 | **System** | Server | updates, installed packages, Podman settings, boot and reboot |
 | **Benachrichtigungen** (notifications) | Server | channels and rules |

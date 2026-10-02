@@ -15,6 +15,7 @@ import { FixtureUnitEditor, SystemUnitEditor } from '../systemd/editor'
 import { FixtureNetwork, SystemNetwork } from '../network/collect'
 import { FixtureFstabHost, FstabManager, SystemFstabHost } from '../fstab/backend'
 import { FixtureBoot, SystemBoot } from '../boot/backend'
+import { FixtureUsers, SystemUsers } from '../users/backend'
 
 export function unlockMode(helperProcess: boolean): UnlockMode {
   const m = (process.env.QUADECK_UNLOCK ?? '').trim().toLowerCase()
@@ -56,6 +57,7 @@ export function privileged(): Privileged {
           fixtures ? new FixtureNetwork(fixtures) : new SystemNetwork(),
           new FstabManager(fixtures ? new FixtureFstabHost(fixtures) : new SystemFstabHost()),
           fixtures ? new FixtureBoot(fixtures) : new SystemBoot(),
+          fixtures ? new FixtureUsers(fixtures) : new SystemUsers(),
         )
       : new HelperClient(config().helperSocket)
   return instance
