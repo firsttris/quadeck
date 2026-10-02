@@ -144,7 +144,7 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
           <label className="flex items-center gap-1.5 text-[12px] text-muted">
             <input type="checkbox" checked={hidden} onChange={(e) => setHidden(e.target.checked)} /> versteckte
           </label>
-          <select className="field !py-1 text-[12px]" aria-label="Sortieren" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
+          <select className="field !w-auto !py-1 text-[12px]" aria-label="Sortieren" value={sort} onChange={(e) => setSort(e.target.value as Sort)}>
             <option value="name">Name</option>
             <option value="mtime">Geändert</option>
             <option value="size">Größe</option>
