@@ -7,10 +7,11 @@ export interface ExecResult {
   stderr: string
 }
 
-export async function run(argv: string[], opts: { timeoutMs?: number; env?: Record<string, string> } = {}): Promise<ExecResult> {
+/** `input` goes to stdin – for secrets, which never belong in argv. */
+export async function run(argv: string[], opts: { timeoutMs?: number; env?: Record<string, string>; input?: string } = {}): Promise<ExecResult> {
   let proc
   try {
-    proc = Bun.spawn(argv, { stdout: 'pipe', stderr: 'pipe', stdin: 'ignore', env: { ...process.env, LC_ALL: 'C', SYSTEMD_COLORS: '0', SYSTEMD_PAGER: '', ...opts.env } })
+    proc = Bun.spawn(argv, { stdout: 'pipe', stderr: 'pipe', stdin: opts.input !== undefined ? new TextEncoder().encode(opts.input) : 'ignore', env: { ...process.env, LC_ALL: 'C', SYSTEMD_COLORS: '0', SYSTEMD_PAGER: '', ...opts.env } })
   } catch (e) {
     return { code: 127, stdout: '', stderr: (e as Error).message }
   }

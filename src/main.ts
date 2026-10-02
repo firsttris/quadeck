@@ -15,6 +15,7 @@ import { runJobCommand } from './server/packages/job'
 import { SystemMaintenance } from './server/packages/maintenance'
 import { FstabManager, SystemFstabHost } from './server/fstab/backend'
 import { SystemBoot } from './server/boot/backend'
+import { SystemUsers } from './server/users/backend'
 import { SystemPodmanAdmin } from './server/quadlets/backend'
 import { SystemShares } from './server/shares/backend'
 import { SystemSsh } from './server/ssh/backend'
@@ -174,7 +175,7 @@ export async function main(argv: string[], opts: MainOptions) {
         process.exit(1)
       }
       cleanupSudoers()
-      serveHelper(config().helperSocket, new LocalPrivileged(createGate(true), config().podmanSocket, new SystemMaintenance(), new SystemPodmanAdmin(), new SystemShares(), new SystemSsh(), new SystemSmart(), new SystemFiles(), new SystemTimers(), new SystemUnitEditor(), new SystemNetwork(), new FstabManager(new SystemFstabHost()), new SystemBoot()))
+      serveHelper(config().helperSocket, new LocalPrivileged(createGate(true), config().podmanSocket, new SystemMaintenance(), new SystemPodmanAdmin(), new SystemShares(), new SystemSsh(), new SystemSmart(), new SystemFiles(), new SystemTimers(), new SystemUnitEditor(), new SystemNetwork(), new FstabManager(new SystemFstabHost()), new SystemBoot(), new SystemUsers()))
       return
     }
     case 'job':

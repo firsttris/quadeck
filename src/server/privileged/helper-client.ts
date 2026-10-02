@@ -13,6 +13,7 @@ import type { UnitDetail, UnitValidateResult, UnitWriteResult } from '~/shared/u
 import type { NetworkState } from '~/shared/network'
 import type { FstabChange, FstabCheck, FstabState } from '~/shared/fstab'
 import type { BootState } from '~/shared/boot'
+import type { UserChange, UsersState } from '~/shared/users'
 import type { UnlockInfo } from './gate'
 
 /** Privileged over the root helper's Unix socket. */
@@ -258,5 +259,11 @@ export class HelperClient implements Privileged {
   }
   reboot(token: string | undefined, opts: { entry?: string; firmware?: boolean }) {
     return this.call<{ at: number }>('POST', '/boot/reboot', { token, ...opts }, 90_000)
+  }
+  usersState() {
+    return this.call<UsersState>('POST', '/users/state', {})
+  }
+  applyUser(token: string | undefined, change: UserChange) {
+    return this.call<UsersState>('POST', '/users/apply', { token, change }, 120_000)
   }
 }

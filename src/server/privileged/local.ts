@@ -12,6 +12,8 @@ import type { UnitEditorBackend } from '../systemd/editor'
 import type { NetworkAdmin } from '../network/collect'
 import type { FstabBackend } from '../fstab/backend'
 import type { BootBackend } from '../boot/backend'
+import type { UsersBackend } from '../users/backend'
+import type { UserChange } from '~/shared/users'
 import type { FstabChange } from '~/shared/fstab'
 import type { TimerAction, TimerSpec } from '~/shared/timers'
 import type { SshChange } from '~/shared/ssh'
@@ -46,6 +48,7 @@ export class LocalPrivileged implements Privileged {
     private network: NetworkAdmin,
     private fstab: FstabBackend,
     private boot: BootBackend,
+    private users: UsersBackend,
   ) {}
 
   async info() {
@@ -346,5 +349,15 @@ export class LocalPrivileged implements Privileged {
   async reboot(token: string | undefined, opts: { entry?: string; firmware?: boolean }) {
     this.gate.check(token)
     return this.boot.reboot(opts)
+  }
+
+  // ---------- users ----------
+
+  usersState() {
+    return this.users.usersState()
+  }
+  async applyUser(token: string | undefined, change: UserChange) {
+    this.gate.check(token)
+    return this.users.applyUser(change)
   }
 }

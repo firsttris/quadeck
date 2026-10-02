@@ -68,6 +68,9 @@ on it. That is Quadeck.
   explains the options and checks every change (device, driver, `findmnt --verify`, systemd's
   generator, a test mount) so a disk never stops the boot; a small file explorer for the data areas
   with copy, move and delete as jobs
+- **Users**: accounts on the server with groups (what `video`, `render`, `systemd-journal` … give),
+  password, lock, Samba password, SSH keys and login history; key-only accounts; a guard that never
+  locks out the last administrator
 - **Shares**: SMB shares and NFS exports created, edited and removed in place, existing config files
   included; `testparm` and `exportfs` check every change, with rollback
 - **SSH**: keys per user with last use, hardening through a drop-in with a lock-out guard, recent
@@ -167,6 +170,7 @@ More in the [documentation](docs/README.md).
 | [Units and Quadlets](docs/quadlets.md) | units page, actions, journal, Quadlet editor, validation, history, templates, compose import, Podman settings |
 | [systemd editor and timers](docs/systemd.md) | unit files and overrides, form and text, verification, history, new units, timers, schedule builder, cron import |
 | [Updates and packages](docs/updates.md) | package managers, AUR, reboot hints, jobs, installed packages, removal, container images, boot and reboot (systemd-boot) |
+| [Users](docs/users.md) | accounts, groups, passwords, lock, Samba password, keys, login history, lock-out guard |
 | [Disks and files](docs/disks.md) | SMART verdicts and advice, history, self-tests, fstab configurator and its checks, file explorer, data areas |
 | [Shares](docs/shares.md) | SMB shares, NFS exports, services, what is checked, what is never touched |
 | [SSH](docs/ssh.md) | keys, hardening, lock-out guard, logins, connecting a new device |

@@ -1,17 +1,15 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
 import { useActions } from '~/components/Actions'
-import { Glyph } from '~/components/Glyph'
 import { InstallHint } from '~/components/InstallHint'
-import { Modal } from '~/components/Modal'
 import { PageHeader } from '~/components/PageHeader'
-import { DiffView } from '~/components/QuadletEditor'
 import { Dot, Pill, type Tone } from '~/components/Status'
+import { SshKeys, SshPreviewDialog, type SshPending } from '~/components/SshKeys'
 import { useToast } from '~/components/Toast'
 import { useGuardedApi } from '~/components/Unlock'
 import { api } from '~/lib/api'
 import { relative } from '~/lib/format'
-import { validateSettings, type RootLogin, type SshChange, type SshKey, type SshPreview, type SshSettings, type SshState } from '~/shared/ssh'
+import { validateSettings, type RootLogin, type SshSettings, type SshState } from '~/shared/ssh'
 
 export const Route = createFileRoute('/_app/ssh')({
   head: () => ({ meta: [{ title: 'SSH · Quadeck' }] }),
@@ -23,7 +21,7 @@ const ROOT_LABEL: Record<RootLogin, string> = { yes: 'ja, auch mit Passwort', 'p
 function SshPage() {
   const [state, setState] = useState<SshState | null>(null)
   const [error, setError] = useState('')
-  const [pending, setPending] = useState<{ change: SshChange; title: string; confirm: string; danger?: boolean; done: string } | null>(null)
+  const [pending, setPending] = useState<SshPending | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -64,18 +62,17 @@ function SshPage() {
             <Hardening state={state} onPreview={setPending} />
           </div>
           <div className="flex flex-col gap-[18px]">
-            <Keys state={state} onPreview={setPending} />
+            <SshKeys state={state} onPreview={setPending} />
             <Logins state={state} />
             <NewDevice state={state} />
           </div>
         </div>
       )}
-      <PreviewDialog pending={pending} onClose={() => setPending(null)} onDone={setState} />
+      <SshPreviewDialog pending={pending} onClose={() => setPending(null)} onDone={setState} />
     </>
   )
 }
 
-type Pending = { change: SshChange; title: string; confirm: string; danger?: boolean; done: string }
 
 // ---------- service + host keys ----------
 
@@ -166,7 +163,7 @@ function Row({ tone, label, value, help }: { tone: Tone; label: string; value: s
   )
 }
 
-function Hardening({ state, onPreview }: { state: SshState; onPreview: (p: Pending) => void }) {
+function Hardening({ state, onPreview }: { state: SshState; onPreview: (p: SshPending) => void }) {
   const { readonly } = useActions()
   const e = state.effective
   const [form, setForm] = useState<SshSettings>({ passwordAuthentication: e.passwordAuthentication, permitRootLogin: e.permitRootLogin, allowUsers: e.allowUsers })
@@ -244,91 +241,6 @@ function Hardening({ state, onPreview }: { state: SshState; onPreview: (p: Pendi
 }
 
 // ---------- keys ----------
-
-function keyLabel(k: SshKey) {
-  const t = k.type.replace('ssh-', '').replace('sk-', '').replace('@openssh.com', ' (Hardware)').replace('ecdsa-sha2-nistp', 'ECDSA ')
-  return `${t.toUpperCase().startsWith('ED25519') ? 'ED25519' : t}${k.type === 'ssh-rsa' && k.bits ? ` ${k.bits}` : ''}`
-}
-
-function Keys({ state, onPreview }: { state: SshState; onPreview: (p: Pending) => void }) {
-  const { readonly } = useActions()
-  const initial = state.users.find((u) => u.uid !== 0 && u.keys.length)?.name ?? state.users.find((u) => u.uid !== 0)?.name ?? state.users[0]?.name ?? ''
-  const [userName, setUserName] = useState(initial)
-  const [newKey, setNewKey] = useState('')
-  const user = state.users.find((u) => u.name === userName) ?? state.users[0]
-  if (!user) return null
-  return (
-    <section className="panel flex flex-col" aria-label="Schlüssel">
-      <div className="flex flex-wrap items-center gap-2 px-[18px] pt-4 pb-2">
-        <h2 className="h2 grow">Schlüssel</h2>
-        <div role="group" aria-label="Benutzer" className="flex flex-wrap gap-1.5">
-          {state.users.map((u) => (
-            <button key={u.name} type="button" className={`seg ${u.name === user.name ? 'on' : ''}`} aria-pressed={u.name === user.name} onClick={() => setUserName(u.name)}>
-              {u.name}
-              <span className="opacity-60">{u.keys.length}</span>
-            </button>
-          ))}
-        </div>
-      </div>
-      <div className="border-t border-line px-[18px] py-1.5 text-[11px] text-subtle">
-        <span className="font-mono">{user.home}/.ssh/authorized_keys</span>
-      </div>
-      {user.problems.map((p) => (
-        <p key={p} role="alert" className="m-0 border-t border-line px-[18px] py-2 text-[13px] text-[#ff8a80]">
-          {p}
-        </p>
-      ))}
-      {user.keys.length === 0 && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">Noch kein Schlüssel – {user.name} kann sich nur mit Passwort anmelden.</p>}
-      {user.keys.map((k) => (
-        <div key={k.fingerprint} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line px-[18px] py-[10px]" data-testid="ssh-key">
-          <span className="chip q w-[92px] text-center">{keyLabel(k)}</span>
-          <div className="min-w-0 grow">
-            <div className="flex flex-wrap items-center gap-1.5">
-              <span className="font-medium">{k.comment || 'ohne Namen'}</span>
-              {k.options && <span className="chip" title={k.options}>mit Optionen</span>}
-              {k.weak && <Pill tone="warn">schwach</Pill>}
-            </div>
-            <div className="truncate font-mono text-[11px] text-muted" title={k.fingerprint}>
-              {k.fingerprint}
-            </div>
-            {k.weak && <div className="text-[11px] text-[#e3b341]">{k.weak}</div>}
-          </div>
-          <span className="text-[12px] text-subtle" suppressHydrationWarning>
-            {k.lastUsed ? `zuletzt ${relative(k.lastUsed)}` : 'nicht benutzt (30 Tage)'}
-          </span>
-          {!readonly && (
-            <button
-              type="button"
-              className="btn sm danger"
-              aria-label={`Schlüssel ${k.comment || k.fingerprint} entfernen`}
-              onClick={() => onPreview({ change: { kind: 'remove-key', user: user.name, fingerprint: k.fingerprint }, title: `Schlüssel „${k.comment || keyLabel(k)}“ von ${user.name} entfernen?`, confirm: 'Entfernen', danger: true, done: 'Schlüssel entfernt' })}
-            >
-              <Glyph name="trash" size={13} />
-            </button>
-          )}
-        </div>
-      ))}
-      {!readonly && (
-        <form
-          className="flex flex-col gap-2 border-t border-line px-[18px] py-3"
-          onSubmit={(e) => {
-            e.preventDefault()
-            onPreview({ change: { kind: 'add-key', user: user.name, key: newKey.trim() }, title: `Schlüssel für ${user.name} eintragen?`, confirm: 'Eintragen', done: `Schlüssel für ${user.name} eingetragen` })
-            setNewKey('')
-          }}
-        >
-          <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-            Öffentlichen Schlüssel hinzufügen (Inhalt von ~/.ssh/id_ed25519.pub)
-            <textarea className="field h-[64px] font-mono text-[12px]" spellCheck={false} value={newKey} onChange={(e) => setNewKey(e.target.value.replace(/\r?\n/g, ' '))} placeholder="ssh-ed25519 AAAAC3Nza… name@gerät" />
-          </label>
-          <button type="submit" className="btn sm self-end" disabled={!newKey.trim()}>
-            <Glyph name="plus" size={13} /> Prüfen und eintragen …
-          </button>
-        </form>
-      )}
-    </section>
-  )
-}
 
 // ---------- logins ----------
 
@@ -414,75 +326,3 @@ function NewDevice({ state }: { state: SshState }) {
 }
 
 // ---------- preview + apply ----------
-
-function PreviewDialog({ pending, onClose, onDone }: { pending: Pending | null; onClose: () => void; onDone: (s: SshState) => void }) {
-  const say = useToast()
-  const guarded = useGuardedApi()
-  const [preview, setPreview] = useState<SshPreview | null>(null)
-  const [error, setError] = useState('')
-  const [force, setForce] = useState(false)
-  const [busy, setBusy] = useState(false)
-  useEffect(() => {
-    setPreview(null)
-    setError('')
-    setForce(false)
-    if (!pending) return
-    api<SshPreview>('/api/ssh', { body: { change: pending.change, preview: true } })
-      .then(setPreview)
-      .catch((e: Error) => setError(e.message))
-  }, [pending])
-  const apply = async () => {
-    if (!pending) return
-    setBusy(true)
-    try {
-      const st = await guarded<SshState>('/api/ssh', { body: { change: { ...pending.change, force } } })
-      if (!st) return
-      onDone(st)
-      say(st.error ?? pending.done, st.error ? 'bad' : undefined)
-      onClose()
-    } catch (e) {
-      setError((e as Error).message)
-    } finally {
-      setBusy(false)
-    }
-  }
-  return (
-    <Modal open={!!pending} onClose={onClose} title={pending?.title ?? ''} wide>
-      {!preview && !error && <p className="m-0 text-muted">Wird geprüft …</p>}
-      {preview && (
-        <>
-          <p className="m-0 text-[12px] text-muted">
-            Änderung in <span className="font-mono">{preview.file}</span> (vorige Fassung bleibt als <span className="font-mono">.quadeck-bak</span>):
-          </p>
-          <DiffView before={preview.before} after={preview.after} />
-          {preview.warnings.map((w) => (
-            <p key={w} className="m-0 text-[13px] text-[#e3b341]">
-              {w}
-            </p>
-          ))}
-          {preview.blocked && (
-            <div role="alert" className="flex flex-col gap-2 rounded-[10px] border border-[rgba(248,81,73,.5)] bg-[rgba(248,81,73,.08)] p-3 text-[13px] text-[#ffb4ab]">
-              <span>{preview.blocked}</span>
-              <label className="flex items-center gap-2">
-                <input type="checkbox" checked={force} onChange={(e) => setForce(e.target.checked)} /> Ich komme anders an den Server (Bildschirm/Tastatur, IPMI) und will das trotzdem.
-              </label>
-            </div>
-          )}
-        </>
-      )}
-      {error && (
-        <p role="alert" className="m-0 text-[13px] text-[#ff8a80]">
-          {error}
-        </p>
-      )}
-      <div className="flex justify-end gap-2">
-        <button type="button" className="btn" onClick={onClose}>
-          Abbrechen
-        </button>
-        <button type="button" className={pending?.danger || preview?.blocked ? 'btn danger' : 'btn primary'} disabled={!preview || busy || (!!preview.blocked && !force)} onClick={apply}>
-          {busy ? 'Speichere …' : pending?.confirm}
-        </button>
-      </div>
-    </Modal>
-  )
-}

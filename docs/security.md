@@ -66,6 +66,7 @@ as root in one process (installations from before the helper).
 | Samba | `smb.conf` | `testparm`, `.quadeck-bak`, reload without dropping connections |
 | NFS | `/etc/exports`, `/etc/exports.d/quadeck.exports` | `exportfs -ra` with rollback |
 | SSH | `/etc/ssh/sshd_config.d/01-quadeck.conf`, `authorized_keys` | `sshd -t` with rollback, lock-out guard |
+| accounts | `/etc/passwd`, `/etc/shadow`, `/etc/group` via `useradd`, `usermod`, `chpasswd`, `userdel`; Samba via `smbpasswd` | names, shells and groups checked; passwords only on stdin; lock-out guard for the last administrator |
 | mounts | `/etc/fstab` (data disks only; system entries are protected) | device, driver, `findmnt --verify`, systemd generator, test mount, confirmation for boot-critical entries, `.quadeck-bak`, history, rollback |
 | packages | the package manager | protected package list, removal preview |
 | files | the data areas only | conflicts refused before the job |

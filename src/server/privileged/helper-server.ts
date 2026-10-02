@@ -12,6 +12,7 @@ import { parseSshChange } from '../ssh/backend'
 import { DISK_NAME } from '../smart/backend'
 import { parseSave, parseTimerAction } from '../timers/backend'
 import { parseFstabChange } from '../fstab/parse'
+import { parseUserChange } from '../users/parse'
 import { UNIT_ACTIONS, type Privileged, type UnitAction } from './actions'
 
 type Handler = (body: Record<string, unknown>, p: Privileged) => Promise<unknown>
@@ -122,6 +123,8 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/network/state': (_b, p) => p.networkState(),
   '/fstab/state': (_b, p) => p.fstabState(),
   '/boot/state': (_b, p) => p.bootState(),
+  '/users/state': (_b, p) => p.usersState(),
+  '/users/apply': (b, p) => p.applyUser(str(b.token), parseUserChange(b.change)),
   '/boot/default': (b, p) => p.setBootDefault(str(b.token), str(b.id) ?? ''),
   '/boot/timeout': (b, p) => p.setBootTimeout(str(b.token), str(b.value) ?? ''),
   '/boot/oneshot-cancel': (b, p) => p.cancelOneshot(str(b.token)),
