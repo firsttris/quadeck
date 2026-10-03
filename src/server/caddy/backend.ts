@@ -20,8 +20,6 @@ import { run } from '../exec'
 import { UnitHistory } from '../systemd/editor'
 import { msg } from '~/shared/i18n'
 import type { Revision } from '~/shared/quadlets'
-import * as P from '~/i18n/proxy'
-import * as C from '~/i18n/common'
 import {
   DEFAULT_CADDYFILE,
   applyCaddyChange,
@@ -90,14 +88,14 @@ export class CaddyManager implements CaddyBackend {
   async locate(): Promise<Located> {
     const h = this.host
     const env = h.envPath()
-    if (env) return h.isFile(env) ? { source: { path: env, how: 'env' } } : { source: { path: env, how: 'env' }, problem: msg(P, (m) => m.errors.envMissing(env)) }
+    if (env) return h.isFile(env) ? { source: { path: env, how: 'env' } } : { source: { path: env, how: 'env' }, problem: msg('proxy_errors_envMissing', { p: env }) }
     const manual = h.manualPath()
-    if (manual) return h.isFile(manual) ? { source: { path: manual, how: 'manual' } } : { source: { path: manual, how: 'manual' }, problem: msg(P, (m) => m.errors.manualGone(manual)) }
+    if (manual) return h.isFile(manual) ? { source: { path: manual, how: 'manual' } } : { source: { path: manual, how: 'manual' }, problem: msg('proxy_errors_manualGone', { p: manual }) }
     for (const f of h.quadlets()) {
       const q = caddyFromQuadlet(f.name, f.content)
       if (!q) continue
       const base = { how: 'quadlet' as const, quadlet: q.quadlet, container: q.container, image: q.image, containerPath: q.containerPath }
-      if (q.json) return { quadlet: q, problem: msg(P, (m) => m.errors.json(q.quadlet)) }
+      if (q.json) return { quadlet: q, problem: msg('proxy_errors_json', { q: q.quadlet }) }
       let path = q.hostPath
       if (!path && q.volume) {
         const mp = await h.volumePath(q.volume.name)
@@ -106,9 +104,9 @@ export class CaddyManager implements CaddyBackend {
       if (!path)
         return {
           quadlet: q,
-          problem: msg(P, (m) => m.errors.notMounted(q.quadlet, q.containerPath)),
+          problem: msg('proxy_errors_notMounted', { q: q.quadlet, inside: q.containerPath }),
         }
-      return h.isFile(path) ? { source: { ...base, path }, quadlet: q } : { source: { ...base, path }, quadlet: q, problem: msg(P, (m) => m.errors.mountedMissing(q.quadlet, path)) }
+      return h.isFile(path) ? { source: { ...base, path }, quadlet: q } : { source: { ...base, path }, quadlet: q, problem: msg('proxy_errors_mountedMissing', { q: q.quadlet, p: path }) }
     }
     const svc = await h.service()
     if (svc) {
@@ -116,7 +114,7 @@ export class CaddyManager implements CaddyBackend {
       if (h.isFile(path)) return { source: { path, how: 'service' } }
     }
     if (h.isFile(DEFAULT_CADDYFILE)) return { source: { path: DEFAULT_CADDYFILE, how: 'default' } }
-    return { problem: msg(P, (m) => m.errors.notFound) }
+    return { problem: msg('proxy_errors_notFound') }
   }
 
   /** How a change would go live right now. */
@@ -134,8 +132,8 @@ export class CaddyManager implements CaddyBackend {
     const base: CaddyState = { source: loc.source, problem: loc.problem, blocks: [], unstructured: false, running: reload !== 'none', reload, history: [], manual: this.host.manualPath() }
     if (!loc.source || loc.problem) return base
     const content = this.host.read(loc.source.path)
-    if (content === undefined) return { ...base, problem: msg(P, (m) => m.errors.unreadable(loc.source!.path)) }
-    if (content.length > MAX || content.includes('\0')) return { ...base, problem: msg(P, (m) => m.errors.notText(loc.source!.path)) }
+    if (content === undefined) return { ...base, problem: msg('proxy_errors_unreadable', { p: loc.source!.path }) }
+    if (content.length > MAX || content.includes('\0')) return { ...base, problem: msg('proxy_errors_notText', { p: loc.source!.path }) }
     const parsed = parseCaddyfile(content)
     return { ...base, content, hash: contentHash(content), blocks: parsed.blocks, unstructured: parsed.unstructured, history: this.host.history.list(loc.source.path) }
   }
@@ -149,7 +147,7 @@ export class CaddyManager implements CaddyBackend {
     if (!loc.source)
       throw new HttpError(
         404,
-        msg(P, (m) => m.errors.noFile),
+        msg('proxy_errors_noFile'),
       )
     return this.host.history.read(loc.source.path, id)
   }
@@ -165,13 +163,13 @@ export class CaddyManager implements CaddyBackend {
     if (!this.host.isFile(p))
       throw new HttpError(
         404,
-        msg(P, (m) => m.errors.missing(p)),
+        msg('proxy_errors_missing', { p }),
       )
     const content = this.host.read(p) ?? ''
     if (content.length > MAX || content.includes('\0'))
       throw new HttpError(
         400,
-        msg(P, (m) => m.errors.notText(p)),
+        msg('proxy_errors_notText', { p }),
       )
     this.host.setManualPath(p)
     return this.state()
@@ -190,18 +188,18 @@ export class CaddyManager implements CaddyBackend {
     }
     const r = await h.validateOnHost(content)
     if (r !== 'unavailable') return r ? { error: r } : {}
-    return { warning: msg(P, (m) => m.errors.unchecked) }
+    return { warning: msg('proxy_errors_unchecked') }
   }
 
   async applyCaddy(change: CaddyChange, expected: string | undefined): Promise<CaddyResult> {
     const loc = await this.locate()
-    if (!loc.source || loc.problem) throw new HttpError(409, loc.problem ?? msg(P, (m) => m.errors.noFile))
+    if (!loc.source || loc.problem) throw new HttpError(409, loc.problem ?? msg('proxy_errors_noFile'))
     const path = loc.source.path
     const before = this.host.read(path) ?? ''
     if (expected && expected !== contentHash(before))
       throw new HttpError(
         409,
-        msg(P, (m) => m.errors.changed),
+        msg('proxy_errors_changed'),
       )
     let after: string
     try {
@@ -212,11 +210,11 @@ export class CaddyManager implements CaddyBackend {
     if (after.length > MAX || after.includes('\0'))
       throw new HttpError(
         400,
-        msg(C, (m) => m.errors.invalidContent),
+        msg('common_errors_invalidContent'),
       )
-    if (after === before) return { state: await this.state(loc), reloaded: 'none', warning: msg(P, (m) => m.errors.noChange) }
+    if (after === before) return { state: await this.state(loc), reloaded: 'none', warning: msg('proxy_errors_noChange') }
     const check = await this.validate(loc, after)
-    if (check.error) throw new HttpError(422, msg(P, (m) => m.errors.rejected) + check.error)
+    if (check.error) throw new HttpError(422, msg('proxy_errors_rejected') + check.error)
     this.host.history.saved(path, before, after)
     this.host.write(path, after)
     const via = await this.reloadVia(loc)
@@ -226,9 +224,9 @@ export class CaddyManager implements CaddyBackend {
     else if (via === 'service') err = await this.host.serviceReload()
     if (err) {
       this.host.write(path, before)
-      throw new HttpError(422, msg(P, (m) => m.errors.reloadFailed) + err)
+      throw new HttpError(422, msg('proxy_errors_reloadFailed') + err)
     }
-    const warning = check.warning ?? (via === 'none' ? msg(P, (m) => m.errors.stopped) : undefined)
+    const warning = check.warning ?? (via === 'none' ? msg('proxy_errors_stopped') : undefined)
     return { state: await this.state(loc), reloaded: via, warning }
   }
 }
@@ -306,7 +304,7 @@ export class SystemCaddyHost implements CaddyHost {
     if (!statSync(real).isFile())
       throw new HttpError(
         409,
-        msg(P, (m) => m.errors.notRegular(path)),
+        msg('proxy_errors_notRegular', { p: path }),
       )
     const fd = openSync(real, 'r+')
     try {
@@ -459,7 +457,7 @@ export class FixtureCaddyHost implements CaddyHost {
         if (!r)
           throw new HttpError(
             404,
-            msg(C, (m) => m.errors.versionNotFound),
+            msg('common_errors_versionNotFound'),
           )
         return r.content
       },
@@ -469,11 +467,11 @@ export class FixtureCaddyHost implements CaddyHost {
         if (b !== undefined && !list.length)
           add(
             b,
-            msg(C, (m) => m.history.original),
+            msg('common_history_original'),
           )
         add(
           a,
-          msg(C, (m) => m.history.saved),
+          msg('common_history_saved'),
         )
         this.revs.set(p, list.slice(-20))
       },

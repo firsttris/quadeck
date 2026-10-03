@@ -7,12 +7,13 @@ import { Diagnostics, DiffView, Field, HistoryDialog, TextView } from '~/compone
 import { Pill, unitTone } from '~/components/Status'
 import { useToast } from '~/components/Toast'
 import { useGuardedApi } from '~/components/Unlock'
-import { useT } from '~/i18n'
 import { api } from '~/lib/api'
 import { tr } from '~/shared/i18n'
 import { getValues, parseIni } from '~/shared/ini'
 import type { Revision } from '~/shared/quadlets'
 import { EDITABLE_UNIT, NEW_UNIT, UNIT_DIR, UNIT_TEMPLATES, formSections, lintUnit, overrideTemplate, type UnitDetail, type UnitFilePart, type UnitValidateResult, type UnitWriteResult } from '~/shared/unit-files'
+import { m } from '~/paraglide/messages'
+import { pickMsg } from '~/i18n'
 
 export const Route = createFileRoute('/_app/systemd')({
   validateSearch: (s: Record<string, unknown>): { unit?: string; new?: boolean } => ({
@@ -24,15 +25,14 @@ export const Route = createFileRoute('/_app/systemd')({
 })
 
 function SystemdPage() {
-  const t = useT().systemd.empty
   const { unit, new: isNew } = Route.useSearch()
   if (isNew) return <NewUnit />
   if (unit) return <UnitView key={unit} unit={unit} />
   return (
     <>
-      <PageHeader title={t.title} subtitle={t.subtitle} />
+      <PageHeader title={m.systemd_empty_title()} subtitle={m.systemd_empty_subtitle()} />
       <Link to="/units" className="btn self-start">
-        {t.toUnits}
+        {m.systemd_empty_toUnits()}
       </Link>
     </>
   )
@@ -46,8 +46,6 @@ interface Selected {
 }
 
 function UnitView({ unit }: { unit: string }) {
-  const tx = useT()
-  const t = tx.systemd.unit
   const [detail, setDetail] = useState<UnitDetail | null>(null)
   const [error, setError] = useState('')
   const [sel, setSel] = useState<Selected | null>(null)
@@ -79,7 +77,7 @@ function UnitView({ unit }: { unit: string }) {
     try {
       const r = await guarded('/api/systemd', { body: { enable: { unit, enabled } } })
       if (r) {
-        say(enabled ? t.bootOn(unit) : t.bootOff(unit))
+        say(enabled ? m.systemd_unit_bootOn({ unit }) : m.systemd_unit_bootOff({ unit }))
         void load(sel?.part.path)
       }
     } catch (e) {
@@ -91,12 +89,12 @@ function UnitView({ unit }: { unit: string }) {
   const editableState = d?.unitFileState === 'enabled' || d?.unitFileState === 'disabled'
   return (
     <>
-      <PageHeader title={unit} subtitle={d?.description ?? t.subtitle}>
+      <PageHeader title={unit} subtitle={d?.description ?? m.systemd_unit_subtitle()}>
         <Link to="/units" className="btn sm">
-          {t.backToUnits}
+          {m.systemd_unit_backToUnits()}
         </Link>
         <Link to="/journal" search={{ unit }} className="btn sm">
-          {tx.common.journal}
+          {m.common_journal()}
         </Link>
       </PageHeader>
       {error && (
@@ -104,7 +102,7 @@ function UnitView({ unit }: { unit: string }) {
           {error}
         </p>
       )}
-      {!d && !error && <p className="m-0 text-muted">{t.loading}</p>}
+      {!d && !error && <p className="m-0 text-muted">{m.systemd_unit_loading()}</p>}
       {d && (
         <>
           <div className="flex flex-wrap items-center gap-3 text-[13px]">
@@ -112,34 +110,34 @@ function UnitView({ unit }: { unit: string }) {
             {d.unitFileState && <span className="chip">{d.unitFileState}</span>}
             {editableState && !d.readonly && (
               <label className="flex items-center gap-2">
-                <input type="checkbox" role="switch" aria-label={t.startAtBoot} checked={d.unitFileState === 'enabled'} disabled={readonly} onChange={(e) => void toggleEnabled(e.target.checked)} />
-                {t.startAtBoot}
+                <input type="checkbox" role="switch" aria-label={m.systemd_unit_startAtBoot()} checked={d.unitFileState === 'enabled'} disabled={readonly} onChange={(e) => void toggleEnabled(e.target.checked)} />
+                {m.systemd_unit_startAtBoot()}
               </label>
             )}
           </div>
           {d.readonly && <p className="m-0 text-[13px] text-[#e3b341]">{d.readonly}</p>}
           {d.quadlet && (
             <p className="m-0 text-[13px] text-muted">
-              {t.quadletBefore} <span className="font-mono">{d.quadlet}</span> {t.quadletMiddle}{' '}
+              {m.systemd_unit_quadletBefore()} <span className="font-mono">{d.quadlet}</span> {m.systemd_unit_quadletMiddle()}{' '}
               <Link to="/quadlets" search={{ file: d.quadlet }} className="text-accent underline">
-                {t.quadletLink}
+                {m.systemd_unit_quadletLink()}
               </Link>
-              {t.quadletAfter}
+              {m.systemd_unit_quadletAfter()}
             </p>
           )}
           {d.managedTimer && (
             <p className="m-0 text-[13px] text-muted">
-              {t.timerBefore}{' '}
+              {m.systemd_unit_timerBefore()}{' '}
               <Link to="/units" search={{ filter: 'timer' }} className="text-accent underline">
-                {t.timerLink}
+                {m.systemd_unit_timerLink()}
               </Link>
-              {t.timerAfter}
+              {m.systemd_unit_timerAfter()}
             </p>
           )}
-          {d.template && <p className="m-0 text-[13px] text-muted">{t.template}</p>}
+          {d.template && <p className="m-0 text-[13px] text-muted">{m.systemd_unit_template()}</p>}
           <div className="grid grid-cols-1 gap-[18px] xl:grid-cols-[minmax(0,320px)_minmax(0,1fr)]">
-            <section className="panel flex flex-col gap-2 self-start p-[14px]" aria-label={t.files}>
-              <h2 className="h2 px-1">{t.files}</h2>
+            <section className="panel flex flex-col gap-2 self-start p-[14px]" aria-label={m.systemd_unit_files()}>
+              <h2 className="h2 px-1">{m.systemd_unit_files()}</h2>
               {d.parts.map((p) => (
                 <button
                   key={p.path}
@@ -150,24 +148,24 @@ function UnitView({ unit }: { unit: string }) {
                 >
                   <span className="font-mono text-[12px] break-all">{p.path}</span>
                   <span className="flex flex-wrap gap-1.5">
-                    <span className="chip">{p.kind === 'fragment' ? t.fragment : t.override}</span>
-                    <span className={p.origin === 'etc' ? 'chip q' : 'chip'}>{tx.systemd.origin[p.origin]}</span>
-                    {!p.editable && <span className="chip">{t.readonly}</span>}
+                    <span className="chip">{p.kind === 'fragment' ? m.systemd_unit_fragment() : m.systemd_unit_override()}</span>
+                    <span className={p.origin === 'etc' ? 'chip q' : 'chip'}>{pickMsg({ "etc": m.systemd_origin_etc, "vendor": m.systemd_origin_vendor, "runtime": m.systemd_origin_runtime, "generated": m.systemd_origin_generated, "transient": m.systemd_origin_transient }, p.origin)}</span>
+                    {!p.editable && <span className="chip">{m.systemd_unit_readonly()}</span>}
                   </span>
                 </button>
               ))}
               {sel?.isNew && (
                 <div className="rounded-lg border border-accent bg-[rgba(124,196,184,.08)] px-3 py-2">
                   <span className="font-mono text-[12px] break-all">{sel.part.path}</span>
-                  <div className="mt-1 text-[11px] text-muted">{t.isNew}</div>
+                  <div className="mt-1 text-[11px] text-muted">{m.systemd_unit_isNew()}</div>
                 </div>
               )}
               {d.overridePath && !sel?.isNew && !readonly && (
                 <button type="button" className="btn sm self-start" onClick={() => setSel({ isNew: true, part: { path: d.overridePath!, kind: 'dropin', origin: 'etc', editable: true, content: overrideTemplate(unit, d.parts[0]?.path) } })}>
-                  {t.addOverride}
+                  {m.systemd_unit_addOverride()}
                 </button>
               )}
-              <p className="m-0 px-1 text-[11px] leading-[1.5] text-subtle">{t.overridesNote(`${UNIT_DIR}/${unit}.d`)}</p>
+              <p className="m-0 px-1 text-[11px] leading-[1.5] text-subtle">{m.systemd_unit_overridesNote({ dir: (`${UNIT_DIR}/${unit}.d`) })}</p>
             </section>
             {sel && (
               <PartEditor
@@ -191,7 +189,6 @@ function UnitView({ unit }: { unit: string }) {
 
 /** Form over the text: only known keys; placeholders show what applies without this file. */
 function UnitForm({ unit, text, base, onChange }: { unit: string; text: string; base: string; onChange: (t: string) => void }) {
-  const t = useT().systemd.form
   const sections = formSections(unit)
   const shown = new Set(sections.flatMap(([s, keys]) => Object.keys(keys).map((k) => `${s}.${k}`)))
   const other = parseIni(text).filter((e) => e.kind === 'kv' && !shown.has(`${e.section}.${e.key}`))
@@ -202,13 +199,13 @@ function UnitForm({ unit, text, base, onChange }: { unit: string; text: string; 
           <legend className="px-1 font-mono text-[13px] text-accent">[{section}]</legend>
           {Object.entries(keys).map(([k, doc]) => {
             const inherited = base ? getValues(base, section, k).filter(Boolean).at(-1) : undefined
-            return <Field key={k} section={section} k={k} doc={inherited ? { ...doc, help: t.before(doc.help, inherited) } : doc} text={text} onChange={onChange} />
+            return <Field key={k} section={section} k={k} doc={inherited ? { ...doc, help: m.systemd_form_before({ help: doc.help, value: inherited }) } : doc} text={text} onChange={onChange} />
           })}
         </fieldset>
       ))}
       {other.length > 0 && (
         <p className="m-0 text-[12px] text-muted">
-          {t.otherEntries} <span className="font-mono">{other.map((e) => `${e.section}.${e.key}`).join(', ')}</span>
+          {m.systemd_form_otherEntries()} <span className="font-mono">{other.map((e) => `${e.section}.${e.key}`).join(', ')}</span>
         </p>
       )}
     </div>
@@ -234,9 +231,6 @@ function PartEditor({
   onDeleted: () => void
   onOverride?: () => void
 }) {
-  const tx = useT()
-  const t = tx.systemd.editor
-  const q = tx.quadlets.editor
   const say = useToast()
   const guarded = useGuardedApi()
   const [text, setText] = useState(part.content)
@@ -295,7 +289,7 @@ function PartEditor({
       if (!r) return
       setReview(false)
       if (r.warning) say(r.warning, 'bad')
-      else say(t.saved(part.path, unit, r.restarted))
+      else say(m.systemd_editor_saved({ path: part.path, unit, restarted: String(!!r.restarted) }))
       loadHistory()
       onSaved()
     } catch (e) {
@@ -309,7 +303,7 @@ function PartEditor({
     try {
       const r = await guarded('/api/systemd', { body: { delete: { unit, path: part.path } } })
       if (!r) return
-      say(part.kind === 'dropin' ? t.overrideRemoved(part.path) : t.unitDeleted(unit))
+      say(part.kind === 'dropin' ? m.systemd_editor_overrideRemoved({ path: part.path }) : m.systemd_editor_unitDeleted({ unit }))
       onDeleted()
     } catch (e) {
       say((e as Error).message, 'bad')
@@ -317,22 +311,22 @@ function PartEditor({
   }
 
   return (
-    <section className="panel flex min-w-0 flex-col gap-4 p-[18px]" aria-label={t.aria(part.path)}>
+    <section className="panel flex min-w-0 flex-col gap-4 p-[18px]" aria-label={m.systemd_editor_aria({ path: part.path })}>
       <div className="flex flex-wrap items-center gap-2">
         <div className="min-w-0 grow">
           <h2 className="h2 truncate font-mono text-[14px]">{part.path}</h2>
           <div className="text-[12px] text-muted">
-            {isNew ? tx.systemd.unit.isNew : readonly ? tx.systemd.unit.readonly : part.kind === 'dropin' ? tx.systemd.unit.override : t.ownUnit}
-            {dirty && !isNew && q.unsaved}
+            {isNew ? m.systemd_unit_isNew() : readonly ? m.systemd_unit_readonly() : part.kind === 'dropin' ? m.systemd_unit_override() : m.systemd_editor_ownUnit()}
+            {dirty && !isNew && m.quadlets_editor_unsaved()}
           </div>
         </div>
         {!readonly && (
-          <div role="group" aria-label={q.view} className="flex gap-1.5">
+          <div role="group" aria-label={m.quadlets_editor_view()} className="flex gap-1.5">
             <button type="button" className={`seg ${mode === 'form' ? 'on' : ''}`} aria-pressed={mode === 'form'} onClick={() => setMode('form')}>
-              {q.form}
+              {m.quadlets_editor_form()}
             </button>
             <button type="button" className={`seg ${mode === 'text' ? 'on' : ''}`} aria-pressed={mode === 'text'} onClick={() => setMode('text')}>
-              {q.text}
+              {m.quadlets_editor_text()}
             </button>
           </div>
         )}
@@ -340,12 +334,12 @@ function PartEditor({
 
       {readonly && part.origin === 'vendor' && (
         <p className="m-0 text-[13px] text-muted">
-          {t.vendorNote}
+          {m.systemd_editor_vendorNote()}
           {onOverride && (
             <>
               {' '}
               <button type="button" className="btn sm" onClick={onOverride}>
-                {t.addOverride}
+                {m.systemd_editor_addOverride()}
               </button>
             </>
           )}
@@ -355,7 +349,7 @@ function PartEditor({
       {mode === 'form' && !readonly ? (
         <UnitForm unit={unit} text={text} base={part.kind === 'dropin' ? base : ''} onChange={change} />
       ) : (
-        <TextView text={text} jump={jump} label={t.contentOf(part.path)} readOnly={readonly} height={readonly ? 360 : 480} onChange={change} />
+        <TextView text={text} jump={jump} label={m.systemd_editor_contentOf({ path: part.path })} readOnly={readonly} height={readonly ? 360 : 480} onChange={change} />
       )}
 
       <Diagnostics
@@ -367,28 +361,28 @@ function PartEditor({
         }}
       />
       {server?.skipped && <p className="m-0 text-[13px] text-muted">{server.skipped}</p>}
-      {server?.ok && !server.skipped && <p className="m-0 text-[13px] text-[#7ee2a8]">{t.verified}</p>}
+      {server?.ok && !server.skipped && <p className="m-0 text-[13px] text-[#7ee2a8]">{m.systemd_editor_verified()}</p>}
 
       {!readonly && (
         <div className="flex flex-wrap items-center gap-2 border-t border-line pt-4">
           {!isNew && (part.kind === 'dropin' || detail.canDelete) && (
             <button type="button" className="btn danger sm" onClick={() => setConfirmDelete(true)}>
-              {part.kind === 'dropin' ? t.removeOverride : t.deleteUnit}
+              {part.kind === 'dropin' ? m.systemd_editor_removeOverride() : m.systemd_editor_deleteUnit()}
             </button>
           )}
           {history.length > 0 && (
             <button type="button" className="btn sm" onClick={() => setShowHistory(true)}>
-              {q.history(history.length)}
+              {m.quadlets_editor_history({ n: history.length })}
             </button>
           )}
           <span className="grow" />
           {dirty && !isNew && (
             <button type="button" className="btn sm" onClick={() => change(part.content)}>
-              {q.discard}
+              {m.quadlets_editor_discard()}
             </button>
           )}
           <button type="button" className="btn sm" onClick={() => void validate()} disabled={checking}>
-            {checking ? q.checking : q.check}
+            {checking ? m.quadlets_editor_checking() : m.quadlets_editor_check()}
           </button>
           <button
             type="button"
@@ -399,26 +393,26 @@ function PartEditor({
               if (r?.ok) setReview(true)
             }}
           >
-            {q.saveDots}
+            {m.quadlets_editor_saveDots()}
           </button>
         </div>
       )}
 
-      <Modal open={review} onClose={() => setReview(false)} title={q.saveTitle(part.path)} wide>
+      <Modal open={review} onClose={() => setReview(false)} title={m.quadlets_editor_saveTitle({ name: part.path })} wide>
         <DiffView before={isNew ? '' : part.content} after={text} />
         {(detail.activeState === 'active' || detail.activeState === 'activating') && (
           <label className="flex items-center gap-2 text-[13px]">
             <input type="checkbox" checked={restart} onChange={(e) => setRestart(e.target.checked)} />
-            {t.restartBefore} <span className="font-mono">{unit}</span> {t.restartAfter}
+            {m.systemd_editor_restartBefore()} <span className="font-mono">{unit}</span> {m.systemd_editor_restartAfter()}
           </label>
         )}
-        <p className="m-0 text-[12px] text-muted">{q.saveNote}</p>
+        <p className="m-0 text-[12px] text-muted">{m.quadlets_editor_saveNote()}</p>
         <div className="flex justify-end gap-2">
           <button type="button" className="btn" onClick={() => setReview(false)}>
-            {tx.common.cancel}
+            {m.common_cancel()}
           </button>
           <button type="button" className="btn primary" disabled={saving} onClick={() => void save()}>
-            {saving ? q.savingDots : restart && detail.activeState === 'active' ? q.saveRestart : tx.common.save}
+            {saving ? m.quadlets_editor_savingDots() : restart && detail.activeState === 'active' ? m.quadlets_editor_saveRestart() : m.common_save()}
           </button>
         </div>
       </Modal>
@@ -436,24 +430,24 @@ function PartEditor({
       />
       <ConfirmDialog
         open={confirmDelete}
-        title={part.kind === 'dropin' ? t.removeOverrideTitle : t.deleteTitle(unit)}
+        title={part.kind === 'dropin' ? m.systemd_editor_removeOverrideTitle() : m.systemd_editor_deleteTitle({ unit })}
         danger
-        confirm={part.kind === 'dropin' ? tx.common.remove : tx.common.delete}
+        confirm={part.kind === 'dropin' ? m.common_remove() : m.common_delete()}
         body={
           <p className="m-0">
             {part.kind === 'dropin' ? (
               <>
                 <span className="font-mono">{part.path}</span>
-                {t.dropinBody}
+                {m.systemd_editor_dropinBody()}
               </>
             ) : (
               <>
-                {t.fragmentBefore(unit)}
+                {m.systemd_editor_fragmentBefore({ unit })}
                 <span className="font-mono">{part.path}</span>
-                {t.fragmentAfter}
+                {m.systemd_editor_fragmentAfter()}
               </>
             )}{' '}
-            {t.keptInHistory}
+            {m.systemd_editor_keptInHistory()}
           </p>
         }
         onConfirm={() => void remove()}
@@ -466,16 +460,13 @@ function PartEditor({
 // ---------- new unit ----------
 
 function NewUnit() {
-  const tx = useT()
-  const t = tx.systemd.create
-  const q = tx.quadlets.editor
   const navigate = useNavigate()
   const say = useToast()
   const guarded = useGuardedApi()
   const { readonly } = useActions()
   const [name, setName] = useState('')
   const [template, setTemplate] = useState(UNIT_TEMPLATES[0]!.id)
-  const [text, setText] = useState(UNIT_TEMPLATES[0]!.content(t.defaultName))
+  const [text, setText] = useState(UNIT_TEMPLATES[0]!.content(m.systemd_create_defaultName()))
   const [touched, setTouched] = useState(false)
   const [mode, setMode] = useState<'form' | 'text'>('text')
   const [enable, setEnable] = useState(true)
@@ -489,14 +480,14 @@ function NewUnit() {
   const pick = (id: string) => {
     const tpl = UNIT_TEMPLATES.find((x) => x.id === id)!
     setTemplate(id)
-    setText(tpl.content(unit.replace(/\.\w+$/, '') || t.defaultName))
+    setText(tpl.content(unit.replace(/\.\w+$/, '') || m.systemd_create_defaultName()))
     setTouched(false)
     setServer(null)
   }
   // The template follows the name until the text is edited.
   useEffect(() => {
-    if (!touched) setText(UNIT_TEMPLATES.find((x) => x.id === template)!.content(unit.replace(/\.\w+$/, '') || t.defaultName))
-  }, [unit, template, touched, t.defaultName])
+    if (!touched) setText(UNIT_TEMPLATES.find((x) => x.id === template)!.content(unit.replace(/\.\w+$/, '') || m.systemd_create_defaultName()))
+  }, [unit, template, touched, m.systemd_create_defaultName()])
 
   const create = async () => {
     setBusy(true)
@@ -507,7 +498,7 @@ function NewUnit() {
       const r = await guarded<UnitWriteResult>('/api/systemd', { body: { create: { unit, content: text, enable } } })
       if (!r) return
       if (r.warning) say(r.warning, 'bad')
-      else say(t.created(unit, r.restarted))
+      else say(m.systemd_create_created({ unit, started: String(!!r.restarted) }))
       void navigate({ to: '/systemd', search: { unit } })
     } catch (e) {
       say((e as Error).message, 'bad')
@@ -518,33 +509,33 @@ function NewUnit() {
 
   return (
     <>
-      <PageHeader title={t.title} subtitle={t.subtitle(UNIT_DIR)}>
+      <PageHeader title={m.systemd_create_title()} subtitle={m.systemd_create_subtitle({ dir: UNIT_DIR })}>
         <Link to="/units" className="btn sm">
-          {tx.systemd.unit.backToUnits}
+          {m.systemd_unit_backToUnits()}
         </Link>
       </PageHeader>
-      <section className="panel flex flex-col gap-4 p-[18px]" aria-label={t.title}>
+      <section className="panel flex flex-col gap-4 p-[18px]" aria-label={m.systemd_create_title()}>
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-            {t.name}
+            {m.systemd_create_name()}
             <input className="field w-[280px] font-mono" value={name} placeholder={tr('mein-dienst.service', 'my-service.service')} onChange={(e) => setName(e.target.value.trim())} autoFocus />
           </label>
-          {name && !validName && <span className="pb-2 text-[12px] text-[#ff8a80]">{t.invalidName}</span>}
+          {name && !validName && <span className="pb-2 text-[12px] text-[#ff8a80]">{m.systemd_create_invalidName()}</span>}
         </div>
         <div className="flex flex-wrap items-center gap-1.5 text-[12px] text-muted">
-          {t.template}
+          {m.systemd_create_template()}
           {UNIT_TEMPLATES.map((x) => (
             <button key={x.id} type="button" className={`seg ${template === x.id ? 'on' : ''}`} aria-pressed={template === x.id} onClick={() => pick(x.id)}>
               {x.label}
             </button>
           ))}
           <span className="grow" />
-          <div role="group" aria-label={q.view} className="flex gap-1.5">
+          <div role="group" aria-label={m.quadlets_editor_view()} className="flex gap-1.5">
             <button type="button" className={`seg ${mode === 'form' ? 'on' : ''}`} aria-pressed={mode === 'form'} onClick={() => setMode('form')}>
-              {q.form}
+              {m.quadlets_editor_form()}
             </button>
             <button type="button" className={`seg ${mode === 'text' ? 'on' : ''}`} aria-pressed={mode === 'text'} onClick={() => setMode('text')}>
-              {q.text}
+              {m.quadlets_editor_text()}
             </button>
           </div>
         </div>
@@ -563,7 +554,7 @@ function NewUnit() {
           <TextView
             text={text}
             jump={null}
-            label={t.contentLabel}
+            label={m.systemd_create_contentLabel()}
             height={420}
             onChange={(v) => {
               setText(v)
@@ -576,12 +567,12 @@ function NewUnit() {
         <div className="flex flex-wrap items-center gap-3 border-t border-line pt-4">
           <label className="flex items-center gap-2 text-[13px]">
             <input type="checkbox" checked={enable} onChange={(e) => setEnable(e.target.checked)} />
-            {t.enable}
+            {m.systemd_create_enable()}
           </label>
           <span className="grow" />
           {!readonly && (
             <button type="button" className="btn primary" disabled={!validName || busy || local.some((x) => x.severity === 'error')} onClick={() => void create()}>
-              {busy ? t.creating : tx.common.create}
+              {busy ? m.systemd_create_creating() : m.common_create()}
             </button>
           )}
         </div>

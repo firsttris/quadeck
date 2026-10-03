@@ -1,10 +1,11 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { PageHeader } from '~/components/PageHeader'
-import { useT } from '~/i18n'
 import { clock } from '~/lib/format'
 import { useLive } from '~/lib/live'
 import type { JournalEntry } from '~/shared/types'
+import { m } from '~/paraglide/messages'
+import { pickMsg } from '~/i18n'
 
 // Labels come from t.journal.prio.
 const PRIOS = [
@@ -29,7 +30,6 @@ function lineClass(p: number) {
 }
 
 function Journal() {
-  const t = useT()
   const { snapshot } = useLive()
   const { unit, prio = 'all' } = Route.useSearch()
   const navigate = useNavigate({ from: '/journal' })
@@ -90,11 +90,11 @@ function Journal() {
 
   return (
     <>
-      <PageHeader title="Journal" subtitle={t.journal.subtitle(unit)} />
+      <PageHeader title="Journal" subtitle={m.journal_subtitle({ unit: unit ?? "", hasUnit: String(!!unit) })} />
       <div className="flex flex-wrap items-center gap-[10px]">
-        <div role="group" aria-label={t.journal.unitGroup} className="flex flex-wrap gap-1.5">
+        <div role="group" aria-label={m.journal_unitGroup()} className="flex flex-wrap gap-1.5">
           <button type="button" className={`seg ${!unit ? 'on' : ''}`} onClick={() => navigate({ search: (s) => ({ ...s, unit: undefined }) })}>
-            {t.journal.allUnits}
+            {m.journal_allUnits()}
           </button>
           {chips.map((u) => (
             <button key={u} type="button" className={`seg ${unit === u ? 'on' : ''}`} onClick={() => navigate({ search: (s) => ({ ...s, unit: u }) })}>
@@ -103,21 +103,21 @@ function Journal() {
           ))}
         </div>
         <span className="hidden h-[22px] w-px bg-[#2a323d] sm:block" />
-        <div role="group" aria-label={t.journal.prioGroup} className="flex gap-1.5">
+        <div role="group" aria-label={m.journal_prioGroup()} className="flex gap-1.5">
           {PRIOS.map(([k]) => (
             <button key={k} type="button" className={`seg ${prio === k ? 'on' : ''}`} onClick={() => navigate({ search: (s) => ({ ...s, prio: k === 'all' ? undefined : k }) })}>
-              {t.journal.prio[k]}
+              {pickMsg({ "all": m.journal_prio_all, "err": m.journal_prio_err, "warning": m.journal_prio_warning }, k)}
             </button>
           ))}
         </div>
         <span className="grow" />
         <label className="sr-only" htmlFor="jsearch">
-          {t.journal.fullText}
+          {m.journal_fullText()}
         </label>
-        <input id="jsearch" className="field !w-48 !py-1.5 text-[13px]" placeholder={t.journal.search} value={query} onChange={(e) => setQuery(e.target.value)} />
-        <span className={`live ${status === 'live' ? '' : 'off'}`}>{t.journal.status[status]}</span>
+        <input id="jsearch" className="field !w-48 !py-1.5 text-[13px]" placeholder={m.journal_search()} value={query} onChange={(e) => setQuery(e.target.value)} />
+        <span className={`live ${status === 'live' ? '' : 'off'}`}>{pickMsg({ "live": m.journal_status_live, "paused": m.journal_status_paused, "error": m.journal_status_error, "connecting": m.journal_status_connecting }, status)}</span>
         <button type="button" className="btn sm" onClick={() => setLive(!live)}>
-          {live ? t.journal.pause : t.journal.follow}
+          {live ? m.journal_pause() : m.journal_follow()}
         </button>
       </div>
       <div
@@ -129,7 +129,7 @@ function Journal() {
         }}
         data-testid="journal"
       >
-        {shown.length === 0 && <p className="m-0 px-4 py-2 text-[13px] text-muted">{status === 'connecting' ? t.journal.loading : t.journal.empty}</p>}
+        {shown.length === 0 && <p className="m-0 px-4 py-2 text-[13px] text-muted">{status === 'connecting' ? m.journal_loading() : m.journal_empty()}</p>}
         {shown.map((l) => (
           <div key={l.id} className={`jl ${lineClass(l.priority)} ${l.fresh ? 'new' : ''}`}>
             <span className="text-faint">{clock(l.ts)}</span>

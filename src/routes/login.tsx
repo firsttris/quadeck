@@ -1,9 +1,9 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useState } from 'react'
 import { AuthCard, useHydrated } from '~/components/AuthCard'
-import { useT } from '~/i18n'
 import { api } from '~/lib/api'
 import { tr } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 
 export const Route = createFileRoute('/login')({
   beforeLoad: ({ context }) => {
@@ -18,9 +18,8 @@ function Login() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const hydrated = useHydrated()
-  const t = useT().shell.login
   return (
-    <AuthCard title={t.title} subtitle={t.subtitle}>
+    <AuthCard title={m.shell_login_title()} subtitle={m.shell_login_subtitle()}>
       <form
         method="post"
         className="flex flex-col gap-3"
@@ -38,7 +37,7 @@ function Login() {
         }}
       >
         <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-          {t.password}
+          {m.shell_login_password()}
           <input name="password" type="password" required autoFocus autoComplete="current-password" className="field" />
         </label>
         {error && (
@@ -47,7 +46,7 @@ function Login() {
           </p>
         )}
         <button type="submit" className="btn primary justify-center" disabled={busy || !hydrated}>
-          {t.submit}
+          {m.shell_login_submit()}
         </button>
       </form>
     </AuthCard>

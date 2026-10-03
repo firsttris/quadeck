@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useId, useMemo, useState } from 'react'
-import { useT } from '~/i18n'
 import { localeOf } from '~/shared/i18n'
 import { applyCaddyChange, type CaddyBlock, type CaddyChange, type CaddyResult, type CaddyState } from '~/shared/caddy'
 import { useLive } from '~/lib/live'
@@ -9,6 +8,8 @@ import { DiffView, TextView } from './QuadletEditor'
 import { Pill } from './Status'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
+import { m } from '~/paraglide/messages'
+import { pickMsg } from '~/i18n'
 
 type Pending = { change: CaddyChange; after: string; title: string }
 
@@ -21,8 +22,6 @@ const dateFmt = (ts: number) => new Date(ts).toLocaleString(localeOf(), { day: '
  * it and reloads Caddy.
  */
 export function ReverseProxy() {
-  const t = useT().proxy
-  const c = useT().common
   const { readonly } = useActions()
   const say = useToast()
   const guarded = useGuardedApi()
@@ -37,13 +36,13 @@ export function ReverseProxy() {
     try {
       const r = await fetch('/api/caddy')
       const d = (await r.json()) as CaddyState & { error?: string }
-      if (!r.ok) throw new Error(d.error ?? c.http(r.status))
+      if (!r.ok) throw new Error(d.error ?? m.common_http({ status: r.status }))
       setState(d)
       setError('')
     } catch (e) {
       setError((e as Error).message)
     }
-  }, [c])
+  }, [])
   useEffect(() => {
     void load()
   }, [load])
@@ -61,9 +60,9 @@ export function ReverseProxy() {
   const sites = state?.blocks.filter((b) => b.kind === 'proxy' || b.kind === 'site') ?? []
   const others = state?.blocks.filter((b) => b.kind !== 'proxy' && b.kind !== 'site') ?? []
   const also = [
-    others.some((b) => b.kind === 'global') && t.table.global,
-    others.filter((b) => b.kind === 'snippet').length > 0 && t.table.snippets(others.filter((b) => b.kind === 'snippet').length),
-    others.filter((b) => b.kind === 'import').length > 0 && t.table.imports(others.filter((b) => b.kind === 'import').length),
+    others.some((b) => b.kind === 'global') && m.proxy_table_global(),
+    others.filter((b) => b.kind === 'snippet').length > 0 && m.proxy_table_snippets({ n: (others.filter((b) => b.kind === 'snippet').length) }),
+    others.filter((b) => b.kind === 'import').length > 0 && m.proxy_table_imports({ n: (others.filter((b) => b.kind === 'import').length) }),
   ]
     .filter(Boolean)
     .join(', ')
@@ -71,28 +70,28 @@ export function ReverseProxy() {
   const src = state?.source
 
   return (
-    <section className="flex flex-col gap-[18px]" aria-label={t.title}>
+    <section className="flex flex-col gap-[18px]" aria-label={m.proxy_title()}>
       {error && <p className="m-0 text-[13px] text-[#e3b341]">{error}</p>}
-      {!state && !error && <p className="m-0 text-muted">{t.loading}</p>}
+      {!state && !error && <p className="m-0 text-muted">{m.proxy_loading()}</p>}
       {state && (
         <div className="panel flex flex-col gap-3 p-[18px]">
           <div className="flex flex-wrap items-center gap-2">
-            <h2 className="h2 grow">{t.title}</h2>
+            <h2 className="h2 grow">{m.proxy_title()}</h2>
             <Pill tone={state.running ? 'ok' : 'warn'}>
-              {state.reload === 'api' ? t.status.api : state.reload === 'container' ? t.status.container(src?.container ?? 'caddy') : state.reload === 'service' ? t.status.service : t.status.none}
+              {state.reload === 'api' ? m.proxy_status_api() : state.reload === 'container' ? m.proxy_status_container({ c: (src?.container ?? 'caddy') }) : state.reload === 'service' ? m.proxy_status_service() : m.proxy_status_none()}
             </Pill>
           </div>
-          <p className="m-0 text-[13px] text-muted">{t.intro}</p>
+          <p className="m-0 text-[13px] text-muted">{m.proxy_intro()}</p>
           {src && (
             <p className="m-0 flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px]" data-testid="caddy-source">
               <span className="font-mono">{src.path}</span>
               <span className="text-muted">
                 –{' '}
-                {src.how === 'quadlet' ? t.source.quadlet(src.quadlet ?? '', src.containerPath ?? '') : src.how === 'service' ? t.source.service : src.how === 'env' ? t.source.env : src.how === 'manual' ? t.source.manual : t.source.default}
+                {src.how === 'quadlet' ? m.proxy_source_quadlet({ q: (src.quadlet ?? ''), inside: (src.containerPath ?? '') }) : src.how === 'service' ? m.proxy_source_service() : src.how === 'env' ? m.proxy_source_env() : src.how === 'manual' ? m.proxy_source_manual() : m.proxy_source_default()}
               </span>
               {!readonly && src.how !== 'env' && (
                 <button type="button" className="border-0 bg-transparent p-0 text-[12px] text-accent hover:underline" onClick={() => setPick(src.how === 'manual' ? src.path : '')}>
-                  {t.actions.pick}
+                  {m.proxy_actions_pick()}
                 </button>
               )}
             </p>
@@ -103,31 +102,31 @@ export function ReverseProxy() {
               {!readonly && src?.how !== 'env' && (
                 <span className="flex flex-wrap gap-2">
                   <button type="button" className="btn sm" onClick={() => setPick(state.manual ?? '')}>
-                    {t.pick.title} …
+                    {m.proxy_pick_title()} …
                   </button>
                   {state.manual && (
                     <button type="button" className="btn sm" onClick={() => void choosePath(null)}>
-                      {t.actions.automatic}
+                      {m.proxy_actions_automatic()}
                     </button>
                   )}
                 </span>
               )}
-              {src?.how === 'env' && <span className="text-muted">{t.pick.envHint}</span>}
+              {src?.how === 'env' && <span className="text-muted">{m.proxy_pick_envHint()}</span>}
             </div>
           )}
           {editable && (
             <div className="flex flex-wrap gap-2">
               {!state.unstructured && (
                 <button type="button" className="btn primary" onClick={() => setSite({ addresses: '', upstreams: '' })}>
-                  {t.actions.add}
+                  {m.proxy_actions_add()}
                 </button>
               )}
               <button type="button" className="btn" onClick={() => setText({ content: state.content ?? '', jump: null })}>
-                {t.actions.text}
+                {m.proxy_actions_text()}
               </button>
               {state.manual && src?.how === 'manual' && (
                 <button type="button" className="btn" onClick={() => void choosePath(null)}>
-                  {t.actions.automatic}
+                  {m.proxy_actions_automatic()}
                 </button>
               )}
             </div>
@@ -136,17 +135,17 @@ export function ReverseProxy() {
       )}
 
       {state?.content !== undefined && !state.problem && (
-        <section className="panel relative flex flex-col overflow-x-auto" aria-label={t.table.domain}>
+        <section className="panel relative flex flex-col overflow-x-auto" aria-label={m.proxy_table_domain()}>
           {state.unstructured ? (
-            <p className="m-0 p-[18px] text-[13px] text-muted">{t.table.unstructured}</p>
+            <p className="m-0 p-[18px] text-[13px] text-muted">{m.proxy_table_unstructured()}</p>
           ) : (
             <table className="tbl">
               <thead>
                 <tr>
-                  <th>{t.table.domain}</th>
-                  <th>{t.table.target}</th>
+                  <th>{m.proxy_table_domain()}</th>
+                  <th>{m.proxy_table_target()}</th>
                   <th>
-                    <span className="sr-only">{c.actions}</span>
+                    <span className="sr-only">{m.common_actions()}</span>
                   </th>
                 </tr>
               </thead>
@@ -154,7 +153,7 @@ export function ReverseProxy() {
                 {sites.length === 0 && (
                   <tr>
                     <td colSpan={3} className="text-muted">
-                      {t.table.none}
+                      {m.proxy_table_none()}
                     </td>
                   </tr>
                 )}
@@ -165,16 +164,16 @@ export function ReverseProxy() {
                     readonly={!editable}
                     onEdit={() => setSite({ previous: b.addresses[0], addresses: b.addresses.join(', '), upstreams: (b.upstreams ?? []).join(' ') })}
                     onText={() => setText({ content: state.content ?? '', jump: b.line })}
-                    onDelete={() => propose({ kind: 'delete', address: b.addresses[0]! }, t.confirm.deleteTitle(b.addresses.join(', ')))}
+                    onDelete={() => propose({ kind: 'delete', address: b.addresses[0]! }, m.proxy_confirm_deleteTitle({ d: b.addresses.join(', ') }))}
                   />
                 ))}
               </tbody>
             </table>
           )}
-          {also && <p className="m-0 border-t border-line px-[18px] py-2 text-[12px] text-muted">{t.table.also(also)}</p>}
+          {also && <p className="m-0 border-t border-line px-[18px] py-2 text-[12px] text-muted">{m.proxy_table_also({ parts: also })}</p>}
           {state.history.length > 0 && (
             <details className="border-t border-line px-[18px] py-2 text-[12px] text-muted">
-              <summary className="cursor-pointer">{t.history.title(state.history.length)}</summary>
+              <summary className="cursor-pointer">{m.proxy_history_title({ n: state.history.length })}</summary>
               <ul className="m-0 mt-1.5 flex list-none flex-col gap-1 p-0">
                 {state.history.map((r) => (
                   <li key={r.id} className="flex items-center gap-3">
@@ -182,7 +181,7 @@ export function ReverseProxy() {
                     <span className="grow">{r.message}</span>
                     {editable && (
                       <button type="button" className="border-0 bg-transparent p-0 text-accent hover:underline" onClick={() => void viewRevision(r.id, r.date)}>
-                        {t.history.view}
+                        {m.proxy_history_view()}
                       </button>
                     )}
                   </li>
@@ -193,17 +192,17 @@ export function ReverseProxy() {
         </section>
       )}
 
-      {site && <SiteDialog init={site} onClose={() => setSite(null)} onNext={(change) => propose(change, change.kind === 'site' && change.previous ? t.site.editTitle(change.previous) : t.site.newTitle)} />}
+      {site && <SiteDialog init={site} onClose={() => setSite(null)} onNext={(change) => propose(change, change.kind === 'site' && change.previous ? m.proxy_site_editTitle({ d: change.previous }) : m.proxy_site_newTitle())} />}
       {text && (
-        <Modal open wide title={t.text.title} onClose={() => setText(null)}>
+        <Modal open wide title={m.proxy_text_title()} onClose={() => setText(null)}>
           {text.note && <p className="m-0 text-[13px] text-[#e3b341]">{text.note}</p>}
-          <TextView text={text.content} onChange={(v) => setText({ ...text, content: v, jump: null })} jump={text.jump} label={t.text.title} height={420} />
+          <TextView text={text.content} onChange={(v) => setText({ ...text, content: v, jump: null })} jump={text.jump} label={m.proxy_text_title()} height={420} />
           <div className="flex justify-end gap-2">
             <button type="button" className="btn" onClick={() => setText(null)}>
-              {c.cancel}
+              {m.common_cancel()}
             </button>
-            <button type="button" className="btn primary" onClick={() => propose({ kind: 'text', content: text.content }, t.text.title)}>
-              {t.text.next}
+            <button type="button" className="btn primary" onClick={() => propose({ kind: 'text', content: text.content }, m.proxy_text_title())}>
+              {m.proxy_text_next()}
             </button>
           </div>
         </Modal>
@@ -219,7 +218,7 @@ export function ReverseProxy() {
             setSite(null)
             setText(null)
             setState(r.state)
-            say(r.warning ?? t.done[r.reloaded], r.warning ? 'bad' : undefined)
+            say(r.warning ?? pickMsg({ "api": m.proxy_done_api, "container": m.proxy_done_container, "service": m.proxy_done_service, "none": m.proxy_done_none, "path": m.proxy_done_path, "automatic": m.proxy_done_automatic }, r.reloaded), r.warning ? 'bad' : undefined)
           }}
           apply={(change) => guarded<CaddyResult>('/api/caddy', { body: { apply: change, expected: state.hash } })}
         />
@@ -233,7 +232,7 @@ export function ReverseProxy() {
       if (!r) return
       setState(r)
       setPick(null)
-      say(path === null ? t.done.automatic : t.done.path)
+      say(path === null ? m.proxy_done_automatic() : m.proxy_done_path())
     } catch (e) {
       say((e as Error).message, 'bad')
     }
@@ -243,8 +242,8 @@ export function ReverseProxy() {
     try {
       const r = await fetch(`/api/caddy?revision=${encodeURIComponent(id)}`)
       const d = (await r.json()) as { content?: string; error?: string }
-      if (!r.ok || d.content === undefined) throw new Error(d.error ?? c.http(r.status))
-      setText({ content: d.content, jump: null, note: t.text.revision(dateFmt(date)) })
+      if (!r.ok || d.content === undefined) throw new Error(d.error ?? m.common_http({ status: r.status }))
+      setText({ content: d.content, jump: null, note: m.proxy_text_revision({ date: dateFmt(date) }) })
     } catch (e) {
       say((e as Error).message, 'bad')
     }
@@ -252,33 +251,32 @@ export function ReverseProxy() {
 }
 
 function SiteRow({ b, readonly, onEdit, onText, onDelete }: { b: CaddyBlock; readonly: boolean; onEdit: () => void; onText: () => void; onDelete: () => void }) {
-  const t = useT().proxy
   return (
     <tr data-testid="caddy-site">
       <td>
         <div className="flex flex-col">
           {b.addresses.map((a) => (
-            <a key={a} href={/^https?:\/\//.test(a) ? a : a.startsWith(':') ? undefined : `https://${a}`} target="_blank" rel="noreferrer" className="font-mono text-[13px] font-medium text-fg hover:text-accent" title={t.actions.open(a)}>
+            <a key={a} href={/^https?:\/\//.test(a) ? a : a.startsWith(':') ? undefined : `https://${a}`} target="_blank" rel="noreferrer" className="font-mono text-[13px] font-medium text-fg hover:text-accent" title={m.proxy_actions_open({ d: a })}>
               {a}
             </a>
           ))}
         </div>
       </td>
-      <td className="font-mono text-[12px]">{b.kind === 'proxy' ? b.upstreams!.join(' ') : <span className="font-sans text-muted">{t.table.custom(b.line)}</span>}</td>
+      <td className="font-mono text-[12px]">{b.kind === 'proxy' ? b.upstreams!.join(' ') : <span className="font-sans text-muted">{m.proxy_table_custom({ line: b.line })}</span>}</td>
       <td>
         {!readonly && (
           <div className="flex justify-end gap-1.5">
             {b.kind === 'proxy' ? (
-              <button type="button" className="btn sm" aria-label={`${t.actions.edit} ${b.addresses[0]}`} onClick={onEdit}>
-                {t.actions.edit}
+              <button type="button" className="btn sm" aria-label={`${m.proxy_actions_edit()} ${b.addresses[0]}`} onClick={onEdit}>
+                {m.proxy_actions_edit()}
               </button>
             ) : (
-              <button type="button" className="btn sm" aria-label={`${t.actions.editText} ${b.addresses[0]}`} onClick={onText}>
-                {t.actions.editText}
+              <button type="button" className="btn sm" aria-label={`${m.proxy_actions_editText()} ${b.addresses[0]}`} onClick={onText}>
+                {m.proxy_actions_editText()}
               </button>
             )}
-            <button type="button" className="btn sm danger" aria-label={`${t.actions.delete} ${b.addresses[0]}`} onClick={onDelete}>
-              {t.actions.delete}
+            <button type="button" className="btn sm danger" aria-label={`${m.proxy_actions_delete()} ${b.addresses[0]}`} onClick={onDelete}>
+              {m.proxy_actions_delete()}
             </button>
           </div>
         )}
@@ -288,8 +286,6 @@ function SiteRow({ b, readonly, onEdit, onText, onDelete }: { b: CaddyBlock; rea
 }
 
 function SiteDialog({ init, onClose, onNext }: { init: { previous?: string; addresses: string; upstreams: string }; onClose: () => void; onNext: (change: CaddyChange) => string | undefined }) {
-  const t = useT().proxy
-  const c = useT().common
   const { snapshot } = useLive()
   const [addresses, setAddresses] = useState(init.addresses)
   const [upstreams, setUpstreams] = useState(init.upstreams)
@@ -307,7 +303,7 @@ function SiteDialog({ init, onClose, onNext }: { init: { previous?: string; addr
       .map((x) => x.trim())
       .filter(Boolean)
   return (
-    <Modal open title={init.previous ? t.site.editTitle(init.previous) : t.site.newTitle} onClose={onClose}>
+    <Modal open title={init.previous ? m.proxy_site_editTitle({ d: init.previous }) : m.proxy_site_newTitle()} onClose={onClose}>
       <form
         className="flex flex-col gap-3"
         onSubmit={(e) => {
@@ -316,19 +312,19 @@ function SiteDialog({ init, onClose, onNext }: { init: { previous?: string; addr
         }}
       >
         <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-          {t.site.domains}
+          {m.proxy_site_domains()}
           <input className="field font-mono" value={addresses} onChange={(e) => setAddresses(e.target.value)} placeholder="app.example.com" autoFocus required />
-          <span className="font-normal">{t.site.domainsHint}</span>
+          <span className="font-normal">{m.proxy_site_domainsHint()}</span>
         </label>
         <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-          {t.site.target}
+          {m.proxy_site_target()}
           <input className="field font-mono" value={upstreams} onChange={(e) => setUpstreams(e.target.value)} placeholder="localhost:8096" list={listId} required />
           <datalist id={listId}>
             {suggestions.map(([v, label]) => (
               <option key={v} value={v} label={label} />
             ))}
           </datalist>
-          <span className="font-normal">{t.site.targetHint}</span>
+          <span className="font-normal">{m.proxy_site_targetHint()}</span>
         </label>
         {error && (
           <p role="alert" className="m-0 text-[13px] text-[#ff8a80]">
@@ -337,10 +333,10 @@ function SiteDialog({ init, onClose, onNext }: { init: { previous?: string; addr
         )}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn" onClick={onClose}>
-            {c.cancel}
+            {m.common_cancel()}
           </button>
           <button type="submit" className="btn primary">
-            {t.site.next}
+            {m.proxy_site_next()}
           </button>
         </div>
       </form>
@@ -349,11 +345,9 @@ function SiteDialog({ init, onClose, onNext }: { init: { previous?: string; addr
 }
 
 function PickDialog({ init, onClose, onPick }: { init: string; onClose: () => void; onPick: (path: string) => void }) {
-  const t = useT().proxy
-  const c = useT().common
   const [path, setPath] = useState(init)
   return (
-    <Modal open title={t.pick.title} onClose={onClose}>
+    <Modal open title={m.proxy_pick_title()} onClose={onClose}>
       <form
         className="flex flex-col gap-3"
         onSubmit={(e) => {
@@ -362,16 +356,16 @@ function PickDialog({ init, onClose, onPick }: { init: string; onClose: () => vo
         }}
       >
         <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-          {t.pick.label}
+          {m.proxy_pick_label()}
           <input className="field font-mono" value={path} onChange={(e) => setPath(e.target.value)} placeholder="/etc/caddy/Caddyfile" autoFocus required />
-          <span className="font-normal">{t.pick.hint}</span>
+          <span className="font-normal">{m.proxy_pick_hint()}</span>
         </label>
         <div className="flex justify-end gap-2">
           <button type="button" className="btn" onClick={onClose}>
-            {c.cancel}
+            {m.common_cancel()}
           </button>
           <button type="submit" className="btn primary">
-            {t.pick.apply}
+            {m.proxy_pick_apply()}
           </button>
         </div>
       </form>
@@ -380,15 +374,13 @@ function PickDialog({ init, onClose, onPick }: { init: string; onClose: () => vo
 }
 
 function ConfirmChange({ pending, state, onClose, onDone, apply }: { pending: Pending; state: CaddyState; onClose: () => void; onDone: (r: CaddyResult) => void; apply: (change: CaddyChange) => Promise<CaddyResult | undefined> }) {
-  const t = useT().proxy
-  const c = useT().common
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   return (
     <Modal open wide title={pending.title} onClose={onClose}>
       <DiffView before={state.content ?? ''} after={pending.after} />
-      <p className="m-0 text-[13px] text-muted">{t.confirm.steps(state.source?.path ?? '')}</p>
-      {!state.running && <p className="m-0 text-[13px] text-[#e3b341]">{t.confirm.stopped}</p>}
+      <p className="m-0 text-[13px] text-muted">{m.proxy_confirm_steps({ path: (state.source?.path ?? '') })}</p>
+      {!state.running && <p className="m-0 text-[13px] text-[#e3b341]">{m.proxy_confirm_stopped()}</p>}
       {error && (
         <p role="alert" className="m-0 whitespace-pre-wrap text-[13px] text-[#ff8a80]">
           {error}
@@ -396,7 +388,7 @@ function ConfirmChange({ pending, state, onClose, onDone, apply }: { pending: Pe
       )}
       <div className="flex justify-end gap-2">
         <button type="button" className="btn" onClick={onClose}>
-          {c.back}
+          {m.common_back()}
         </button>
         <button
           type="button"
@@ -415,7 +407,7 @@ function ConfirmChange({ pending, state, onClose, onDone, apply }: { pending: Pe
             }
           }}
         >
-          {busy ? t.confirm.saving : t.confirm.save}
+          {busy ? m.proxy_confirm_saving() : m.proxy_confirm_save()}
         </button>
       </div>
     </Modal>

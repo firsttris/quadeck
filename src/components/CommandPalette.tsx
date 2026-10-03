@@ -1,17 +1,17 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { useLang, useT } from '~/i18n'
+import { useLang } from '~/i18n'
 import { useLive } from '~/lib/live'
 import { filterPalette, paletteItems, sectionLabel, type PaletteItem } from '~/lib/palette'
 import { useActions } from './Actions'
 import { Glyph } from './Glyph'
+import { m } from '~/paraglide/messages'
 
 /** Strg+K / ⌘K: jump to services, pages and units, or run unit actions. */
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
   const { snapshot } = useLive()
   const { run, readonly } = useActions()
   const navigate = useNavigate()
-  const t = useT().shell.palette
   const lang = useLang()
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
@@ -57,7 +57,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
 
   let lastSection = ''
   return (
-    <dialog ref={dialog} className="modal palette" onClose={() => onOpenChange(false)} aria-label={t.label}>
+    <dialog ref={dialog} className="modal palette" onClose={() => onOpenChange(false)} aria-label={m.shell_palette_label()}>
       {open && (
         <div className="flex flex-col">
           <div className="flex items-center gap-2 border-b border-line px-4">
@@ -65,9 +65,9 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
             <input
               autoFocus
               className="w-full bg-transparent py-3.5 text-[15px] text-fg outline-none"
-              placeholder={t.placeholder}
+              placeholder={m.shell_palette_placeholder()}
               value={query}
-              aria-label={t.search}
+              aria-label={m.shell_palette_search()}
               aria-controls="palette-list"
               aria-activedescendant={results[active] ? `pi-${active}` : undefined}
               role="combobox"
@@ -89,7 +89,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
             <kbd className="mono rounded border border-[#333a45] px-1.5 py-0.5 text-[11px] text-muted">Esc</kbd>
           </div>
           <ul id="palette-list" ref={list} role="listbox" className="m-0 max-h-[60vh] list-none overflow-y-auto p-2">
-            {results.length === 0 && <li className="px-3 py-4 text-[13px] text-muted">{t.empty}</li>}
+            {results.length === 0 && <li className="px-3 py-4 text-[13px] text-muted">{m.shell_palette_empty()}</li>}
             {results.map((item, n) => {
               const header = item.section !== lastSection ? item.section : null
               lastSection = item.section

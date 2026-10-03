@@ -1,11 +1,16 @@
-// Language handling shared by server, helper and browser.
+// Language handling shared by server, helper and browser. The texts live in
+// messages/{de,en}.json (Paraglide, compiled to src/paraglide).
 //
-// Texts in components come from `useT()` (src/i18n). Texts built outside of
-// components – server errors, messages of the root helper, notes computed in
-// src/shared – use `tr(de, en)`: inside a request (or in the browser) it returns
-// the viewer's language right away; where no viewer is known (background jobs,
-// the root helper) it returns both, marked as \u0002 de \u001f en \u0003, and the
-// response, the event stream or the notification picks the language later.
+// Components call the generated functions directly: m.units_title(). Code
+// outside of components – server errors, messages of the root helper, notes
+// computed in src/shared – uses msg('units_title', inputs): inside a request
+// (or in the browser) it returns the viewer's language right away; where no
+// viewer is known (background jobs, the root helper) it returns the key and
+// its inputs, marked as \u0002["key",{…}]\u0003, and the response, the event
+// stream or the notification renders it in the right language later.
+
+import { m as messages } from '~/paraglide/messages'
+import { overwriteGetLocale } from '~/paraglide/runtime'
 
 export type Lang = 'de' | 'en'
 export const LANGS: { id: Lang; label: string }[] = [
@@ -32,6 +37,9 @@ export function setClientLang(lang: Lang) {
   clientLang = lang
 }
 
+// Paraglide's m.*() ask getLocale(): answer with the same source as everything else.
+overwriteGetLocale(() => resolver() ?? 'de')
+
 export function currentLang(): Lang {
   return resolver() ?? 'de'
 }
@@ -52,18 +60,49 @@ export function tr(de: string, en: string): string {
  * viewer's language inside a request, both languages where nobody is asking.
  *   msg(proxy, (m) => m.errors.exists(address, line))
  */
-export function msg<T>(ns: { de: T; en: T }, pick: (m: T) => string): string {
+export function legacyMsg<T>(ns: { de: T; en: T }, pick: (m: T) => string): string {
   return tr(pick(ns.de), pick(ns.en))
 }
 
 export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
+type Messages = typeof messages
+export type MsgKey = keyof Messages
+type Inputs<K extends MsgKey> = Parameters<Messages[K]>[0]
+
+/** A message by key, for code outside of components; see the top of this file. */
+export function msg<K extends MsgKey>(key: K, ...args: undefined extends Inputs<K> ? [inputs?: Inputs<K>] : [inputs: Inputs<K>]): string {
+  const lang = resolver()
+  const inputs = (args[0] ?? {}) as Record<string, unknown>
+  if (lang) return render(key, inputs, lang)
+  return `\u0002${JSON.stringify([key, inputs])}\u0003`
+}
+
+function render(key: string, inputs: Record<string, unknown>, lang: Lang): string {
+  const fn = (messages as unknown as Record<string, (i: unknown, o: { locale: Lang }) => string>)[key]
+  if (!fn) return key
+  // Inputs can be marked messages themselves (a reason inside an error).
+  const resolved = Object.fromEntries(Object.entries(inputs).map(([k, v]) => [k, typeof v === 'string' ? localize(v, lang) : v]))
+  return fn(resolved, { locale: lang })
+}
+
 const MARKED = /\u0002([^\u0003]*?)(?:\u001f([^\u0003]*))?(?:\u0003|$)/g
 
-/** Picks one language out of marked text; plain text stays as it is. */
+/** Renders marked messages in one language; plain text stays as it is. */
 export function localize(text: string, lang: Lang): string {
   if (!text.includes('\u0002')) return text
-  return text.replace(MARKED, (_, de: string, en?: string) => (lang === 'en' ? (en ?? de) : de))
+  return text.replace(MARKED, (_, body: string, en?: string) => {
+    if (en === undefined && body.startsWith('[')) {
+      try {
+        const [key, inputs] = JSON.parse(body) as [string, Record<string, unknown>]
+        return render(key, inputs ?? {}, lang)
+      } catch {
+        return body
+      }
+    }
+    // Older entries (stored logs) carry both texts: de \u001f en.
+    return lang === 'en' ? (en ?? body) : body
+  })
 }
 
 /** localize() for every string inside a JSON-like value. */

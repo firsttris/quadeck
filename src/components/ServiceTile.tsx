@@ -1,8 +1,9 @@
 import { useState } from 'react'
-import { useT } from '~/i18n'
 import type { Service } from '~/shared/types'
 import { Glyph } from './Glyph'
 import { Dot, healthTone } from './Status'
+import { m } from '~/paraglide/messages'
+import { pickMsg } from '~/i18n'
 
 export function ServiceIcon({ s }: { s: Service }) {
   const [failed, setFailed] = useState(false)
@@ -36,14 +37,12 @@ export function ServiceIcon({ s }: { s: Service }) {
 
 /** In edit mode the tile is not a link, so dragging it never opens the service. */
 export function ServiceTile({ s, onDelete, onEdit, editing }: { s: Service; onDelete?: () => void; onEdit?: () => void; editing?: boolean }) {
-  const t = useT().overview.tile
-  const HEALTH_LABEL = t.health
   const body = (
     <>
       <div className="flex items-center justify-between">
         <ServiceIcon s={s} />
-        <span title={s.healthNote ?? HEALTH_LABEL[s.health]}>
-          <Dot tone={healthTone(s.health)} label={`${HEALTH_LABEL[s.health]}${s.healthNote ? ` – ${s.healthNote}` : ''}`} />
+        <span title={s.healthNote ?? pickMsg({ "ok": m.overview_tile_health_ok, "warn": m.overview_tile_health_warn, "bad": m.overview_tile_health_bad, "unknown": m.overview_tile_health_unknown }, s.health)}>
+          <Dot tone={healthTone(s.health)} label={`${pickMsg({ "ok": m.overview_tile_health_ok, "warn": m.overview_tile_health_warn, "bad": m.overview_tile_health_bad, "unknown": m.overview_tile_health_unknown }, s.health)}${s.healthNote ? ` – ${s.healthNote}` : ''}`} />
         </span>
       </div>
       <div className="truncate font-medium text-fg @min-[260px]:text-[17px]">{s.name}</div>
@@ -58,7 +57,7 @@ export function ServiceTile({ s, onDelete, onEdit, editing }: { s: Service; onDe
           data-testid="service-tile"
           role="button"
           tabIndex={0}
-          aria-label={t.edit(s.name)}
+          aria-label={m.overview_tile_edit({ name: s.name })}
           onClick={onEdit}
           onKeyDown={(e) => {
             if (e.key === 'Enter' || e.key === ' ') {
@@ -78,7 +77,7 @@ export function ServiceTile({ s, onDelete, onEdit, editing }: { s: Service; onDe
         <button
           type="button"
           onClick={onDelete}
-          aria-label={t.removeLink(s.name)}
+          aria-label={m.overview_tile_removeLink({ name: s.name })}
           className="no-drag absolute right-2 bottom-2 hidden h-7 w-7 items-center justify-center rounded-md border border-[#2a323d] bg-[#161c24] text-muted group-focus-within:flex group-hover:flex hover:text-[#ff8a80]"
         >
           <Glyph name="trash" size={14} />

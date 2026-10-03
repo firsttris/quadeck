@@ -5,7 +5,7 @@
  * The language comes from the qd_lang cookie, else from the browser (Accept-Language),
  * so the server renders the page in the right language already.
  */
-import { createContext, useContext, type ReactNode } from 'react'
+import { Fragment, createContext, createElement, useContext, type ReactNode } from 'react'
 import { api } from '~/lib/api'
 import { LANG_COOKIE, setClientLang, type Lang } from '~/shared/i18n'
 import * as boot from './boot'
@@ -34,9 +34,9 @@ type Ns = typeof NS
 
 export type Messages = { [K in keyof Ns]: Ns[K]['de'] }
 
-const pick = (lang: Lang) => Object.fromEntries(Object.entries(NS).map(([k, v]) => [k, v[lang]])) as Messages
+const pickNs = (lang: Lang) => Object.fromEntries(Object.entries(NS).map(([k, v]) => [k, v[lang]])) as Messages
 
-export const messages: Record<Lang, Messages> = { de: pick('de'), en: pick('en') }
+export const messages: Record<Lang, Messages> = { de: pickNs('de'), en: pickNs('en') }
 
 const Ctx = createContext<Lang>('de')
 
@@ -62,3 +62,20 @@ export async function switchLang(lang: Lang) {
 }
 
 export { LANGS, tr, type Lang } from '~/shared/i18n'
+
+/** A message chosen by a runtime key (status, kind …); unknown keys come back as they are. */
+export function pickMsg(map: Record<string, () => string>, key: string): string {
+  return map[key]?.() ?? key
+}
+
+/**
+ * A message with React elements in it: the message gets the parameter names
+ * as placeholders, the text around them stays plain, the elements go in between.
+ *   rich(m.boot_paramsGrub, { file: <code>/etc/default/grub</code> })
+ */
+export function rich<P extends Record<string, ReactNode>>(message: (inputs: Record<keyof P, string>) => string, parts: P): ReactNode {
+  const marks = Object.fromEntries(Object.keys(parts).map((k) => [k, `\u0001${k}\u0001`])) as Record<keyof P, string>
+  const pieces = message(marks).split(/\u0001(\w+)\u0001/)
+  return createElement(Fragment, null, ...pieces.map((p, i) => (i % 2 ? createElement(Fragment, { key: i }, parts[p as keyof P]) : p)))
+}
+

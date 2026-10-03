@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { useT } from '~/i18n'
 import { localeOf } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 
 export interface ChartSeries {
   label: string
@@ -82,7 +82,6 @@ export function HistoryChart({ series, span, now, format, yMin, yMax, height = 4
   const [boxH, setBoxH] = useState(0)
   const [hover, setHover] = useState<number | null>(null)
   const uid = useId().replace(/:/g, '')
-  const t = useT().overview.chart
 
   useEffect(() => {
     const el = wrap.current
@@ -217,7 +216,7 @@ export function HistoryChart({ series, span, now, format, yMin, yMax, height = 4
             <div className="pointer-events-none absolute -bottom-5 left-0 flex w-full justify-between font-mono text-[10px] text-subtle">
               <span>{timeLabel(start, span)}</span>
               <span>{timeLabel(start + span / 2, span)}</span>
-              <span>{t.now}</span>
+              <span>{m.overview_chart_now()}</span>
             </div>
           </>
         )}
@@ -236,7 +235,7 @@ export function HistoryChart({ series, span, now, format, yMin, yMax, height = 4
             ))}
           </div>
         )}
-        {detailed && empty && width > 0 && <div className="absolute inset-0 flex items-center justify-center text-[13px] text-muted">{t.empty}</div>}
+        {detailed && empty && width > 0 && <div className="absolute inset-0 flex items-center justify-center text-[13px] text-muted">{m.overview_chart_empty()}</div>}
       </div>
     </div>
   )

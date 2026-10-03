@@ -1,9 +1,9 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useState } from 'react'
 import { AuthCard, useHydrated } from '~/components/AuthCard'
-import { useT } from '~/i18n'
 import { api } from '~/lib/api'
 import { tr } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 
 export const Route = createFileRoute('/setup')({
   validateSearch: (s: Record<string, unknown>): { token?: string } => ({ token: typeof s.token === 'string' ? s.token : undefined }),
@@ -19,9 +19,8 @@ function Setup() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const hydrated = useHydrated()
-  const t = useT().shell.setup
   return (
-    <AuthCard title={t.title} subtitle={t.subtitle}>
+    <AuthCard title={m.shell_setup_title()} subtitle={m.shell_setup_subtitle()}>
       <form
         method="post"
         className="flex flex-col gap-3"
@@ -29,7 +28,7 @@ function Setup() {
           e.preventDefault()
           const f = new FormData(e.currentTarget)
           if (f.get('password') !== f.get('password2')) {
-            setError(t.mismatch)
+            setError(m.shell_setup_mismatch())
             return
           }
           setBusy(true)
@@ -44,15 +43,15 @@ function Setup() {
         }}
       >
         <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-          {t.token}
+          {m.shell_setup_token()}
           <input name="token" required defaultValue={token} autoComplete="off" spellCheck={false} className="field font-mono" />
         </label>
         <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-          {t.password}
+          {m.shell_setup_password()}
           <input name="password" type="password" required minLength={10} autoComplete="new-password" className="field" />
         </label>
         <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-          {t.repeat}
+          {m.shell_setup_repeat()}
           <input name="password2" type="password" required minLength={10} autoComplete="new-password" className="field" />
         </label>
         {error && (
@@ -61,7 +60,7 @@ function Setup() {
           </p>
         )}
         <button type="submit" className="btn primary justify-center" disabled={busy || !hydrated}>
-          {t.submit}
+          {m.shell_setup_submit()}
         </button>
       </form>
     </AuthCard>
