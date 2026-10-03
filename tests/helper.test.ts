@@ -107,6 +107,24 @@ describe('helper over a Unix socket', () => {
     expect(await client.unlockedUntil(token)).toBeNull()
   })
 
+  it('streams files from the data areas, with ranges; secrets only after unlocking', async () => {
+    const res = await client.fileResponse(undefined, '/mnt/disk2/Fotos/2024/IMG_0001.jpg', {})
+    expect(res.status).toBe(200)
+    expect(res.headers.get('content-type')).toBe('image/jpeg')
+    expect(res.headers.get('content-disposition')).toMatch(/^inline; filename="IMG_0001.jpg"/)
+    const all = new Uint8Array(await res.arrayBuffer())
+    expect([...all.subarray(0, 3)]).toEqual([0xff, 0xd8, 0xff]) // a real JPEG
+    const part = await client.fileResponse(undefined, '/mnt/disk2/Fotos/2024/IMG_0001.jpg', { range: 'bytes=10-19' })
+    expect(part.status).toBe(206)
+    expect(part.headers.get('content-range')).toBe(`bytes 10-19/${all.length}`)
+    expect([...new Uint8Array(await part.arrayBuffer())]).toEqual([...all.subarray(10, 20)])
+    await expect(client.fileResponse(undefined, '/srv/scripts/.env', {})).rejects.toMatchObject({ status: 423 })
+    await expect(client.fileResponse(undefined, '/etc/shadow', {})).rejects.toMatchObject({ status: 403 })
+    const { token } = await client.unlock('tristan', 'geheim-123')
+    expect(await (await client.fileResponse(token, '/srv/scripts/.env', { download: true })).text()).toBe('RESTIC_PASSWORD=demo-secret\n')
+    await client.lock(token)
+  })
+
   it('reports a missing helper clearly', async () => {
     await expect(new HelperClient(join(dir, 'missing.sock')).info()).rejects.toMatchObject({ status: 503 })
   })

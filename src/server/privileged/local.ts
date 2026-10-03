@@ -8,6 +8,7 @@ import type { SharesBackend } from '../shares/backend'
 import type { SshBackend } from '../ssh/backend'
 import type { SelfTestType, SmartBackend } from '../smart/backend'
 import type { FilesBackend } from '../files/backend'
+import { fileResponse } from '../files/serve'
 import type { TimersBackend } from '../timers/backend'
 import type { UnitEditorBackend } from '../systemd/editor'
 import type { NetworkAdmin } from '../network/collect'
@@ -254,6 +255,9 @@ export class LocalPrivileged implements Privileged {
   }
   readTextFile(token: string | undefined, path: string) {
     return this.files.readTextFile(path, this.gate.unlockedUntil(token) !== null)
+  }
+  async fileResponse(token: string | undefined, path: string, opts: { range?: string | null; download?: boolean }) {
+    return fileResponse(await this.files.openFile(path, this.gate.unlockedUntil(token) !== null), opts)
   }
   async writeTextFile(token: string | undefined, path: string, content: string, expected: string) {
     this.gate.check(token)

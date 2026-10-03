@@ -182,6 +182,25 @@ export class HelperClient implements Privileged {
   readTextFile(token: string | undefined, path: string) {
     return this.call<TextFile>('POST', '/files/read', { token, path }, 60_000)
   }
+  async fileResponse(token: string | undefined, path: string, opts: { range?: string | null; download?: boolean }) {
+    let res: Response
+    try {
+      res = await fetch('http://helper/files/raw', {
+        method: 'POST',
+        unix: this.socket,
+        headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ token, path, range: opts.range ?? undefined, download: opts.download === true }),
+      } as RequestInit)
+    } catch (e) {
+      throw new HttpError(503, msg('helper_error_unreachable', { socket: this.socket, message: (e as Error).message }))
+    }
+    if (!res.ok && res.status !== 416 && (res.headers.get('content-type') ?? '').includes('application/json')) {
+      const data = (await res.json().catch(() => ({}))) as { error?: string }
+      throw new HttpError(res.status, data.error ?? msg('helper_error_http', { status: res.status }))
+    }
+    // Streamed through: the body is read from the helper while the browser receives it.
+    return new Response(res.body, { status: res.status, headers: res.headers })
+  }
   writeTextFile(token: string | undefined, path: string, content: string, expected: string) {
     return this.call<TextFile>('POST', '/files/write', { token, path, content, expected }, 60_000)
   }

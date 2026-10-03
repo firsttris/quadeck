@@ -5,9 +5,11 @@
 
 import { chmodSync, chownSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync, renameSync, rmSync, statfsSync, statSync, writeFileSync, type Stats } from 'node:fs'
 import { contentHash } from '~/shared/caddy'
+import { join } from 'node:path'
 import { HttpError } from '../auth'
 import { msg } from '~/shared/i18n'
 import type { FsOps } from './transfer'
+import type { OpenedFile } from './serve'
 import { baseName, isSensitivePath, joinPath, looksLikeText, MAX_ENTRIES, parentOf, TEXT_MAX, validateName, validatePath, type DirListing, type FileEntry, type FileRoot, type TextFile } from '~/shared/files'
 
 export interface FilesAdmin {
@@ -22,6 +24,8 @@ export interface FilesBackend extends FilesAdmin {
   renamePath(path: string, newName: string): Promise<void>
   /** Saves an edited text file: same owner, mode and line endings; refused when it changed since `expected`. */
   writeTextFile(path: string, content: string, expected: string): Promise<TextFile>
+  /** A file for the browser (new tab or download); same rules as readTextFile. */
+  openFile(path: string, allowSensitive: boolean): Promise<OpenedFile>
 }
 
 /** Checks shared by the real machine and the demo, before a text file is shown. */
@@ -220,6 +224,14 @@ export class SystemFiles implements FilesBackend {
     return this.readFile(real)
   }
 
+  async openFile(path: string, allowSensitive: boolean): Promise<OpenedFile> {
+    const { real } = resolveInRoots(path, this.rootsFn())
+    assertReadable(path, real, allowSensitive)
+    const st = statSync(real)
+    if (!st.isFile()) throw new HttpError(400, msg('files_error_notAFile', { path }))
+    return { name: baseName(real), size: st.size, mtime: st.mtimeMs, blob: Bun.file(real) }
+  }
+
   async makeDir(path: string) {
     const bad = validateName(baseName(path))
     if (bad) throw new HttpError(400, bad)
@@ -253,6 +265,8 @@ interface Node {
   type: 'dir' | 'file'
   /** Demo text files. */
   content?: string
+  /** Demo files with real content (fixtures/demo/files). */
+  source?: string
   size: number
   mtime: number
   owner: string
@@ -263,7 +277,7 @@ interface Node {
 export class FixtureFiles implements FilesBackend {
   private tree = new Map<string, Node>()
 
-  constructor() {
+  constructor(private fixtureDir = 'fixtures/demo') {
     const now = Date.now()
     const dir = (owner = 'tristan', children: Record<string, Node> = {}): Node => ({ type: 'dir', size: 0, mtime: now - 86_400_000 * 3, owner, children: new Map(Object.entries(children)) })
     const file = (size: number, days = 10): Node => ({ type: 'file', size, mtime: now - 86_400_000 * days, owner: 'tristan' })
@@ -275,7 +289,8 @@ export class FixtureFiles implements FilesBackend {
         Downloads: dir('tristan', { 'ubuntu-24.04.iso': file(6_200_000_000, 2), 'alt.zip': file(120_000_000, 90) }),
       }),
     )
-    this.tree.set('/mnt/disk2', dir('root', { Fotos: dir('tristan', { '2024': dir('tristan', { 'IMG_0001.jpg': file(4_200_000, 300), 'IMG_0002.jpg': file(3_900_000, 300) }) }), Backup: dir('root') }))
+    const sample = (name: string, days = 30): Node => ({ type: 'file', size: statSync(join(this.fixtureDir, 'files', name)).size, mtime: now - 86_400_000 * days, owner: 'tristan', source: join(this.fixtureDir, 'files', name) })
+    this.tree.set('/mnt/disk2', dir('root', { Fotos: dir('tristan', { '2024': dir('tristan', { 'IMG_0001.jpg': sample('photo.jpg', 300), 'IMG_0002.jpg': file(3_900_000, 300) }) }), Backup: dir('root') }))
     const text = (content: string, days = 5): Node => ({ type: 'file', size: new TextEncoder().encode(content).length, mtime: now - 86_400_000 * days, owner: 'tristan', content })
     this.tree.set(
       '/srv',
@@ -284,6 +299,7 @@ export class FixtureFiles implements FilesBackend {
         scripts: dir('tristan', {
           'backup.sh': text('#!/bin/sh\n# Nightly backup of the photos to the second disk\nset -eu\nrsync -a --delete /mnt/disk2/Fotos/ /mnt/disk1/Backup/Fotos/\necho "backup done: $(date)"\n'),
           'jellyfin-hwaccel.patch': text('--- a/encoding.xml\n+++ b/encoding.xml\n@@ -3,1 +3,1 @@\n-  <HardwareAccelerationType>none</HardwareAccelerationType>\n+  <HardwareAccelerationType>qsv</HardwareAccelerationType>\n'),
+          'mainboard-manual.pdf': sample('manual.pdf', 60),
           'NOTES.txt': text('Router: 192.168.1.1\nNAS disks: 2× 12 TB, 2× 14 TB (parity)\nTODO: replace sdb (reallocated sectors)\n', 20),
           firmware: { type: 'file', size: 4096, mtime: now - 86_400_000 * 40, owner: 'root', content: '\u0000\u0001binary' },
           '.env': text('RESTIC_PASSWORD=demo-secret\n', 30),
@@ -331,7 +347,7 @@ export class FixtureFiles implements FilesBackend {
     if (!n) throw new HttpError(404, msg('files_error_notFound', { path }))
     if (n.type !== 'file') throw new HttpError(400, msg('files_error_notAFile', { path }))
     // Demo files without content (videos, archives) are binary.
-    const raw = n.content !== undefined ? new TextEncoder().encode(n.content) : new Uint8Array([0, 1, 2])
+    const raw = n.content !== undefined ? new TextEncoder().encode(n.content) : n.source ? new Uint8Array(readFileSync(n.source)) : new Uint8Array([0, 1, 2])
     return textFileFrom(path, n.content !== undefined || n.size <= TEXT_MAX ? raw : undefined, { size: n.size, mtime: n.mtime, owner: n.owner, mode: '664' })
   }
 
@@ -339,6 +355,18 @@ export class FixtureFiles implements FilesBackend {
     this.rootOf(path)
     assertReadable(path, path, allowSensitive)
     return this.fixtureText(path)
+  }
+
+  async openFile(path: string, allowSensitive: boolean): Promise<OpenedFile> {
+    this.rootOf(path)
+    assertReadable(path, path, allowSensitive)
+    const n = this.node(path)
+    if (!n) throw new HttpError(404, msg('files_error_notFound', { path }))
+    if (n.type !== 'file') throw new HttpError(400, msg('files_error_notAFile', { path }))
+    const blob = n.source ? Bun.file(n.source) : n.content !== undefined ? new Blob([n.content]) : undefined
+    // The demo's films and archives are only names.
+    if (!blob) throw new HttpError(404, msg('files_error_demoNoContent'))
+    return { name: baseName(path), size: blob.size, mtime: n.mtime, blob }
   }
 
   async writeTextFile(path: string, content: string, expected: string) {

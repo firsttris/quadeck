@@ -43,7 +43,7 @@ export function privileged(): Privileged {
   if (instance) return instance
   const isRoot = process.getuid?.() === 0
   const fixtures = config().fixturesDir
-  const files = fixtures ? new FixtureFiles() : new SystemFiles()
+  const files = fixtures ? new FixtureFiles(fixtures) : new SystemFiles()
   const maint = fixtures ? new FixtureMaintenance(fixtures, files as FixtureFiles) : new SystemMaintenance()
   instance =
     isRoot || fixtures

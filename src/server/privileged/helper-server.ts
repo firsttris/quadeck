@@ -112,6 +112,8 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/files/roots': async (_b, p) => ({ data: await p.fileRoots() }),
   '/files/list': (b, p) => p.listDir(str(b.path) ?? ''),
   '/files/read': (b, p) => p.readTextFile(str(b.token), str(b.path) ?? ''),
+  // A Response: streamed as it is (see handleHelperRequest).
+  '/files/raw': (b, p) => p.fileResponse(str(b.token), str(b.path) ?? '', { range: str(b.range), download: b.download === true }),
   '/files/write': (b, p) => p.writeTextFile(str(b.token), str(b.path) ?? '', str(b.content) ?? '', str(b.expected) ?? ''),
   '/files/mkdir': async (b, p) => {
     await p.makeDir(str(b.token), str(b.path) ?? '')
@@ -188,7 +190,8 @@ export async function handleHelperRequest(req: Request, p: Privileged, routes = 
   if (!route) return Response.json({ error: msg('podman_all_unknownVersion') }, { status: 404 })
   try {
     const body = req.method === 'POST' ? ((await req.json().catch(() => ({}))) as Record<string, unknown>) : {}
-    return Response.json(await route(body, p))
+    const result = await route(body, p)
+    return result instanceof Response ? result : Response.json(result)
   } catch (e) {
     const status = e instanceof HttpError ? e.status : 500
     if (status === 500) console.error('[quadeck-helper]', e)
