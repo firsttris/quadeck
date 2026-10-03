@@ -95,11 +95,30 @@ test('boot entries: edit the default as a copy, check it live, test it once, ren
   await expect(editor).toContainText('bleibt, wie er ist')
   await expect(editor.getByLabel('Dateiname')).toHaveValue('arch-copy.conf')
   await expect(editor).toContainText('keine Probleme gefunden')
+
+  // The form: kernel and initramfs from the boot partition, every parameter explained.
+  const form = editor.getByTestId('entry-form')
+  await expect(form.getByRole('textbox', { name: /^Titel/ })).toHaveValue('Arch Linux (copy)')
+  await expect(form.getByRole('combobox', { name: /^Kernel/ })).toHaveValue('/vmlinuz-linux')
+  await expect(form.getByRole('checkbox', { name: /intel-ucode.img/ })).toBeChecked()
+  await expect(form.getByRole('checkbox', { name: /initramfs-linux-fallback.img/ })).not.toBeChecked()
+  await expect(form.getByTestId('entry-param').first().getByText('nötig', { exact: true })).toBeVisible()
+  await expect(form.getByText('nötig', { exact: true })).toHaveCount(1)
+  await expect(form.getByTestId('entry-param').nth(3)).toContainText('QuickSync')
+  await form.getByLabel('Parameter hinzufügen').fill('loglevel=3')
+  await expect(form).toContainText('Nur Kernel-Meldungen bis Stufe 3 anzeigen')
+  await form.getByRole('button', { name: 'Hinzufügen' }).click()
+  await expect(form.getByTestId('entry-param').last()).toContainText('Nur Kernel-Meldungen bis Stufe 3')
+  await form.getByRole('button', { name: 'quiet entfernen' }).click()
+  await expect(form.getByTestId('entry-param')).toHaveCount(6)
+
+  // The same file as text.
+  await editor.getByRole('button', { name: 'Text' }).click()
   const text = editor.getByLabel('Inhalt des Eintrags')
-  await expect(text).toHaveValue(/^title   Arch Linux \(copy\)\n/)
+  await expect(text).toHaveValue(/^title   Arch Linux \(copy\)\n[\s\S]*usbcore.autosuspend=-1 loglevel=3\n$/)
 
   // Live check: a file that is not on the boot partition, root= missing.
-  const good = (await text.inputValue()).replace(' quiet', ' quiet loglevel=3')
+  const good = (await text.inputValue()).replace(' loglevel=3', ' quiet loglevel=3')
   await text.fill(good.replace('/initramfs-linux.img', '/initramfs-nope.img').replace(/root=\S+ /, ''))
   await expect(editor.getByTestId('entry-problem')).toHaveText(['Zeile 4:/initramfs-nope.img gibt es auf der Boot-Partition nicht', 'Zeile 5:In options fehlt root= – ohne findet der Kernel das System nicht'])
   await expect(editor.getByRole('button', { name: 'Weiter' })).toBeDisabled()
@@ -126,6 +145,7 @@ test('boot entries: edit the default as a copy, check it live, test it once, ren
   await page.getByRole('menuitem', { name: 'Bearbeiten …' }).click()
   const edit = page.getByRole('dialog', { name: 'arch-test.conf bearbeiten' })
   await expect(edit.getByLabel('Dateiname')).toHaveCount(0)
+  await edit.getByRole('button', { name: 'Text' }).click()
   await edit.getByLabel('Inhalt des Eintrags').fill(good.replace('loglevel=3', 'loglevel=4'))
   await edit.getByRole('button', { name: 'Weiter' }).click()
   const save = page.getByRole('dialog', { name: 'Änderungen an arch-test.conf speichern?' })
@@ -139,6 +159,7 @@ test('boot entries: edit the default as a copy, check it live, test it once, ren
 
   await copy.getByRole('button', { name: 'Aktionen für Arch Linux (copy)' }).click()
   await page.getByRole('menuitem', { name: 'Bearbeiten …' }).click()
+  await edit.getByRole('button', { name: 'Text' }).click()
   await edit.getByText('Verlauf (2)').click()
   await edit.getByRole('button', { name: 'In den Editor laden' }).last().click()
   await expect(edit).toContainText('geladen – noch nicht gespeichert')
@@ -166,6 +187,7 @@ test('boot entries: edit the default as a copy, check it live, test it once, ren
   await page.getByRole('button', { name: 'Neuer Eintrag …' }).click()
   const fresh = page.getByRole('dialog', { name: 'Neuer Boot-Eintrag' })
   await expect(fresh.getByLabel('Dateiname')).toHaveValue('new-entry.conf')
+  await fresh.getByRole('button', { name: 'Text' }).click()
   await expect(fresh.getByLabel('Inhalt des Eintrags')).toHaveValue(/^title   New entry\nlinux   \/vmlinuz-linux\ninitrd  \/intel-ucode.img\n/)
   await expect(fresh).toContainText('keine Probleme gefunden')
   await fresh.getByRole('button', { name: 'Abbrechen' }).click()

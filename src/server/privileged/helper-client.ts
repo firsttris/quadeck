@@ -276,6 +276,9 @@ export class HelperClient implements Privileged {
   async bootEntryRevision(id: string, revision: string) {
     return (await this.call<{ data: string }>('POST', '/boot/entry-revision', { id, revision })).data
   }
+  bootFiles() {
+    return this.call<string[]>('POST', '/boot/files', {})
+  }
   checkBootEntry(content: string) {
     return this.call<EntryProblem[]>('POST', '/boot/entry-check', { content })
   }

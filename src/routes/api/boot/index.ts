@@ -9,7 +9,7 @@ import { unlockToken } from '~/server/unlock-sessions'
 
 // Boot. GET → loader, entries, settings, warnings, kernel command line.
 // GET ?entryPreview=linux-lts → { path, content } · ?entry=arch.conf → its file and history ·
-// ?entry=arch.conf&revision=… → { content }.
+// ?entry=arch.conf&revision=… → { content } · ?files → { files } on the boot partition.
 // POST { check: text } (no unlock) → problems. With unlock: { default: id } ·
 // { timeout: '3' | 'menu-hidden' | 'menu-force' } · { cancelOneshot: true } · { update: true } ·
 // { reboot: { entry?, firmware? } } · { createEntry: 'linux-lts' } · { removeEntry: id } ·
@@ -22,6 +22,7 @@ export const Route = createFileRoute('/api/boot/')({
         const p = privileged()
         const pkg = q.get('entryPreview')
         if (pkg !== null) return Response.json(await p.kernelEntryPreview(pkg))
+        if (q.has('files')) return Response.json({ files: await p.bootFiles() })
         const entry = q.get('entry')
         if (entry !== null && q.has('revision')) return Response.json({ content: await p.bootEntryRevision(entry, q.get('revision') ?? '') })
         if (entry !== null) return Response.json(await p.bootEntryFile(entry))

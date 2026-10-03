@@ -1,7 +1,7 @@
 import { useEffect, useId, useState } from 'react'
 import { api } from '~/lib/api'
 import { localeOf } from '~/shared/i18n'
-import { ENTRY_FILE, type BootEntryFile, type BootState, type EntryProblem } from '~/shared/boot'
+import { ENTRY_FILE, applyEntryForm, bootFileKinds, entryForm, explainParam, knownParams, parseEntryConf, splitOptions, type BootEntryFile, type BootState, type EntryForm, type EntryProblem } from '~/shared/boot'
 import { Modal } from './Modal'
 import { DiffView, TextView } from './QuadletEditor'
 import { useGuardedApi } from './Unlock'
@@ -39,6 +39,15 @@ export function BootEntryEditor({ init, onClose, onSaved }: { init: EntryEditorI
   const [confirm, setConfirm] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
+  const [mode, setMode] = useState<'form' | 'text'>('form')
+  const [files, setFiles] = useState<string[] | null>(null)
+
+  useEffect(() => {
+    fetch('/api/boot?files')
+      .then((r) => (r.ok ? (r.json() as Promise<{ files: string[] }>) : { files: [] }))
+      .then((d) => setFiles(d.files))
+      .catch(() => setFiles([]))
+  }, [])
 
   useEffect(() => {
     setProblems(null)
@@ -119,7 +128,19 @@ export function BootEntryEditor({ init, onClose, onSaved }: { init: EntryEditorI
           <span className={`text-[12px] ${nameOk ? 'text-muted' : 'text-[#ff8a80]'}`}>{nameOk ? m.boot_editor_fileHint({ dir: init.dir }) : m.boot_error_invalidFileName()}</span>
         </label>
       )}
-      <TextView text={content} onChange={(v) => (setContent(v), setJump(null))} jump={jump} label={m.boot_editor_content()} height={240} />
+      <div className="flex justify-end gap-1.5" role="group" aria-label={m.boot_form_view()}>
+        <button type="button" className={`seg ${mode === 'form' ? 'on' : ''}`} aria-pressed={mode === 'form'} onClick={() => setMode('form')}>
+          {m.quadlets_editor_form()}
+        </button>
+        <button type="button" className={`seg ${mode === 'text' ? 'on' : ''}`} aria-pressed={mode === 'text'} onClick={() => setMode('text')}>
+          {m.quadlets_editor_text()}
+        </button>
+      </div>
+      {mode === 'form' ? (
+        <EntryFormView text={content} files={files} onChange={(v) => (setContent(v), setJump(null))} />
+      ) : (
+        <TextView text={content} onChange={(v) => (setContent(v), setJump(null))} jump={jump} label={m.boot_editor_content()} height={240} />
+      )}
       <div className="flex flex-col gap-1 text-[13px]" aria-label={m.boot_editor_problems()} aria-live="polite">
         {checkError ? (
           <p className="m-0 text-[#ff8a80]">{checkError}</p>
@@ -131,7 +152,7 @@ export function BootEntryEditor({ init, onClose, onSaved }: { init: EntryEditorI
           problems.map((p, i) => (
             <p key={i} className={`m-0 ${p.level === 'error' ? 'text-[#ff8a80]' : 'text-[#e3b341]'}`} data-testid="entry-problem">
               {p.line ? (
-                <button type="button" className="mr-1.5 border-0 bg-transparent p-0 font-mono text-inherit underline" onClick={() => setJump(p.line!)}>
+                <button type="button" className="mr-1.5 border-0 bg-transparent p-0 font-mono text-inherit underline" onClick={() => (setMode('text'), setJump(p.line!))}>
                   {m.boot_check_line({ line: p.line })}
                 </button>
               ) : null}
@@ -221,5 +242,157 @@ export function RenameEntry({ id, onClose, onDone }: { id: string; onClose: () =
         </div>
       </form>
     </Modal>
+  )
+}
+
+/** Input that keeps what is typed (trailing spaces too) while the text it feeds is normalised. */
+function DraftInput({ value, onChange, ...rest }: { value: string; onChange: (v: string) => void } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>) {
+  const [draft, setDraft] = useState(value)
+  useEffect(() => {
+    if (value.trim() !== draft.trim()) setDraft(value)
+  }, [value]) // eslint-disable-line react-hooks/exhaustive-deps
+  return <input {...rest} value={draft} onChange={(e) => (setDraft(e.target.value), onChange(e.target.value))} />
+}
+
+const fieldLabel = 'flex flex-col gap-1 text-[12px] font-medium text-muted'
+const paramName = (token: string) => token.split('=')[0]!
+const paramValue = (token: string) => (token.includes('=') ? token.slice(token.indexOf('=') + 1).replace(/^"|"$/g, '') : undefined)
+
+/**
+ * The entry as a form: title, kernel and initramfs from the files on the boot
+ * partition, and every kernel parameter with what it does. It edits the same
+ * text as the text view; lines it does not know stay untouched.
+ */
+function EntryFormView({ text, files, onChange }: { text: string; files: string[] | null; onChange: (t: string) => void }) {
+  const f = entryForm(text)
+  const set = (patch: Partial<EntryForm>) => onChange(applyEntryForm(text, { ...f, ...patch }))
+  const kinds = bootFileKinds(files ?? [])
+  const [newParam, setNewParam] = useState('')
+  const listId = useId()
+
+  const kernels = [...new Set([...kinds.kernels, ...(f.linux ? [f.linux] : [])])]
+  const missing = (file: string) => files !== null && !files.includes(file)
+  const pkgOf = (k: string) => /\/vmlinuz-(.+)$/.exec(k)?.[1]
+  const changeKernel = (k: string) => {
+    const from = pkgOf(f.linux)
+    const to = pkgOf(k)
+    const initrd = from && to ? f.initrd.map((i) => i.replace(new RegExp(`^/initramfs-${from.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(-fallback)?\\.img$`), `/initramfs-${to}$1.img`)) : f.initrd
+    set({ linux: k, initrd })
+  }
+
+  // Microcode first, then the rest in the order they are in now, then the ones not chosen yet.
+  const initrdChoices = [...new Set([...f.initrd, ...kinds.microcode, ...kinds.initrds.filter((i) => !pkgOf(f.linux) || i.includes(`-${pkgOf(f.linux)}`))])]
+  const isUcode = (i: string) => /ucode/.test(i)
+  const toggleInitrd = (i: string, on: boolean) => {
+    const chosen = initrdChoices.filter((x) => (x === i ? on : f.initrd.includes(x)))
+    set({ initrd: [...chosen.filter(isUcode), ...chosen.filter((x) => !isUcode(x))] })
+  }
+  const initrdHelp = (i: string) => (isUcode(i) ? m.boot_form_microcode() : /fallback/.test(i) ? m.boot_form_fallback() : /initr/.test(i) ? m.boot_form_initramfs() : m.boot_form_otherInitrd())
+
+  const others = [...new Set(parseEntryConf(text).map((l) => l.key))].filter((k) => !['title', 'linux', 'initrd', 'options'].includes(k))
+  const addParam = () => {
+    const t = newParam.trim()
+    if (!t) return
+    set({ options: [...f.options, ...splitOptions(t)] })
+    setNewParam('')
+  }
+  const preview = newParam.trim() ? explainParam(paramName(newParam.trim()), paramValue(newParam.trim())) : undefined
+
+  return (
+    <div className="flex flex-col gap-4" data-testid="entry-form">
+      <label className={fieldLabel}>
+        {m.boot_form_title()}
+        <DraftInput className="field" value={f.title} onChange={(v) => set({ title: v })} />
+        <span className="font-normal">{m.boot_form_titleHelp()}</span>
+      </label>
+
+      <label className={fieldLabel}>
+        {m.boot_form_kernel()}
+        <select className="field font-mono" value={f.linux} onChange={(e) => changeKernel(e.target.value)}>
+          {!f.linux && <option value="">–</option>}
+          {kernels.map((k) => (
+            <option key={k} value={k}>
+              {missing(k) ? m.boot_form_missingFile({ file: k }) : k}
+            </option>
+          ))}
+        </select>
+        <span className="font-normal">{m.boot_form_kernelHelp()}</span>
+      </label>
+
+      <fieldset className="m-0 flex flex-col gap-2 rounded-[10px] border border-edge p-3">
+        <legend className="px-1 text-[12px] font-medium text-muted">{m.boot_form_initrd()}</legend>
+        <p className="m-0 text-[12px] text-muted">{m.boot_form_initrdHelp()}</p>
+        {initrdChoices.map((i) => (
+          <label key={i} className="flex items-start gap-2.5 text-[13px]">
+            <input type="checkbox" className="mt-[3px]" checked={f.initrd.includes(i)} onChange={(e) => toggleInitrd(i, e.target.checked)} />
+            <span className="flex flex-col">
+              <span className="font-mono">{missing(i) ? m.boot_form_missingFile({ file: i }) : i}</span>
+              <span className="text-[12px] text-muted">{initrdHelp(i)}</span>
+            </span>
+          </label>
+        ))}
+      </fieldset>
+
+      <fieldset className="m-0 flex flex-col gap-2 rounded-[10px] border border-edge p-3">
+        <legend className="px-1 text-[12px] font-medium text-muted">{m.boot_form_params()}</legend>
+        <p className="m-0 text-[12px] text-muted">{m.boot_form_paramsHelp()}</p>
+        {f.options.map((o, i) => {
+          const name = paramName(o)
+          const text = explainParam(name, paramValue(o))
+          return (
+            <div key={`${i}-${name}`} className="flex items-start gap-2 border-t border-line pt-2 first-of-type:border-0" data-testid="entry-param">
+              <div className="flex grow flex-col gap-1">
+                <DraftInput
+                  className="field !py-1 font-mono text-[13px]"
+                  value={o}
+                  spellCheck={false}
+                  aria-label={m.boot_form_paramLabel({ param: name })}
+                  onChange={(v) => set({ options: f.options.flatMap((x, j) => (j === i ? splitOptions(v) : [x])) })}
+                />
+                <span className={`text-[12px] ${text ? 'text-muted' : 'text-subtle'}`}>
+                  {name === 'root' && <span className="chip q mr-1.5">{m.boot_form_required()}</span>}
+                  {text ?? m.boot_form_paramUnknown()}
+                </span>
+              </div>
+              <button type="button" className="btn sm" aria-label={m.boot_form_removeParam({ param: name })} onClick={() => set({ options: f.options.filter((_, j) => j !== i) })}>
+                ✕
+              </button>
+            </div>
+          )
+        })}
+        <div className="flex flex-col gap-1 border-t border-line pt-2">
+          <div className="flex gap-2">
+            <input
+              className="field !py-1 grow font-mono text-[13px]"
+              list={listId}
+              value={newParam}
+              spellCheck={false}
+              placeholder={m.boot_form_addPlaceholder()}
+              aria-label={m.boot_form_addParam()}
+              onChange={(e) => setNewParam(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault()
+                  addParam()
+                }
+              }}
+            />
+            <button type="button" className="btn sm" disabled={!newParam.trim()} onClick={addParam}>
+              {m.common_add()}
+            </button>
+          </div>
+          {preview && <span className="text-[12px] text-muted">{preview}</span>}
+          <datalist id={listId}>
+            {knownParams().map((p) => (
+              <option key={p} value={p}>
+                {explainParam(p)}
+              </option>
+            ))}
+          </datalist>
+        </div>
+      </fieldset>
+
+      {others.length > 0 && <p className="m-0 text-[12px] text-muted">{m.boot_form_otherLines({ keys: others.join(', ') })}</p>}
+    </div>
   )
 }

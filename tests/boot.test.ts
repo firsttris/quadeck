@@ -2,6 +2,9 @@ import { describe, expect, it } from 'vitest'
 import { FixtureBoot, assertTimeout } from '~/server/boot/backend'
 import {
   ENTRY_FILE,
+  applyEntryForm,
+  bootFileKinds,
+  entryForm,
   bootWarnings,
   checkEntryConf,
   copyEntryContent,
@@ -344,5 +347,40 @@ describe('kernel jobs', () => {
     expect(parseJobSpec({ kind: 'kernel-install', flavor: 'linux-lts' })).toEqual({ kind: 'kernel-install', flavor: 'linux-lts' })
     expect(() => parseJobSpec({ kind: 'kernel-remove', flavor: 'linux; rm -rf /' })).toThrow(/Unbekannter Kernel/)
     expect(jobTitle({ kind: 'kernel-install', flavor: 'linux-lts' })).toBe('Kernel installieren: linux-lts')
+  })
+})
+
+describe('entry form', () => {
+  const ARCH = '# keep me\ntitle   Arch Linux\nlinux   /vmlinuz-linux\ninitrd  /intel-ucode.img\ninitrd  /initramfs-linux.img\noptions root=UUID=0a1b rw\noptions quiet\nsort-key arch\n'
+
+  it('reads title, kernel, initrds and every parameter', () => {
+    expect(entryForm(ARCH)).toEqual({ title: 'Arch Linux', linux: '/vmlinuz-linux', initrd: ['/intel-ucode.img', '/initramfs-linux.img'], options: ['root=UUID=0a1b', 'rw', 'quiet'] })
+    expect(entryForm('options foo="a b" bar\n').options).toEqual(['foo="a b"', 'bar'])
+  })
+
+  it('writes the values back where they were and leaves the rest alone', () => {
+    const f = entryForm(ARCH)
+    expect(applyEntryForm(ARCH, f)).toBe('# keep me\ntitle   Arch Linux\nlinux   /vmlinuz-linux\ninitrd  /intel-ucode.img\ninitrd  /initramfs-linux.img\noptions root=UUID=0a1b rw quiet\nsort-key arch\n')
+    const lts = applyEntryForm(ARCH, { ...f, title: 'Arch LTS', linux: '/vmlinuz-linux-lts', initrd: ['/initramfs-linux-lts.img'], options: [...f.options, 'loglevel=3'] })
+    expect(lts).toBe('# keep me\ntitle   Arch LTS\nlinux   /vmlinuz-linux-lts\ninitrd  /initramfs-linux-lts.img\noptions root=UUID=0a1b rw quiet loglevel=3\nsort-key arch\n')
+    // missing keys are added in the usual order, title first
+    expect(applyEntryForm('# x\nlinux /vmlinuz-linux\n', { title: 'New', linux: '/vmlinuz-linux', initrd: ['/initramfs-linux.img'], options: ['root=/dev/sda2'] })).toBe(
+      '# x\ntitle   New\nlinux   /vmlinuz-linux\ninitrd  /initramfs-linux.img\noptions root=/dev/sda2\n',
+    )
+    // a parameter list emptied removes the line
+    expect(applyEntryForm(ARCH, { ...f, options: [] })).not.toMatch(/options/)
+  })
+
+  it('sorts files on the boot partition', () => {
+    expect(bootFileKinds(['/amd-ucode.img', '/initramfs-linux-fallback.img', '/initramfs-linux.img', '/vmlinuz-linux', '/loader', '/EFI'])).toEqual({
+      kernels: ['/vmlinuz-linux'],
+      microcode: ['/amd-ucode.img'],
+      initrds: ['/initramfs-linux-fallback.img', '/initramfs-linux.img'],
+    })
+  })
+
+  it('demo: lists the files of the installed kernels', async () => {
+    const b = new FixtureBoot('fixtures/demo')
+    expect(await b.bootFiles()).toEqual(['/amd-ucode.img', '/initramfs-linux-fallback.img', '/initramfs-linux.img', '/intel-ucode.img', '/vmlinuz-linux'])
   })
 })

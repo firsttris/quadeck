@@ -547,3 +547,71 @@ export function parseBootEntryChange(raw: unknown): BootEntryChange | undefined 
   if (r.kind === 'rename' && s(r.id) !== undefined && s(r.name) !== undefined) return { kind: 'rename', id: s(r.id)!, name: s(r.name)! }
   return undefined
 }
+
+// ---------- the entry as a form ----------
+
+/** What the form edits; every other line (comments, version, sort-key …) stays as it is. */
+export interface EntryForm {
+  title: string
+  linux: string
+  /** In boot order: microcode first, then the initramfs. */
+  initrd: string[]
+  /** Kernel parameters, one token each (root=UUID=…, quiet, foo="a b"). */
+  options: string[]
+}
+
+export const splitOptions = (s: string) => s.trim().match(/(?:[^\s"]+|"[^"]*")+/g) ?? []
+
+export function entryForm(text: string): EntryForm {
+  const e = entryFromConf(text)
+  return { title: e.title, linux: e.linux ?? '', initrd: e.initrd, options: splitOptions(e.options ?? '') }
+}
+
+const confLine = (key: string, value: string) => `${key.padEnd(7)} ${value}`
+
+/** The text with the form's values: title, linux, initrd and options rewritten where they were, the rest untouched. */
+export function applyEntryForm(text: string, f: EntryForm): string {
+  const lines = text.replace(/\n$/, '').split('\n')
+  const keyOf = (l: string) => /^\s*([a-z-]+)(\s|$)/.exec(l)?.[1]
+  const want: Record<string, string[]> = {
+    title: f.title.trim() ? [f.title.replace(/^\s+/, '')] : [],
+    linux: f.linux.trim() ? [f.linux.trim()] : [],
+    initrd: f.initrd.map((i) => i.trim()).filter(Boolean),
+    options: f.options.length ? [f.options.join(' ')] : [],
+  }
+  const out: string[] = []
+  const done = new Set<string>()
+  for (const l of lines) {
+    const k = keyOf(l)
+    if (!k || !(k in want)) {
+      out.push(l)
+      continue
+    }
+    if (done.has(k)) continue
+    done.add(k)
+    out.push(...want[k]!.map((v) => confLine(k, v)))
+  }
+  // Keys that were not in the file yet: title first, the others in the usual order.
+  const missing = (k: string) => !done.has(k) && want[k]!.length > 0
+  if (missing('title')) {
+    const first = out.findIndex((l) => l.trim() && !l.trim().startsWith('#'))
+    out.splice(first < 0 ? out.length : first, 0, confLine('title', want.title![0]!))
+  }
+  for (const k of ['linux', 'initrd', 'options'])
+    if (missing(k)) {
+      const after = Math.max(...['title', 'linux', 'initrd', 'options'].map((x) => out.map(keyOf).lastIndexOf(x)))
+      out.splice(after + 1, 0, ...want[k]!.map((v) => confLine(k, v)))
+    }
+  return out.filter((l, i) => l.trim() || i < out.length - 1).join('\n') + '\n'
+}
+
+/** Files on the boot partition by what they are for. */
+export function bootFileKinds(files: string[]) {
+  const kernels = files.filter((f) => /\/(vmlinuz|vmlinux|bzImage|linux)[^/]*$|\/Image$/.test(f) && !/\.img$/.test(f))
+  const microcode = files.filter((f) => /ucode[^/]*\.img$/.test(f))
+  const initrds = files.filter((f) => /\.img$/.test(f) && !/ucode/.test(f) && /init/.test(f))
+  return { kernels, microcode, initrds }
+}
+
+/** Parameters with an explanation, for the suggestions when adding one. */
+export const knownParams = () => Object.keys(params())

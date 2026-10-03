@@ -137,6 +137,7 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/boot/entry-remove': (b, p) => p.removeBootEntry(str(b.token), str(b.id) ?? ''),
   '/boot/entry-file': (b, p) => p.bootEntryFile(str(b.id) ?? ''),
   '/boot/entry-revision': async (b, p) => ({ data: await p.bootEntryRevision(str(b.id) ?? '', str(b.revision) ?? '') }),
+  '/boot/files': (_b, p) => p.bootFiles(),
   '/boot/entry-check': (b, p) => p.checkBootEntry(str(b.content) ?? ''),
   '/boot/entry-write': async (b, p) => {
     const change = parseBootEntryChange(b.change)
