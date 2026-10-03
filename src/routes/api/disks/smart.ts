@@ -4,6 +4,8 @@ import { msg } from '~/shared/i18n'
 import { db } from '~/server/db'
 import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
+import { hostTempSensorGap, tempSensorGap } from '~/server/collectors/disks'
+import { config } from '~/server/config'
 import { hubReady } from '~/server/hub'
 import { querySmartHistory, smartBaselines } from '~/server/metrics'
 import { privileged } from '~/server/privileged'
@@ -15,6 +17,8 @@ import type { SmartReport } from '~/shared/smart'
 // POST {}: read again now. POST { selftest: { disk, type } }: start a self-test (unlock).
 const withBaselines = (r: SmartReport): SmartReport => ({
   ...r,
+  // The demo has no /sys of its own: two SATA disks without drivetemp.
+  tempSensors: config().fixturesDir ? tempSensorGap(r.disks, new Set(), false) : hostTempSensorGap(r.disks),
   baselines: smartBaselines(
     db(),
     r.disks.map((d) => d.id),

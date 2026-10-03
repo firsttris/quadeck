@@ -7,7 +7,7 @@ import { readFileSync } from 'node:fs'
 import { hostname, networkInterfaces } from 'node:os'
 import { join } from 'node:path'
 import type { Container, Disk, GpuMetrics, HiddenService, Share, Snapshot, SourceStatus, SystemMetrics, Unit } from '~/shared/types'
-import { collectDisks, diskRole } from './collectors/disks'
+import { collectDisks, diskRole, withSmartTemp } from './collectors/disks'
 import { GpuCollector } from './collectors/gpu'
 import { speedCheck, speedTick, seedSpeedHistory } from './speedtest'
 import { demoSystemSample, metricRows, pruneHistory, SAMPLE_EVERY_MS, seedFixtureHistory, seedSmartHistory, smartBaselines } from './metrics'
@@ -77,6 +77,8 @@ export class Hub {
   }
   private shares: Share[] = []
   private smart: Snapshot['smart'] = []
+  /** Disk temperatures from SMART for disks without a kernel sensor (SATA without drivetemp). */
+  private smartTemps = new Map<string, { tempC: number; at: number }>()
   private lastSmartSampleAt = 0
   private current?: Snapshot
   private lastStateJson = ''
@@ -277,6 +279,7 @@ export class Hub {
         db(),
         report.disks.map((d) => d.id),
       )
+      for (const d of report.disks) if (d.temperature !== undefined) this.smartTemps.set(d.name, { tempC: d.temperature, at: report.checkedAt })
       this.smart = report.disks.map((d) => ({ name: d.name, level: assessSmart(d, base[d.id]).level, supported: d.supported, standby: d.standby }))
       if (report.installed) this.ok('smart')
       else this.sources.smart = { ok: false, updatedAt: Date.now() } // not an error: see the disks page
@@ -351,7 +354,7 @@ export class Hub {
     return {
       host: this.host,
       system: this.system,
-      disks: this.disks,
+      disks: this.disks.map((d) => withSmartTemp(d, this.smartTemps.get(d.dev))),
       containers: this.containers,
       units: this.units,
       services,

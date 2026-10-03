@@ -60,6 +60,8 @@ export interface Disk {
   size: number
   used: number
   tempC?: number
+  /** Temperature from the last SMART read (every 30 min) when the kernel has no sensor for the disk. */
+  tempFromSmart?: boolean
   role: string
 }
 

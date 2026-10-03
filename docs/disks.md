@@ -18,6 +18,14 @@ Model, serial, capacity, type (HDD, SSD, NVMe), temperature, power-on hours, wea
 reallocated and pending sectors, uncorrectable and CRC errors, the result of the last self-test,
 and a verdict.
 
+### Temperature sensor
+
+SATA disks report their temperature to the kernel only with the `drivetemp` module. When a disk
+has a SMART temperature but no kernel sensor, the page says so above the disks: with the two
+commands to load the module now and at every boot when `drivetemp` is not loaded, or that the disk
+does not report to the kernel at all (USB enclosures, RAID controllers) when it is. Until then the
+overview shows the SMART value, read every 30 minutes.
+
 ### The verdict
 
 The assessment is the one from [snapraid-ui](https://github.com/firsttris/snapraid-ui):
