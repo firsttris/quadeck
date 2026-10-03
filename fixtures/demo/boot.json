@@ -63,6 +63,7 @@
   ],
   "cmdline": "initrd=\\intel-ucode.img initrd=\\initramfs-linux.img root=UUID=8c1f3e2a-5d4b-4c6e-9f1a-2b3c4d5e6f70 rw rootflags=subvol=@ i915.enable_guc=3 usbcore.autosuspend=-1 quiet",
   "entryFiles": {
-    "/boot/loader/entries/arch.conf": "title   Arch Linux\nlinux   /vmlinuz-linux\ninitrd  /intel-ucode.img\ninitrd  /initramfs-linux.img\noptions root=UUID=8c1f3e2a-5d4b-4c6e-9f1a-2b3c4d5e6f70 rw rootflags=subvol=@ i915.enable_guc=3 usbcore.autosuspend=-1 quiet\n"
+    "/boot/loader/entries/arch.conf": "title   Arch Linux\nlinux   /vmlinuz-linux\ninitrd  /intel-ucode.img\ninitrd  /initramfs-linux.img\noptions root=UUID=8c1f3e2a-5d4b-4c6e-9f1a-2b3c4d5e6f70 rw rootflags=subvol=@ i915.enable_guc=3 usbcore.autosuspend=-1 quiet\n",
+    "/boot/loader/entries/arch-fallback.conf": "title   Arch Linux (Fallback-initramfs)\nlinux   /vmlinuz-linux\ninitrd  /intel-ucode.img\ninitrd  /initramfs-linux-fallback.img\noptions root=UUID=8c1f3e2a-5d4b-4c6e-9f1a-2b3c4d5e6f70 rw rootflags=subvol=@ i915.enable_guc=3 usbcore.autosuspend=-1 quiet\n"
   }
 }

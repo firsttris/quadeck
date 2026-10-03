@@ -88,6 +88,25 @@ and making sure the server comes back.
   damit starten** boots once into another entry (`bootctl set-oneshot`) – for trying a new kernel
   or falling back to linux-lts; the reboot after that uses the default again, so a reset is
   enough when something goes wrong. A pending one-time entry is shown and can be withdrawn.
+- **Editing entries** (the `.conf` files in `loader/entries`, from the row menu "⋯"):
+  **Bearbeiten**, **Kopie anlegen**, **Umbenennen**, **Löschen** and **Neuer Eintrag** (filled in
+  from the default entry). A typo here can keep the server from booting, so:
+  - Every change is checked before it is written, live while typing: a kernel (`linux`, `efi` or
+    `uki`), every file it names exists on the boot partition (paths start with `/` there),
+    `options` contains `root=` when this system boots with one, unknown keys (typos) and missing
+    values. Errors block saving; the changes are shown as a diff first.
+  - The default and the running entry are never edited in place: **Als Kopie bearbeiten** opens a
+    copy (`arch-copy.conf`, title with " (copy)"). After saving, Quadeck offers **Einmalig damit
+    starten** – boot the copy once; if it fails, a reset brings back the old default. When it
+    works, **Als Standard**.
+  - Renaming a default or one-time entry moves that to the new name (`bootctl set-default`,
+    `set-oneshot`); the file name is the entry's id. Names: letters, digits, `@ _ . + ~ -`, ending
+    in `.conf`.
+  - Deleting refuses the default, the running and the one-time entry, and the last entry that
+    boots.
+  - Every version is kept (`/var/lib/quadeck-helper/boot-history`, 30 per file), also the text of
+    a deleted entry; older versions can be loaded into the editor and saved again. Writes are
+    atomic (temporary file, then rename).
 - **Bootloader**: running systemd-boot version, firmware, Secure Boot, free space on `$BOOT`,
   and the menu timeout (`bootctl set-timeout`; the EFI variable wins over `loader.conf`).
   **Bootloader aktualisieren** runs `bootctl update` when the binary on the ESP is older than the
@@ -105,13 +124,13 @@ and making sure the server comes back.
   shows the file first and writes `loader/entries/arch-lts.conf` – existing entries are not
   touched. Then use **Einmalig damit starten** or **Als Standard**. **Entfernen** refuses the
   running kernel, the one of the default entry and the last one (checked again inside the job);
-  the entry left behind is marked as pointing to missing files and can be removed with
-  **Eintrag entfernen** (only such entries and the ones Quadeck wrote). On Fedora and Debian the
+  the entry left behind is marked as pointing to missing files and can be deleted from its row
+  menu. On Fedora and Debian the
   installed kernel versions come with their own entries and show up in the list of entries.
 - **Kernel parameters of this boot** from `/proc/cmdline`, each known one explained
   (`i915.enable_guc`, `usbcore.autosuspend`, `nvme_core.default_ps_max_latency_us`,
-  `pcie_aspm`, IOMMU, …). Quadeck shows them and says where they are set; it does not edit them –
-  a wrong parameter can keep the server from booting, and they are changed once, at the console.
+  `pcie_aspm`, IOMMU, …). To change one, edit the `options` line of an entry – as a copy of the
+  default, booted once, as described above.
 
 With GRUB the tab shows the reboot and the kernel parameters only. Writes to EFI variables go
 through `systemd-run`, because the helper's own sandbox keeps `/sys` read-only.

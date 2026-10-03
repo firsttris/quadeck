@@ -4,14 +4,21 @@
 // helper's own sandbox (ProtectKernelTunables) keeps /sys read-only.
 
 import { existsSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { contentHash } from '~/shared/caddy'
+import type { Revision } from '~/shared/quadlets'
 import { release } from 'node:os'
 import { statfs } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { msg } from '~/shared/i18n'
 import { HttpError } from '../auth'
 import { run } from '../exec'
+import { UnitHistory } from '../systemd/editor'
 import {
+  ENTRY_FILE,
   ENTRY_ID,
+  checkEntryConf,
+  entryFromConf,
+  isEditableEntry,
   bootWarnings,
   decodeEfiString,
   isFlavor,
@@ -25,7 +32,10 @@ import {
   parseSystemdVersion,
   parseTimeout,
   type BootEntry,
+  type BootEntryChange,
+  type BootEntryFile,
   type BootState,
+  type EntryProblem,
   type KernelFlavor,
 } from '~/shared/boot'
 
@@ -33,6 +43,11 @@ export interface BootAdmin {
   bootState(): Promise<BootState>
   /** The entry Quadeck would write for an installed flavour without one. */
   kernelEntryPreview(pkg: string): Promise<{ path: string; content: string }>
+  /** An entry's file with its history, for the editor. */
+  bootEntryFile(id: string): Promise<BootEntryFile>
+  bootEntryRevision(id: string, revision: string): Promise<string>
+  /** Problems of an entry's text before it is saved (`id`: the entry it replaces, if any). */
+  checkBootEntry(content: string): Promise<EntryProblem[]>
 }
 
 /** Writes; the caller has checked the unlock. */
@@ -44,14 +59,11 @@ export interface BootBackend extends BootAdmin {
   /** Reboots after a short delay (the answer still reaches the browser), optionally once into `entry` or the firmware setup. */
   reboot(opts: { entry?: string; firmware?: boolean }): Promise<{ at: number }>
   createKernelEntry(pkg: string): Promise<BootState>
-  /** Only entries that point to missing files or were written by Quadeck, never the default or the running one. */
+  /** Create, edit or rename a .conf entry; checked first, every version kept. */
+  writeBootEntry(change: BootEntryChange): Promise<BootState>
+  /** Never the default, the running or the next one-time entry, nor the last one that boots. */
   removeBootEntry(id: string): Promise<BootState>
 }
-
-export const QUADECK_ENTRY = '# Created by Quadeck'
-/** Entries written by versions before 0.4. */
-const LEGACY_QUADECK_ENTRY = '# Angelegt von Quadeck'
-const isQuadeckEntry = (content: string | undefined) => !!content && (content.startsWith(QUADECK_ENTRY) || content.startsWith(LEGACY_QUADECK_ENTRY))
 
 /** Checks shared by the real machine and the demo. */
 export function entryForFlavor(state: BootState, pkg: string, read: (p: string) => string | undefined, exists: (p: string) => boolean) {
@@ -71,14 +83,117 @@ export function entryForFlavor(state: BootState, pkg: string, read: (p: string) 
   return { path, content: kernelEntry(template, pkg as KernelFlavor) }
 }
 
-export function removableEntry(state: BootState, id: string, read: (p: string) => string | undefined) {
+// ---------- editing entry files ----------
+
+/** The files behind the entries: the real boot partition or the demo's. */
+export interface EntryHost {
+  read(path: string): string | undefined
+  exists(path: string): boolean
+  write(path: string, content: string): void
+  rename(from: string, to: string): void
+  remove(path: string): void
+  history: { list(path: string): Revision[]; read(path: string, id: string): string; add(path: string, content: string, kind: 'deleted'): void; saved(path: string, before: string | undefined, after: string): void }
+}
+
+/** $BOOT of an entry: paths inside it (linux /vmlinuz-linux) start there. */
+const entryRoot = (path: string) => dirname(dirname(dirname(path)))
+
+function entriesDir(state: BootState): string {
+  if (state.loader !== 'systemd-boot') throw new HttpError(409, msg('boot_error_noSystemdBoot'))
+  const e = state.entries.find(isEditableEntry)
+  if (e?.path) return dirname(e.path)
+  if (state.boot) return join(state.boot.path, 'loader/entries')
+  throw new HttpError(409, msg('boot_error_noEntriesDir'))
+}
+
+function editableEntry(state: BootState, id: string): BootEntry & { path: string } {
   if (!ENTRY_ID.test(id)) throw new HttpError(400, msg('boot_error_invalidEntry'))
   const e = state.entries.find((x) => x.id === id)
   if (!e) throw new HttpError(404, msg('boot_error_entryNotFound', { id }))
-  if (e.type !== 'type1' || !e.path || !e.path.endsWith('.conf') || !/\/loader\/entries\/[^/]+$/.test(e.path)) throw new HttpError(409, msg('boot_error_notLoaderEntry'))
+  if (!isEditableEntry(e)) throw new HttpError(409, msg('boot_error_notLoaderEntry'))
+  return e as BootEntry & { path: string }
+}
+
+const locked = (e: BootEntry) => (e.isDefault ? 'default' : e.isSelected ? 'running' : undefined)
+
+export function entryFile(state: BootState, id: string, host: EntryHost): BootEntryFile {
+  const e = editableEntry(state, id)
+  const content = host.read(e.path)
+  if (content === undefined) throw new HttpError(404, msg('boot_error_entryNotFound', { id }))
+  return { id, path: e.path, content, hash: contentHash(content), locked: locked(e), history: host.history.list(e.path) }
+}
+
+export function entryRevision(state: BootState, id: string, revision: string, host: EntryHost) {
+  return host.history.read(editableEntry(state, id).path, revision)
+}
+
+export function checkEntry(state: BootState, content: string, host: EntryHost, dir = entriesDir(state)): EntryProblem[] {
+  const root = entryRoot(join(dir, 'x.conf'))
+  return checkEntryConf(content, { exists: (f) => host.exists(join(root, f)), needsRoot: /(^|\s)root=\S/.test(state.cmdline) })
+}
+
+function assertChecked(state: BootState, content: string, host: EntryHost, dir: string) {
+  const errors = checkEntry(state, content, host, dir).filter((p) => p.level === 'error')
+  if (errors.length) throw new HttpError(422, msg('boot_error_invalidContent', { problems: errors.map((p) => (p.line ? `${msg('boot_check_line', { line: p.line })} ${p.text}` : p.text)).join('; ') }))
+}
+
+const withNewline = (s: string) => (s.endsWith('\n') ? s : `${s}\n`)
+
+function freeName(state: BootState, dir: string, name: string, host: EntryHost) {
+  if (!ENTRY_FILE.test(name)) throw new HttpError(400, msg('boot_error_invalidFileName'))
+  if (state.entries.some((e) => e.id === name) || host.read(join(dir, name)) !== undefined) throw new HttpError(409, msg('boot_error_nameTaken', { name }))
+  return join(dir, name)
+}
+
+/**
+ * Writes a change after checking it. The default and the running entry are
+ * not edited in place – a copy is tested once first. A renamed default or
+ * one-time entry keeps its role (bootctl set-default/set-oneshot).
+ */
+export async function applyEntryChange(state: BootState, change: BootEntryChange, host: EntryHost, bootctl: (args: string[]) => Promise<void>) {
+  if (change.kind === 'create') {
+    const dir = entriesDir(state)
+    const path = freeName(state, dir, change.name, host)
+    const content = withNewline(change.content)
+    assertChecked(state, content, host, dir)
+    host.write(path, content)
+    host.history.saved(path, undefined, content)
+    return
+  }
+  const e = editableEntry(state, change.id)
+  const before = host.read(e.path)
+  if (before === undefined) throw new HttpError(404, msg('boot_error_entryNotFound', { id: change.id }))
+  if (change.kind === 'edit') {
+    if (locked(e)) throw new HttpError(409, msg('boot_error_entryLocked'))
+    if (change.expected && change.expected !== contentHash(before)) throw new HttpError(409, msg('boot_error_changedMeanwhile'))
+    const content = withNewline(change.content)
+    assertChecked(state, content, host, dirname(e.path))
+    if (content === before) return
+    host.write(e.path, content)
+    host.history.saved(e.path, before, content)
+    return
+  }
+  if (change.name === e.id) return
+  const path = freeName(state, dirname(e.path), change.name, host)
+  host.rename(e.path, path)
+  try {
+    if (e.isDefault) await bootctl(['set-default', change.name])
+    if (e.isOneshot) await bootctl(['set-oneshot', change.name])
+  } catch (err) {
+    host.rename(path, e.path)
+    throw err
+  }
+}
+
+/** Path of an entry that may go; its text is kept in the history. */
+export function removeEntry(state: BootState, id: string, host: EntryHost) {
+  const e = editableEntry(state, id)
   if (e.isDefault || e.isSelected) throw new HttpError(409, msg('boot_error_entryInUse'))
-  if (!e.missing.length && !isQuadeckEntry(read(e.path))) throw new HttpError(409, msg('boot_error_entryNotRemovable'))
-  return e.path
+  if (e.isOneshot) throw new HttpError(409, msg('boot_error_entryIsOneshot'))
+  if (!state.entries.some((x) => x.id !== id && x.type !== 'auto' && !x.missing.length)) throw new HttpError(409, msg('boot_error_lastEntry'))
+  const content = host.read(e.path)
+  if (content !== undefined) host.history.add(e.path, content, 'deleted')
+  host.remove(e.path)
 }
 
 export const TIMEOUT_VALUE = /^(menu-force|menu-hidden|\d{1,3})$/
@@ -233,8 +348,45 @@ export class SystemBoot implements BootBackend {
     return this.bootState()
   }
 
+  private history = new UnitHistory(process.env.QUADECK_BOOT_HISTORY || '/var/lib/quadeck-helper/boot-history')
+  private host: EntryHost = {
+    read,
+    exists: existsSync,
+    // tmp + rename: no half-written entry on the boot partition (vfat, too)
+    write: (path, content) => {
+      const tmp = `${path}.quadeck-tmp`
+      writeFileSync(tmp, content, { mode: 0o644 })
+      renameSync(tmp, path)
+    },
+    rename: (from, to) => renameSync(from, to),
+    remove: (path) => rmSync(path, { force: true }),
+    history: {
+      list: (path) => this.history.list(path),
+      read: (path, id) => this.history.read(path, id),
+      add: (path, content, kind) => this.history.add(path, content, kind),
+      saved: (path, before, after) => this.history.saved(path, before, after),
+    },
+  }
+
+  async bootEntryFile(id: string) {
+    return entryFile(await this.systemdBoot(), id, this.host)
+  }
+
+  async bootEntryRevision(id: string, revision: string) {
+    return entryRevision(await this.systemdBoot(), id, revision, this.host)
+  }
+
+  async checkBootEntry(content: string) {
+    return checkEntry(await this.systemdBoot(), content, this.host)
+  }
+
+  async writeBootEntry(change: BootEntryChange) {
+    await applyEntryChange(await this.systemdBoot(), change, this.host, (args) => this.bootctlWrite(args))
+    return this.bootState()
+  }
+
   async removeBootEntry(id: string) {
-    rmSync(removableEntry(await this.bootState(), id, read), { force: true })
+    removeEntry(await this.systemdBoot(), id, this.host)
     return this.bootState()
   }
 
@@ -267,11 +419,23 @@ export class FixtureBoot implements BootBackend {
 
   private files = () => this.state.entryFiles ?? {}
 
+  /** Files on the demo's boot partition: the installed kernels, microcode and the entries. */
+  private exists(inst: Map<string, string>) {
+    return (p: string) => {
+      if (p in this.files()) return true
+      const f = p.replace(/^\/boot\//, '')
+      if (f === p) return false
+      if (/^(intel|amd)-ucode\.img$/.test(f)) return true
+      const k = /^(?:vmlinuz-(.+)|initramfs-(.+?)(?:-fallback)?\.img)$/.exec(f)
+      return !!k && inst.has((k[1] ?? k[2])!)
+    }
+  }
+
   async bootState(): Promise<BootState> {
     const inst = await this.installed()
+    const exists = this.exists(inst)
     const entries = this.state.entries.map((e) => {
-      const pkg = e.linux?.replace(/^\/vmlinuz-/, '')
-      const missing = e.type === 'type1' && pkg && !inst.has(pkg) ? [e.linux!, ...e.initrd.filter((i) => !/ucode/.test(i))] : e.missing
+      const missing = e.type === 'type1' ? [e.linux, ...e.initrd].filter((f): f is string => !!f && !exists(join('/boot', f))) : e.missing
       return { ...e, isOneshot: e.id === this.state.oneshot, missing }
     })
     const kernels = this.state.loader === 'systemd-boot' ? kernelInfos(inst, '6.10.1-arch1-1', entries) : undefined
@@ -315,9 +479,84 @@ export class FixtureBoot implements BootBackend {
     return this.bootState()
   }
 
+  private revs = new Map<string, { rev: Revision; content: string }[]>()
+  private seq = 0
+
+  /** The demo's entry files; writes also change the list bootctl would show. */
+  private async host(): Promise<EntryHost> {
+    const inst = await this.installed()
+    const sync = (path: string, content: string) => {
+      const id = path.split('/').pop()!
+      const conf = entryFromConf(content)
+      const pkg = conf.linux?.replace(/^\/vmlinuz-/, '')
+      const fields = { ...conf, title: conf.title || id, version: conf.version ?? inst.get(pkg ?? '')?.replace(/\.(\w+)-/, '-$1-') }
+      const old = this.state.entries.find((e) => e.path === path)
+      if (old) this.state.entries = this.state.entries.map((e) => (e === old ? { ...e, ...fields } : e))
+      else {
+        const entry: BootEntry = { id, path, type: 'type1', ...fields, isDefault: false, isSelected: false, isOneshot: false, missing: [], size: 90_000_000 }
+        this.state.entries = [...this.state.entries.filter((e) => e.type !== 'auto'), entry, ...this.state.entries.filter((e) => e.type === 'auto')]
+      }
+    }
+    const add = (path: string, content: string, message: string) => {
+      const list = this.revs.get(path) ?? []
+      list.unshift({ rev: { id: `${Date.now()}-${++this.seq}`, date: Date.now() + this.seq, message }, content })
+      this.revs.set(path, list.slice(0, 30))
+    }
+    return {
+      read: (p) => this.files()[p],
+      exists: this.exists(inst),
+      write: (p, content) => {
+        this.state.entryFiles = { ...this.files(), [p]: content }
+        sync(p, content)
+      },
+      rename: (from, to) => {
+        const { [from]: content, ...rest } = this.files()
+        this.state.entryFiles = { ...rest, [to]: content! }
+        const id = to.split('/').pop()!
+        this.state.entries = this.state.entries.map((e) => (e.path === from ? { ...e, id, path: to } : e))
+      },
+      remove: (p) => {
+        const { [p]: _, ...rest } = this.files()
+        this.state.entryFiles = rest
+        this.state.entries = this.state.entries.filter((e) => e.path !== p)
+      },
+      history: {
+        list: (p) => (this.revs.get(p) ?? []).map((r) => r.rev),
+        read: (p, id) => {
+          const r = this.revs.get(p)?.find((x) => x.rev.id === id)
+          if (!r) throw new HttpError(404, msg('common_errors_versionNotFound'))
+          return r.content
+        },
+        add: (p, content) => add(p, content, msg('systemd_history_beforeDelete')),
+        saved: (p, before, after) => {
+          if (before !== undefined && !this.revs.get(p)?.length) add(p, before, msg('common_history_original'))
+          add(p, after, msg('notifications_saved'))
+        },
+      },
+    }
+  }
+
+  async bootEntryFile(id: string) {
+    return entryFile(await this.bootState(), id, await this.host())
+  }
+
+  async bootEntryRevision(id: string, revision: string) {
+    return entryRevision(await this.bootState(), id, revision, await this.host())
+  }
+
+  async checkBootEntry(content: string) {
+    return checkEntry(await this.bootState(), content, await this.host())
+  }
+
+  async writeBootEntry(change: BootEntryChange) {
+    await applyEntryChange(await this.bootState(), change, await this.host(), async (args) => {
+      if (args[0] === 'set-oneshot') this.state.oneshot = args[1] || undefined
+    })
+    return this.bootState()
+  }
+
   async removeBootEntry(id: string) {
-    const path = removableEntry(await this.bootState(), id, (p) => this.files()[p])
-    this.state.entries = this.state.entries.filter((e) => e.path !== path)
+    removeEntry(await this.bootState(), id, await this.host())
     return this.bootState()
   }
 

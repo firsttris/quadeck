@@ -13,7 +13,7 @@ import type { CalendarPreview, TimerAction, TimerSpec, TimersState } from '~/sha
 import type { UnitDetail, UnitValidateResult, UnitWriteResult } from '~/shared/unit-files'
 import type { NetworkState } from '~/shared/network'
 import type { FstabChange, FstabCheck, FstabState } from '~/shared/fstab'
-import type { BootState } from '~/shared/boot'
+import type { BootEntryChange, BootEntryFile, BootState, EntryProblem } from '~/shared/boot'
 import type { UserChange, UsersState } from '~/shared/users'
 import type { Hardware } from '~/shared/hardware'
 import type { CaddyChange, CaddyResult, CaddyState } from '~/shared/caddy'
@@ -269,6 +269,18 @@ export class HelperClient implements Privileged {
   }
   removeBootEntry(token: string | undefined, id: string) {
     return this.call<BootState>('POST', '/boot/entry-remove', { token, id }, 60_000)
+  }
+  bootEntryFile(id: string) {
+    return this.call<BootEntryFile>('POST', '/boot/entry-file', { id })
+  }
+  async bootEntryRevision(id: string, revision: string) {
+    return (await this.call<{ data: string }>('POST', '/boot/entry-revision', { id, revision })).data
+  }
+  checkBootEntry(content: string) {
+    return this.call<EntryProblem[]>('POST', '/boot/entry-check', { content })
+  }
+  writeBootEntry(token: string | undefined, change: BootEntryChange) {
+    return this.call<BootState>('POST', '/boot/entry-write', { token, change }, 90_000)
   }
   reboot(token: string | undefined, opts: { entry?: string; firmware?: boolean }) {
     return this.call<{ at: number }>('POST', '/boot/reboot', { token, ...opts }, 90_000)

@@ -412,3 +412,138 @@ export function kernelEntry(template: string, pkg: KernelFlavor): string {
 
 /** File name of the new entry. */
 export const kernelEntryId = (pkg: KernelFlavor) => `${pkg === 'linux' ? 'arch' : `arch-${pkg.replace(/^linux-/, '')}`}.conf`
+
+// ---------- editing entry files (loader/entries/*.conf) ----------
+
+/** File names Quadeck writes; the name is the entry id bootctl shows. */
+export const ENTRY_FILE = /^[A-Za-z0-9@_+~-][A-Za-z0-9@_.+~-]{0,194}\.conf$/
+/** Larger files are not boot entries. */
+export const ENTRY_MAX = 16 * 1024
+
+/** Keys of the Boot Loader Specification (type #1) and of systemd-boot. */
+const ENTRY_KEYS = ['title', 'version', 'machine-id', 'sort-key', 'linux', 'initrd', 'efi', 'options', 'devicetree', 'devicetree-overlay', 'architecture', 'uki', 'uki-url', 'profile']
+const SINGLE_KEYS = ['title', 'version', 'machine-id', 'sort-key', 'linux', 'efi', 'devicetree', 'architecture', 'uki']
+/** Keys whose value is a file on the boot partition. */
+const FILE_KEYS = ['linux', 'initrd', 'efi', 'devicetree', 'uki']
+
+export interface EntryLine {
+  line: number
+  key: string
+  value: string
+}
+
+/** `key value` lines; blank lines and # comments are skipped. */
+export function parseEntryConf(text: string): EntryLine[] {
+  const out: EntryLine[] = []
+  text.split('\n').forEach((raw, i) => {
+    const l = raw.trim()
+    if (!l || l.startsWith('#')) return
+    const m = /^(\S+)(?:\s+(.*))?$/.exec(l)!
+    out.push({ line: i + 1, key: m[1]!, value: (m[2] ?? '').trim() })
+  })
+  return out
+}
+
+export interface EntryProblem {
+  level: 'error' | 'warning'
+  /** 1-based line in the file. */
+  line?: number
+  text: string
+}
+
+/**
+ * Checks an entry before it is written: a kernel (linux, efi or uki), files
+ * that exist on the boot partition, root= in the options when this system
+ * boots with one. Errors block saving, warnings do not.
+ */
+export function checkEntryConf(text: string, opts: { exists?: (file: string) => boolean; needsRoot?: boolean } = {}): EntryProblem[] {
+  const out: EntryProblem[] = []
+  if (text.length > ENTRY_MAX) return [{ level: 'error', text: msg('boot_check_tooLarge') }]
+  const lines = parseEntryConf(text)
+  const seen = new Set<string>()
+  for (const l of lines) {
+    if (!ENTRY_KEYS.includes(l.key)) out.push({ level: 'warning', line: l.line, text: msg('boot_check_unknownKey', { key: l.key }) })
+    else if (!l.value) out.push({ level: 'error', line: l.line, text: msg('boot_check_noValue', { key: l.key }) })
+    else if (FILE_KEYS.includes(l.key)) {
+      if (!l.value.startsWith('/')) out.push({ level: 'error', line: l.line, text: msg('boot_check_relativePath', { file: l.value }) })
+      else if (opts.exists && !opts.exists(l.value)) out.push({ level: 'error', line: l.line, text: msg('boot_check_fileMissing', { file: l.value }) })
+    }
+    if (SINGLE_KEYS.includes(l.key) && seen.has(l.key)) out.push({ level: 'warning', line: l.line, text: msg('boot_check_repeated', { key: l.key }) })
+    seen.add(l.key)
+  }
+  const has = (k: string) => lines.some((l) => l.key === k && l.value)
+  if (!has('linux') && !has('efi') && !has('uki')) out.push({ level: 'error', text: msg('boot_check_noKernel') })
+  const options = lines
+    .filter((l) => l.key === 'options')
+    .map((l) => l.value)
+    .join(' ')
+  if (has('linux') && opts.needsRoot && !/(^|\s)root=\S/.test(options)) out.push({ level: 'error', line: lines.find((l) => l.key === 'options')?.line, text: msg('boot_check_noRoot') })
+  if (!has('title')) out.push({ level: 'warning', text: msg('boot_check_noTitle') })
+  return out.sort((a, b) => (a.line ?? 1e9) - (b.line ?? 1e9))
+}
+
+/** What the list shows for an entry file (title, kernel, initrds, options). */
+export function entryFromConf(text: string): Pick<BootEntry, 'title' | 'version' | 'linux' | 'initrd' | 'options'> {
+  const lines = parseEntryConf(text)
+  const last = (k: string) => lines.filter((l) => l.key === k && l.value).pop()?.value
+  const options = lines.filter((l) => l.key === 'options' && l.value).map((l) => l.value)
+  return {
+    title: last('title') ?? '',
+    version: last('version'),
+    linux: last('linux'),
+    initrd: lines.filter((l) => l.key === 'initrd' && l.value).map((l) => l.value),
+    options: options.length ? options.join(' ') : undefined,
+  }
+}
+
+/** A free file name for a copy: arch.conf → arch-copy.conf, arch-copy-2.conf … */
+export function copyEntryName(id: string, taken: string[]): string {
+  const base = id.replace(/\.conf$/, '').replace(/-copy(-\d+)?$/, '')
+  for (let i = 1; ; i++) {
+    const name = `${base}-copy${i > 1 ? `-${i}` : ''}.conf`
+    if (!taken.includes(name)) return name
+  }
+}
+
+/** The copy's text: the same, with " (copy)" after the title, so the menu tells them apart. */
+export function copyEntryContent(text: string, id: string): string {
+  if (/^\s*title\s+\S/m.test(text)) return text.replace(/^(\s*title\s+)(.*?)\s*$/m, (_, k: string, v: string) => `${k}${v} (copy)`)
+  return `title   ${id.replace(/\.conf$/, '')} (copy)\n${text}`
+}
+
+/** A new entry, filled in from the default one (kernel, initrds, options). */
+export function newEntryContent(def: BootEntry | undefined): string {
+  const lines = ['title   New entry']
+  if (def?.type === 'type1' && def.linux) {
+    lines.push(`linux   ${def.linux}`, ...def.initrd.map((i) => `initrd  ${i}`))
+    if (def.options) lines.push(`options ${def.options}`)
+  } else lines.push('linux   /vmlinuz-linux', 'initrd  /initramfs-linux.img', 'options root=')
+  return lines.join('\n') + '\n'
+}
+
+/** An entry Quadeck can edit: a .conf file directly in loader/entries. */
+export const isEditableEntry = (e: BootEntry) => e.type === 'type1' && !!e.path && /\/loader\/entries\/[^/]+\.conf$/.test(e.path)
+
+export interface BootEntryFile {
+  id: string
+  path: string
+  content: string
+  /** To notice a change by someone else in the meantime. */
+  hash: string
+  /** The default and the running entry are not edited in place (make a copy and test it). */
+  locked?: 'default' | 'running'
+  history: { id: string; date: number; message: string }[]
+}
+
+export type BootEntryChange = { kind: 'create'; name: string; content: string } | { kind: 'edit'; id: string; content: string; expected?: string } | { kind: 'rename'; id: string; name: string }
+
+/** A change from JSON (browser → server → helper); undefined if it is none. */
+export function parseBootEntryChange(raw: unknown): BootEntryChange | undefined {
+  if (!raw || typeof raw !== 'object') return undefined
+  const r = raw as Record<string, unknown>
+  const s = (v: unknown) => (typeof v === 'string' ? v : undefined)
+  if (r.kind === 'create' && s(r.name) !== undefined && s(r.content) !== undefined) return { kind: 'create', name: s(r.name)!, content: s(r.content)! }
+  if (r.kind === 'edit' && s(r.id) !== undefined && s(r.content) !== undefined) return { kind: 'edit', id: s(r.id)!, content: s(r.content)!, expected: s(r.expected) }
+  if (r.kind === 'rename' && s(r.id) !== undefined && s(r.name) !== undefined) return { kind: 'rename', id: s(r.id)!, name: s(r.name)! }
+  return undefined
+}

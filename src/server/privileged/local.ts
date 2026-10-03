@@ -13,6 +13,7 @@ import type { UnitEditorBackend } from '../systemd/editor'
 import type { NetworkAdmin } from '../network/collect'
 import type { FstabBackend } from '../fstab/backend'
 import type { BootBackend } from '../boot/backend'
+import type { BootEntryChange } from '~/shared/boot'
 import type { UsersBackend } from '../users/backend'
 import type { HardwareAdmin } from '../hardware/collect'
 import type { CaddyBackend } from '../caddy/backend'
@@ -370,6 +371,19 @@ export class LocalPrivileged implements Privileged {
   async removeBootEntry(token: string | undefined, id: string) {
     this.gate.check(token)
     return this.boot.removeBootEntry(id)
+  }
+  bootEntryFile(id: string) {
+    return this.boot.bootEntryFile(id)
+  }
+  bootEntryRevision(id: string, revision: string) {
+    return this.boot.bootEntryRevision(id, revision)
+  }
+  checkBootEntry(content: string) {
+    return this.boot.checkBootEntry(content)
+  }
+  async writeBootEntry(token: string | undefined, change: BootEntryChange) {
+    this.gate.check(token)
+    return this.boot.writeBootEntry(change)
   }
   async reboot(token: string | undefined, opts: { entry?: string; firmware?: boolean }) {
     this.gate.check(token)
