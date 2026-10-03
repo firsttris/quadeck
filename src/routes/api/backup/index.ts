@@ -4,6 +4,7 @@ import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
 import { privileged } from '~/server/privileged'
 import { unlockToken } from '~/server/unlock-sessions'
+import { QUADECK_URL, parseClientPlan } from '~/shared/backup-client'
 import { CLIENT_NAME, parseBackupPlan, parseClientChange, parseSecrets, parseTargetConfig, parseWarnDays } from '~/shared/backup'
 import { msg } from '~/shared/i18n'
 
@@ -12,7 +13,8 @@ import { msg } from '~/shared/i18n'
 // zip) for download (unlock).
 // POST (unlock): { save: { plan, secrets } } | { disable: true } | { start: 'backup'|'check' } |
 // { password: true } | { target: { setup: config } | { remove: true } } |
-// { client: { add: { name, warnDays } } | { update: { name, change } } | { renew: name } | { remove: { name, deleteData } } };
+// { client: { add: { name, warnDays } } | { update: { name, change } } | { renew: name } | { remove: { name, deleteData } } |
+// { plan: { name, plan } } | { link: { name, origin } } }; the script itself: /api/backup/script/<link>;
 // restoring is a job (/api/jobs, kind backup-restore);
 // { sizes: { paths, excludes } } needs no unlock (du, reads only).
 export const Route = createFileRoute('/api/backup/')({
@@ -39,7 +41,7 @@ export const Route = createFileRoute('/api/backup/')({
           password?: unknown
           sizes?: { paths?: unknown; excludes?: unknown }
           target?: { setup?: unknown; remove?: unknown }
-          client?: { add?: { name?: unknown; warnDays?: unknown }; update?: { name?: unknown; change?: unknown }; renew?: unknown; remove?: { name?: unknown; deleteData?: unknown } }
+          client?: { add?: { name?: unknown; warnDays?: unknown }; update?: { name?: unknown; change?: unknown }; renew?: unknown; remove?: { name?: unknown; deleteData?: unknown }; plan?: { name?: unknown; plan?: unknown }; link?: { name?: unknown; origin?: unknown } }
         }>(request)
         const p = privileged()
         const token = unlockToken(session.id)
@@ -75,6 +77,17 @@ export const Route = createFileRoute('/api/backup/')({
         if (c?.add) return Response.json(await p.addBackupClient(token, name(c.add.name), parseWarnDays(c.add.warnDays) ?? undefined))
         if (c?.update) return Response.json(await p.updateBackupClient(token, name(c.update.name), parseClientChange(c.update.change)))
         if (c?.renew) return Response.json(await p.renewBackupClient(token, name(c.renew)))
+        if (c?.plan) {
+          const { plan, error } = parseClientPlan(c.plan.plan)
+          if (!plan) throw new HttpError(400, error!)
+          return Response.json(await p.setBackupClientPlan(token, name(c.plan.name), plan))
+        }
+        if (c?.link) {
+          // The address the browser uses for Quadeck: the client fetches the script from there.
+          const origin = typeof c.link.origin === 'string' ? c.link.origin : ''
+          if (!QUADECK_URL.test(origin)) throw new HttpError(400, msg('backup_error_url'))
+          return Response.json(await p.backupClientLink(token, name(c.link.name), origin))
+        }
         if (c?.remove) return Response.json(await p.removeBackupClient(token, name(c.remove.name), c.remove.deleteData === true))
         throw new HttpError(400, msg('common_errors_unknownRequest'))
       }),

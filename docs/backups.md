@@ -124,22 +124,82 @@ repository and its own access.
 It writes `quadeck-rest-server.container` (image `restic/rest-server`, `--private-repos`) through the
 Quadlet editor's checks and history, and starts it.
 
-**+ Add client** creates the access:
+**+ Add client** creates the client: a name and after how many days without a backup to warn.
+The client dialog opens right away.
 
-- The user goes to `.htpasswd` in the data folder as a bcrypt hash; the rest-server picks up
+### The client's plan and its command
+
+The client dialog holds the client's plan:
+
+- **What to back up**: folders such as `~/Dokumente` (`~` is the home of the user who runs the
+  script) or absolute paths.
+- **Exclusions**: caches, trash, development folders (`node_modules`, `.venv`, `target` …),
+  temporary files, downloads, VM images, Steam, folders with `.nobackup`, own patterns and a size
+  limit.
+- **Schedule**: hourly, every 6 hours, daily or weekly, with the retention.
+- **Active**: off pauses the timer on the client.
+
+**Save and create command** shows a one-liner for the client:
+
+```bash
+curl -fsSL http://nas.lan:8484/api/backup/script/<one-time link> | sh
+```
+
+- The link works **once** and for **30 minutes**. It needs no login: the link itself (192 random
+  bits) is the authorisation.
+- A used or expired link answers with a message to create a new one.
+- **Review first** shows the same as download, check, run.
+
+The script is POSIX `sh` and is run as the normal user, not as root. It:
+
+1. checks that restic and systemd are there (and names the install command if restic is
+   missing),
+2. writes `~/.config/quadeck-backup/` (mode 700): the access (renewed with every script, so only
+   the newest script's access works), the folders and the exclusions,
+3. asks **once** for the repository password and keeps it in `~/.config/quadeck-backup/password`.
+   It encrypts the backups and never leaves the computer. On a later run the script only checks
+   that it still opens the repository,
+4. creates the repository on the first run (`restic init`),
+5. installs `~/.local/bin/quadeck-backup` and the user units `quadeck-backup.service` and
+   `quadeck-backup.timer` (`Persistent=true`: a run missed while the computer was off is caught
+   up), then enables the timer, or pauses it.
+
+When the plan changes in Quadeck, the table shows **change not run yet** until the computer runs a
+new command. Running it again changes nothing but folders, exclusions and schedule.
+
+On the client:
+
+| | |
+|---|---|
+| `quadeck-backup now` | back up right now |
+| `quadeck-backup check` | dry run: folder sizes and what would be uploaded |
+| `quadeck-backup status` | the last backups and the next run |
+| `quadeck-backup mount [dir]` | the backups as folders under `~/Backup` (needs FUSE) |
+| `quadeck-backup restore <path> [dir]` | restore from the latest backup |
+| `quadeck-backup update` | where to get new settings |
+| `quadeck-backup uninstall` | remove the timer and the command (settings and password stay) |
+
+On an append-only target the clients skip `forget`; old snapshots stay.
+
+### By hand
+
+**Renew access** in the row menu shows a new access password **once**, with the repository
+address and the restic commands. Use it for a computer you set up yourself (Windows, macOS,
+[Backrest](https://github.com/garethgeorge/backrest)).
+
+- The access goes to `.htpasswd` in the data folder as a bcrypt hash; the rest-server picks up
   changes by itself.
 - `--private-repos` keeps every user inside its own folder.
-- The access password is shown **once**, with the repository address and the commands for the
-  client.
 - On the client, `restic init` asks for the **repository password**. It encrypts the backups and
   stays on the client: the server cannot read them, and without that password nobody can.
 
-Per client the table shows the last backup, the size, the number of snapshots and when to warn.
+Per client the table shows the last backup, the size, the number of snapshots, when to warn, and
+whether the computer runs the current settings.
 The server reads the time without any password: every backup writes a new file into the
 repository's `snapshots/` folder. **Measure sizes** runs `du` on the repositories. The row menu has:
 
-- **Edit …**: change after how many days without a backup the client is reported.
-- **Renew access**: a new access password; the old one stops working.
+- **Edit …**: the client's plan, its warning and a new command.
+- **Renew access**: a new access password, shown once; the old one stops working.
 - **Disable**: removes the access but keeps the repository. **Enable** brings the same access back.
 - **Delete …**: removes the access; optionally deletes the client's backups too.
 

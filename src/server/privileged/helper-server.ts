@@ -14,6 +14,7 @@ import { DISK_NAME } from '../smart/backend'
 import { parseSave, parseTimerAction } from '../timers/backend'
 import { parseFstabChange } from '../fstab/parse'
 import { parseCaddyChange } from '~/shared/caddy'
+import { QUADECK_URL, parseClientPlan } from '~/shared/backup-client'
 import { parseBackupPlan, parseClientChange, parseSecrets, parseTargetConfig, parseWarnDays } from '~/shared/backup'
 import { parseBootEntryChange } from '~/shared/boot'
 import { parseUserChange } from '../users/parse'
@@ -182,6 +183,17 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/backup/client/add': (b, p) => p.addBackupClient(str(b.token), str(b.name) ?? '', parseWarnDays(b.warnDays) ?? undefined),
   '/backup/client/update': (b, p) => p.updateBackupClient(str(b.token), str(b.name) ?? '', parseClientChange(b.change)),
   '/backup/client/renew': (b, p) => p.renewBackupClient(str(b.token), str(b.name) ?? ''),
+  '/backup/client/plan': (b, p) => {
+    const { plan, error } = parseClientPlan(b.plan)
+    if (!plan) throw new HttpError(400, error!)
+    return p.setBackupClientPlan(str(b.token), str(b.name) ?? '', plan)
+  },
+  '/backup/client/link': (b, p) => {
+    const url = str(b.url) ?? ''
+    if (!QUADECK_URL.test(url)) throw new HttpError(400, msg('backup_error_url'))
+    return p.backupClientLink(str(b.token), str(b.name) ?? '', url)
+  },
+  '/backup/client/redeem': async (b, p) => ({ script: await p.redeemBackupClientLink(str(b.link) ?? '') }),
   '/backup/client/remove': (b, p) => p.removeBackupClient(str(b.token), str(b.name) ?? '', b.deleteData === true),
   '/caddy/path': (b, p) => p.setCaddyPath(str(b.token), b.path === null ? null : (str(b.path) ?? '')),
   '/users/apply': (b, p) => p.applyUser(str(b.token), parseUserChange(b.change)),

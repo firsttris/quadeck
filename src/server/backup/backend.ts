@@ -38,11 +38,13 @@ import {
   type LsEntry,
   CLIENT_NAME,
   targetQuadlet,
+  clientRepo,
   type BackupClient,
   type TargetConfig,
   type TargetState,
 } from '~/shared/backup'
 import { localize, msg } from '~/shared/i18n'
+import { clientScript, defaultClientPlan, type ClientPlan } from '~/shared/backup-client'
 import { HttpError } from '../auth'
 import { run, type ExecResult } from '../exec'
 import type { PodmanAdmin } from '../quadlets/backend'
@@ -69,6 +71,32 @@ export interface BackupBackend extends BackupAdmin {
   updateClient(name: string, change: { warnDays?: number | null; disabled?: boolean }): Promise<TargetState>
   renewClient(name: string): Promise<{ password: string }>
   removeClient(name: string, deleteData: boolean): Promise<TargetState>
+  setClientPlan(name: string, plan: ClientPlan): Promise<TargetState>
+  /** A one-time link (30 minutes) for the client's install/update script. */
+  clientLink(name: string, quadeckUrl: string): Promise<{ token: string; expires: number }>
+  /** The script behind a link; the link is used up, the access password renewed. */
+  redeemClientLink(token: string): Promise<string | undefined>
+}
+
+const LINK_MINUTES = 30
+export const LINK_TOKEN = /^[A-Za-z0-9_-]{32}$/
+
+/** One-time links, in memory: a restart of the helper only invalidates links that were not used yet. */
+export class LinkStore {
+  private links = new Map<string, { name: string; url: string; expires: number }>()
+  create(name: string, url: string, now = Date.now()) {
+    for (const [k, v] of this.links) if (v.expires < now || v.name === name) this.links.delete(k)
+    const token = randomBytes(24).toString('base64url')
+    const expires = now + LINK_MINUTES * 60_000
+    this.links.set(token, { name, url, expires })
+    return { token, expires }
+  }
+  take(token: string, now = Date.now()) {
+    if (!LINK_TOKEN.test(token)) return undefined
+    const l = this.links.get(token)
+    this.links.delete(token)
+    return l && l.expires >= now ? l : undefined
+  }
 }
 
 interface StoredClient extends Omit<BackupClient, 'lastAt' | 'snapshots' | 'size'> {
@@ -554,6 +582,40 @@ export class SystemBackup implements BackupBackend {
     return this.targetState()
   }
 
+  private linkStore = new LinkStore()
+
+  async setClientPlan(name: string, plan: ClientPlan) {
+    const t = this.target()
+    const c = this.client(t, name)
+    c.plan = plan
+    c.version = (c.version ?? 0) + 1
+    this.writeTarget(t)
+    return this.targetState()
+  }
+
+  async clientLink(name: string, quadeckUrl: string) {
+    const t = this.target()
+    this.client(t, name)
+    if (!t.config) throw new HttpError(409, msg('backup_error_noTarget'))
+    return this.linkStore.create(name, quadeckUrl)
+  }
+
+  async redeemClientLink(token: string) {
+    const link = this.linkStore.take(token)
+    if (!link) return undefined
+    const t = this.target()
+    const c = t.clients.find((x) => x.name === link.name)
+    if (!c || !t.config) return undefined
+    // A fresh access password for every script: the one it carries is the only valid one.
+    const access = accessPassword()
+    c.hash = await Bun.password.hash(access, { algorithm: 'bcrypt', cost: 10 })
+    delete c.disabled
+    c.version ??= 0
+    c.applied = { version: c.version, at: Date.now() }
+    this.writeTarget(t)
+    return clientScript({ name: c.name, repo: clientRepo(t.config, c.name), user: c.name, access, appendOnly: t.config.appendOnly, plan: c.plan ?? defaultClientPlan(), version: c.version, quadeckUrl: link.url })
+  }
+
   // ---------- runs (`quadeck backup run|check`, restore jobs) ----------
 
   /** Stops units, runs `restic backup`, starts them again, applies the retention. Returns the run record. */
@@ -730,9 +792,9 @@ export class FixtureBackup implements BackupBackend {
     })
     const ago = (h: number) => now - h * 3600_000
     this.clients = [
-      { name: 'laptop', created: ago(24 * 90), warnDays: 3, lastAt: ago(6), snapshots: 32, size: 84e9 },
-      { name: 'pc-wohnzimmer', created: ago(24 * 200), warnDays: 3, lastAt: ago(24 * 9 + 2), snapshots: 41, size: 121e9 },
-      { name: 'workstation', created: ago(24 * 30), lastAt: ago(1), snapshots: 18, size: 9e9 },
+      { name: 'laptop', created: ago(24 * 90), warnDays: 3, lastAt: ago(6), snapshots: 32, size: 84e9, plan: { ...defaultClientPlan(), folders: ['~/Dokumente', '~/Bilder', '~/Projekte'] }, version: 4, applied: { version: 4, at: ago(24 * 2) } },
+      { name: 'pc-wohnzimmer', created: ago(24 * 200), warnDays: 3, lastAt: ago(24 * 9 + 2), snapshots: 41, size: 121e9, plan: { ...defaultClientPlan(), schedule: { every: 'daily', time: '20:00' } }, version: 2, applied: { version: 2, at: ago(24 * 21) } },
+      { name: 'workstation', created: ago(24 * 30), lastAt: ago(1), snapshots: 18, size: 9e9, plan: { ...defaultClientPlan(), folders: ['~/Projekte', '~/.config'], schedule: { every: '6h', time: '00:00' } }, version: 3, applied: { version: 2, at: ago(24 * 5) } },
     ]
     this.runs.splice(9, 0, { kind: 'check', startedAt: at(9) + 3 * 3600_000, endedAt: at(9) + 3 * 3600_000 + 840_000, status: 'ok', errors: [] })
     const keepDays = [0, 1, 2, 3, 4, 5, 6, 13, 20, 27, 33, 64, 94, 125, 155]
@@ -882,5 +944,25 @@ export class FixtureBackup implements BackupBackend {
   async removeClient(name: string) {
     this.clients = this.clients.filter((c) => c.name !== name)
     return this.targetState()
+  }
+  private links = new LinkStore()
+  async setClientPlan(name: string, plan: ClientPlan) {
+    const c = this.clients.find((x) => x.name === name)
+    if (!c) throw new HttpError(404, msg('backup_error_clientUnknown', { name }))
+    c.plan = plan
+    c.version = (c.version ?? 0) + 1
+    return this.targetState()
+  }
+  async clientLink(name: string, quadeckUrl: string) {
+    if (!this.clients.some((x) => x.name === name)) throw new HttpError(404, msg('backup_error_clientUnknown', { name }))
+    return this.links.create(name, quadeckUrl)
+  }
+  async redeemClientLink(token: string) {
+    const link = this.links.take(token)
+    const c = link && this.clients.find((x) => x.name === link.name)
+    if (!link || !c || !this.targetConfig) return undefined
+    c.version ??= 0
+    c.applied = { version: c.version, at: Date.now() }
+    return clientScript({ name: c.name, repo: clientRepo(this.targetConfig, c.name), user: c.name, access: accessPassword(), appendOnly: this.targetConfig.appendOnly, plan: c.plan ?? defaultClientPlan(), version: c.version, quadeckUrl: link.url })
   }
 }

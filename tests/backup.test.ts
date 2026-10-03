@@ -2,7 +2,8 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, wri
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { SystemBackup, accessPassword, clientRepoStatus, parseEnvFile } from '~/server/backup/backend'
+import { LinkStore, SystemBackup, accessPassword, clientRepoStatus, parseEnvFile } from '~/server/backup/backend'
+import { defaultClientPlan } from '~/shared/backup-client'
 import { run } from '~/server/exec'
 import { parseJobSpec } from '~/server/packages/job'
 import {
@@ -491,4 +492,54 @@ describe('SystemBackup: clients', () => {
     expect(c.size).toBeGreaterThan(0)
     expect(st.disk?.free).toBeGreaterThan(0)
   }, 60_000)
+})
+
+describe('one-time links for the client script', () => {
+  it('a link works once, within 30 minutes, and a new one replaces the old', () => {
+    const l = new LinkStore()
+    const now = 1_000_000
+    const a = l.create('laptop', 'http://nas:8484', now)
+    expect(a.token).toMatch(/^[A-Za-z0-9_-]{32}$/)
+    expect(a.expires).toBe(now + 30 * 60_000)
+    expect(l.take(a.token, now + 1000)?.name).toBe('laptop')
+    expect(l.take(a.token, now + 2000)).toBeUndefined()
+    const b = l.create('laptop', 'x', now)
+    expect(l.take(b.token, now + 31 * 60_000)).toBeUndefined()
+    const c = l.create('laptop', 'x', now)
+    const d = l.create('laptop', 'x', now)
+    expect(l.take(c.token, now)).toBeUndefined() // replaced by d
+    expect(l.take(d.token, now)?.name).toBe('laptop')
+    expect(l.take('../../etc/passwd', now)).toBeUndefined()
+  })
+
+  it('redeeming renews the access, records the version and yields the script', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'qd-link-'))
+    const dataDir = join(root, 'backups')
+    const b = new SystemBackup({ dir: join(root, 'state'), unitDir: root, exec: run, log: () => {} })
+    await b.saveTarget({ dataDir, port: 8000, appendOnly: true, url: 'http://nas:8000' })
+    const { password: first } = await b.addClient('laptop', 3)
+    await b.setClientPlan('laptop', { ...defaultClientPlan(), folders: ['~/Projekte'] })
+    let st = await b.targetState()
+    expect(st.clients[0]).toMatchObject({ version: 1 })
+    expect(st.clients[0]!.applied).toBeUndefined()
+
+    const { token } = await b.clientLink('laptop', 'http://nas:8484')
+    const script = (await b.redeemClientLink(token))!
+    expect(script).toContain("RESTIC_REPOSITORY='rest:http://nas:8000/laptop/'")
+    expect(script).toContain("FOLDERS='~/Projekte'")
+    expect(script).toContain('QUADECK_APPEND_ONLY=1')
+    const access = /RESTIC_REST_PASSWORD='([A-Za-z2-9]+)'/.exec(script)![1]!
+    const hash = readFileSync(join(dataDir, '.htpasswd'), 'utf8').trim().slice('laptop:'.length)
+    expect(await Bun.password.verify(access, hash)).toBe(true)
+    expect(await Bun.password.verify(first, hash)).toBe(false)
+    st = await b.targetState()
+    expect(st.clients[0]!.applied).toMatchObject({ version: 1 })
+    expect(JSON.stringify(st)).not.toContain(hash) // hashes never leave the helper
+    expect(await b.redeemClientLink(token)).toBeUndefined()
+
+    // A later change shows as not applied until the next script.
+    await b.setClientPlan('laptop', { ...defaultClientPlan(), folders: ['~/Projekte', '~/Bilder'] })
+    expect((await b.targetState()).clients[0]).toMatchObject({ version: 2, applied: { version: 1 } })
+    await expect(b.clientLink('nobody', 'http://nas:8484')).rejects.toMatchObject({ status: 404 })
+  })
 })

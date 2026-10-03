@@ -19,6 +19,7 @@ import type { Hardware } from '~/shared/hardware'
 import type { CaddyChange, CaddyResult, CaddyState } from '~/shared/caddy'
 import type { ConfigAction, ConfigFileInfo } from '~/shared/configfiles'
 import type { UnlockInfo } from './gate'
+import type { ClientPlan } from '~/shared/backup-client'
 import type { BackupPlan, BackupSizes, BackupState, BackupSuggestion, LsEntry, TargetConfig, TargetState } from '~/shared/backup'
 
 /** Privileged over the root helper's Unix socket. */
@@ -397,5 +398,14 @@ export class HelperClient implements Privileged {
   }
   removeBackupClient(token: string | undefined, name: string, deleteData: boolean) {
     return this.call<TargetState>('POST', '/backup/client/remove', { token, name, deleteData }, 600_000)
+  }
+  setBackupClientPlan(token: string | undefined, name: string, plan: ClientPlan) {
+    return this.call<TargetState>('POST', '/backup/client/plan', { token, name, plan })
+  }
+  backupClientLink(token: string | undefined, name: string, quadeckUrl: string) {
+    return this.call<{ token: string; expires: number }>('POST', '/backup/client/link', { token, name, url: quadeckUrl })
+  }
+  async redeemBackupClientLink(linkToken: string) {
+    return (await this.call<{ script?: string }>('POST', '/backup/client/redeem', { link: linkToken })).script
   }
 }

@@ -514,6 +514,12 @@ export interface BackupClient {
   lastAt?: number
   snapshots?: number
   size?: number
+  /** What the client backs up, carried there by the script. */
+  plan?: import('./backup-client').ClientPlan
+  /** Raised with every change of the plan. */
+  version?: number
+  /** The settings version the client last fetched with its script. */
+  applied?: { version: number; at: number }
 }
 
 export interface TargetState {
