@@ -110,4 +110,45 @@ test.describe.serial('Dateien', () => {
     await expect(page).toHaveURL(/\/files\?path=%2Fetc/)
     await expect(page.getByRole('region', { name: 'Ordnerinhalt' })).toContainText('außerhalb der freigegebenen Bereiche')
   })
+
+  test('text files open in the editor; keys only after the unlock; binaries are refused', async ({ page }) => {
+    await login(page)
+    await page.goto('/files?path=%2Fsrv%2Fscripts')
+    const files = page.getByRole('region', { name: 'Ordnerinhalt' })
+    await expect(files.getByTestId('file-row')).toHaveCount(4) // .env hidden
+
+    // Read without unlocking, save after it, with the diff first.
+    await files.getByRole('button', { name: 'backup.sh öffnen' }).click()
+    const editor = page.getByRole('dialog', { name: 'backup.sh' })
+    await expect(editor).toContainText('tristan · 664')
+    const text = editor.getByLabel('Inhalt von backup.sh')
+    await expect(text).toHaveValue(/^#!\/bin\/sh\n# Nightly backup/)
+    await expect(editor.getByRole('button', { name: 'Weiter' })).toBeDisabled()
+    await text.fill((await text.inputValue()) + 'sync\n')
+    await editor.getByRole('button', { name: 'Weiter' }).click()
+    const confirm = page.getByRole('dialog', { name: 'Änderungen an backup.sh speichern?' })
+    await expect(confirm.getByLabel('Änderungen')).toContainText('+ sync')
+    await confirm.getByRole('button', { name: 'Speichern' }).click()
+    await unlock(page)
+    await expect(page.getByRole('status')).toContainText('backup.sh gespeichert')
+    await expect(text).toHaveValue(/sync\n$/)
+    await editor.getByRole('button', { name: 'Abbrechen' }).click()
+    await page.getByRole('button', { name: 'Sperren' }).click()
+
+    // A file without a known ending is sniffed: binary content is not opened.
+    await files.getByRole('button', { name: 'firmware öffnen' }).click()
+    await expect(page.getByRole('dialog', { name: 'firmware' })).toContainText('keine Textdatei')
+    await page.getByRole('dialog', { name: 'firmware' }).getByRole('button', { name: 'Schließen' }).click()
+
+    // Credentials: only after unlocking.
+    await page.getByLabel('versteckte').check()
+    await files.getByRole('button', { name: '.env öffnen' }).click()
+    await unlock(page)
+    await expect(page.getByRole('dialog', { name: '.env' }).getByLabel('Inhalt von .env')).toHaveValue('RESTIC_PASSWORD=demo-secret\n')
+
+    // Unsaved changes are not lost by accident.
+    await page.getByRole('dialog', { name: '.env' }).getByLabel('Inhalt von .env').fill('X=1\n')
+    await page.getByRole('dialog', { name: '.env' }).getByRole('button', { name: 'Abbrechen' }).click()
+    await expect(page.getByRole('dialog', { name: 'Ungespeicherte Änderungen verwerfen?' })).toBeVisible()
+  })
 })

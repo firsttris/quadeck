@@ -111,6 +111,8 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   },
   '/files/roots': async (_b, p) => ({ data: await p.fileRoots() }),
   '/files/list': (b, p) => p.listDir(str(b.path) ?? ''),
+  '/files/read': (b, p) => p.readTextFile(str(b.token), str(b.path) ?? ''),
+  '/files/write': (b, p) => p.writeTextFile(str(b.token), str(b.path) ?? '', str(b.content) ?? '', str(b.expected) ?? ''),
   '/files/mkdir': async (b, p) => {
     await p.makeDir(str(b.token), str(b.path) ?? '')
     return { ok: true }

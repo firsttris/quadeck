@@ -5,7 +5,8 @@ import { afterEach, describe, expect, it } from 'vitest'
 import { FixtureFiles, fileRootPaths, resolveInRoots, SystemFiles } from '~/server/files/backend'
 import { fsJobSteps, prepareFsJob, systemFsOps } from '~/server/files/transfer'
 import { encodeSpec, parseJobSpec, runJobCommand } from '~/server/packages/job'
-import { validateName, validatePath } from '~/shared/files'
+import { fileKind, isSensitivePath, looksLikeText, validateName, validatePath } from '~/shared/files'
+import { chmodSync } from 'node:fs'
 
 function tree() {
   const base = mkdtempSync(join(tmpdir(), 'qd-files-'))
@@ -123,5 +124,60 @@ describe('fixture files', () => {
     expect((await f.listDir('/mnt/disk1/Downloads')).entries).toEqual([])
     expect((await f.listDir('/mnt/disk2/Backup')).entries.map((e) => e.name).sort()).toEqual(['alt.zip', 'ubuntu-24.04.iso'])
     await expect(f.listDir('/etc')).rejects.toMatchObject({ status: 403 })
+  })
+})
+
+describe('opening files', () => {
+  it('knows text, browser and binary files by name, sniffs the rest', () => {
+    expect(['backup.sh', 'fix.patch', 'NOTES.txt', 'compose.yml', 'Dockerfile', '.bashrc', 'jellyfin.container', 'page.html', 'logo.svg'].map(fileKind)).toEqual(Array(9).fill('text'))
+    expect(['a.pdf', 'b.JPG', 'c.mp4', 'd.webm', 'e.flac'].map(fileKind)).toEqual(Array(5).fill('browser'))
+    expect(['film.mkv', 'x.zip', 'ubuntu.iso'].map(fileKind)).toEqual(Array(3).fill('binary'))
+    expect(fileKind('CHECKSUMS')).toBe('unknown')
+    expect(looksLikeText(new TextEncoder().encode('Grüße\n'))).toBe(true)
+    expect(looksLikeText(new TextEncoder().encode('Grüße').subarray(0, 4))).toBe(true) // ü cut in half
+    expect(looksLikeText(new Uint8Array([0x47, 0, 0x48]))).toBe(false)
+    expect(looksLikeText(new Uint8Array([0xff, 0xfe, 0x41, 0x42, 0x43, 0x44]))).toBe(false)
+  })
+
+  it('treats keys and credentials as sensitive', () => {
+    for (const p of ['/home/anna/.ssh/config', '/srv/app/.env', '/srv/app/.env.production', '/data/certs/server.key', '/home/a/.docker/config.json', '/srv/id_ed25519']) expect(isSensitivePath(p)).toBe(true)
+    for (const p of ['/srv/app/env.txt', '/srv/backup.sh', '/home/anna/notes.md']) expect(isSensitivePath(p)).toBe(false)
+  })
+
+  it('reads and saves text files with owner, mode and line endings kept', async () => {
+    const { root } = tree()
+    const f = new SystemFiles(() => [root])
+    const sh = join(root, 'run.sh')
+    writeFileSync(sh, 'echo a\r\necho b\r\n')
+    chmodSync(sh, 0o750)
+    const t = await f.readTextFile(sh, false)
+    expect(t).toMatchObject({ content: 'echo a\necho b\n', crlf: true, size: 16, mode: '750' })
+    const saved = await f.writeTextFile(sh, 'echo a\necho c\n', t.hash)
+    expect(readFileSync(sh, 'utf8')).toBe('echo a\r\necho c\r\n')
+    expect(statSync(sh).mode & 0o777).toBe(0o750)
+    expect(existsSync(join(root, '.run.sh.quadeck-tmp'))).toBe(false)
+    // saved with the hash read before: someone else changed it in between
+    await expect(f.writeTextFile(sh, 'x\n', t.hash)).rejects.toMatchObject({ status: 409 })
+    expect((await f.writeTextFile(sh, 'x\n', saved.hash)).content).toBe('x\n')
+
+    writeFileSync(join(root, '.env'), 'TOKEN=1\n')
+    await expect(f.readTextFile(join(root, '.env'), false)).rejects.toMatchObject({ status: 423 })
+    expect((await f.readTextFile(join(root, '.env'), true)).content).toBe('TOKEN=1\n')
+    writeFileSync(join(root, 'blob'), new Uint8Array([1, 0, 2]))
+    expect(await f.readTextFile(join(root, 'blob'), false)).toMatchObject({ refused: 'binary', content: '' })
+    await expect(f.writeTextFile(join(root, 'blob'), 'x', '')).rejects.toMatchObject({ status: 409 })
+    await expect(f.readTextFile(join(root, 'Filme'), false)).rejects.toMatchObject({ status: 400 })
+    await expect(f.readTextFile(join(root, 'escape', 'key'), true)).rejects.toMatchObject({ status: 403 })
+  })
+
+  it('demo: scripts to open, a secret behind the unlock', async () => {
+    const f = new FixtureFiles()
+    const t = await f.readTextFile('/srv/scripts/backup.sh', false)
+    expect(t.content).toMatch(/^#!\/bin\/sh\n/)
+    await f.writeTextFile('/srv/scripts/backup.sh', t.content + 'sync\n', t.hash)
+    expect((await f.readTextFile('/srv/scripts/backup.sh', false)).content).toMatch(/sync\n$/)
+    await expect(f.readTextFile('/srv/scripts/.env', false)).rejects.toMatchObject({ status: 423 })
+    expect((await f.readTextFile('/srv/scripts/firmware', false)).refused).toBe('binary')
+    expect((await f.readTextFile('/mnt/disk1/Filme/Arrival (2016).mkv', false)).refused).toBe('tooLarge')
   })
 })

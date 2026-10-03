@@ -1,11 +1,12 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { bytes, diskSize } from '~/lib/format'
-import { baseName, joinPath, parentOf, validateName, type DirListing, type FileEntry, type FileRoot } from '~/shared/files'
+import { baseName, fileKind, joinPath, parentOf, validateName, type DirListing, type FileEntry, type FileRoot } from '~/shared/files'
 import { useActions } from './Actions'
 import { Glyph } from './Glyph'
 import { useJobs } from './Jobs'
 import { ConfirmDialog, Modal } from './Modal'
 import { useToast } from './Toast'
+import { TextFileEditor } from './TextFileEditor'
 import { useGuardedApi } from './Unlock'
 import { localeOf } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
@@ -32,6 +33,7 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
   const [clip, setClip] = useState<Clip | null>(null)
   const [hidden, setHidden] = useState(false)
   const [sort, setSort] = useState<Sort>('name')
+  const [open, setOpen] = useState<string | null>(null)
   const [dialog, setDialog] = useState<null | { kind: 'mkdir' } | { kind: 'rename'; entry: FileEntry } | { kind: 'delete' } | { kind: 'overwrite'; names: string[] }>(null)
 
   useEffect(() => {
@@ -233,6 +235,10 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
                           <button type="button" className="truncate text-left hover:underline" onClick={() => onNavigate(joinPath(cur, e.name))}>
                             {e.name}
                           </button>
+                        ) : e.type === 'file' && (fileKind(e.name) === 'text' || fileKind(e.name) === 'unknown') ? (
+                          <button type="button" className="truncate text-left hover:underline" onClick={() => setOpen(joinPath(cur, e.name))} aria-label={m.files_editor_open({ name: e.name })}>
+                            {e.name}
+                          </button>
                         ) : (
                           <span className="truncate">{e.name}</span>
                         )}
@@ -264,6 +270,7 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
         </div>
       </section>
 
+      {open && <TextFileEditor path={open} onClose={() => setOpen(null)} onSaved={() => void load()} />}
       <NameDialog
         open={dialog?.kind === 'mkdir' || dialog?.kind === 'rename'}
         title={dialog?.kind === 'rename' ? m.files_explorer_renameTitle({ name: dialog.entry.name }) : m.files_explorer_newFolder()}

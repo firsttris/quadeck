@@ -14,6 +14,7 @@ import type { SharesAdmin } from '../shares/backend'
 import type { SshAdmin } from '../ssh/backend'
 import type { SelfTestType, SmartAdmin } from '../smart/backend'
 import type { FilesAdmin } from '../files/backend'
+import type { TextFile } from '~/shared/files'
 import type { TimersAdmin } from '../timers/backend'
 import type { UnitEditorAdmin } from '../systemd/editor'
 import type { NetworkAdmin } from '../network/collect'
@@ -64,6 +65,9 @@ export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAd
   smartSelfTest(token: string | undefined, disk: string, type: SelfTestType): Promise<SmartReport>
   makeDir(token: string | undefined, path: string): Promise<void>
   renamePath(token: string | undefined, path: string, newName: string): Promise<void>
+  /** Text file for the editor; keys and secrets only when unlocked (423 otherwise). */
+  readTextFile(token: string | undefined, path: string): Promise<TextFile>
+  writeTextFile(token: string | undefined, path: string, content: string, expected: string): Promise<TextFile>
   saveTimer(token: string | undefined, spec: TimerSpec, previous: string | undefined, enable: boolean): Promise<TimersState>
   deleteTimer(token: string | undefined, name: string): Promise<TimersState>
   setTimerSchedule(token: string | undefined, name: string, calendar: string): Promise<TimersState>

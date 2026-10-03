@@ -8,7 +8,7 @@ import type { ShareChange, SharePreview, ShareServiceAction, SharesState } from 
 import type { SshChange, SshPreview, SshState } from '~/shared/ssh'
 import type { SmartReport } from '~/shared/smart'
 import type { SelfTestType } from '../smart/backend'
-import type { DirListing, FileRoot } from '~/shared/files'
+import type { DirListing, FileRoot, TextFile } from '~/shared/files'
 import type { CalendarPreview, TimerAction, TimerSpec, TimersState } from '~/shared/timers'
 import type { UnitDetail, UnitValidateResult, UnitWriteResult } from '~/shared/unit-files'
 import type { NetworkState } from '~/shared/network'
@@ -178,6 +178,12 @@ export class HelperClient implements Privileged {
   }
   async renamePath(token: string | undefined, path: string, newName: string) {
     await this.call('POST', '/files/rename', { token, path, newName })
+  }
+  readTextFile(token: string | undefined, path: string) {
+    return this.call<TextFile>('POST', '/files/read', { token, path }, 60_000)
+  }
+  writeTextFile(token: string | undefined, path: string, content: string, expected: string) {
+    return this.call<TextFile>('POST', '/files/write', { token, path, content, expected }, 60_000)
   }
 
   timersState() {
