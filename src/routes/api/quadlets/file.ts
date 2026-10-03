@@ -19,6 +19,8 @@ export const Route = createFileRoute('/api/quadlets/file')({
       GET: authed(async ({ request }) => {
         const name = nameParam(request)
         const p = privileged()
+        // What the delete dialog offers to remove as well.
+        if (new URL(request.url).searchParams.has('removal')) return Response.json(await p.removalPlan(name))
         const [content, history] = await Promise.all([p.readQuadlet(name), p.quadletHistory(name)])
         return Response.json({ name, content, history })
       }),
@@ -30,10 +32,10 @@ export const Route = createFileRoute('/api/quadlets/file')({
       }),
       DELETE: authed(async ({ request }, session) => {
         assertWritable()
-        const b = await readJson<{ name?: unknown }>(request)
+        const b = await readJson<{ name?: unknown; image?: unknown; volumes?: unknown }>(request)
         if (typeof b.name !== 'string') throw new HttpError(400, msg('api_quadlets_nameRequired'))
-        await privileged().deleteQuadlet(unlockToken(session.id), b.name)
-        return Response.json({ ok: true })
+        const r = await privileged().deleteQuadlet(unlockToken(session.id), b.name, { image: b.image === true, volumes: b.volumes === true })
+        return Response.json({ ok: true, ...r })
       }),
     },
   },

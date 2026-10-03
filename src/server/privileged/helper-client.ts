@@ -2,8 +2,8 @@ import { msg } from '~/shared/i18n'
 import { HttpError } from '../auth'
 import type { Privileged, UnitAction } from './actions'
 import type { ImageUpdatesReport, InstalledPackage, JobInfo, JobSpec, JobState, PackageDetail, PackageOverview, RemovePreview, UpdatesReport } from '~/shared/packages'
-import type { PodmanConfigName, PodmanSettings, QuadletFile, Revision, ValidateResult } from '~/shared/quadlets'
-import type { WriteResult } from '../quadlets/backend'
+import type { PodmanConfigName, PodmanSettings, QuadletFile, RemovalPlan, Revision, ValidateResult } from '~/shared/quadlets'
+import type { RemoveAlso, WriteResult } from '../quadlets/backend'
 import type { ShareChange, SharePreview, ShareServiceAction, SharesState } from '~/shared/shares'
 import type { SshChange, SshPreview, SshState } from '~/shared/ssh'
 import type { SmartReport } from '~/shared/smart'
@@ -121,8 +121,11 @@ export class HelperClient implements Privileged {
   writeQuadlet(token: string | undefined, name: string, content: string, restart: boolean) {
     return this.call<WriteResult>('POST', '/quadlets/write', { token, name, content, restart }, 180_000)
   }
-  async deleteQuadlet(token: string | undefined, name: string) {
-    await this.call('POST', '/quadlets/delete', { token, name }, 120_000)
+  removalPlan(name: string) {
+    return this.call<RemovalPlan>('POST', '/quadlets/plan', { name })
+  }
+  deleteQuadlet(token: string | undefined, name: string, also: RemoveAlso = {}) {
+    return this.call<{ warnings: string[] }>('POST', '/quadlets/delete', { token, name, image: also.image === true, volumes: also.volumes === true }, 300_000)
   }
   async setAutoUpdateTimer(token: string | undefined, enabled: boolean, calendar: string) {
     await this.call('POST', '/podman/timer', { token, enabled, calendar })

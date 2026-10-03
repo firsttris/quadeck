@@ -17,7 +17,9 @@ import {
   type PodmanConfigFile,
   type PodmanConfigName,
   type PodmanSettings,
+  removalPlan,
   type QuadletFile,
+  type RemovalPlan,
   type Revision,
   type ValidateResult,
 } from '~/shared/quadlets'
@@ -28,10 +30,17 @@ import { run, runOk } from '../exec'
 export interface PodmanAdmin {
   quadlets(): Promise<QuadletFile[]>
   readQuadlet(name: string): Promise<string>
+  removalPlan(name: string): Promise<RemovalPlan>
   validateQuadlet(name: string, content: string): Promise<ValidateResult>
   quadletHistory(name: string): Promise<Revision[]>
   quadletRevision(name: string, id: string): Promise<string>
   podmanSettings(): Promise<PodmanSettings>
+}
+
+/** Delete dialog: also remove the image and the named volumes (never host directories). */
+export interface RemoveAlso {
+  image?: boolean
+  volumes?: boolean
 }
 
 export interface WriteResult {
@@ -44,7 +53,7 @@ export interface WriteResult {
 /** Writes; the caller has checked the unlock. */
 export interface PodmanAdminBackend extends PodmanAdmin {
   writeQuadlet(name: string, content: string, restart: boolean): Promise<WriteResult>
-  deleteQuadlet(name: string): Promise<void>
+  deleteQuadlet(name: string, also?: RemoveAlso): Promise<{ warnings: string[] }>
   setAutoUpdateTimer(enabled: boolean, calendar: string): Promise<void>
   setAutoUpdateDefault(enabled: boolean): Promise<void>
   writePodmanConfig(name: PodmanConfigName, content: string): Promise<void>
@@ -146,12 +155,14 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
   private gitDir: string
   private confDir: string
   private manager: typeof managerCall
+  private exec: typeof run
 
-  constructor(opts: { dir?: string; gitDir?: string; confDir?: string; manager?: typeof managerCall } = {}) {
+  constructor(opts: { dir?: string; gitDir?: string; confDir?: string; manager?: typeof managerCall; exec?: typeof run } = {}) {
     this.dir = opts.dir ?? (process.env.QUADECK_QUADLET_DIR?.trim() || '/etc/containers/systemd')
     this.gitDir = opts.gitDir ?? join(process.env.STATE_DIRECTORY?.split(':')[0] || '/var/lib/quadeck-helper', 'quadlets.git')
     this.confDir = opts.confDir ?? '/etc/containers'
     this.manager = opts.manager ?? managerCall
+    this.exec = opts.exec ?? run
   }
   private timerDropIn = `/etc/systemd/system/${TIMER}.d/50-quadeck.conf`
 
@@ -295,15 +306,43 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
     }
   }
 
-  async deleteQuadlet(name: string) {
+  /** Every Quadlet file with its content, for what a deleted one leaves behind. */
+  async removalPlan(name: string): Promise<RemovalPlan> {
+    validName(name)
+    const files = await Promise.all((await this.quadlets()).map(async (f) => ({ name: f.name, content: await this.readQuadlet(f.name).catch(() => '') })))
+    return removalPlan(name, files)
+  }
+
+  async deleteQuadlet(name: string, also: RemoveAlso = {}) {
     validName(name)
     const path = join(this.dir, name)
     if (!existsSync(path)) throw new HttpError(404, msg('quadlets_error_notFound', { name }))
+    // Read before anything is deleted: the plan needs this file and the .volume files.
+    const plan = also.image || also.volumes ? await this.removalPlan(name) : undefined
     const history = await this.ensureRepo()
-    await this.manager('StopUnit', 'ss', quadletUnit(name), 'replace').catch(() => {})
+    const unit = quadletUnit(name)
+    // With clean-up the container has to be gone first: systemctl waits, StopUnit only queues the job.
+    if (plan) await this.exec(['systemctl', 'stop', unit], { timeoutMs: 120_000 })
+    else await this.manager('StopUnit', 'ss', unit, 'replace').catch(() => {})
     rmSync(path)
+    const volumes = also.volumes ? (plan?.volumes.filter((v) => !v.shared) ?? []) : []
+    for (const v of volumes) {
+      if (!v.file || !existsSync(join(this.dir, v.file))) continue
+      await this.manager('StopUnit', 'ss', quadletUnit(v.file), 'replace').catch(() => {})
+      rmSync(join(this.dir, v.file))
+    }
     if (history) await this.commit(`${name} deleted`)
     await this.manager('Reload')
+    const warnings: string[] = []
+    for (const v of volumes) {
+      const r = await this.exec(['podman', 'volume', 'rm', '--', v.name], { timeoutMs: 60_000 })
+      if (r.code !== 0 && !/no such volume/i.test(r.stderr)) warnings.push(msg('quadlets_warn_volumeKept', { name: v.name }) + `: ${r.stderr.trim()}`)
+    }
+    if (also.image && plan?.image && !plan.image.shared) {
+      const r = await this.exec(['podman', 'rmi', '--', plan.image.name], { timeoutMs: 60_000 })
+      if (r.code !== 0 && !/image not known|no such image/i.test(r.stderr)) warnings.push(msg('quadlets_warn_imageKept', { name: plan.image.name }) + `: ${r.stderr.trim()}`)
+    }
+    return { warnings }
   }
 
   // ---------- Podman settings ----------
@@ -455,9 +494,17 @@ export class FixturePodmanAdmin implements PodmanAdminBackend {
     this.put(name, content.endsWith('\n') ? content : content + '\n', `${name} ${this.files.has(name) ? 'changed' : 'created'}`)
     return { unit: quadletUnit(name), restarted: restart }
   }
-  async deleteQuadlet(name: string) {
+  async removalPlan(name: string) {
     validName(name)
-    if (!this.files.delete(name)) throw new HttpError(404, msg('quadlets_error_notFound', { name }))
+    return removalPlan(name, [...this.files].map(([n, f]) => ({ name: n, content: f.content })))
+  }
+  async deleteQuadlet(name: string, also: RemoveAlso = {}) {
+    validName(name)
+    if (!this.files.has(name)) throw new HttpError(404, msg('quadlets_error_notFound', { name }))
+    const plan = await this.removalPlan(name)
+    this.files.delete(name)
+    if (also.volumes) for (const v of plan.volumes) if (!v.shared && v.file) this.files.delete(v.file)
+    return { warnings: [] }
   }
   async podmanSettings() {
     return structuredClone(this.settings)

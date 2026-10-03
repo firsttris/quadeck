@@ -8,7 +8,7 @@
 import { msg } from '~/shared/i18n'
 import type { JobInfo, JobSpec } from '~/shared/packages'
 import type { Maintenance } from '../packages/maintenance'
-import type { PodmanAdmin, WriteResult } from '../quadlets/backend'
+import type { PodmanAdmin, RemoveAlso, WriteResult } from '../quadlets/backend'
 import type { PodmanConfigName } from '~/shared/quadlets'
 import type { SharesAdmin } from '../shares/backend'
 import type { SshAdmin } from '../ssh/backend'
@@ -54,7 +54,7 @@ export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAd
   podmanContainer(token: string | undefined, id: string, action: UnitAction): Promise<void>
   startJob(token: string | undefined, spec: JobSpec): Promise<JobInfo>
   writeQuadlet(token: string | undefined, name: string, content: string, restart: boolean): Promise<WriteResult>
-  deleteQuadlet(token: string | undefined, name: string): Promise<void>
+  deleteQuadlet(token: string | undefined, name: string, also?: RemoveAlso): Promise<{ warnings: string[] }>
   setAutoUpdateTimer(token: string | undefined, enabled: boolean, calendar: string): Promise<void>
   setAutoUpdateDefault(token: string | undefined, enabled: boolean): Promise<void>
   writePodmanConfig(token: string | undefined, name: PodmanConfigName, content: string): Promise<void>

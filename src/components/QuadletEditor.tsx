@@ -4,9 +4,9 @@ import { diffLines, hunks } from '~/lib/diff'
 import { relative } from '~/lib/format'
 import { getValues, lintQuadlet, parseIni, setValues } from '~/shared/ini'
 import { QUADLET_KEYS, QUADLET_SECTION, SYSTEMD_KEYS, type KeyDoc } from '~/shared/quadlet-keys'
-import { quadletType, quadletUnit, type Diagnostic, type Revision, type ValidateResult } from '~/shared/quadlets'
+import { quadletType, quadletUnit, type Diagnostic, type RemovalPlan, type Revision, type ValidateResult } from '~/shared/quadlets'
 import { Glyph } from './Glyph'
-import { ConfirmDialog, Modal } from './Modal'
+import { Modal } from './Modal'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
 import { m } from '~/paraglide/messages'
@@ -236,17 +236,6 @@ export function QuadletEditor({ name, initial, isNew, history, readonly, onSaved
     }
   }
 
-  const remove = async () => {
-    try {
-      const r = await guarded('/api/quadlets/file', { method: 'DELETE', body: { name } })
-      if (!r) return
-      say(m.quadlets_editor_deleted({ name, unit: quadletUnit(name) }))
-      onDeleted()
-    } catch (e) {
-      say((e as Error).message, 'bad')
-    }
-  }
-
   return (
     <section className="panel flex min-w-0 flex-col gap-4 p-[18px]" aria-label={m.quadlets_editor_aria({ name })}>
       <div className="flex flex-wrap items-center gap-2">
@@ -343,16 +332,114 @@ export function QuadletEditor({ name, initial, isNew, history, readonly, onSaved
           setShowHistory(false)
         }}
       />
-      <ConfirmDialog
-        open={confirmDelete}
-        title={m.quadlets_editor_deleteTitle({ name })}
-        danger
-        confirm={m.common_delete()}
-        body={<p className="m-0">{m.quadlets_editor_deleteBody({ unit: quadletUnit(name) })}</p>}
-        onConfirm={() => void remove()}
-        onClose={() => setConfirmDelete(false)}
-      />
+      <RemoveQuadletDialog open={confirmDelete} name={name} onClose={() => setConfirmDelete(false)} onRemoved={onDeleted} />
     </section>
+  )
+}
+
+/**
+ * Delete a Quadlet: the unit is stopped, the file deleted (kept in the history).
+ * For a .container the image and its named volumes can go too; host folders never.
+ */
+export function RemoveQuadletDialog({ open, name, onClose, onRemoved }: { open: boolean; name: string; onClose: () => void; onRemoved: () => void }) {
+  const say = useToast()
+  const guarded = useGuardedApi()
+  const [plan, setPlan] = useState<RemovalPlan | null>(null)
+  const [image, setImage] = useState(false)
+  const [volumes, setVolumes] = useState(false)
+  const [busy, setBusy] = useState(false)
+  const unit = quadletUnit(name)
+  const container = quadletType(name) === 'container'
+
+  useEffect(() => {
+    if (!open) return
+    setPlan(null)
+    setImage(false)
+    setVolumes(false)
+    if (!container) return
+    let gone = false
+    api<RemovalPlan>(`/api/quadlets/file?removal&name=${encodeURIComponent(name)}`, { method: 'GET' })
+      .then((p) => !gone && setPlan(p))
+      .catch(() => !gone && setPlan({ volumes: [], binds: [] }))
+    return () => {
+      gone = true
+    }
+  }, [open, name, container])
+
+  const own = plan?.volumes.filter((v) => !v.shared) ?? []
+  const remove = async () => {
+    setBusy(true)
+    try {
+      const r = await guarded<{ warnings?: string[] }>('/api/quadlets/file', { method: 'DELETE', body: { name, image, volumes } })
+      if (!r) return
+      say(m.quadlets_editor_deleted({ name, unit }))
+      for (const w of r.warnings ?? []) say(w, 'bad')
+      onClose()
+      onRemoved()
+    } catch (e) {
+      say((e as Error).message, 'bad')
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title={m.quadlets_editor_deleteTitle({ name })}>
+      <p className="m-0">{m.quadlets_editor_deleteBody({ unit })}</p>
+      {container && !plan && <p className="m-0 text-[13px] text-muted">{m.quadlets_remove_loading()}</p>}
+      {plan?.image &&
+        (plan.image.shared ? (
+          <p className="m-0 text-[13px] text-muted">{m.quadlets_remove_imageShared({ name: plan.image.name })}</p>
+        ) : (
+          <label className="flex items-start gap-2 text-[13px]">
+            <input type="checkbox" className="mt-[3px]" checked={image} onChange={(e) => setImage(e.target.checked)} />
+            <span>
+              {m.quadlets_remove_image()}
+              <span className="block font-mono text-[12px] break-all text-muted">{plan.image.name}</span>
+            </span>
+          </label>
+        ))}
+      {own.length > 0 && (
+        <label className="flex items-start gap-2 text-[13px]">
+          <input type="checkbox" className="mt-[3px]" checked={volumes} onChange={(e) => setVolumes(e.target.checked)} />
+          <span>
+            {m.quadlets_remove_volumes()}
+            {own.map((v) => (
+              <span key={v.name} className="block font-mono text-[12px] break-all text-muted">
+                {v.name}
+                {v.file && ` (${m.quadlets_remove_volumeFile({ file: v.file })})`}
+              </span>
+            ))}
+            {volumes && <span className="mt-1 block text-[#ff8a80]">{m.quadlets_remove_volumesWarn()}</span>}
+          </span>
+        </label>
+      )}
+      {plan?.volumes
+        .filter((v) => v.shared)
+        .map((v) => (
+          <p key={v.name} className="m-0 text-[13px] text-muted">
+            {m.quadlets_remove_volumeShared({ name: v.name })}
+          </p>
+        ))}
+      {!!plan?.binds.length && (
+        <div className="text-[13px] text-muted">
+          {m.quadlets_remove_binds()}
+          {plan.binds.map((b) => (
+            <span key={b} className="block font-mono text-[12px] break-all">
+              {b}
+            </span>
+          ))}
+        </div>
+      )}
+      <div className="flex justify-end gap-2">
+        <button type="button" className="btn" onClick={onClose}>
+          {m.common_cancel()}
+        </button>
+        <button type="button" className="btn danger" autoFocus disabled={busy || (container && !plan)} onClick={() => void remove()}>
+          {m.common_delete()}
+        </button>
+      </div>
+    </Modal>
   )
 }
 

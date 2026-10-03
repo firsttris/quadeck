@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -6,7 +6,7 @@ import { diffLines, hunks } from '~/lib/diff'
 import { generatedUnit, generatorDiagnostics, missingReferences, SystemPodmanAdmin } from '~/server/quadlets/backend'
 import { composeToQuadlets } from '~/server/quadlets/compose'
 import { getValue, getValues, lintQuadlet, parseIni, setValues } from '~/shared/ini'
-import { assertQuadletName, quadletUnit } from '~/shared/quadlets'
+import { assertQuadletName, quadletUnit, removalPlan } from '~/shared/quadlets'
 import { getToml, setToml } from '~/shared/toml-edit'
 
 const FILE = `# Jellyfin
@@ -211,6 +211,37 @@ describe('SystemPodmanAdmin on a temp directory', () => {
     expect(existsSync(join(dir, '.git'))).toBe(false)
   })
 
+  it('deletes with image and volumes, keeps host folders and what others still use', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'qd-remove-'))
+    const dir = join(root, 'systemd')
+    mkdirSync(dir)
+    writeFileSync(join(dir, 'app.container'), '[Container]\nImage=docker.io/library/app:1\nVolume=app-data.volume:/data\nVolume=cache:/cache\nVolume=shared:/s\nVolume=/srv/app:/config:Z\n')
+    writeFileSync(join(dir, 'app-data.volume'), '[Volume]\n')
+    writeFileSync(join(dir, 'other.container'), '[Container]\nImage=docker.io/library/other\nVolume=shared:/s\n')
+    const calls: string[] = []
+    const exec = async (argv: string[]) => (calls.push(argv.join(' ')), { code: argv[1] === 'rmi' ? 2 : 0, stdout: '', stderr: argv[1] === 'rmi' ? 'image is in use by a container' : '' })
+    const admin = new SystemPodmanAdmin({ dir, gitDir: join(root, 'git'), confDir: root, manager: async (m: string, _s?: string, ...a: string[]) => (calls.push([m, ...a].join(' ')), ''), exec })
+    const r = await admin.deleteQuadlet('app.container', { image: true, volumes: true })
+    expect(calls).toEqual([
+      'systemctl stop app.service',
+      'StopUnit app-data-volume.service replace',
+      'Reload',
+      'podman volume rm -- systemd-app-data',
+      'podman volume rm -- cache',
+      'podman rmi -- docker.io/library/app:1',
+    ])
+    expect(r.warnings).toEqual([expect.stringContaining('docker.io/library/app:1')])
+    expect(existsSync(join(dir, 'app.container'))).toBe(false)
+    expect(existsSync(join(dir, 'app-data.volume'))).toBe(false)
+    expect(existsSync(join(dir, 'other.container'))).toBe(true)
+
+    // Without the boxes only the unit and the file go.
+    calls.length = 0
+    const r2 = await admin.deleteQuadlet('other.container')
+    expect(calls).toEqual(['StopUnit other.service replace', 'Reload'])
+    expect(r2.warnings).toEqual([])
+  })
+
   it('validates TOML before writing podman configs and keeps a backup', async () => {
     const root = mkdtempSync(join(tmpdir(), 'qd-conf-'))
     writeFileSync(join(root, 'registries.conf'), 'unqualified-search-registries = ["docker.io"]\n')
@@ -221,5 +252,28 @@ describe('SystemPodmanAdmin on a temp directory', () => {
     expect(readFileSync(join(root, 'registries.conf'), 'utf8')).toContain('quay.io')
     expect(readFileSync(join(root, 'registries.conf.quadeck-bak'), 'utf8')).toContain('docker.io')
     await expect(admin.setAutoUpdateTimer(true, 'daily; rm -rf /')).rejects.toMatchObject({ status: 400 })
+  })
+})
+
+describe('removalPlan', () => {
+  const files = [
+    { name: 'app.container', content: '[Container]\nImage=docker.io/library/app:1\nVolume=db.volume:/var/lib/db\nVolume=cache:/cache:Z\nVolume=/srv/app:/config\nVolume=./rel:/x\nVolume=/anonymous\nVolume=-rf:/bad\n' },
+    { name: 'db.volume', content: '[Volume]\nVolumeName=appdb\n' },
+    { name: 'web.container', content: '[Container]\nImage=docker.io/library/app:1\nVolume=cache:/c\n' },
+    { name: 'built.container', content: '[Container]\nImage=app.build\n' },
+  ]
+  it('lists the image, named volumes and host folders', () => {
+    expect(removalPlan('app.container', files)).toEqual({
+      image: { name: 'docker.io/library/app:1', shared: true },
+      volumes: [
+        { name: 'appdb', file: 'db.volume', shared: false },
+        { name: 'cache', shared: true },
+      ],
+      binds: ['/srv/app', './rel'],
+    })
+  })
+  it('offers nothing for images built by Quadlet or other file types', () => {
+    expect(removalPlan('built.container', files)).toEqual({ image: undefined, volumes: [], binds: [] })
+    expect(removalPlan('db.volume', files)).toEqual({ volumes: [], binds: [] })
   })
 })
