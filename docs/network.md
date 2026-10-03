@@ -10,7 +10,7 @@ Caddyfile (see [below](#reverse-proxy)).
 
 ## Interfaces
 
-Every interface with its kind (LAN, WLAN, VPN, bridge, container, loopback, virtual), state,
+Every interface with its kind (LAN, WLAN, VPN, Thread – the `wpan0` of an OpenThread border router for Matter devices –, bridge, container, loopback, virtual), state,
 IPv4 and IPv6 addresses (DHCP marked), the gateway on it, link speed, MAC, MTU and the bytes
 received and sent since boot. Loopback and container-side veth interfaces are hidden by default;
 a checkbox shows them.

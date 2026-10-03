@@ -1410,6 +1410,7 @@
   "network_kind_bridge": "Bridge",
   "network_kind_container": "Container",
   "network_kind_vpn": "VPN",
+  "network_kind_thread": "Thread",
   "network_kind_loopback": "Loopback",
   "network_kind_virtual": "virtuell",
   "network_ifaces_showAll": "auch Loopback und Container-Verbindungen ({n})",

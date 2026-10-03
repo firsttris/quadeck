@@ -36,6 +36,8 @@ interface IpLink {
 export function ifaceKind(l: IpLink, sys = '/sys/class/net'): IfaceKind {
   const k = l.linkinfo?.info_kind
   if (l.link_type === 'loopback') return 'loopback'
+  // Thread (IEEE 802.15.4): the OpenThread border router's wpan0 is a tun device, but no VPN.
+  if (/^(wpan|lowpan)\d/.test(l.ifname) || l.link_type === '6lowpan' || l.link_type === 'ieee802.15.4') return 'thread'
   if (k === 'wireguard' || k === 'tun' || /^(wg|tun|tap|tailscale|zt)/.test(l.ifname)) return 'vpn'
   if (k === 'bridge' || /^(podman|cni-)/.test(l.ifname)) return 'bridge'
   if (k === 'veth' || /^(veth|vnet)/.test(l.ifname)) return 'container'
@@ -58,7 +60,8 @@ export function parseIpAddr(json: string, sys = '/sys/class/net'): NetInterface[
       state: l.operstate === 'UNKNOWN' && up ? (l.flags?.includes('LOWER_UP') ? 'UP' : 'UNKNOWN') : (l.operstate ?? (up ? 'UP' : 'DOWN')),
       mac: l.address && l.address !== '00:00:00:00:00:00' && l.link_type !== 'none' ? l.address : undefined,
       mtu: l.mtu,
-      speedMbps: speed > 0 && speed < 1_000_000 ? speed : undefined,
+      // tun/tap and other virtual devices report a made-up 10 Gbit/s
+      speedMbps: speed > 0 && speed < 1_000_000 && !['vpn', 'thread', 'virtual', 'loopback'].includes(ifaceKind(l, sys)) ? speed : undefined,
       master: l.master,
       addresses: (l.addr_info ?? []).filter((a) => a.family === 'inet' || a.family === 'inet6').map((a) => ({ family: a.family as 'inet' | 'inet6', address: a.local, prefix: a.prefixlen, scope: a.scope, dynamic: a.dynamic || undefined })),
       rxBytes: Number.isFinite(rx) ? rx : undefined,
