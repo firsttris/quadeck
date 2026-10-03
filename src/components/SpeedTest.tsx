@@ -1,7 +1,11 @@
 import { useEffect, useRef, useState } from 'react'
 import { api, ApiError, csrfHeaders } from '~/lib/api'
 import { localeOf } from '~/shared/i18n'
-import { mbps, pingStats, type SpeedResult } from '~/shared/speedtest'
+import { mbps, pingStats, type SpeedResult, type SpeedSchedule } from '~/shared/speedtest'
+import { HistoryChart } from './HistoryChart'
+import { useGuardedApi } from './Unlock'
+import { useToast } from './Toast'
+import { Link } from '@tanstack/react-router'
 import { m } from '~/paraglide/messages'
 
 const SECONDS = 6
@@ -197,15 +201,24 @@ export function SpeedTest() {
   const [error, setError] = useState('')
   const mounted = useRef(true)
 
+  const [info, setInfo] = useState<Info | null>(null)
+  const load = async () => {
+    try {
+      const d = (await (await fetch('/api/speedtest')).json()) as Info & { history?: SpeedResult[] }
+      if (!mounted.current) return
+      setHistory(d.history ?? [])
+      setInfo(d)
+    } catch {
+      // shown again on the next try
+    }
+  }
   useEffect(() => {
     mounted.current = true
-    fetch('/api/speedtest')
-      .then((r) => r.json())
-      .then((d: { history?: SpeedResult[] }) => mounted.current && setHistory(d.history ?? []))
-      .catch(() => {})
+    void load()
     return () => {
       mounted.current = false
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const report = (phase: Phase, value: number, done: number) => {
@@ -220,6 +233,7 @@ export function SpeedTest() {
     try {
       const h = kind === 'internet' ? await internetTest(report) : (await api<{ history: SpeedResult[] }>('/api/speedtest', { body: { client: { ...(await clientTest(report)), where: browserName() } } })).history
       if (mounted.current) setHistory(h)
+      void load()
     } catch (e) {
       if (mounted.current) setError((e as Error).message)
     } finally {
@@ -290,6 +304,13 @@ export function SpeedTest() {
         {card('internet', m.speed_internet_title(), m.speed_internet_text())}
       </div>
       <p className="m-0 text-[12px] text-muted">{m.speed_units()}</p>
+      {info?.alert && (
+        <p role="alert" className="m-0 rounded-[10px] border border-[rgba(210,153,34,.5)] bg-[rgba(210,153,34,.08)] p-3 text-[13px] text-[#e3b341]">
+          {info.alert}
+        </p>
+      )}
+      {info && <SpeedChart series={info.series} />}
+      {info && <AutoPanel schedule={info.schedule} next={info.next} onSaved={() => void load()} />}
       {history.length > 0 && (
         <section className="panel flex flex-col overflow-x-auto" aria-label={m.speed_history()}>
           <h2 className="h2 px-[18px] pt-4 pb-2">{m.speed_history()}</h2>
@@ -310,6 +331,7 @@ export function SpeedTest() {
                   <td className="text-[13px]">
                     {h.kind === 'internet' ? m.speed_internet_short() : m.speed_client_short()}
                     {h.where && <span className="text-muted"> · {h.where}</span>}
+                    {h.auto && <span className="chip ml-1.5">{m.speed_auto_badge()}</span>}
                   </td>
                   <td className="text-right font-mono text-[12px]">
                     {num(h.down)} Mbit/s <span className="text-muted">· {num(mbyte(h.down))} MB/s</span>
@@ -325,6 +347,100 @@ export function SpeedTest() {
         </section>
       )}
     </div>
+  )
+}
+
+type Info = { schedule: SpeedSchedule; next?: number; series: Record<'down' | 'up' | 'ping', [number, number][]>; alert?: string }
+
+const RANGES = [7, 30, 90, 365]
+
+/** Download and upload over the days, ping below; the same chart as the overview. */
+function SpeedChart({ series }: { series: Info['series'] }) {
+  const [days, setDays] = useState(30)
+  const now = Date.now()
+  const span = days * 86_400_000
+  const any = series.down.some(([t]) => t >= now - span)
+  return (
+    <section className="panel flex flex-col gap-3 p-[18px]" aria-label={m.speed_chart_title()} data-testid="speed-chart">
+      <div className="flex flex-wrap items-center gap-2">
+        <h2 className="h2 grow">{m.speed_chart_title()}</h2>
+        <div role="group" aria-label={m.speed_chart_range()} className="flex gap-1">
+          {RANGES.map((d) => (
+            <button key={d} type="button" className={`seg ${d === days ? 'on' : ''}`} aria-pressed={d === days} onClick={() => setDays(d)}>
+              {m.speed_chart_days({ n: d })}
+            </button>
+          ))}
+        </div>
+      </div>
+      {any ? (
+        <>
+          <HistoryChart
+            detailed
+            height={180}
+            span={span}
+            now={now}
+            label={m.speed_chart_title()}
+            yMin={0}
+            format={(v) => `${num(v)} Mbit/s · ${num(mbyte(v))} MB/s`}
+            series={[
+              { label: `↓ ${m.speed_down()}`, color: '#7cc4b8', points: series.down },
+              { label: `↑ ${m.speed_up()}`, color: '#c39bff', points: series.up },
+            ]}
+          />
+          <HistoryChart detailed height={60} span={span} now={now} label={m.speed_ping()} yMin={0} format={(v) => `${num(v)} ms`} series={[{ label: m.speed_ping(), color: '#8b949e', points: series.ping }]} />
+        </>
+      ) : (
+        <p className="m-0 text-[13px] text-muted">{m.speed_chart_empty()}</p>
+      )}
+    </section>
+  )
+}
+
+/** Measure the internet connection on a schedule (off by default). */
+function AutoPanel({ schedule, next, onSaved }: { schedule: SpeedSchedule; next?: number; onSaved: () => void }) {
+  const guarded = useGuardedApi()
+  const say = useToast()
+  const [s, setS] = useState(schedule)
+  useEffect(() => setS(schedule), [schedule])
+  const save = async (v: SpeedSchedule) => {
+    setS(v)
+    try {
+      if (await guarded('/api/speedtest', { body: { schedule: v } })) {
+        say(m.speed_auto_saved())
+        onSaved()
+      } else setS(schedule)
+    } catch (e) {
+      say((e as Error).message, 'bad')
+      setS(schedule)
+    }
+  }
+  return (
+    <section className="panel flex flex-col gap-3 p-[18px]" aria-label={m.speed_auto_title()} data-testid="speed-auto">
+      <h2 className="h2">{m.speed_auto_title()}</h2>
+      <p className="m-0 text-[13px] text-muted">{m.speed_auto_text()}</p>
+      <div className="flex flex-wrap items-center gap-3 text-[13px]">
+        <label className="flex items-center gap-2">
+          <input type="checkbox" checked={s.enabled} onChange={(e) => void save({ ...s, enabled: e.target.checked })} />
+          <span className="font-medium">{m.speed_auto_enabled()}</span>
+        </label>
+        <select className="field !w-auto !py-1" aria-label={m.speed_auto_every()} value={s.every} disabled={!s.enabled} onChange={(e) => void save({ ...s, every: e.target.value as SpeedSchedule['every'] })}>
+          <option value="daily">{m.speed_auto_daily()}</option>
+          <option value="6h">{m.speed_auto_6h()}</option>
+        </select>
+        <select className="field !w-auto !py-1" aria-label={m.speed_auto_hour()} value={s.hour} disabled={!s.enabled} onChange={(e) => void save({ ...s, hour: Number(e.target.value) })}>
+          {Array.from({ length: 24 }, (_, h) => (
+            <option key={h} value={h}>
+              {String(h).padStart(2, '0')}:00
+            </option>
+          ))}
+        </select>
+        {s.enabled && next && <span className="text-[12px] text-muted">{m.speed_auto_next({ date: dateFmt(next) })}</span>}
+      </div>
+      <p className="m-0 text-[12px] text-muted">{m.speed_auto_data()}</p>
+      <Link to="/notifications" className="self-start text-[13px] text-accent hover:underline">
+        {m.speed_auto_notify()} →
+      </Link>
+    </section>
   )
 }
 

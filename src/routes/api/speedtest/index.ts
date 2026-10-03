@@ -2,14 +2,20 @@ import { createFileRoute } from '@tanstack/react-router'
 import { HttpError } from '~/server/auth'
 import { config } from '~/server/config'
 import { authed, readJson } from '~/server/http'
-import { demoInternetSpeed, drain, internetSpeed, saveSpeed, speedHistory, testData } from '~/server/speedtest'
+import { drain, nextSpeedRun, runInternetTest, saveSpeed, setSpeedSchedule, speedCheck, speedCheckMessage, speedHistory, speedRunning, speedSchedule, speedSeries, testData } from '~/server/speedtest'
+import { hubReady } from '~/server/hub'
+import { notifier } from '~/server/notify'
+import { assertWritable } from '~/server/guard'
 import { currentLang, localize, msg } from '~/shared/i18n'
 import type { SpeedResult } from '~/shared/speedtest'
 
-// Speed test. GET → { history } · ?ping → { t } · ?down=<bytes> → test data.
-// POST ?up → reads the body, { bytes } · { internet: true } → server ↔ internet, saved ·
-// { client: result } → saves what the page measured.
-let running: Promise<SpeedResult> | undefined
+// Speed test. GET → { history, schedule, next, series, alert } · ?ping → { t } · ?down=<bytes> → test data.
+// POST ?up → reads the body, { bytes } · { internet: true } → server ↔ internet (NDJSON progress) ·
+// { client: result } → saves what the page measured · { schedule } → automatic runs.
+const rule = () => {
+  const n = notifier().settings()
+  return { enabled: !!n.rules.internet, speedMode: n.speedMode, speedPercent: n.speedPercent, speedMbit: n.speedMbit }
+}
 
 const NO_CACHE = { 'cache-control': 'no-store', 'content-encoding': 'identity' }
 
@@ -21,29 +27,35 @@ export const Route = createFileRoute('/api/speedtest/')({
         if (q.has('ping')) return Response.json({ t: Date.now() }, { headers: NO_CACHE })
         const down = q.get('down')
         if (down !== null) return new Response(testData(Number(down) || 0), { headers: { ...NO_CACHE, 'content-type': 'application/octet-stream' } })
-        return Response.json({ history: speedHistory(), running: !!running })
+        return Response.json({ history: speedHistory(), running: speedRunning(), schedule: speedSchedule(), next: nextSpeedRun(), series: speedSeries(), alert: speedCheckMessage(speedCheck()) })
       }),
       POST: authed(async ({ request }) => {
         const lang = currentLang()
         if (new URL(request.url).searchParams.has('up')) return Response.json({ bytes: await drain(request.body) }, { headers: NO_CACHE })
-        const b = await readJson<{ internet?: unknown; client?: Partial<SpeedResult> }>(request)
+        const b = await readJson<{ internet?: unknown; client?: Partial<SpeedResult>; schedule?: unknown }>(request)
+        if (b.schedule !== undefined) {
+          assertWritable()
+          const schedule = setSpeedSchedule(b.schedule)
+          return Response.json({ schedule, next: nextSpeedRun() })
+        }
         if (b.internet === true) {
           // One run at a time. The answer is a stream: progress lines, then the result (NDJSON).
-          if (running) throw new HttpError(409, msg('speed_error_running'))
+          if (speedRunning()) throw new HttpError(409, msg('speed_error_running'))
           const enc = new TextEncoder()
-          let send: (o: unknown) => void = () => {}
           const stream = new ReadableStream<Uint8Array>({
             start(ctrl) {
-              send = (o) => {
+              const send = (o: unknown) => {
                 try {
                   ctrl.enqueue(enc.encode(JSON.stringify(o) + '\n'))
                 } catch {
                   // page closed
                 }
               }
-              running = (config().fixturesDir ? demoInternetSpeed(send) : internetSpeed({ onProgress: send })).finally(() => (running = undefined))
-              running
-                .then((r) => send({ result: r, history: saveSpeed(r) }))
+              runInternetTest({ demo: !!config().fixturesDir, rule: rule(), onProgress: send })
+                .then(async (r) => {
+                  void hubReady().then((h) => h.publish())
+                  send({ result: r, history: speedHistory(), series: speedSeries() })
+                })
                 .catch((e: Error) => send({ error: localize(e.message, lang) }))
                 .finally(() => {
                   try {

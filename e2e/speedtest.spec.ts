@@ -3,7 +3,7 @@ import { expect, test } from '@playwright/test'
 const PASSWORD = 'e2e-password-123'
 
 test('speed test: this device ↔ server live in the browser, server ↔ internet with progress, both units, history', async ({ page }) => {
-  test.setTimeout(60_000)
+  test.setTimeout(90_000)
   await page.goto('/login')
   await page.getByLabel('Passwort').fill(PASSWORD)
   await page.getByRole('button', { name: 'Anmelden' }).click()
@@ -28,4 +28,35 @@ test('speed test: this device ↔ server live in the browser, server ↔ interne
   // kept after a reload
   await page.reload()
   await expect(page.getByTestId('speed-row')).toHaveCount(2)
+
+  // The graph over time (the demo has two months of daily measurements).
+  const chart = page.getByTestId('speed-chart')
+  await expect(chart).toContainText('Verlauf der Internetleitung')
+  await chart.getByRole('button', { name: '90 Tage' }).click()
+  await expect(chart.getByRole('button', { name: '90 Tage' })).toHaveAttribute('aria-pressed', 'true')
+  await expect(chart.locator('svg').first()).toBeVisible()
+
+  // Measuring automatically is off until switched on (after the unlock).
+  const auto = page.getByTestId('speed-auto')
+  await expect(auto.getByLabel('Wie oft')).toBeDisabled()
+  await auto.getByRole('checkbox', { name: 'Automatisch messen' }).check()
+  const unlock = page.getByRole('dialog', { name: 'Aktionen entsperren' })
+  await unlock.getByLabel('Passwort').fill(PASSWORD)
+  await unlock.getByRole('button', { name: 'Entsperren' }).click()
+  await expect(auto).toContainText('Nächste Messung:')
+  await auto.getByLabel('Wie oft').selectOption('6h')
+  await page.reload()
+  await expect(page.getByTestId('speed-auto').getByLabel('Wie oft')).toHaveValue('6h')
+
+  // The notification rule: off by default, with a relative or fixed limit.
+  await page
+    .getByTestId('speed-auto')
+    .getByRole('link', { name: /Benachrichtigung/ })
+    .click()
+  await expect(page).toHaveURL(/\/notifications/)
+  const rule = page.getByRole('checkbox', { name: /Internet langsam oder weg/ })
+  await expect(rule).not.toBeChecked()
+  await expect(page.getByLabel('Grenze')).toHaveValue('relative')
+  await page.getByLabel('Grenze').selectOption('fixed')
+  await expect(page.getByLabel('Grenzwert')).toHaveValue('100')
 })
