@@ -82,7 +82,7 @@ export async function runAurUpgrade(helper: 'yay' | 'paru', user: string, exec: 
   if (uid === 0) throw new Error(tr('AUR-Helfer laufen nicht als root – QUADECK_AUR_USER auf einen normalen Benutzer setzen', 'AUR helpers do not run as root – set QUADECK_AUR_USER to a normal user'))
   const pacman = Bun.which('pacman') ?? '/usr/bin/pacman'
   if (!Bun.which('sudo')) throw new Error(tr(`${helper} braucht sudo, um pacman aufzurufen – sudo ist nicht installiert`, `${helper} needs sudo to call pacman – sudo is not installed`))
-  writeFileSync(SUDOERS_DROPIN, `# Quadeck: nur während eines AUR-Updates vorhanden\n${user} ALL=(root) NOPASSWD: ${pacman}\n`, { mode: 0o440 })
+  writeFileSync(SUDOERS_DROPIN, `# Quadeck: only present during an AUR update\n${user} ALL=(root) NOPASSWD: ${pacman}\n`, { mode: 0o440 })
   chmodSync(SUDOERS_DROPIN, 0o440)
   try {
     if (Bun.which('visudo')) {

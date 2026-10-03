@@ -26,7 +26,6 @@ import { SystemFiles } from './server/files/backend'
 import { SystemTimers } from './server/timers/backend'
 import { SystemUnitEditor } from './server/systemd/editor'
 import { SystemNetwork } from './server/network/collect'
-import { tr } from '~/shared/i18n'
 
 export interface StartServer {
   fetch(request: Request): Response | Promise<Response>
@@ -99,29 +98,29 @@ export function serve(opts: MainOptions) {
         return withHeaders(await withRequestLang(req, () => opts.server.fetch(forwarded)))
       } catch (e) {
         console.error('[quadeck]', e)
-        return withHeaders(new Response(tr('Interner Fehler', 'Internal error'), { status: 500 }))
+        return withHeaders(new Response('Internal error', { status: 500 }))
       }
     },
   })
-  console.log(`[quadeck] ${opts.version} läuft auf http://${cfg.host}:${server.port} (Daten: ${cfg.dataDir}${cfg.readonly ? ', read-only' : ''})`)
+  console.log(`[quadeck] ${opts.version} listening on http://${cfg.host}:${server.port} (data: ${cfg.dataDir}${cfg.readonly ? ', read-only' : ''})`)
   // The token itself is not logged: the journal is readable by more than root.
-  if (token) console.log(`[quadeck] Noch kein Passwort gesetzt. Setup-Link (als root): quadeck setup-token`)
+  if (token) console.log(`[quadeck] No password set yet. Setup link (as root): quadeck setup-token`)
   // Start the collectors right away instead of on the first page view.
   void opts.server.fetch(new Request(`http://127.0.0.1:${server.port}/api/health`, { headers: { [PEER_HEADER]: '127.0.0.1' } }))
   return server
 }
 
-const HELP = `quadeck – Dashboard für Podman-Server mit Quadlets
+const HELP = `quadeck – dashboard for Podman servers with Quadlets
 
-  quadeck [serve]        Server starten (Standard)
-  quadeck setup-token    Token für die Ersteinrichtung ausgeben
-  quadeck passwd         Passwort zurücksetzen (neue Einrichtung über /setup)
-  quadeck helper         Root-Helfer starten (als root, Unix-Socket)
-  quadeck print-unit web|helper   systemd-Unit ausgeben (für install.sh)
-  quadeck update         Neueste Version von GitHub laden und Dienst neu starten
-  quadeck version        Version ausgeben
+  quadeck [serve]        start the server (default)
+  quadeck setup-token    print the token for the first setup
+  quadeck passwd         reset the password (set it up again via /setup)
+  quadeck helper         start the root helper (as root, Unix socket)
+  quadeck print-unit web|helper   print a systemd unit (for install.sh)
+  quadeck update         download the latest version from GitHub and restart the service
+  quadeck version        print the version
 
-Umgebung: QUADECK_HOST (0.0.0.0), QUADECK_PORT (8484), QUADECK_DATA_DIR (/var/lib/quadeck),
+Environment: QUADECK_HOST (0.0.0.0), QUADECK_PORT (8484), QUADECK_DATA_DIR (/var/lib/quadeck),
           QUADECK_READONLY, QUADECK_PODMAN_SOCKET, QUADECK_CADDY_ADMIN, QUADECK_CADDYFILE,
           QUADECK_UNLOCK, QUADECK_PACKAGE_MANAGER, QUADECK_AUR_USER, QUADECK_QUADLET_DIR`
 
@@ -159,7 +158,7 @@ export async function main(argv: string[], opts: MainOptions) {
       dropToDataOwner()
       db()
       const t = ensureSetupToken()
-      console.log(t ?? 'Passwort ist bereits gesetzt (zurücksetzen mit: quadeck passwd)')
+      console.log(t ?? 'Password is already set (reset it with: quadeck passwd)')
       return
     }
     case 'passwd': {
@@ -167,7 +166,7 @@ export async function main(argv: string[], opts: MainOptions) {
       db()
       resetPassword()
       const t = ensureSetupToken()
-      console.log(`Passwort zurückgesetzt, alle Sitzungen beendet.\nNeu einrichten: http://<host>:${config().port}/setup?token=${t}`)
+      console.log(`Password reset, all sessions ended.\nSet it up again: http://<host>:${config().port}/setup?token=${t}`)
       return
     }
     case 'print-unit':
@@ -175,7 +174,7 @@ export async function main(argv: string[], opts: MainOptions) {
       return
     case 'helper': {
       if (process.getuid?.() !== 0) {
-        console.error('quadeck helper muss als root laufen')
+        console.error('quadeck helper must run as root')
         process.exit(1)
       }
       cleanupSudoers()
@@ -215,7 +214,7 @@ export async function main(argv: string[], opts: MainOptions) {
       console.log(HELP)
       return
     default:
-      console.error(`Unbekannter Befehl: ${cmd}\n\n${HELP}`)
+      console.error(`Unknown command: ${cmd}\n\n${HELP}`)
       process.exit(2)
   }
 }

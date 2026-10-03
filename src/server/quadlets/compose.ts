@@ -120,7 +120,7 @@ export function composeToQuadlets(doc: unknown, project: string): ComposeResult 
     const s = raw
     const svc = slug(name)
     const warn = (m: string) => warnings.push(`${name}: ${m}`)
-    const unit: string[] = [`Description=${oneLine(name)} (aus docker-compose)`]
+    const unit: string[] = [`Description=${oneLine(name)} (from docker-compose)`]
     const c: string[] = []
     const service: string[] = []
 

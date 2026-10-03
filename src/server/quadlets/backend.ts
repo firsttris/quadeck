@@ -111,13 +111,23 @@ export function missingReferences(content: string, name: string, files: string[]
   return out
 }
 
-/** History entries are committed in German; shown in the viewer's language. */
+/**
+ * History entries are committed in English (versions before 0.4 wrote German
+ * ones); either way they are shown in the viewer's language.
+ */
 export function commitLabel(message: string): string {
-  if (message === 'Ausgangszustand') return tr('Ausgangszustand', 'Initial state')
-  const all = message.match(/^Auto-Update für alle Container (an|aus)$/)
-  if (all) return tr(message, `Auto-update for all containers ${all[1] === 'an' ? 'on' : 'off'}`)
-  const m = message.match(/^(.+) (angelegt|geändert|gelöscht)$/)
-  if (m) return tr(message, `${m[1]} ${m[2] === 'angelegt' ? 'created' : m[2] === 'geändert' ? 'changed' : 'deleted'}`)
+  if (message === 'Initial state' || message === 'Ausgangszustand') return tr('Ausgangszustand', 'Initial state')
+  const all = message.match(/^(?:Auto-update for all containers (on|off)|Auto-Update für alle Container (an|aus))$/)
+  if (all) {
+    const on = all[1] === 'on' || all[2] === 'an'
+    return tr(`Auto-Update für alle Container ${on ? 'an' : 'aus'}`, `Auto-update for all containers ${on ? 'on' : 'off'}`)
+  }
+  const m = message.match(/^(.+) (created|changed|deleted|angelegt|geändert|gelöscht)$/)
+  if (m) {
+    const kind = ({ angelegt: 'created', geändert: 'changed', gelöscht: 'deleted' } as Record<string, string>)[m[2]!] ?? m[2]!
+    const de = { created: 'angelegt', changed: 'geändert', deleted: 'gelöscht' }[kind as 'created']
+    return tr(`${m[1]} ${de}`, `${m[1]} ${kind}`)
+  }
   return message
 }
 
@@ -236,7 +246,7 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
     if (!existsSync(join(this.gitDir, 'HEAD'))) {
       mkdirSync(this.gitDir, { recursive: true, mode: 0o700 })
       await runOk(['git', `--git-dir=${this.gitDir}`, `--work-tree=${this.dir}`, 'init', '-q'])
-      await this.commit('Ausgangszustand')
+      await this.commit('Initial state')
     }
     return true
   }
@@ -276,7 +286,7 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
     const history = await this.ensureRepo()
     const isNew = !existsSync(join(this.dir, name))
     atomicWrite(join(this.dir, name), content.endsWith('\n') ? content : content + '\n')
-    if (history) await this.commit(`${name} ${isNew ? 'angelegt' : 'geändert'}`)
+    if (history) await this.commit(`${name} ${isNew ? 'created' : 'changed'}`)
     await this.manager('Reload')
     const unit = quadletUnit(name)
     if (!restart) return { unit, restarted: false }
@@ -295,7 +305,7 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
     const history = await this.ensureRepo()
     await this.manager('StopUnit', 'ss', quadletUnit(name), 'replace').catch(() => {})
     rmSync(path)
-    if (history) await this.commit(`${name} gelöscht`)
+    if (history) await this.commit(`${name} deleted`)
     await this.manager('Reload')
   }
 
@@ -353,7 +363,7 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
     if (calendar) {
       const check = await run(['systemd-analyze', 'calendar', '--', calendar])
       if (check.code !== 0) throw new HttpError(422, tr('Zeitplan ungültig', 'Invalid schedule') + `: ${(check.stderr || check.stdout).trim().split('\n')[0]}`)
-      atomicWrite(this.timerDropIn, `# Quadeck: Zeitplan für podman auto-update\n[Timer]\nOnCalendar=\nOnCalendar=${calendar}\n`)
+      atomicWrite(this.timerDropIn, `# Quadeck: schedule for podman auto-update\n[Timer]\nOnCalendar=\nOnCalendar=${calendar}\n`)
     } else rmSync(this.timerDropIn, { force: true })
     await this.manager('Reload')
     await runOk(['systemctl', enabled ? 'enable' : 'disable', '--now', TIMER], { timeoutMs: 60_000 })
@@ -363,9 +373,9 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
     const v = await this.version()
     if (!(Number(v?.split('.')[0]) >= 5)) throw new HttpError(409, tr(`Globale Quadlet-Vorgaben brauchen Podman 5 (installiert: ${v ?? 'unbekannt'})`, `Global Quadlet defaults need Podman 5 (installed: ${v ?? 'unknown'})`))
     const history = await this.ensureRepo()
-    if (enabled) atomicWrite(this.defaultsDropIn, '# Quadeck: Auto-Update für alle .container-Dateien\n[Container]\nAutoUpdate=registry\n')
+    if (enabled) atomicWrite(this.defaultsDropIn, '# Quadeck: auto-update for all .container files\n[Container]\nAutoUpdate=registry\n')
     else rmSync(this.defaultsDropIn, { force: true })
-    if (history) await this.commit(`Auto-Update für alle Container ${enabled ? 'an' : 'aus'}`)
+    if (history) await this.commit(`Auto-update for all containers ${enabled ? 'on' : 'off'}`)
     await this.manager('Reload')
   }
 
@@ -392,7 +402,7 @@ export class FixturePodmanAdmin implements PodmanAdminBackend {
 
   constructor(dir: string) {
     const qdir = join(dir, 'quadlets')
-    for (const f of existsSync(qdir) ? readdirSync(qdir) : []) if (QUADLET_NAME.test(f)) this.put(f, readFileSync(join(qdir, f), 'utf8'), 'Ausgangszustand')
+    for (const f of existsSync(qdir) ? readdirSync(qdir) : []) if (QUADLET_NAME.test(f)) this.put(f, readFileSync(join(qdir, f), 'utf8'), 'Initial state')
     this.settings = {
       version: '5.6.1',
       quadletDir: '/etc/containers/systemd',
@@ -401,7 +411,7 @@ export class FixturePodmanAdmin implements PodmanAdminBackend {
       autoUpdateDefault: { supported: true, enabled: false, path: '/etc/containers/systemd/container.d/50-quadeck-autoupdate.conf' },
       files: [
         { name: 'containers.conf', path: '/etc/containers/containers.conf', exists: true, content: '[containers]\nlog_driver = "journald"\ntz = "local"\n\n[engine]\nevents_logger = "journald"\n', editable: true },
-        { name: 'registries.conf', path: '/etc/containers/registries.conf', exists: true, content: '# Kurznamen\nunqualified-search-registries = ["docker.io"]\nshort-name-mode = "enforcing"\n', editable: true },
+        { name: 'registries.conf', path: '/etc/containers/registries.conf', exists: true, content: '# Short names\nunqualified-search-registries = ["docker.io"]\nshort-name-mode = "enforcing"\n', editable: true },
         { name: 'storage.conf', path: '/etc/containers/storage.conf', exists: true, content: '[storage]\ndriver = "overlay"\nrunroot = "/run/containers/storage"\ngraphroot = "/var/lib/containers/storage"\n', editable: false },
       ],
     }
@@ -445,7 +455,7 @@ export class FixturePodmanAdmin implements PodmanAdminBackend {
     const v = await this.validateQuadlet(name, content)
     const err = v.diagnostics.find((d) => d.severity === 'error')
     if (err) throw new HttpError(422, `${err.line ? tr(`Zeile ${err.line}: `, `Line ${err.line}: `) : ''}${err.message}`)
-    this.put(name, content.endsWith('\n') ? content : content + '\n', `${name} ${this.files.has(name) ? 'geändert' : 'angelegt'}`)
+    this.put(name, content.endsWith('\n') ? content : content + '\n', `${name} ${this.files.has(name) ? 'changed' : 'created'}`)
     return { unit: quadletUnit(name), restarted: restart }
   }
   async deleteQuadlet(name: string) {

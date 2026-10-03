@@ -6,7 +6,7 @@
 //                          "quadeck" group only
 
 export const WEB_UNIT = `[Unit]
-Description=Quadeck – Dashboard für Podman und Quadlets
+Description=Quadeck – dashboard for Podman and Quadlets
 Documentation=https://github.com/firsttris/quadeck
 Wants=network-online.target quadeck-helper.service
 After=network-online.target quadeck-helper.service
@@ -41,7 +41,7 @@ WantedBy=multi-user.target
 `
 
 export const HELPER_UNIT = `[Unit]
-Description=Quadeck Root-Helfer (feste Aktionsliste, Entsperren mit Admin-Passwort)
+Description=Quadeck root helper (fixed list of actions, unlocked with an admin password)
 Documentation=https://github.com/firsttris/quadeck
 After=podman.socket
 

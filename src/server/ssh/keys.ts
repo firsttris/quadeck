@@ -120,7 +120,7 @@ export function parseSshdT(out: string): SshSettings & { pubkeyAuthentication: b
   }
 }
 
-export const DROPIN_HEADER = '# Von Quadeck verwaltet (Seite SSH). Eigene Einstellungen bitte in einer anderen Datei.\n'
+export const DROPIN_HEADER = '# Managed by Quadeck (SSH page). Put your own settings in a different file.\n'
 
 export function renderDropIn(s: SshSettings): string {
   // Keyboard-interactive is the other way to type a password: off together with it.

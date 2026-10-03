@@ -144,7 +144,7 @@ export class SystemdLauncher implements Launcher {
     const other = active.stdout.trim().split(/\s+/)[0]
     if (other) throw new HttpError(409, tr(`Es läuft bereits ein Job (${other})`, `A job is already running (${other})`))
     const env = FORWARD_ENV.filter((k) => process.env[k]).map((k) => `--setenv=${k}=${process.env[k]}`)
-    const r = await run(['systemd-run', `--unit=${unit}`, '--collect', '--quiet', `--description=Quadeck: ${localize(jobTitle(spec), 'de')}`, '--property=Type=exec', ...env, '--', ...selfArgv(), 'job', encodeSpec(spec)], {
+    const r = await run(['systemd-run', `--unit=${unit}`, '--collect', '--quiet', `--description=Quadeck: ${localize(jobTitle(spec), 'en')}`, '--property=Type=exec', ...env, '--', ...selfArgv(), 'job', encodeSpec(spec)], {
       timeoutMs: 30_000,
     })
     if (r.code !== 0) throw new Error(`systemd-run: ${r.stderr.trim()}`)

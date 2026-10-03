@@ -48,7 +48,10 @@ export interface BootBackend extends BootAdmin {
   removeBootEntry(id: string): Promise<BootState>
 }
 
-export const QUADECK_ENTRY = '# Angelegt von Quadeck'
+export const QUADECK_ENTRY = '# Created by Quadeck'
+/** Entries written by versions before 0.4. */
+const LEGACY_QUADECK_ENTRY = '# Angelegt von Quadeck'
+const isQuadeckEntry = (content: string | undefined) => !!content && (content.startsWith(QUADECK_ENTRY) || content.startsWith(LEGACY_QUADECK_ENTRY))
 
 /** Checks shared by the real machine and the demo. */
 export function entryForFlavor(state: BootState, pkg: string, read: (p: string) => string | undefined, exists: (p: string) => boolean) {
@@ -77,7 +80,7 @@ export function removableEntry(state: BootState, id: string, read: (p: string) =
   if (!e) throw new HttpError(404, tr(`Eintrag ${id} gibt es nicht`, `Entry ${id} does not exist`))
   if (e.type !== 'type1' || !e.path || !e.path.endsWith('.conf') || !/\/loader\/entries\/[^/]+$/.test(e.path)) throw new HttpError(409, tr('Nur Einträge unter loader/entries', 'Only entries under loader/entries'))
   if (e.isDefault || e.isSelected) throw new HttpError(409, tr('Standard-Eintrag und der laufende Eintrag bleiben', 'The default entry and the running entry stay'))
-  if (!e.missing.length && !read(e.path)?.startsWith(QUADECK_ENTRY)) throw new HttpError(409, tr('Nur Einträge mit fehlenden Dateien oder solche, die Quadeck angelegt hat', 'Only entries with missing files or ones Quadeck created'))
+  if (!e.missing.length && !isQuadeckEntry(read(e.path))) throw new HttpError(409, tr('Nur Einträge mit fehlenden Dateien oder solche, die Quadeck angelegt hat', 'Only entries with missing files or ones Quadeck created'))
   return e.path
 }
 

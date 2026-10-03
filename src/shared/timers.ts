@@ -156,8 +156,13 @@ export function execUnquote(word: string): string {
 
 const markerOf = (s: TimerSpec) => MANAGED_MARKER + JSON.stringify({ ...s })
 
-export function renderService(s: TimerSpec): string {
-  const lines = [markerOf(s), '# Angelegt von Quadeck – bitte über Units → Timer bearbeiten.', '[Unit]', `Description=${pct(s.description || s.name)}`]
+/** Header of the unit files Quadeck writes; files from before 0.4 carry the German one. */
+export const MANAGED_HEADER = '# Created by Quadeck – edit it under Units → Timers.'
+export const LEGACY_MANAGED_HEADER = '# Angelegt von Quadeck – bitte über Units → Timer bearbeiten.'
+
+/** `legacy`: the German wording older versions wrote – only to recognise unchanged files. */
+export function renderService(s: TimerSpec, legacy = false): string {
+  const lines = [markerOf(s), legacy ? LEGACY_MANAGED_HEADER : MANAGED_HEADER, '[Unit]', `Description=${pct(s.description || s.name)}`]
   if (s.network) lines.push('Wants=network-online.target', 'After=network-online.target')
   lines.push('', '[Service]', 'Type=oneshot')
   if (s.user) lines.push(`User=${s.user}`)
@@ -167,8 +172,8 @@ export function renderService(s: TimerSpec): string {
   return lines.join('\n') + '\n'
 }
 
-export function renderTimer(s: TimerSpec): string {
-  const lines = ['# Angelegt von Quadeck – bitte über Units → Timer bearbeiten.', '[Unit]', `Description=Zeitplan: ${pct(s.description || s.name)}`, '', '[Timer]', `OnCalendar=${s.calendar}`]
+export function renderTimer(s: TimerSpec, legacy = false): string {
+  const lines = [legacy ? LEGACY_MANAGED_HEADER : MANAGED_HEADER, '[Unit]', `Description=${legacy ? 'Zeitplan' : 'Schedule'}: ${pct(s.description || s.name)}`, '', '[Timer]', `OnCalendar=${s.calendar}`]
   if (s.persistent) lines.push('Persistent=true')
   if (s.randomDelay) lines.push(`RandomizedDelaySec=${s.randomDelay}min`)
   lines.push('', '[Install]', 'WantedBy=timers.target')
@@ -187,7 +192,7 @@ export function specFromService(content: string): TimerSpec | undefined {
 }
 
 export function overrideDropIn(calendar: string) {
-  return `# Quadeck: eigener Zeitplan\n[Timer]\nOnCalendar=\nOnCalendar=${calendar}\n`
+  return `# Quadeck: custom schedule\n[Timer]\nOnCalendar=\nOnCalendar=${calendar}\n`
 }
 
 // ---------- schedule builder ----------

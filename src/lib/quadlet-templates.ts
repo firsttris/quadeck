@@ -48,8 +48,8 @@ AutoUpdate=registry
 Volume=/srv/${n}/data:/var/lib/postgresql/data:Z
 Environment=POSTGRES_USER=app
 Environment=POSTGRES_DB=app
-# ${tr('Passwort besser als Podman-Secret', 'Better keep the password in a Podman secret')}: Secret=${n}-password,type=env,target=POSTGRES_PASSWORD
-Environment=POSTGRES_PASSWORD=bitte-ändern
+# Better keep the password in a Podman secret: Secret=${n}-password,type=env,target=POSTGRES_PASSWORD
+Environment=POSTGRES_PASSWORD=change-me
 HealthCmd=pg_isready -U app
 HealthInterval=30s
 

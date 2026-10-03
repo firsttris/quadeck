@@ -153,7 +153,8 @@ export class SystemTimers implements TimersBackend {
       const tmr = read(join(this.dir, `${spec.name}.timer`))
       out.set(spec.name, {
         spec,
-        modified: svc !== renderService(spec) || tmr !== renderTimer(spec),
+        // Unchanged = exactly what Quadeck writes now, or what an older (German) version wrote.
+        modified: !(svc === renderService(spec) && tmr === renderTimer(spec)) && !(svc === renderService(spec, true) && tmr === renderTimer(spec, true)),
       })
     }
     return out

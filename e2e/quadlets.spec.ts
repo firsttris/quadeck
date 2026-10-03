@@ -137,7 +137,7 @@ test.describe.serial('Quadlets', () => {
     const reg = page.getByRole('region', { name: 'registries.conf' })
     await reg.getByLabel('Registries für Kurznamen').fill('docker.io, quay.io')
     await expect(reg.getByLabel('registries.conf als Text')).toHaveValue(/unqualified-search-registries = \["docker.io", "quay.io"\]/)
-    await expect(reg.getByLabel('registries.conf als Text')).toHaveValue(/^# Kurznamen/)
+    await expect(reg.getByLabel('registries.conf als Text')).toHaveValue(/^# Short names/)
     await reg.getByRole('button', { name: 'Speichern …' }).click()
     await page.getByRole('dialog', { name: 'registries.conf speichern?' }).getByRole('button', { name: 'Speichern' }).click()
     await expect(page.getByText('/etc/containers/registries.conf gespeichert')).toBeVisible()

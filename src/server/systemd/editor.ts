@@ -13,6 +13,7 @@ import { validContent } from '../quadlets/backend'
 import { tr } from '~/shared/i18n'
 import type { Diagnostic, Revision } from '~/shared/quadlets'
 import { NEW_UNIT, PROTECTED_UNIT, UNIT_DIR, assertUnit, lintUnit, originOf, writablePath, type UnitDetail, type UnitFilePart, type UnitValidateResult, type UnitWriteResult } from '~/shared/unit-files'
+import { LEGACY_MANAGED_HEADER, MANAGED_HEADER } from '~/shared/timers'
 
 export interface UnitEditorAdmin {
   unitDetail(unit: string): Promise<UnitDetail>
@@ -162,7 +163,7 @@ function atomicWrite(path: string, content: string) {
   renameSync(tmp, path)
 }
 
-const isManagedTimer = (content: string | undefined) => !!content?.includes('# Angelegt von Quadeck')
+const isManagedTimer = (content: string | undefined) => !!content && (content.includes(MANAGED_HEADER) || content.includes(LEGACY_MANAGED_HEADER))
 
 export class SystemUnitEditor implements UnitEditorBackend {
   private history: UnitHistory
@@ -375,7 +376,7 @@ export class FixtureUnitEditor implements UnitEditorBackend {
       const f = fixtureFragment(u)
       this.files.set(f.path, f.content)
     }
-    this.files.set(`${UNIT_DIR}/smb.service.d/override.conf`, '# Samba nach dem Einhängen der Datenplatten starten\n[Unit]\nRequiresMountsFor=/srv/daten\n')
+    this.files.set(`${UNIT_DIR}/smb.service.d/override.conf`, '# Start Samba after the data disks are mounted\n[Unit]\nRequiresMountsFor=/srv/data\n')
   }
 
   private pathsOf(unit: string) {

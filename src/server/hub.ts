@@ -27,7 +27,7 @@ import { CaddyProvider, candidatesFromConfig } from './providers/caddy'
 import type { ServiceCandidate } from './providers/types'
 import { localHostSet, mergeServices } from './registry'
 import { notifier } from './notify'
-import { bilingual, outsideRequest } from './lang'
+import { bilingual, localize, outsideRequest } from './lang'
 
 type Source = keyof Snapshot['sources']
 export type HubEvent = { type: 'system'; data: SystemMetrics } | { type: 'state'; data: Snapshot }
@@ -177,7 +177,7 @@ export class Hub {
 
   private fail(src: Source, e: unknown) {
     const error = (e as Error).message ?? String(e)
-    if (this.sources[src].error !== error) console.warn(`[quadeck] ${src}: ${error}`)
+    if (this.sources[src].error !== error) console.warn(`[quadeck] ${src}: ${localize(error ?? '', 'en')}`)
     this.sources[src] = { ok: false, error, updatedAt: Date.now() }
   }
 
@@ -202,7 +202,7 @@ export class Hub {
         this.gpus = (this.fixtures.gpus ?? []).map((g) => ({ ...g, util: g.util !== undefined ? Math.min(1, Math.max(0, g.util + (Math.random() - 0.5) * 0.1)) : undefined }))
       } else this.gpus = await this.gpuCollector.collect()
     } catch (e) {
-      console.warn('[quadeck] gpu:', (e as Error).message)
+      console.warn('[quadeck] gpu:', localize((e as Error).message, 'en'))
       this.gpus = []
     }
   }
@@ -352,7 +352,7 @@ export class Hub {
     this.current = snap
     notifier()
       .evaluate(snap)
-      .catch((e) => console.warn('[quadeck] Benachrichtigung:', (e as Error).message))
+      .catch((e) => console.warn('[quadeck] notification:', localize((e as Error).message, 'en')))
     const json = JSON.stringify({ ...snap, system: null, host: { ...snap.host, uptimeSec: 0 } })
     if (json !== this.lastStateJson) {
       this.lastStateJson = json

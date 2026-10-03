@@ -127,3 +127,7 @@ generated notes. `quadeck update` and `install.sh` pick the newest release from 
     background work it returns both, marked, and JSON responses, the event stream and
     notifications pick the language at the end. Never call `tr()` at module top level.
   - `e2e/zz-i18n.spec.ts` walks every page in English and fails on German leftovers.
+  - Only the UI is bilingual. Everything Quadeck writes for the system is English: comments and
+    headers in files it writes (drop-ins, timers, boot entries, exports, sudoers), Git messages of
+    the Quadlet history, systemd descriptions, log lines and the CLI. Where Quadeck recognises its
+    own files again, it also accepts the German markers older versions wrote.

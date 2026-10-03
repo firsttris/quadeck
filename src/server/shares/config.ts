@@ -172,7 +172,7 @@ export function setExport(text: string, originalPath: string | undefined, spec: 
   }
   if (!spec) return text
   const body = text.replace(/\s*$/, '')
-  return `${body ? `${body}\n` : '# Von Quadeck verwaltet – Änderungen auch hier von Hand möglich\n'}${renderExport(spec)}\n`
+  return `${body ? `${body}\n` : '# Managed by Quadeck – manual changes here are fine too\n'}${renderExport(spec)}\n`
 }
 
 // ---------- status output ----------

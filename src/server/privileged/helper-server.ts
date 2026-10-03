@@ -197,6 +197,6 @@ export function serveHelper(socket: string, p: Privileged, routes = HELPER_ROUTE
   const gid = groupId(process.env.QUADECK_HELPER_GROUP || 'quadeck')
   if (gid !== undefined && process.getuid?.() === 0) chownSync(socket, 0, gid)
   chmodSync(socket, 0o660)
-  console.log(`[quadeck-helper] lauscht auf ${socket}`)
+  console.log(`[quadeck-helper] listening on ${socket}`)
   return server
 }

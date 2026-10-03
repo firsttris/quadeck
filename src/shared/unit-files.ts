@@ -99,7 +99,7 @@ const SERVICE: Record<string, KeyDoc> = {
   ExecStart: k('Befehl mit vollem Pfad. Im Override zuerst ein leeres ExecStart= setzen.', 'Command with full path. In an override, set an empty ExecStart= first.', {
     multi: true,
     form: true,
-    placeholder: '/usr/local/bin/mein-dienst --port 8080',
+    placeholder: '/usr/local/bin/my-service --port 8080',
   }),
   ExecStartPre: k('Befehle vor dem Start.', 'Commands before the start.', { multi: true, form: true }),
   User: k('Als dieser Benutzer laufen (leer = root).', 'Run as this user (empty = root).', { form: true }),
@@ -223,8 +223,6 @@ export const UNIT_TEMPLATES: { id: string; readonly label: string; suffix: strin
 export function overrideTemplate(unit: string, fragmentPath?: string) {
   const t = unitType(unit)
   const section = t === 'service' ? 'Service' : t === 'timer' ? 'Timer' : t === 'socket' ? 'Socket' : 'Unit'
-  return tr(
-    `# Override für ${unit}${fragmentPath ? ` (Original: ${fragmentPath})` : ''}\n# Nur geänderte Einstellungen eintragen.\n[${section}]\n`,
-    `# Override for ${unit}${fragmentPath ? ` (original: ${fragmentPath})` : ''}\n# Only enter changed settings.\n[${section}]\n`,
-  )
+  // File content: always English, whatever language the UI is in.
+  return `# Override for ${unit}${fragmentPath ? ` (original: ${fragmentPath})` : ''}\n# Only enter changed settings.\n[${section}]\n`
 }

@@ -442,7 +442,7 @@ export function kernelEntry(template: string, pkg: KernelFlavor): string {
   const initrd = lines.filter((l) => /^\s*initrd\s/.test(l))
   const ucode = initrd.filter((l) => /ucode/.test(l))
   const rest = lines.filter((l) => !/^\s*initrd\s/.test(l) && l.trim())
-  return ['# Angelegt von Quadeck', `title   Arch Linux (${pkg})`, `linux   /vmlinuz-${pkg}`, ...ucode, `initrd  /initramfs-${pkg}.img`, ...rest].join('\n') + '\n'
+  return ['# Created by Quadeck', `title   Arch Linux (${pkg})`, `linux   /vmlinuz-${pkg}`, ...ucode, `initrd  /initramfs-${pkg}.img`, ...rest].join('\n') + '\n'
 }
 
 /** File name of the new entry. */
