@@ -2,7 +2,7 @@ import { localeOf, msg } from '~/shared/i18n'
 import type { Snapshot } from '~/shared/types'
 
 export type PaletteAction =
-  | { kind: 'navigate'; to: '/' | '/units' | '/journal' | '/system' | '/quadlets' | '/shares' | '/ssh' | '/disks' | '/files' | '/users' | '/hardware'; search?: Record<string, string> }
+  | { kind: 'navigate'; to: '/' | '/units' | '/journal' | '/system' | '/quadlets' | '/shares' | '/backups' | '/ssh' | '/disks' | '/files' | '/users' | '/hardware'; search?: Record<string, string> }
   | { kind: 'open'; url: string }
   | { kind: 'unit'; action: 'start' | 'stop' | 'restart'; name: string }
 
@@ -69,6 +69,7 @@ export function paletteItems(s: Snapshot, readonly: boolean): PaletteItem[] {
       keywords: 'benutzer konten user account passwort gruppen sudo wheel admin sperren samba useradd users password groups lock',
       action: { kind: 'navigate', to: '/users' },
     },
+    { id: 'p:/backups', section: 'Seiten', label: 'Backups', keywords: 'backup sicherung restic snapshot wiederherstellen restore datensicherung', action: { kind: 'navigate', to: '/backups' } },
     { id: 'p:/ssh', section: 'Seiten', label: 'SSH', keywords: 'ssh schlüssel authorized_keys sshd passwort login fingerprint keys password', action: { kind: 'navigate', to: '/ssh' } },
     { id: 'p:/system', section: 'Seiten', label: 'Updates', keywords: 'system pakete upgrade pacman apt dnf aur images auto-update packages updates', action: { kind: 'navigate', to: '/system' } },
     {

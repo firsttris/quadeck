@@ -41,6 +41,7 @@ Each rule can be switched off:
 | Container unhealthy | a healthcheck reports unhealthy, or a container without a unit exited with an error, for more than 2 minutes |
 | Disk reports problems (SMART) | the [SMART verdict](disks.md#the-verdict) is warning or critical |
 | Disk almost full | usage is above the threshold (50–99 %, default 90 %) |
+| Backup failed or too old | the last [server backup](backups.md) failed, or none succeeded for a number of days (2 by default); on by default, only once backups are set up |
 | Internet slow or down | only with the automatic [speed test](network.md#speed-test): two runs in a row below the limit (relative to the usual speed or a fixed Mbit/s value) or Cloudflare not reachable; off by default |
 | Updates available (daily) | once a day from the chosen hour: package updates and new container images, only when the list differs from the last message |
 

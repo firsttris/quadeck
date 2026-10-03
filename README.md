@@ -3,7 +3,7 @@
 <img src="docs/banner.png" alt="Quadeck: the dashboard for a Podman home server" width="900">
 
 **Dashboard and server console for a Podman home server.**<br>
-Containers, Quadlets, systemd, updates, disks, shares, users, network and reverse proxy in one place.<br>
+Containers, Quadlets, systemd, updates, disks, backups, shares, users, network and reverse proxy in one place.<br>
 One binary on the host. No container, no socket mounts, nothing to configure.
 
 [![CI](https://github.com/firsttris/quadeck/actions/workflows/ci.yml/badge.svg)](https://github.com/firsttris/quadeck/actions/workflows/ci.yml)
@@ -74,6 +74,7 @@ a reverse proxy and uninstalling are in the [installation guide](docs/installati
 | ⚙️ **systemd & timers** | Edit any unit through overrides, verified before saving; timers with a schedule builder as the cron replacement |
 | ⬆️ **Updates** | pacman (with AUR), apt, dnf, zypper, apk, rpm-ostree and container images as live jobs; reboot hints and Arch news |
 | 🥾 **Boot** | Reboot, boot once into another entry, edit systemd-boot entries in a form with every kernel parameter explained (copy, test once, then make it the default), second kernel on Arch |
+| 🛟 **Backups** | restic to a second disk, NAS, B2/S3 or a REST server; what to back up suggested from the Quadlets, databases stopped meanwhile, snapshots to browse and restore |
 | 💽 **Disks & files** | SMART health with plain advice and a year of history, an fstab editor that checks every change; a file explorer that edits text files and opens photos, PDFs and videos in the browser |
 | 🌐 **Network & reverse proxy** | Interfaces, ports with the container behind them, firewall; Caddy domains in a dialog (home network only, password, compression …) |
 | 🚀 **Speed test** | This device ↔ server and server ↔ internet (Cloudflare) with a live gauge in Mbit/s and MB/s; optional daily runs with a graph and an alert when the line gets slow |
@@ -100,7 +101,8 @@ Plus: hardware details (memory slots, GPU passthrough lines, stable USB paths), 
     <td><img src="docs/screenshot-timers.png" alt="Timers: schedule, next and last run, result and command"><br><sub><b>Timers</b> – the cron replacement · <a href="docs/systemd.md">docs →</a></sub></td>
   </tr>
   <tr>
-    <td colspan="2"><img src="docs/screenshot-speedtest.png" alt="Speed test: gauges for this device and the internet, results in Mbit/s and MB/s, the graph over 30 days, automatic runs"><br><sub><b>Speed test</b> – live gauge, both units, graph over time · <a href="docs/network.md#speed-test">docs →</a></sub></td>
+    <td><img src="docs/screenshot-backups.png" alt="Backups: last run, next run, repository size and target, what is backed up with its exclusions, recent runs and the snapshots to browse"><br><sub><b>Backups</b> – restic with snapshots to browse · <a href="docs/backups.md">docs →</a></sub></td>
+    <td><img src="docs/screenshot-speedtest.png" alt="Speed test: gauges for this device and the internet, results in Mbit/s and MB/s, the graph over 30 days, automatic runs"><br><sub><b>Speed test</b> – live gauge, both units, graph over time · <a href="docs/network.md#speed-test">docs →</a></sub></td>
   </tr>
 </table>
 

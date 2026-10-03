@@ -335,6 +335,12 @@ export class FixtureMaintenance implements MaintenanceBackend {
       await say(`$ pacman -Rns --noconfirm --noprogressbar --color never -- ${spec.flavor}`)
       await say(`removing ${spec.flavor}...`)
       d.installed = d.installed.filter((p) => p.name !== spec.flavor)
+    } else if (spec.kind === 'backup-restore') {
+      await say(`$ restic restore ${spec.snapshot} --target ${spec.target ?? '/'} ${spec.paths.map((p) => `--include ${p}`).join(' ')}`)
+      for (const u of spec.target ? [] : spec.stop) await say(`systemctl stop ${u}`)
+      await say(`restoring <Snapshot ${spec.snapshot.slice(0, 8)}> to ${spec.target ?? '/'}`)
+      await say('Summary: Restored 1206 files/dirs (6.214 GiB) in 0:41')
+      for (const u of spec.target ? [] : spec.stop) await say(`systemctl start ${u}`)
     } else if (spec.kind === 'install') {
       const pkgs = FEATURES[spec.feature].packages.pacman
       await say(`$ pacman -S --needed --noconfirm -- ${pkgs.join(' ')}`)

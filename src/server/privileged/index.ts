@@ -18,6 +18,8 @@ import { FixtureBoot, SystemBoot } from '../boot/backend'
 import { FixtureUsers, SystemUsers } from '../users/backend'
 import { FixtureHardware, SystemHardware } from '../hardware/collect'
 import { CaddyManager, FixtureCaddyHost, SystemCaddyHost } from '../caddy/backend'
+import { FixtureBackup, SystemBackup, quadletContents } from '../backup/backend'
+import { selfArgv } from '../packages/jobs'
 import { bilingual } from '../lang'
 
 export function unlockMode(helperProcess: boolean): UnlockMode {
@@ -45,6 +47,7 @@ export function privileged(): Privileged {
   const fixtures = config().fixturesDir
   const files = fixtures ? new FixtureFiles(fixtures) : new SystemFiles()
   const maint = fixtures ? new FixtureMaintenance(fixtures, files as FixtureFiles) : new SystemMaintenance()
+  const podman = fixtures ? new FixturePodmanAdmin(fixtures) : new SystemPodmanAdmin()
   instance =
     isRoot || fixtures
       ? // In one process, privileged work runs as if it were the helper (see bilingual()).
@@ -53,7 +56,7 @@ export function privileged(): Privileged {
             createGate(false),
             config().podmanSocket,
             maint,
-            fixtures ? new FixturePodmanAdmin(fixtures) : new SystemPodmanAdmin(),
+            podman,
             fixtures ? new FixtureShares(fixtures) : new SystemShares(),
             fixtures ? new FixtureSsh(fixtures) : new SystemSsh(),
             fixtures ? new FixtureSmart(fixtures) : new SystemSmart(),
@@ -66,6 +69,7 @@ export function privileged(): Privileged {
             fixtures ? new FixtureUsers(fixtures) : new SystemUsers(),
             fixtures ? new FixtureHardware(fixtures) : new SystemHardware(),
           new CaddyManager(fixtures ? new FixtureCaddyHost(fixtures) : new SystemCaddyHost()),
+            fixtures ? new FixtureBackup(quadletContents(podman)) : new SystemBackup({ self: selfArgv(), quadlets: quadletContents(podman) }),
           ),
         )
       : new HelperClient(config().helperSocket)

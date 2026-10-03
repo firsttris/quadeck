@@ -67,6 +67,8 @@ await p.goto(base + '/system')
 await shot('system')
 await p.goto(base + '/system?tab=boot')
 await shot('boot')
+await p.goto(base + '/backups')
+await shot('backups', { full: true })
 await p.goto(base + '/network?tab=proxy')
 await shot('proxy')
 // Speed test: one internet run (the demo answers in a few seconds), the seeded graph below.

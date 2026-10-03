@@ -164,6 +164,12 @@ export class Hub {
       const n = notifier().settings()
       if (await speedTick({ demo: !!this.fixtures, rule: { enabled: !!n.rules.internet, speedMode: n.speedMode, speedPercent: n.speedPercent, speedMbit: n.speedMbit } })) this.publish()
     })
+    // Backups: the last run, for the notification rule (reads files, no restic).
+    const backup = every(5 * 60_000, async () => {
+      await this.collectBackup()
+      this.publish()
+    })
+    setTimeout(() => void backup(), 10_000)
     setTimeout(() => void updates(), 60_000)
     if (this.fixtures) {
       seedFixtureHistory(db())
@@ -288,6 +294,24 @@ export class Hub {
     }
   }
 
+  private backup: Snapshot['backup']
+
+  async collectBackup() {
+    try {
+      const st = await this.priv.backupState()
+      if (!st.plan) {
+        this.backup = undefined
+        return
+      }
+      const backups = st.runs.filter((r) => r.kind === 'backup')
+      const last = backups[0]
+      // Without any run yet, the clock starts when the plan was first seen.
+      this.backup = { since: this.backup?.since ?? Date.now(), lastAt: last?.endedAt, lastStatus: last?.status, lastMessage: last?.message, lastOkAt: backups.find((r) => r.status !== 'failed')?.endedAt }
+    } catch {
+      // helper not reachable: keep the last state
+    }
+  }
+
   /** After a change on the mounts page. */
   async refreshDisks() {
     await this.collectDisks()
@@ -364,6 +388,7 @@ export class Hub {
       sources: this.sources,
       readonly: config().readonly,
       speed: speedSnapshot(),
+      ...(this.backup ? { backup: this.backup } : {}),
     }
   }
 

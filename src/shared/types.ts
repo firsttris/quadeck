@@ -174,6 +174,8 @@ export interface Snapshot {
   readonly: boolean
   /** The last automatic internet check: a confirmed problem (measured twice) for the notification. */
   speed?: { alert?: 'slow' | 'down'; down?: number; expected?: number; detail?: string; at: number }
+  /** Server backups, when set up: the last run and the last successful one. */
+  backup?: { lastAt?: number; lastStatus?: 'ok' | 'warning' | 'failed'; lastMessage?: string; lastOkAt?: number; since: number }
 }
 
 export interface JournalEntry {

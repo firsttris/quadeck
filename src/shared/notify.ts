@@ -31,7 +31,7 @@ export interface Channel {
   to?: string
 }
 
-export type RuleKey = 'unit-failed' | 'service-down' | 'container-unhealthy' | 'smart' | 'disk-full' | 'updates' | 'internet'
+export type RuleKey = 'unit-failed' | 'service-down' | 'container-unhealthy' | 'smart' | 'disk-full' | 'updates' | 'internet' | 'backup'
 
 export interface NotifySettings {
   channels: Channel[]
@@ -46,6 +46,8 @@ export interface NotifySettings {
   speedMode: 'relative' | 'fixed'
   speedPercent: number
   speedMbit: number
+  /** Backup: report when none succeeded for this many days. */
+  backupDays: number
 }
 
 export type Severity = 'critical' | 'warning' | 'info' | 'ok'
@@ -81,7 +83,7 @@ export interface NotifyState {
 
 export const MASK = '••••••••'
 
-export const RULE_KEYS: RuleKey[] = ['unit-failed', 'service-down', 'container-unhealthy', 'smart', 'disk-full', 'updates', 'internet']
+export const RULE_KEYS: RuleKey[] = ['unit-failed', 'service-down', 'container-unhealthy', 'smart', 'disk-full', 'updates', 'internet', 'backup']
 
 export const rules = (): { key: RuleKey; label: string; help: string }[] => [
   {
@@ -102,6 +104,7 @@ export const rules = (): { key: RuleKey; label: string; help: string }[] => [
   { key: 'smart', label: msg('notify_rule_smart'), help: msg('notify_rule_smartHelp') },
   { key: 'disk-full', label: msg('notify_rule_diskFull'), help: msg('notify_rule_diskFullHelp') },
   { key: 'internet', label: msg('notify_rule_internet'), help: msg('notify_rule_internetHelp') },
+  { key: 'backup', label: msg('notify_rule_backup'), help: msg('notify_rule_backupHelp') },
   {
     key: 'updates',
     label: msg('notify_rule_updates'),
@@ -157,17 +160,18 @@ export const recipients = (to: string | undefined) =>
 
 export const defaultSettings = (): NotifySettings => ({
   channels: [],
-  rules: { 'unit-failed': true, 'service-down': true, 'container-unhealthy': true, smart: true, 'disk-full': true, updates: true, internet: false },
+  rules: { 'unit-failed': true, 'service-down': true, 'container-unhealthy': true, smart: true, 'disk-full': true, updates: true, internet: false, backup: true },
   diskThreshold: 90,
   recovery: true,
   updatesHour: 9,
   speedMode: 'relative',
   speedPercent: 50,
   speedMbit: 100,
+  backupDays: 2,
 })
 
 /** How long a problem must persist before it is reported. */
-export const DELAY_MS: Record<RuleKey, number> = { 'unit-failed': 0, 'service-down': 120_000, 'container-unhealthy': 120_000, smart: 0, 'disk-full': 0, updates: 0, internet: 0 }
+export const DELAY_MS: Record<RuleKey, number> = { 'unit-failed': 0, 'service-down': 120_000, 'container-unhealthy': 120_000, smart: 0, 'disk-full': 0, updates: 0, internet: 0, backup: 0 }
 
 // ---------- validation ----------
 
@@ -241,6 +245,7 @@ export function parseSettings(v: unknown, previous: NotifySettings): NotifySetti
   const hour = Number(o.updatesHour)
   const percent = Number(o.speedPercent)
   const mbit = Number(o.speedMbit)
+  const days = Number(o.backupDays)
   return {
     channels,
     rules,
@@ -250,6 +255,7 @@ export function parseSettings(v: unknown, previous: NotifySettings): NotifySetti
     speedMode: o.speedMode === 'fixed' ? 'fixed' : 'relative',
     speedPercent: Number.isInteger(percent) && percent >= 10 && percent <= 90 ? percent : 50,
     speedMbit: Number.isFinite(mbit) && mbit >= 1 && mbit <= 100_000 ? Math.round(mbit) : 100,
+    backupDays: Number.isInteger(days) && days >= 1 && days <= 60 ? days : 2,
   }
 }
 
@@ -329,6 +335,12 @@ export function currentAlerts(snap: Snapshot, s: NotifySettings, active: Set<str
       subject: msg('notify_subject_internet'),
       detail: snap.speed.detail,
     })
+  if (on('backup') && snap.backup) {
+    const b = snap.backup
+    const age = (Date.now() - (b.lastOkAt ?? b.since)) / 86_400_000
+    if (b.lastStatus === 'failed') alerts.push({ key: 'backup', rule: 'backup', severity: 'warning', title: msg('backup_alert_failed', { message: b.lastMessage ?? '' }), subject: msg('notify_subject_backup') })
+    else if (age >= s.backupDays) alerts.push({ key: 'backup', rule: 'backup', severity: 'warning', title: b.lastOkAt ? msg('backup_alert_old', { days: Math.floor(age) }) : msg('backup_alert_never'), subject: msg('notify_subject_backup') })
+  }
   return { alerts, unknown }
 }
 

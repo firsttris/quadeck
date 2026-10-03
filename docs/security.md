@@ -73,6 +73,7 @@ as root in one process (installations from before the helper).
 | files | the data areas only | conflicts refused before the job; text files: hash check, written next to the file and renamed over it |
 | reverse proxy | the Caddyfile (`QUADECK_CADDYFILE`, a path picked in the UI, the Caddy Quadlet's mount, or `/etc/caddy/Caddyfile`) | admin API `/adapt` or `caddy validate`, history in `/var/lib/quadeck-helper/caddy-history`, reload, restore when the reload fails |
 | boot | systemd-boot entries in `loader/entries`; EFI variables via `bootctl` (default, timeout, one-time entry) | entry check (kernel, files, `root=`), written next to the file and renamed, history in `/var/lib/quadeck-helper/boot-history`; default and running entry never edited in place |
+| backups | `quadeck-backup(-check).service`/`.timer` in `/etc/systemd/system`; the plan, password and credentials in `/var/lib/quadeck-helper/backup` | plan checked twice (web app and helper): absolute paths, target not inside a backed-up folder and its parent existing, credentials only the names the target needs and without newlines; an existing repository is never initialised again |
 | package config files | the live file next to a `.pacnew`/`.pacsave`/`.rpmnew`/`.dpkg-dist` | both versions shown before keeping, replacing or merging; `sshd -t`/`testparm` where they apply |
 
 Nothing is written outside these places. Quadeck's own units are read-only in the editor.
@@ -84,9 +85,11 @@ Nothing is written outside these places. Quadeck's own units are read-only in th
   setup token.
 - `/var/lib/quadeck-helper` (root, 0700): the Quadlet git repository, the history of unit files,
   `/etc/fstab`, boot entries and the Caddyfile (`unit-history`, `fstab-history`, `boot-history`,
-  `caddy-history`) and `caddy.json` (the Caddyfile path picked in the UI).
+  `caddy-history`), `caddy.json` (the Caddyfile path picked in the UI) and `backup/` (0700: the
+  restic repository password, the target's credentials, the backup plan and run records).
 - `/var/cache/quadeck` (root): the copy of the pacman database for update checks.
-- Notification tokens are returned masked by the API and never logged.
+- Notification tokens are returned masked by the API and never logged. The backup password is
+  shown only after the unlock; the target's credentials never leave the helper.
 
 ## Read-only mode
 

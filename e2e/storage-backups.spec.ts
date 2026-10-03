@@ -1,0 +1,130 @@
+import { expect, test, type Page } from '@playwright/test'
+
+const PASSWORD = 'e2e-password-123'
+
+async function login(page: Page) {
+  await page.goto('/login')
+  await page.getByLabel('Passwort').fill(PASSWORD)
+  await page.getByRole('button', { name: 'Anmelden' }).click()
+  await expect(page).toHaveURL('/')
+}
+
+async function unlock(page: Page) {
+  const dialog = page.getByRole('dialog', { name: 'Aktionen entsperren' })
+  await expect(dialog).toBeVisible()
+  await dialog.getByLabel('Passwort').fill(PASSWORD)
+  await dialog.getByRole('button', { name: 'Entsperren' }).click()
+  await expect(dialog).toBeHidden()
+}
+
+test('backups: status, run now, password, plan from the Quadlets', async ({ page }) => {
+  await login(page)
+  await page.getByRole('navigation').getByRole('link', { name: 'Backups' }).click()
+  await expect(page).toHaveURL('/backups')
+  const status = page.getByRole('region', { name: 'Status' })
+  await expect(status).toContainText('/mnt/backup/restic')
+  await expect(status).toContainText('15 Snapshots')
+  await expect(page.getByTestId('snapshot')).toHaveCount(15)
+  const plan = page.getByRole('region', { name: 'Plan' })
+  await expect(plan).toContainText('/srv/immich/upload')
+  await expect(plan).toContainText('Volume caddy-data')
+  await expect(plan).toContainText('immich.service, immich-ml.service')
+  await expect(plan).toContainText('täglich 02:00')
+  // A run with unreadable files: the messages fold out.
+  const runs = page.getByRole('region', { name: 'Letzte Läufe' })
+  await runs.getByRole('button', { name: '2 Meldungen' }).click()
+  await expect(runs).toContainText('permission denied')
+
+  await page.getByRole('button', { name: 'Jetzt sichern' }).click()
+  await unlock(page)
+  await expect(page.getByRole('status')).toContainText('Backup gestartet')
+  await expect(page.getByRole('button', { name: 'Jetzt sichern' })).toBeDisabled()
+  await expect(page.getByTestId('snapshot')).toHaveCount(16, { timeout: 15_000 })
+
+  await page.getByRole('button', { name: 'Passwort anzeigen …' }).click()
+  const pw = page.getByRole('dialog', { name: 'Repository-Passwort' })
+  await expect(pw.getByTestId('backup-password')).toHaveText(/^demo-/)
+  await pw.getByRole('button', { name: 'Schließen' }).click()
+
+  // The plan: suggestions from the Quadlets, change the time.
+  await page.getByRole('button', { name: 'Plan bearbeiten …' }).click()
+  const dlg = page.getByRole('dialog', { name: 'Backup-Plan bearbeiten' })
+  const what = dlg.getByRole('list', { name: '2 · Was' })
+  await expect(what.getByRole('checkbox', { name: /\/mnt\/storage\/media/ })).not.toBeChecked()
+  await expect(what).toContainText('nur lesend')
+  await expect(dlg.getByRole('list', { name: 'Was die Apps selbst neu aufbauen' })).toContainText('/srv/immich/upload/thumbs')
+  await dlg.getByRole('button', { name: 'Größe messen' }).click()
+  await expect(dlg).toContainText('davon ausgelassene Ordner')
+  await dlg.getByLabel('Uhrzeit').fill('03:30')
+  await dlg.getByRole('button', { name: 'Speichern' }).click()
+  await expect(dlg).toBeHidden()
+  await expect(page.getByRole('status')).toContainText('Backup-Plan gespeichert')
+  await expect(plan).toContainText('täglich 03:30')
+})
+
+test('backups: browse a snapshot, see what changed, restore into a folder', async ({ page }) => {
+  await login(page)
+  await page.goto('/backups')
+  await page.getByTestId('snapshot').first().getByRole('button', { name: 'Durchsuchen' }).click()
+  await expect(page).toHaveURL(/\/backups\?snapshot=/)
+  const files = page.getByRole('region', { name: 'Dateien im Snapshot' })
+  await expect(page.getByTestId('backup-entry')).toHaveCount(2) // the common start of the paths is /
+  await files.getByRole('button', { name: 'srv/' }).click()
+  await files.getByRole('button', { name: 'immich/' }).click()
+  await files.getByRole('button', { name: 'upload/' }).click()
+  await files.getByRole('button', { name: 'library/' }).click()
+  await expect(page.getByRole('navigation', { name: 'Pfad' })).toContainText('srv/immich/upload/library')
+  const gone = page.getByTestId('backup-entry').filter({ hasText: '2023-urlaub' })
+  await expect(gone).toContainText('gelöscht')
+  await expect(page.getByTestId('backup-entry').filter({ hasText: 'notes.md' })).toContainText('geändert')
+
+  await gone.getByRole('checkbox').check()
+  const restore = page.getByRole('region', { name: 'Wiederherstellen' })
+  await expect(restore).toContainText('1 ausgewählt')
+  await expect(restore.getByLabel('Zielordner')).toHaveValue(/^\/srv\/restore\/\d{4}-\d\d-\d\d-\d{4}$/)
+  await restore.getByRole('button', { name: 'Wiederherstellen …' }).click()
+  await unlock(page)
+  const job = page.getByRole('dialog', { name: /wiederherstellen/ })
+  await expect(job).toContainText('restic restore')
+  await expect(job).toContainText('--include /srv/immich/upload/library/2023-urlaub')
+  await expect(job).toContainText('Restored 1206 files')
+  await job.getByRole('button', { name: 'Schließen' }).click()
+
+  // In place asks first and names the containers it stops.
+  await gone.getByRole('checkbox').check()
+  await restore.getByRole('radio', { name: /An Ort und Stelle/ }).check()
+  await expect(restore).toContainText('immich.service')
+  await restore.getByRole('button', { name: 'Wiederherstellen …' }).click()
+  await expect(page.getByRole('dialog', { name: 'An Ort und Stelle wiederherstellen?' })).toContainText('überschrieben')
+  await page.getByRole('dialog', { name: 'An Ort und Stelle wiederherstellen?' }).getByRole('button', { name: 'Abbrechen' }).click()
+
+  await page.getByRole('button', { name: '← Backups' }).click()
+  await expect(page).toHaveURL('/backups')
+})
+
+test('backups: switch off, set up again; the notification rule', async ({ page }) => {
+  await login(page)
+  await page.goto('/backups')
+  await page.getByRole('button', { name: 'Backups ausschalten' }).click()
+  await page.getByRole('dialog', { name: 'Backups ausschalten?' }).getByRole('button', { name: 'Backups ausschalten' }).click()
+  await unlock(page)
+  await expect(page.getByRole('region', { name: 'Backups einrichten' })).toContainText('Noch keine Backups eingerichtet')
+
+  await page.getByRole('button', { name: 'Backup einrichten …' }).click()
+  const dlg = page.getByRole('dialog', { name: 'Server-Backup einrichten' })
+  // Preselected from the Quadlets: data folders, not the read-only media.
+  await expect(dlg.getByRole('checkbox', { name: /\/srv\/jellyfin\/config/ })).toBeChecked()
+  await dlg.getByRole('radio', { name: /Backblaze B2/ }).check()
+  await dlg.getByLabel('Adresse').fill('my-bucket:server')
+  await dlg.getByRole('button', { name: 'Einrichten' }).click()
+  await expect(dlg.getByRole('alert')).toContainText('B2_ACCOUNT_ID')
+  await dlg.getByLabel('B2_ACCOUNT_ID').fill('0012345')
+  await dlg.getByLabel('B2_ACCOUNT_KEY').fill('K001secret')
+  await dlg.getByRole('button', { name: 'Einrichten' }).click()
+  await expect(dlg).toBeHidden()
+  await expect(page.getByRole('region', { name: 'Status' })).toContainText('b2:my-bucket:server')
+
+  await page.goto('/notifications')
+  await expect(page.getByText('Backup fehlgeschlagen oder zu alt')).toBeVisible()
+  await expect(page.getByLabel('Tage ohne Backup')).toHaveValue('2')
+})

@@ -63,7 +63,7 @@ function AppLayout() {
   )
 }
 
-type NavItem = { to: '/' | '/units' | '/journal' | '/disks' | '/files' | '/shares' | '/ssh' | '/network' | '/system' | '/notifications' | '/users'; label: string; glyph: string; badge: number }
+type NavItem = { to: '/' | '/units' | '/journal' | '/disks' | '/files' | '/shares' | '/backups' | '/ssh' | '/network' | '/system' | '/notifications' | '/users'; label: string; glyph: string; badge: number }
 
 function useNav(): { title?: string; items: NavItem[] }[] {
   const { snapshot } = useLive()
@@ -84,6 +84,7 @@ function useNav(): { title?: string; items: NavItem[] }[] {
         { to: '/disks', label: m.shell_nav_disks(), glyph: 'disk', badge: smart },
         { to: '/files', label: m.shell_nav_files(), glyph: 'file', badge: 0 },
         { to: '/shares', label: m.shell_nav_shares(), glyph: 'folder', badge: 0 },
+        { to: '/backups', label: 'Backups', glyph: 'shield', badge: snapshot.backup?.lastStatus === 'failed' ? 1 : 0 },
       ],
     },
     {

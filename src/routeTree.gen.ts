@@ -13,6 +13,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppBackupsRouteImport } from './routes/_app/backups'
 import { Route as AppDisksRouteImport } from './routes/_app/disks'
 import { Route as AppFilesRouteImport } from './routes/_app/files'
 import { Route as AppHardwareRouteImport } from './routes/_app/hardware'
@@ -36,6 +37,7 @@ import { Route as ApiUnlockRouteImport } from './routes/api/unlock'
 import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
 import { Route as ApiAuthSetupRouteImport } from './routes/api/auth/setup'
+import { Route as ApiBackupIndexRouteImport } from './routes/api/backup/index'
 import { Route as ApiBootIndexRouteImport } from './routes/api/boot/index'
 import { Route as ApiCaddyIndexRouteImport } from './routes/api/caddy/index'
 import { Route as ApiDisksSmartRouteImport } from './routes/api/disks/smart'
@@ -92,6 +94,11 @@ const SetupRoute = SetupRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppBackupsRoute = AppBackupsRouteImport.update({
+  id: '/backups',
+  path: '/backups',
   getParentRoute: () => AppRoute,
 } as any)
 const AppDisksRoute = AppDisksRouteImport.update({
@@ -207,6 +214,11 @@ const ApiAuthLogoutRoute = ApiAuthLogoutRouteImport.update({
 const ApiAuthSetupRoute = ApiAuthSetupRouteImport.update({
   id: '/api/auth/setup',
   path: '/api/auth/setup',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiBackupIndexRoute = ApiBackupIndexRouteImport.update({
+  id: '/api/backup/',
+  path: '/api/backup/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiBootIndexRoute = ApiBootIndexRouteImport.update({
@@ -404,6 +416,7 @@ export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/backups': typeof AppBackupsRoute
   '/disks': typeof AppDisksRoute
   '/files': typeof AppFilesRoute
   '/hardware': typeof AppHardwareRoute
@@ -446,6 +459,7 @@ export interface FileRoutesByFullPath {
   '/api/system/overview': typeof ApiSystemOverviewRoute
   '/api/system/remove-preview': typeof ApiSystemRemovePreviewRoute
   '/api/system/updates': typeof ApiSystemUpdatesRoute
+  '/api/backup/': typeof ApiBackupIndexRoute
   '/api/boot/': typeof ApiBootIndexRoute
   '/api/caddy/': typeof ApiCaddyIndexRoute
   '/api/files/': typeof ApiFilesIndexRoute
@@ -469,6 +483,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/backups': typeof AppBackupsRoute
   '/disks': typeof AppDisksRoute
   '/files': typeof AppFilesRoute
   '/hardware': typeof AppHardwareRoute
@@ -512,6 +527,7 @@ export interface FileRoutesByTo {
   '/api/system/overview': typeof ApiSystemOverviewRoute
   '/api/system/remove-preview': typeof ApiSystemRemovePreviewRoute
   '/api/system/updates': typeof ApiSystemUpdatesRoute
+  '/api/backup': typeof ApiBackupIndexRoute
   '/api/boot': typeof ApiBootIndexRoute
   '/api/caddy': typeof ApiCaddyIndexRoute
   '/api/files': typeof ApiFilesIndexRoute
@@ -537,6 +553,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
+  '/_app/backups': typeof AppBackupsRoute
   '/_app/disks': typeof AppDisksRoute
   '/_app/files': typeof AppFilesRoute
   '/_app/hardware': typeof AppHardwareRoute
@@ -580,6 +597,7 @@ export interface FileRoutesById {
   '/api/system/overview': typeof ApiSystemOverviewRoute
   '/api/system/remove-preview': typeof ApiSystemRemovePreviewRoute
   '/api/system/updates': typeof ApiSystemUpdatesRoute
+  '/api/backup/': typeof ApiBackupIndexRoute
   '/api/boot/': typeof ApiBootIndexRoute
   '/api/caddy/': typeof ApiCaddyIndexRoute
   '/api/files/': typeof ApiFilesIndexRoute
@@ -606,6 +624,7 @@ export interface FileRouteTypes {
     | '/'
     | '/login'
     | '/setup'
+    | '/backups'
     | '/disks'
     | '/files'
     | '/hardware'
@@ -648,6 +667,7 @@ export interface FileRouteTypes {
     | '/api/system/overview'
     | '/api/system/remove-preview'
     | '/api/system/updates'
+    | '/api/backup/'
     | '/api/boot/'
     | '/api/caddy/'
     | '/api/files/'
@@ -671,6 +691,7 @@ export interface FileRouteTypes {
   to:
     | '/login'
     | '/setup'
+    | '/backups'
     | '/disks'
     | '/files'
     | '/hardware'
@@ -714,6 +735,7 @@ export interface FileRouteTypes {
     | '/api/system/overview'
     | '/api/system/remove-preview'
     | '/api/system/updates'
+    | '/api/backup'
     | '/api/boot'
     | '/api/caddy'
     | '/api/files'
@@ -738,6 +760,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/login'
     | '/setup'
+    | '/_app/backups'
     | '/_app/disks'
     | '/_app/files'
     | '/_app/hardware'
@@ -781,6 +804,7 @@ export interface FileRouteTypes {
     | '/api/system/overview'
     | '/api/system/remove-preview'
     | '/api/system/updates'
+    | '/api/backup/'
     | '/api/boot/'
     | '/api/caddy/'
     | '/api/files/'
@@ -835,6 +859,7 @@ export interface RootRouteChildren {
   ApiSystemOverviewRoute: typeof ApiSystemOverviewRoute
   ApiSystemRemovePreviewRoute: typeof ApiSystemRemovePreviewRoute
   ApiSystemUpdatesRoute: typeof ApiSystemUpdatesRoute
+  ApiBackupIndexRoute: typeof ApiBackupIndexRoute
   ApiBootIndexRoute: typeof ApiBootIndexRoute
   ApiCaddyIndexRoute: typeof ApiCaddyIndexRoute
   ApiFilesIndexRoute: typeof ApiFilesIndexRoute
@@ -884,6 +909,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/backups': {
+      id: '/_app/backups'
+      path: '/backups'
+      fullPath: '/backups'
+      preLoaderRoute: typeof AppBackupsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/disks': {
@@ -1045,6 +1077,13 @@ declare module '@tanstack/react-router' {
       path: '/api/auth/setup'
       fullPath: '/api/auth/setup'
       preLoaderRoute: typeof ApiAuthSetupRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/backup/': {
+      id: '/api/backup/'
+      path: '/api/backup'
+      fullPath: '/api/backup/'
+      preLoaderRoute: typeof ApiBackupIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/boot/': {
@@ -1317,6 +1356,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface AppRouteChildren {
+  AppBackupsRoute: typeof AppBackupsRoute
   AppDisksRoute: typeof AppDisksRoute
   AppFilesRoute: typeof AppFilesRoute
   AppHardwareRoute: typeof AppHardwareRoute
@@ -1334,6 +1374,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppBackupsRoute: AppBackupsRoute,
   AppDisksRoute: AppDisksRoute,
   AppFilesRoute: AppFilesRoute,
   AppHardwareRoute: AppHardwareRoute,
@@ -1385,6 +1426,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSystemOverviewRoute: ApiSystemOverviewRoute,
   ApiSystemRemovePreviewRoute: ApiSystemRemovePreviewRoute,
   ApiSystemUpdatesRoute: ApiSystemUpdatesRoute,
+  ApiBackupIndexRoute: ApiBackupIndexRoute,
   ApiBootIndexRoute: ApiBootIndexRoute,
   ApiCaddyIndexRoute: ApiCaddyIndexRoute,
   ApiFilesIndexRoute: ApiFilesIndexRoute,
