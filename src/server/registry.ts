@@ -139,9 +139,9 @@ function resolveIcon(explicit: string | undefined, candidates: string[], index: 
 }
 
 function containerHealth(c: Container): HttpHealth | undefined {
-  if (c.state !== 'running') return { health: 'bad', note: c.state === 'exited' ? msg('registry_containerStopped') : `Container ${c.state}` }
-  if (c.health === 'unhealthy') return { health: 'bad', note: msg('registry_healthcheckFailing') }
-  if (c.health === 'starting') return { health: 'warn', note: msg('registry_healthcheckStarting') }
+  if (c.state !== 'running') return { health: 'bad', note: c.state === 'exited' ? msg('services_health_containerStopped') : `Container ${c.state}` }
+  if (c.health === 'unhealthy') return { health: 'bad', note: msg('services_health_checkFailing') }
+  if (c.health === 'starting') return { health: 'warn', note: msg('services_health_checkStarting') }
   if (c.health === 'healthy') return { health: 'ok', note: 'healthy' }
   return undefined
 }
@@ -264,7 +264,7 @@ export function mergeServices(input: MergeInput): ServiceGroup[] {
     .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b, 'de'))
     .map(([name, items]) => {
       const sources = new Set(items.map((i) => i.source))
-      const note = sources.size === 1 && sources.has('manual') ? msg('registry_addedManually') : sources.has('manual') ? msg('registry_detectedManual') : msg('registry_fromCaddyQuadlets')
+      const note = sources.size === 1 && sources.has('manual') ? msg('services_source_manual') : sources.has('manual') ? msg('services_source_detectedManual') : msg('services_source_detected')
       return { name, note, items: items.sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || a.name.localeCompare(b.name, 'de')) }
     })
 }

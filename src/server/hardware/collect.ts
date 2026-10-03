@@ -169,7 +169,7 @@ export function readHwmon(root = '/sys/class/hwmon'): SensorRaw[] {
       if (kind === 'temp' && (raw <= -40_000 || raw >= 150_000)) continue // unconnected sensor
       out.push({
         chip,
-        label: label ?? (kind === 'fan' ? msg('hardware_fan', { value: m[2] }) : kind === 'temp' ? msg('hardware_temperature', { value: m[2] }) : `${kind} ${m[2]}`),
+        label: label ?? (kind === 'fan' ? msg('hardware_sensor_fan', { index: m[2] }) : kind === 'temp' ? msg('hardware_sensor_temperature', { index: m[2] }) : `${kind} ${m[2]}`),
         kind,
         value: raw / scale,
         max: extra('max'),

@@ -16,7 +16,7 @@ import { m } from '~/paraglide/messages'
 
 export const Route = createFileRoute('/_app/users')({
   validateSearch: (s: Record<string, unknown>): { user?: string } => ({ user: typeof s.user === 'string' && USER_NAME.test(s.user) ? s.user : undefined }),
-  head: () => ({ meta: [{ title: msg('page__app_users_usersQuadeck') }] }),
+  head: () => ({ meta: [{ title: msg('page_title_users') }] }),
   component: UsersPage,
 })
 

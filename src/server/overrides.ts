@@ -21,12 +21,12 @@ const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice
 /** Empty fields mean "follow discovery". */
 export function validateOverride(body: Record<string, unknown>): OverrideInput {
   const key = str(body.key, 200)
-  if (!KEY.test(key)) throw new HttpError(400, msg('overrides_invalidServiceKey'))
-  if (key.startsWith('manual:')) throw new HttpError(400, msg('overrides_customLinksEditedDirectly'))
+  if (!KEY.test(key)) throw new HttpError(400, msg('services_error_invalidKey'))
+  if (key.startsWith('manual:')) throw new HttpError(400, msg('services_error_manualLink'))
   const url = str(body.url, 500)
-  if (url && !safeUrl(url)) throw new HttpError(400, msg('overrides_urlMustStartHttpHttps'))
+  if (url && !safeUrl(url)) throw new HttpError(400, msg('notify_error_urlScheme'))
   const icon = str(body.icon, 90).toLowerCase()
-  if (icon && !ICON.test(icon)) throw new HttpError(400, msg('overrides_iconSlugFromDashboardIcons'))
+  if (icon && !ICON.test(icon)) throw new HttpError(400, msg('services_error_iconSlug'))
   return {
     key,
     name: str(body.name, 60) || undefined,
@@ -48,7 +48,7 @@ export function saveOverride(o: OverrideInput) {
 }
 
 export function setHidden(key: string, hidden: boolean) {
-  if (!KEY.test(key)) throw new HttpError(400, msg('overrides_invalidServiceKey'))
+  if (!KEY.test(key)) throw new HttpError(400, msg('services_error_invalidKey'))
   db().insert(schema.serviceOverrides).values({ serviceKey: key, hidden }).onConflictDoUpdate({ target: schema.serviceOverrides.serviceKey, set: { hidden } }).run()
 }
 

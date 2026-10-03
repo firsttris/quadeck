@@ -85,8 +85,8 @@ export function setSmbShare(text: string, original: string | undefined, spec: Sm
   const sections = smbSections(text)
   const find = (n: string) => sections.find((s) => s.name.toLowerCase() === n.toLowerCase())
   const sec = original ? find(original) : undefined
-  if (original && !sec) throw new Error(msg('shares_shareNotFound', { original }))
-  if (spec && (!sec || sec.name.toLowerCase() !== spec.name.toLowerCase()) && find(spec.name)) throw new Error(msg('shares_shareAlreadyExists', { name: spec.name }))
+  if (original && !sec) throw new Error(msg('shares_error_smbNotFound', { name: original }))
+  if (spec && (!sec || sec.name.toLowerCase() !== spec.name.toLowerCase()) && find(spec.name)) throw new Error(msg('shares_error_smbExists', { name: spec.name }))
 
   if (!sec) {
     if (!spec) return text
@@ -162,8 +162,8 @@ export function setExport(text: string, originalPath: string | undefined, spec: 
   const lines = text.split('\n')
   const entries = parseExportsFile(text)
   const cur = originalPath ? entries.find((e) => e.path === originalPath) : undefined
-  if (originalPath && !cur) throw new Error(msg('shares_exportNotFound', { originalPath }))
-  if (spec && spec.path !== originalPath && entries.some((e) => e.path === spec.path)) throw new Error(msg('shares_alreadyExportedHere', { path: spec.path }))
+  if (originalPath && !cur) throw new Error(msg('shares_error_exportNotFound', { path: originalPath }))
+  if (spec && spec.path !== originalPath && entries.some((e) => e.path === spec.path)) throw new Error(msg('shares_error_exportExists', { path: spec.path }))
   if (cur) {
     let end = cur.line
     while (lines[end]!.replace(/\r$/, '').endsWith('\\')) end++

@@ -82,25 +82,25 @@ export const RULE_KEYS: RuleKey[] = ['unit-failed', 'service-down', 'container-u
 export const rules = (): { key: RuleKey; label: string; help: string }[] => [
   {
     key: 'unit-failed',
-    label: msg('notify_serviceTimerFailed'),
-    help: msg('notify_systemdUnitContainerServiceState'),
+    label: msg('notify_rule_unitFailed'),
+    help: msg('notify_rule_unitFailedHelp'),
   },
   {
     key: 'service-down',
-    label: msg('notify_webServiceNotReachable'),
-    help: msg('notify_httpCheckTileOverviewHas'),
+    label: msg('notify_rule_serviceDown'),
+    help: msg('notify_rule_serviceDownHelp'),
   },
   {
     key: 'container-unhealthy',
-    label: msg('notify_containerUnhealthy'),
-    help: msg('notify_healthcheckReportsUnhealthyContainerWithout'),
+    label: msg('notify_rule_containerUnhealthy'),
+    help: msg('notify_rule_containerUnhealthyHelp'),
   },
-  { key: 'smart', label: msg('notify_diskReportsProblemsSmart'), help: msg('notify_warningCriticalStateAccordingSmart') },
-  { key: 'disk-full', label: msg('notify_diskAlmostFull'), help: msg('notify_usageAboveThreshold') },
+  { key: 'smart', label: msg('notify_rule_smart'), help: msg('notify_rule_smartHelp') },
+  { key: 'disk-full', label: msg('notify_rule_diskFull'), help: msg('notify_rule_diskFullHelp') },
   {
     key: 'updates',
-    label: msg('notify_updatesAvailableDaily'),
-    help: msg('notify_onceDayNewPackagesContainer'),
+    label: msg('notify_rule_updates'),
+    help: msg('notify_rule_updatesHelp'),
   },
 ]
 
@@ -110,36 +110,36 @@ export const channelKinds = (): { kind: ChannelKind; label: string; help: string
   {
     kind: 'ntfy',
     label: 'ntfy',
-    help: msg('notify_pushYourPhoneViaNtfy'),
+    help: msg('notify_channel_ntfyHelp'),
   },
-  { kind: 'gotify', label: 'Gotify', help: msg('notify_yourOwnGotifyServerCreate') },
+  { kind: 'gotify', label: 'Gotify', help: msg('notify_channel_gotifyHelp') },
   {
     kind: 'telegram',
     label: 'Telegram',
-    help: msg('notify_createBotBotfatherEnterToken'),
+    help: msg('notify_channel_telegramHelp'),
   },
   {
     kind: 'webhook',
     label: 'Webhook',
-    help: msg('notify_postJsonUrlWorksDiscord'),
+    help: msg('notify_channel_webhookHelp'),
   },
   {
     kind: 'email',
     label: msg('notifications_defaults_email'),
-    help: msg('notify_viaSmtpServerYourMail'),
+    help: msg('notify_channel_emailHelp'),
   },
 ]
 
 /** Common mail providers: server and port to start from. */
 export const smtpPresets = (): { label: string; host: string; port: number; security: SmtpSecurity; note?: string }[] => [
-  { label: 'Gmail', host: 'smtp.gmail.com', port: 465, security: 'tls', note: msg('notify_appPasswordAtMyaccountGoogle') },
-  { label: 'GMX', host: 'mail.gmx.net', port: 587, security: 'starttls', note: msg('notify_allowPop3ImapSmtpGmx') },
-  { label: 'web.de', host: 'smtp.web.de', port: 587, security: 'starttls', note: msg('notify_allowPop3ImapSmtpWeb') },
+  { label: 'Gmail', host: 'smtp.gmail.com', port: 465, security: 'tls', note: msg('notify_provider_gmailNote') },
+  { label: 'GMX', host: 'mail.gmx.net', port: 587, security: 'starttls', note: msg('notify_provider_gmxNote') },
+  { label: 'web.de', host: 'smtp.web.de', port: 587, security: 'starttls', note: msg('notify_provider_webdeNote') },
   { label: 'Posteo', host: 'posteo.de', port: 465, security: 'tls' },
   { label: 'mailbox.org', host: 'smtp.mailbox.org', port: 465, security: 'tls' },
-  { label: 'iCloud', host: 'smtp.mail.me.com', port: 587, security: 'starttls', note: msg('notify_appSpecificPasswordAtAppleid') },
+  { label: 'iCloud', host: 'smtp.mail.me.com', port: 587, security: 'starttls', note: msg('notify_provider_icloudNote') },
   { label: 'Outlook', host: 'smtp-mail.outlook.com', port: 587, security: 'starttls' },
-  { label: msg('notify_ownServer'), host: '', port: 587, security: 'starttls' },
+  { label: msg('notify_provider_ownServer'), host: '', port: 587, security: 'starttls' },
 ]
 
 const EMAIL = /^[^\s@<>",;]+@[^\s@<>",;]+\.[^\s@<>",;]+$/
@@ -169,33 +169,33 @@ const HTTP_URL = /^https?:\/\/[^\s/?#]+(?::\d+)?(\/[^\s]*)?$/
 
 export function channelErrors(c: Channel): string[] {
   const out: string[] = []
-  if (!c.name.trim() || c.name.length > 60 || CONTROL.test(c.name)) out.push(msg('notify_nameMissingTooLong'))
-  if (c.kind !== 'telegram' && c.kind !== 'email' && (!HTTP_URL.test(c.url) || c.url.length > 500)) out.push(msg('overrides_urlMustStartHttpHttps'))
+  if (!c.name.trim() || c.name.length > 60 || CONTROL.test(c.name)) out.push(msg('notify_error_name'))
+  if (c.kind !== 'telegram' && c.kind !== 'email' && (!HTTP_URL.test(c.url) || c.url.length > 500)) out.push(msg('notify_error_urlScheme'))
   if (c.kind === 'email') {
-    if (!HOSTNAME.test(c.host ?? '')) out.push(msg('notify_smtpServerMissing'))
+    if (!HOSTNAME.test(c.host ?? '')) out.push(msg('notify_error_smtpServer'))
     if (!Number.isInteger(c.port) || c.port! < 1 || c.port! > 65535) out.push('Port 1–65535')
-    if (!['tls', 'starttls', 'none'].includes(c.security ?? '')) out.push(msg('notify_chooseEncryption'))
-    if (c.user && (c.user.length > 200 || CONTROL.test(c.user))) out.push(msg('notify_invalidUserName'))
-    if (c.user && !c.token) out.push(msg('api_unlock_passwordMissing'))
-    if (c.token && c.security === 'none') out.push(msg('notify_onlySendPasswordEncryptionSsl'))
-    if (!EMAIL.test(c.from ?? '')) out.push(msg('notify_senderEMailAddress'))
+    if (!['tls', 'starttls', 'none'].includes(c.security ?? '')) out.push(msg('notify_error_encryption'))
+    if (c.user && (c.user.length > 200 || CONTROL.test(c.user))) out.push(msg('notify_error_userName'))
+    if (c.user && !c.token) out.push(msg('notify_error_passwordMissing'))
+    if (c.token && c.security === 'none') out.push(msg('notify_error_passwordUnencrypted'))
+    if (!EMAIL.test(c.from ?? '')) out.push(msg('notify_error_sender'))
     const to = recipients(c.to)
-    if (!to.length || to.length > 10 || !to.every((x) => EMAIL.test(x))) out.push(msg('notify_recipientsOneMoreEMail'))
+    if (!to.length || to.length > 10 || !to.every((x) => EMAIL.test(x))) out.push(msg('notify_error_recipients'))
   }
-  if (c.kind === 'ntfy' && !/^[A-Za-z0-9_-]{1,64}$/.test(c.topic ?? '')) out.push(msg('notify_topicLettersDigits'))
-  if ((c.kind === 'gotify' || c.kind === 'telegram') && !c.token) out.push(msg('notify_tokenMissing'))
-  if (c.token && (c.token.length > 300 || (c.kind !== 'email' && /\s/.test(c.token)) || CONTROL.test(c.token))) out.push(c.kind === 'email' ? msg('notify_invalidPassword') : msg('notify_invalidToken'))
-  if (c.kind === 'telegram' && !/^(-?\d{1,20}|@[A-Za-z0-9_]{4,64})$/.test(c.chatId ?? '')) out.push(msg('notify_chatIdNumberEG'))
+  if (c.kind === 'ntfy' && !/^[A-Za-z0-9_-]{1,64}$/.test(c.topic ?? '')) out.push(msg('notify_error_topic'))
+  if ((c.kind === 'gotify' || c.kind === 'telegram') && !c.token) out.push(msg('notify_error_tokenMissing'))
+  if (c.token && (c.token.length > 300 || (c.kind !== 'email' && /\s/.test(c.token)) || CONTROL.test(c.token))) out.push(c.kind === 'email' ? msg('notify_error_password') : msg('notify_error_token'))
+  if (c.kind === 'telegram' && !/^(-?\d{1,20}|@[A-Za-z0-9_]{4,64})$/.test(c.chatId ?? '')) out.push(msg('notify_error_chatId'))
   return out
 }
 
 /** Settings from untrusted JSON; tokens shown as MASK are taken from `previous`. */
 export function parseSettings(v: unknown, previous: NotifySettings): NotifySettings {
-  if (!v || typeof v !== 'object') throw new Error(msg('notify_settingsMissing'))
+  if (!v || typeof v !== 'object') throw new Error(msg('notify_error_settingsMissing'))
   const o = v as Record<string, unknown>
   const str = (x: unknown) => (typeof x === 'string' ? x.trim() : '')
   const rawChannels = Array.isArray(o.channels) ? o.channels : []
-  if (rawChannels.length > 10) throw new Error(msg('notify_atMost10Channels'))
+  if (rawChannels.length > 10) throw new Error(msg('notify_error_tooManyChannels'))
   const channels = rawChannels.map((raw, i): Channel => {
     const c = (raw ?? {}) as Record<string, unknown>
     const kind = CHANNEL_KIND_IDS.includes(c.kind as ChannelKind) ? (c.kind as ChannelKind) : 'webhook'
@@ -265,23 +265,23 @@ export function currentAlerts(snap: Snapshot, s: NotifySettings, active: Set<str
           key: `unit:${u.name}`,
           rule: 'unit-failed',
           severity: 'critical',
-          title: msg('notify_failed', { name: u.name }),
+          title: msg('notify_alert_unitFailed', { name: u.name }),
           subject: u.name,
-          detail: u.result === 'exit-code' ? `Exit ${u.exitStatus ?? '?'}` : u.result === 'oom-kill' ? msg('notify_killedByKernelLackMemory') : u.result,
+          detail: u.result === 'exit-code' ? `Exit ${u.exitStatus ?? '?'}` : u.result === 'oom-kill' ? msg('notify_alert_oomKilled') : u.result,
         })
   }
   if (on('service-down')) {
     for (const g of snap.services)
       for (const svc of g.items)
-        if (svc.health === 'bad') alerts.push({ key: `http:${svc.key}`, rule: 'service-down', severity: 'warning', title: msg('notify_notReachable', { name: svc.name }), subject: svc.name, detail: svc.healthNote ?? svc.url })
+        if (svc.health === 'bad') alerts.push({ key: `http:${svc.key}`, rule: 'service-down', severity: 'warning', title: msg('notify_alert_serviceDown', { name: svc.name }), subject: svc.name, detail: svc.healthNote ?? svc.url })
   }
   if (on('container-unhealthy')) {
     if (!snap.sources.podman.ok) unknown.add('container-unhealthy')
     for (const c of snap.containers) {
       if (c.health === 'unhealthy')
-        alerts.push({ key: `ct:${c.name}`, rule: 'container-unhealthy', severity: 'warning', title: msg('notify_containerUnhealthy2', { name: c.name }), subject: c.name, detail: msg('registry_healthcheckFailing') })
+        alerts.push({ key: `ct:${c.name}`, rule: 'container-unhealthy', severity: 'warning', title: msg('notify_alert_containerUnhealthy', { name: c.name }), subject: c.name, detail: msg('services_health_checkFailing') })
       else if (!c.unit && c.state === 'exited' && /Exited \((?!0\))\d+\)/.test(c.status))
-        alerts.push({ key: `ct:${c.name}`, rule: 'container-unhealthy', severity: 'warning', title: msg('notify_containerCrashed', { name: c.name }), subject: c.name, detail: c.status })
+        alerts.push({ key: `ct:${c.name}`, rule: 'container-unhealthy', severity: 'warning', title: msg('notify_alert_containerCrashed', { name: c.name }), subject: c.name, detail: c.status })
     }
   }
   if (on('smart')) {
@@ -292,8 +292,8 @@ export function currentAlerts(snap: Snapshot, s: NotifySettings, active: Set<str
           key: `smart:${d.name}:${d.level}`,
           rule: 'smart',
           severity: d.level,
-          title: msg('notify_smart', { name: d.name, critical: String(d.level === 'critical') }),
-          detail: msg('notify_detailsUnderDisksSmart'),
+          title: msg('notify_alert_smart', { name: d.name, critical: String(d.level === 'critical') }),
+          detail: msg('notify_alert_smartDetails'),
         })
   }
   if (on('disk-full')) {
@@ -303,7 +303,7 @@ export function currentAlerts(snap: Snapshot, s: NotifySettings, active: Set<str
       const used = d.used / d.size
       const key = `disk:${d.mount}`
       const limit = (active.has(key) ? s.diskThreshold - 3 : s.diskThreshold) / 100
-      if (used >= limit) alerts.push({ key, rule: 'disk-full', severity: used >= 0.97 ? 'critical' : 'warning', title: msg('notify_full', { mount: d.mount, value: pct(used) }), detail: `${d.dev} · ${d.fstype}` })
+      if (used >= limit) alerts.push({ key, rule: 'disk-full', severity: used >= 0.97 ? 'critical' : 'warning', title: msg('notify_alert_diskFull', { mount: d.mount, percent: pct(used) }), detail: `${d.dev} · ${d.fstype}` })
     }
   }
   return { alerts, unknown }
@@ -313,16 +313,16 @@ export function currentAlerts(snap: Snapshot, s: NotifySettings, active: Set<str
 export function problemNotice(host: string, alerts: Alert[]): Notice {
   const severity: Severity = alerts.some((a) => a.severity === 'critical') ? 'critical' : 'warning'
   if (alerts.length === 1) return { title: `${host}: ${alerts[0]!.title}`, body: alerts[0]!.detail ?? '', severity }
-  return { title: msg('notify_problems', { host, length: alerts.length }), body: alerts.map((a) => `• ${a.title}${a.detail ? ` – ${a.detail}` : ''}`).join('\n'), severity }
+  return { title: msg('notify_summary_problems', { host, count: alerts.length }), body: alerts.map((a) => `• ${a.title}${a.detail ? ` – ${a.detail}` : ''}`).join('\n'), severity }
 }
 
 export function recoveryNotice(host: string, alerts: Alert[]): Notice {
   if (alerts.length === 1) {
     const a = alerts[0]!
-    const body = a.subject ? msg('notify_runningAgain', { name: a.subject }) : a.title
-    return { title: msg('notify_backNormal', { host }), body, severity: 'ok' }
+    const body = a.subject ? msg('notify_summary_runningAgain', { name: a.subject }) : a.title
+    return { title: msg('notify_summary_backNormal', { host }), body, severity: 'ok' }
   }
-  return { title: msg('notify_problemsResolved', { host, length: alerts.length }), body: alerts.map((a) => `• ${a.title}`).join('\n'), severity: 'ok' }
+  return { title: msg('notify_summary_resolved', { host, count: alerts.length }), body: alerts.map((a) => `• ${a.title}`).join('\n'), severity: 'ok' }
 }
 
 // ---------- sending ----------
@@ -351,7 +351,7 @@ export function buildRequest(c: Channel, n: Notice): { url: string; init: Reques
       return { url: c.url, init: json({ title: n.title, message: n.body, severity: n.severity, text, content: text }) }
     }
     case 'email':
-      throw new Error(msg('notify_eMailGoesViaSmtp'))
+      throw new Error(msg('notify_error_emailNotHttp'))
   }
 }
 
@@ -363,7 +363,7 @@ export function buildMail(c: Channel, n: Notice): { from: string; to: string[]; 
     from: c.from ?? '',
     to: recipients(c.to),
     subject: `${SUBJECT_MARK[n.severity]}${n.title}`.replace(/[\r\n]+/g, ' '),
-    text: `${n.body || n.title}\n\n-- \n${msg('notify_sentByQuadeckChangeNotifications')}\n`,
+    text: `${n.body || n.title}\n\n-- \n${msg('notify_email_footer')}\n`,
   }
 }
 
@@ -371,6 +371,6 @@ export function buildMail(c: Channel, n: Notice): { from: string; to: string[]; 
 export function channelTarget(c: Channel): string {
   if (c.kind === 'ntfy') return `${c.url}/${c.topic}`
   if (c.kind === 'telegram') return `Chat ${c.chatId}`
-  if (c.kind === 'email') return msg('notify_via', { to: c.to ?? '', host: c.host ?? '' })
+  if (c.kind === 'email') return msg('notify_channel_emailTarget', { to: c.to ?? '', host: c.host ?? '' })
   return c.url.replace(/^(https?:\/\/[^/]+)\/.{12,}$/, '$1/…')
 }

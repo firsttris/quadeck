@@ -10,7 +10,7 @@ export const Route = createFileRoute('/api/quadlets/compose')({
     handlers: {
       POST: authed(async ({ request }) => {
         const b = await readJson<{ yaml?: unknown; project?: unknown }>(request)
-        if (typeof b.yaml !== 'string' || !b.yaml.trim()) throw new HttpError(400, msg('api_quadlets_dockerComposeYmlMissing'))
+        if (typeof b.yaml !== 'string' || !b.yaml.trim()) throw new HttpError(400, msg('api_quadlets_composeMissing'))
         let doc: unknown
         try {
           doc = Bun.YAML.parse(b.yaml)

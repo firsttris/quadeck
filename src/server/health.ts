@@ -18,11 +18,11 @@ export async function checkUrl(url: string): Promise<HttpHealth> {
     }
     const ms = Math.round(performance.now() - started)
     if (res.status >= 500) return { health: 'bad', note: `HTTP ${res.status}` }
-    if (ms > SLOW_MS) return { health: 'warn', note: msg('health_slowMs', { ms }) }
+    if (ms > SLOW_MS) return { health: 'warn', note: msg('health_note_slow', { ms }) }
     return { health: 'ok', note: `HTTP ${res.status} · ${ms} ms` }
   } catch (e) {
-    const reason = (e as Error).name === 'TimeoutError' ? msg('health_timeout') : (e as Error).message
-    return { health: 'bad', note: msg('health_unreachable', { msg: reason }), reason }
+    const reason = (e as Error).name === 'TimeoutError' ? msg('health_note_timeout') : (e as Error).message
+    return { health: 'bad', note: msg('health_note_unreachable', { reason: reason }), reason }
   }
 }
 
@@ -41,7 +41,7 @@ export async function checkTarget(t: HealthTarget, check = checkUrl): Promise<Ht
   if (direct.health !== 'bad' || !t.probe) return direct
   const viaUpstream = await check(t.probe)
   if (viaUpstream.health === 'bad') return { health: 'bad', note: `${direct.note}; Upstream ${t.probe}: ${viaUpstream.reason ?? viaUpstream.note ?? ''}` }
-  return { health: viaUpstream.health, note: `Upstream ${t.probe} · ${viaUpstream.note} ${msg('health_urlNotReachableFromServer')}` }
+  return { health: viaUpstream.health, note: `Upstream ${t.probe} · ${viaUpstream.note} ${msg('health_note_urlUnreachable')}` }
 }
 
 export class HealthChecker {

@@ -16,16 +16,16 @@ const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice
 export function validateLink(body: Record<string, unknown>): LinkInput {
   const name = str(body.name, 60)
   const url = str(body.url, 500)
-  if (!name) throw new HttpError(400, msg('links_nameMissing'))
+  if (!name) throw new HttpError(400, msg('links_error_nameMissing'))
   let parsed: URL
   try {
     parsed = new URL(url)
   } catch {
-    throw new HttpError(400, msg('links_urlInvalid'))
+    throw new HttpError(400, msg('links_error_urlInvalid'))
   }
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') throw new HttpError(400, msg('links_onlyHttpHttpsAllowed'))
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') throw new HttpError(400, msg('links_error_httpOnly'))
   const icon = str(body.icon, 80).toLowerCase()
-  if (icon && !/^[a-z0-9][a-z0-9-]*$/.test(icon)) throw new HttpError(400, msg('links_iconOnlySlugFromDashboard'))
+  if (icon && !/^[a-z0-9][a-z0-9-]*$/.test(icon)) throw new HttpError(400, msg('links_error_iconSlug'))
   return { name, url: parsed.toString(), group: str(body.group, 40) || undefined, icon: icon || undefined, healthCheck: body.healthCheck !== false }
 }
 
@@ -40,11 +40,11 @@ export function updateLink(id: number, l: LinkInput) {
     .where(eq(schema.manualServices.id, id))
     .returning()
     .all()
-  if (!r.length) throw new HttpError(404, msg('links_linkNotFound'))
+  if (!r.length) throw new HttpError(404, msg('links_error_notFound'))
   return r[0]
 }
 
 export function deleteLink(id: number) {
   const r = db().delete(schema.manualServices).where(eq(schema.manualServices.id, id)).returning().all()
-  if (!r.length) throw new HttpError(404, msg('links_linkNotFound'))
+  if (!r.length) throw new HttpError(404, msg('links_error_notFound'))
 }

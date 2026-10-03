@@ -130,7 +130,7 @@ export class SystemMaintenance implements MaintenanceBackend {
   }
 
   private need() {
-    if (!this.provider) throw new HttpError(501, msg('packages_noSupportedPackageManagerFound'))
+    if (!this.provider) throw new HttpError(501, msg('packages_error_noManager'))
     return this.provider
   }
 
@@ -196,7 +196,7 @@ export class SystemMaintenance implements MaintenanceBackend {
 
   async removePreview(names: string[]) {
     const p = this.need()
-    if (!p.canRemove) throw new HttpError(400, msg('packages_packagesCannotRemovedHere', { label: p.label }))
+    if (!p.canRemove) throw new HttpError(400, msg('packages_error_cannotRemove', { label: p.label }))
     return previewResult(p, await p.removePreview(names))
   }
 
@@ -223,7 +223,7 @@ export class SystemMaintenance implements MaintenanceBackend {
     if (spec.kind === 'remove') {
       const preview = await this.removePreview(spec.names)
       if (preview.error) throw new HttpError(409, preview.error)
-      if (preview.blocked.length) throw new HttpError(403, msg('packages_protectedPackagesWouldAffected', { list: preview.blocked.join(', ') }))
+      if (preview.blocked.length) throw new HttpError(403, msg('packages_error_protectedAffected', { list: preview.blocked.join(', ') }))
     }
     // Copy/move/delete: refuse now (conflicts, outside the roots) instead of in a failing job.
     if (spec.kind === 'fs-copy' || spec.kind === 'fs-move' || spec.kind === 'fs-delete') prepareFsJob(spec, systemFsOps(fileRootPaths()))
@@ -294,7 +294,7 @@ export class FixtureMaintenance implements MaintenanceBackend {
         const pkg = d.installed.find((x) => x.name === u.name)
         if (pkg) pkg.version = u.to
       }
-      if (d.updates.repo.some((u) => u.name.startsWith('linux'))) d.overview = { ...d.overview, rebootRequired: true, rebootReason: msg('packages_kernelUpdatedStillRunning6') }
+      if (d.updates.repo.some((u) => u.name.startsWith('linux'))) d.overview = { ...d.overview, rebootRequired: true, rebootReason: msg('packages_reboot_kernelUpdatedExample') }
       d.updates.repo = []
     } else if (spec.kind === 'aur-upgrade') {
       await say(`$ runuser -u ${d.overview.aur?.user} -- ${d.overview.aur?.helper} -Sua --noconfirm`)
@@ -318,7 +318,7 @@ export class FixtureMaintenance implements MaintenanceBackend {
       try {
         for (const l of this.files!.apply(spec.kind === 'fs-copy' ? 'copy' : spec.kind === 'fs-move' ? 'move' : 'delete', spec.paths, spec.kind === 'fs-delete' ? undefined : spec.toDir)) await say(l)
       } catch (e) {
-        await say(msg('packages_error', { message: (e as Error).message }))
+        await say(msg('packages_job_error', { message: (e as Error).message }))
         return sink.exit(1)
       }
     } else if (spec.kind === 'mkinitcpio') {
@@ -357,7 +357,7 @@ export class FixtureMaintenance implements MaintenanceBackend {
   async overview() {
     // The demo is pacman: its hint in the viewer's language instead of the German one from the fixture.
     const o = this.data.overview
-    return o.configHint ? { ...o, configHint: msg('packages_compareMergePacdiffPacmanContrib') } : o
+    return o.configHint ? { ...o, configHint: msg('packages_configHint_pacdiff') } : o
   }
   async installed() {
     return this.data.installed.map(({ depends: _d, requiredBy: _r, ...p }) => p)
@@ -383,7 +383,7 @@ export class FixtureMaintenance implements MaintenanceBackend {
     if (spec.kind === 'remove') {
       const p = await this.removePreview(spec.names)
       if (p.error) throw new HttpError(409, p.error)
-      if (p.blocked.length) throw new HttpError(403, msg('packages_protectedPackagesWouldAffected', { list: p.blocked.join(', ') }))
+      if (p.blocked.length) throw new HttpError(403, msg('packages_error_protectedAffected', { list: p.blocked.join(', ') }))
     }
     if ((spec.kind === 'fs-copy' || spec.kind === 'fs-move' || spec.kind === 'fs-delete') && this.files) prepareFsJob(spec, this.files.ops())
     return this.jobsMgr.start(spec)

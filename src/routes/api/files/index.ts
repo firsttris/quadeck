@@ -24,7 +24,7 @@ export const Route = createFileRoute('/api/files/')({
         const token = unlockToken(session.id)
         if (typeof b.mkdir === 'string') await p.makeDir(token, b.mkdir)
         else if (b.rename && typeof b.rename.path === 'string' && typeof b.rename.name === 'string') await p.renamePath(token, b.rename.path, b.rename.name)
-        else throw new HttpError(400, msg('api_files_mkdirRenameExpected'))
+        else throw new HttpError(400, msg('api_files_mkdirOrRename'))
         return Response.json({ ok: true })
       }),
     },

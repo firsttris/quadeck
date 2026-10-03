@@ -8,11 +8,11 @@ export type Filter = (typeof FILTER_KEYS)[number]
 /** Filter chips with their labels in the current language. */
 export const filters = (): [Filter, string][] => [
   ['all', msg('system_packages_filters_all')],
-  ['container', msg('unitrows_containers')],
+  ['container', msg('units_row_containers')],
   ['service', msg('overview_cards_services')],
-  ['timer', msg('unitrows_timers')],
-  ['socket', msg('unitrows_sockets')],
-  ['failed', msg('unitrows_failed')],
+  ['timer', msg('units_row_timers')],
+  ['socket', msg('units_row_sockets')],
+  ['failed', msg('units_row_failed')],
 ]
 
 /**

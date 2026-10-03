@@ -63,7 +63,7 @@ export function buildUsersState(files: { passwd: string; group: string; shadow: 
       keys: extra.keys(p.name, p.home),
       samba: extra.samba ? extra.samba.has(p.name) : undefined,
       lastLogin: last || undefined,
-      protected: p.uid === 0 ? msg('users_rootSystemAccountNotDeleted') : undefined,
+      protected: p.uid === 0 ? msg('users_note_rootProtected') : undefined,
     }
   })
   // Personal groups (same name and gid as a user) are not offered.
@@ -79,8 +79,8 @@ export function buildUsersState(files: { passwd: string; group: string; shadow: 
 
 /** userdel/usermod messages in plain words. */
 export function shadowError(tool: string, out: string): string {
-  if (/currently used by process|is currently logged in/i.test(out)) return msg('users_accountLoggedProcessesRunningUnder')
-  if (/already exists/i.test(out)) return msg('users_nameAlreadyExistsMaybeAs')
+  if (/currently used by process|is currently logged in/i.test(out)) return msg('users_error_inUse')
+  if (/already exists/i.test(out)) return msg('users_error_nameExists')
   return `${tool}: ${out.trim() || msg('notifications_failed')}`
 }
 
@@ -161,7 +161,7 @@ export class SystemUsers implements UsersBackend {
         break
       }
       case 'samba-password':
-        if (!Bun.which('smbpasswd')) throw new HttpError(409, msg('users_sambaNotInstalled'))
+        if (!Bun.which('smbpasswd')) throw new HttpError(409, msg('users_error_sambaMissing'))
         await this.tool(['smbpasswd', '-a', '-s', c.name], `${c.password}\n${c.password}\n`)
         break
       case 'delete': {

@@ -30,7 +30,7 @@ import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
 
 export const Route = createFileRoute('/_app/shares')({
-  head: () => ({ meta: [{ title: msg('page__app_shares_sharesQuadeck') }] }),
+  head: () => ({ meta: [{ title: msg('page_title_shares') }] }),
   component: SharesPage,
 })
 

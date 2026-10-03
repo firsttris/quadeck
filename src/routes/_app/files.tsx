@@ -8,7 +8,7 @@ export const Route = createFileRoute('/_app/files')({
   validateSearch: (s: Record<string, unknown>): { path?: string } => ({
     path: typeof s.path === 'string' && s.path.startsWith('/') ? s.path : undefined,
   }),
-  head: () => ({ meta: [{ title: msg('page__app_files_filesQuadeck') }] }),
+  head: () => ({ meta: [{ title: msg('page_title_files') }] }),
   component: FilesPage,
 })
 

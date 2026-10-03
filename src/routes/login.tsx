@@ -10,7 +10,7 @@ export const Route = createFileRoute('/login')({
     if (context.auth.state === 'setup') throw redirect({ to: '/setup' })
     if (context.auth.state === 'ok') throw redirect({ to: '/' })
   },
-  head: () => ({ meta: [{ title: msg('page_login_logQuadeck') }] }),
+  head: () => ({ meta: [{ title: msg('page_title_login') }] }),
   component: Login,
 })
 

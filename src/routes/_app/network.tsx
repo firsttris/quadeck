@@ -13,7 +13,7 @@ type Tab = 'interfaces' | 'ports' | 'firewall' | 'proxy'
 
 export const Route = createFileRoute('/_app/network')({
   validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({ tab: s.tab === 'ports' || s.tab === 'firewall' || s.tab === 'proxy' ? s.tab : undefined }),
-  head: () => ({ meta: [{ title: msg('page__app_network_networkQuadeck') }] }),
+  head: () => ({ meta: [{ title: msg('page_title_network') }] }),
   component: NetworkPage,
 })
 

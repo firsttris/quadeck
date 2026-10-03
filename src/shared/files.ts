@@ -39,19 +39,19 @@ const CONTROL = /[\x00-\x1f\x7f]/
 
 /** A single new file or folder name (rename, mkdir). */
 export function validateName(name: string): string | undefined {
-  if (!name || name === '.' || name === '..') return msg('files_nameMissing')
-  if (name.includes('/')) return msg('files_nameMustNotContain')
-  if (CONTROL.test(name)) return msg('files_controlCharactersName')
-  if (new TextEncoder().encode(name).length > 255) return msg('files_nameTooLong')
+  if (!name || name === '.' || name === '..') return msg('files_check_nameMissing')
+  if (name.includes('/')) return msg('files_check_nameSlash')
+  if (CONTROL.test(name)) return msg('files_check_nameControlChars')
+  if (new TextEncoder().encode(name).length > 255) return msg('files_check_nameTooLong')
   return undefined
 }
 
 /** Absolute, normalised path without "..", "." or control characters. */
 export function validatePath(path: string): string | undefined {
-  if (!path.startsWith('/')) return msg('files_pathMustAbsolute')
-  if (CONTROL.test(path)) return msg('files_controlCharactersPath')
-  if (path.length > 4096) return msg('files_pathTooLong')
-  if (path.split('/').some((p) => p === '..' || p === '.')) return msg('files_pathMustNotContain')
+  if (!path.startsWith('/')) return msg('files_check_pathNotAbsolute')
+  if (CONTROL.test(path)) return msg('files_check_pathControlChars')
+  if (path.length > 4096) return msg('files_check_pathTooLong')
+  if (path.split('/').some((p) => p === '..' || p === '.')) return msg('files_check_pathDotDot')
   return undefined
 }
 

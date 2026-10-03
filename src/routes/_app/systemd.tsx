@@ -20,7 +20,7 @@ export const Route = createFileRoute('/_app/systemd')({
     unit: typeof s.unit === 'string' && EDITABLE_UNIT.test(s.unit) ? s.unit : undefined,
     new: s.new === true || s.new === 'true' || s.new === 1 ? true : undefined,
   }),
-  head: () => ({ meta: [{ title: msg('page__app_systemd_editUnitQuadeck') }] }),
+  head: () => ({ meta: [{ title: msg('page_title_editUnit') }] }),
   component: SystemdPage,
 })
 
@@ -201,7 +201,7 @@ function UnitForm({ unit, text, base, onChange }: { unit: string; text: string; 
           <legend className="px-1 font-mono text-[13px] text-accent">[{section}]</legend>
           {Object.entries(keys).map(([k, doc]) => {
             const inherited = base ? getValues(base, section, k).filter(Boolean).at(-1) : undefined
-            return <Field key={k} section={section} k={k} doc={inherited ? { ...doc, help: m.systemd_form_before({ help: doc.help, value: inherited }) } : doc} text={text} onChange={onChange} />
+            return <Field key={k} section={section} k={k} doc={inherited ? { ...doc, help: m.systemd_form_inheritedHelp({ help: doc.help, inherited: inherited }) } : doc} text={text} onChange={onChange} />
           })}
         </fieldset>
       ))}
@@ -520,7 +520,7 @@ function NewUnit() {
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
             {m.systemd_create_name()}
-            <input className="field w-[280px] font-mono" value={name} placeholder={msg('page__app_systemd_myServiceService')} onChange={(e) => setName(e.target.value.trim())} autoFocus />
+            <input className="field w-[280px] font-mono" value={name} placeholder={msg('systemd_placeholder_unitName')} onChange={(e) => setName(e.target.value.trim())} autoFocus />
           </label>
           {name && !validName && <span className="pb-2 text-[12px] text-[#ff8a80]">{m.systemd_create_invalidName()}</span>}
         </div>

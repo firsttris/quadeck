@@ -7,7 +7,7 @@ import { run } from '../exec'
 import { parseAutoUpdate } from './parse'
 
 export async function imageUpdates(): Promise<ImageUpdate[]> {
-  if (!Bun.which('podman')) throw new Error(msg('packages_podmanNotInstalled'))
+  if (!Bun.which('podman')) throw new Error(msg('packages_error_podmanMissing'))
   const r = await run(['podman', 'auto-update', '--dry-run', '--format', 'json'], { timeoutMs: 180_000 })
   if (r.code !== 0) throw new Error(`podman auto-update: ${(r.stderr || r.stdout).trim()}`)
   return parseAutoUpdate(r.stdout)

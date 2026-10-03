@@ -41,7 +41,7 @@ export const Route = createFileRoute('/api/disks/smart')({
         if (b.selftest) {
           assertWritable()
           const { disk, type } = b.selftest
-          if (typeof disk !== 'string' || !DISK_NAME.test(disk) || (type !== 'short' && type !== 'long')) throw new HttpError(400, msg('api_disks_diskTypeShortLongRequired'))
+          if (typeof disk !== 'string' || !DISK_NAME.test(disk) || (type !== 'short' && type !== 'long')) throw new HttpError(400, msg('api_disks_diskTypeRequired'))
           report = await p.smartSelfTest(unlockToken(session.id), disk, type)
         } else report = await p.smartReport(true)
         void (await hubReady()).collectSmart().then(async () => (await hubReady()).publish())

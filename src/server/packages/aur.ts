@@ -67,7 +67,7 @@ function passwdEntry(user: string) {
   const line = readFileSync('/etc/passwd', 'utf8')
     .split('\n')
     .find((l) => l.startsWith(user + ':'))
-  if (!line) throw new Error(msg('packages_userDoesNotExist', { user }))
+  if (!line) throw new Error(msg('packages_error_userMissing', { user }))
   const f = line.split(':')
   return { uid: Number(f[2]), home: f[5] || `/home/${user}` }
 }
@@ -77,19 +77,19 @@ function passwdEntry(user: string) {
  * calls this; the sudoers drop-in is removed again in any case.
  */
 export async function runAurUpgrade(helper: 'yay' | 'paru', user: string, exec: (argv: string[], env: Record<string, string>) => Promise<number>, log: (s: string) => void): Promise<number> {
-  if (!USER_NAME.test(user)) throw new Error(msg('packages_invalidUserName', { user }))
+  if (!USER_NAME.test(user)) throw new Error(msg('packages_error_invalidUser', { user }))
   const { uid, home } = passwdEntry(user)
-  if (uid === 0) throw new Error(msg('packages_aurHelpersDoNotRun'))
+  if (uid === 0) throw new Error(msg('packages_error_aurAsRoot'))
   const pacman = Bun.which('pacman') ?? '/usr/bin/pacman'
-  if (!Bun.which('sudo')) throw new Error(msg('packages_needsSudoCallPacmanSudo', { helper }))
+  if (!Bun.which('sudo')) throw new Error(msg('packages_error_sudoMissing', { helper }))
   writeFileSync(SUDOERS_DROPIN, `# Quadeck: only present during an AUR update\n${user} ALL=(root) NOPASSWD: ${pacman}\n`, { mode: 0o440 })
   chmodSync(SUDOERS_DROPIN, 0o440)
   try {
     if (Bun.which('visudo')) {
       const check = await run(['visudo', '-cqf', SUDOERS_DROPIN])
-      if (check.code !== 0) throw new Error(msg('packages_sudoersCheckFailed', { value: check.stderr.trim() }))
+      if (check.code !== 0) throw new Error(msg('packages_error_sudoersCheck', { reason: check.stderr.trim() }))
     }
-    log(msg('packages_aurUpdateAsPacmanVia', { helper, user }))
+    log(msg('packages_note_aurUpdateAs', { helper, user }))
     const flags = helper === 'yay' ? ['--answerdiff', 'None', '--answerclean', 'None', '--answeredit', 'None', '--answerupgrade', 'None', '--removemake', '--cleanafter'] : ['--skipreview', '--removemake', '--cleanafter']
     return await exec(['runuser', '-u', user, '--', helper, '-Sua', '--noconfirm', ...flags], {
       HOME: home,

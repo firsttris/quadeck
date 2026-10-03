@@ -31,11 +31,11 @@ export const sendMail: Mail = async (c, m) => {
 
 /** nodemailer's errors in plain words, with what usually helps. */
 export function smtpError(e: { message: string; code?: string; responseCode?: number; response?: string }): string {
-  if (e.code === 'EAUTH' || e.responseCode === 535 || e.responseCode === 534) return msg('mail_loginRejectedCheckUserPassword', { value: (e.response ?? e.message).trim().slice(0, 160) })
-  if (e.code === 'ECONNREFUSED') return msg('mail_connectionRefusedCheckServerPort')
-  if (e.code === 'ETIMEDOUT' || e.code === 'ECONNECTION') return msg('mail_noConnectionSmtpServerCheck', { message: e.message })
-  if (e.code === 'EDNS') return msg('mail_smtpServerNotFoundCheck')
-  if (e.code === 'ESOCKET' && /wrong version number|ssl3_get_record|packet length/i.test(e.message)) return msg('mail_tlsMismatchChooseSslTls')
-  if (e.responseCode && e.responseCode >= 500) return msg('mail_serverRejects', { value: (e.response ?? e.message).trim().slice(0, 200) })
+  if (e.code === 'EAUTH' || e.responseCode === 535 || e.responseCode === 534) return msg('mail_error_loginRejected', { response: (e.response ?? e.message).trim().slice(0, 160) })
+  if (e.code === 'ECONNREFUSED') return msg('mail_error_connectionRefused')
+  if (e.code === 'ETIMEDOUT' || e.code === 'ECONNECTION') return msg('mail_error_noConnection', { message: e.message })
+  if (e.code === 'EDNS') return msg('mail_error_serverNotFound')
+  if (e.code === 'ESOCKET' && /wrong version number|ssl3_get_record|packet length/i.test(e.message)) return msg('mail_error_tlsMismatch')
+  if (e.responseCode && e.responseCode >= 500) return msg('mail_error_serverRejects', { response: (e.response ?? e.message).trim().slice(0, 200) })
   return e.message
 }

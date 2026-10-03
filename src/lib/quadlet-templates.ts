@@ -12,7 +12,7 @@ export interface Template {
 export const templates = (): Template[] => [
   {
     id: 'web',
-    label: msg('quadlettemplates_webServicePort'),
+    label: msg('quadlets_template_webService'),
     type: 'container',
     content: (n) => `[Unit]
 Description=${n}
@@ -36,7 +36,7 @@ WantedBy=multi-user.target
   },
   {
     id: 'postgres',
-    label: msg('quadlettemplates_postgresqlDatabase'),
+    label: msg('quadlets_template_postgres'),
     type: 'container',
     content: (n) => `[Unit]
 Description=${n} (PostgreSQL)
@@ -62,7 +62,7 @@ WantedBy=multi-user.target
   },
   {
     id: 'container',
-    label: msg('quadlettemplates_emptyContainer'),
+    label: msg('quadlets_template_empty'),
     type: 'container',
     content: (n) => `[Unit]
 Description=${n}

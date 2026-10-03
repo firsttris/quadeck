@@ -53,8 +53,8 @@ export function parseLsblk(json: string): MountedFs[] {
 
 export function diskRole(mount: string): string {
   if (mount === '/' || mount === '/sysroot' || mount === '/var' || mount === '/home') return 'System'
-  if (/parit/i.test(mount)) return msg('collectors_parity')
-  return msg('collectors_data')
+  if (/parit/i.test(mount)) return msg('disks_label_parity')
+  return msg('disks_label_data')
 }
 
 /** Maps whole-disk names (sda, nvme0n1) to their temperature in °C. */

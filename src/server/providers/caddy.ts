@@ -247,7 +247,7 @@ export class CaddyProvider implements DiscoveryProvider {
       this.lastSource = 'caddyfile'
       return candidatesFromCaddyfile(readFileSync(this.caddyfile, 'utf8'))
     }
-    errors.push(msg('providers_noCaddyfileAt', { caddyfile: this.caddyfile }))
+    errors.push(msg('providers_error_noCaddyfile', { path: this.caddyfile }))
     this.lastSource = undefined
     throw new Error(errors.join('; '))
   }

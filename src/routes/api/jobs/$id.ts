@@ -8,10 +8,10 @@ export const Route = createFileRoute('/api/jobs/$id')({
   server: {
     handlers: {
       GET: authed(async ({ request, params }: { request: Request; params: { id: string } }) => {
-        if (!/^[a-z0-9-]{1,40}$/.test(params.id)) throw new HttpError(400, msg('api_jobs_invalidJobId'))
+        if (!/^[a-z0-9-]{1,40}$/.test(params.id)) throw new HttpError(400, msg('api_jobs_invalidId'))
         const from = Number(new URL(request.url).searchParams.get('from')) || 0
         const job = await privileged().job(params.id, from)
-        if (!job) throw new HttpError(404, msg('api_jobs_jobNotFoundQuadeckRestarted'))
+        if (!job) throw new HttpError(404, msg('api_jobs_notFound'))
         return Response.json(job)
       }),
     },

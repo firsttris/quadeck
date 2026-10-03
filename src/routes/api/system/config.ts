@@ -15,7 +15,7 @@ export const Route = createFileRoute('/api/system/config')({
       POST: authed(async ({ request }, session) => {
         const b = await readJson<{ path?: unknown; action?: unknown; content?: unknown }>(request)
         assertWritable()
-        if (typeof b.path !== 'string' || (b.action !== 'replace' && b.action !== 'keep' && b.action !== 'merge')) throw new HttpError(400, msg('api_system_pathActionRequired'))
+        if (typeof b.path !== 'string' || (b.action !== 'replace' && b.action !== 'keep' && b.action !== 'merge')) throw new HttpError(400, msg('api_config_pathActionRequired'))
         if (b.content !== undefined && typeof b.content !== 'string') throw new HttpError(400, msg('common_errors_invalidContent'))
         return Response.json(await privileged().applyConfigFile(unlockToken(session.id), b.path, b.action, b.content as string | undefined))
       }),

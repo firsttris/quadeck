@@ -67,23 +67,23 @@ export const MIN_PASSWORD = 8
 
 /** Groups worth offering, with what membership gives. */
 export const knownGroups = (): Record<string, string> => ({
-  wheel: msg('users_administratorSudoUnlockingQuadeck'),
-  sudo: msg('users_administratorSudoUnlockingQuadeck'),
-  video: msg('users_useGraphicsCardHardwareTranscoding'),
-  render: msg('users_gpuComputeAccessHardwareTranscoding'),
-  audio: msg('users_soundCard'),
-  storage: msg('users_mountRemovableMedia'),
-  'systemd-journal': msg('users_readJournalAllServices'),
-  docker: msg('users_dockerWithoutSudoEffectivelyRoot'),
-  libvirt: msg('users_manageVirtualMachines'),
-  kvm: msg('users_kvmVirtualization'),
-  input: msg('users_inputDevices'),
-  lp: msg('users_printers'),
-  uucp: msg('users_serialDevicesEGZigbee'),
-  dialout: msg('users_serialDevicesEGZigbee'),
-  plugdev: msg('users_removableDevices'),
-  users: msg('users_generalUsersGroup'),
-  sambashare: msg('users_createOwnSambaShares'),
+  wheel: msg('users_group_wheel'),
+  sudo: msg('users_group_wheel'),
+  video: msg('users_group_video'),
+  render: msg('users_group_render'),
+  audio: msg('users_group_audio'),
+  storage: msg('users_group_storage'),
+  'systemd-journal': msg('users_group_systemdJournal'),
+  docker: msg('users_group_docker'),
+  libvirt: msg('users_group_libvirt'),
+  kvm: msg('users_group_kvm'),
+  input: msg('users_group_input'),
+  lp: msg('users_group_lp'),
+  uucp: msg('users_group_uucp'),
+  dialout: msg('users_group_uucp'),
+  plugdev: msg('users_group_plugdev'),
+  users: msg('users_group_users'),
+  sambashare: msg('users_group_sambashare'),
 })
 
 // ---------- parsers ----------
@@ -151,18 +151,18 @@ export function parseLast(text: string): LoginRecord[] {
 // ---------- checks ----------
 
 export function nameProblem(name: string): string | undefined {
-  if (!USER_NAME.test(name)) return msg('users_nameLowercaseLettersDigitsStarting')
+  if (!USER_NAME.test(name)) return msg('users_error_invalidName')
   return undefined
 }
 
 export function passwordProblem(pw: string): string | undefined {
-  if (pw.length < MIN_PASSWORD) return msg('users_passwordAtLeastCharacters', { MIN_PASSWORD })
-  if (pw.length > 512 || /[\r\n\x00]/.test(pw)) return msg('users_passwordContainsInvalidCharacters')
+  if (pw.length < MIN_PASSWORD) return msg('users_error_passwordShort', { min: MIN_PASSWORD })
+  if (pw.length > 512 || /[\r\n\x00]/.test(pw)) return msg('users_error_passwordInvalid')
   return undefined
 }
 
 export function fullNameProblem(n: string): string | undefined {
-  if (n.length > 100 || /[:,\r\n\x00-\x1f]/.test(n)) return msg('users_fullNameNoColonComma')
+  if (n.length > 100 || /[:,\r\n\x00-\x1f]/.test(n)) return msg('users_error_fullNameInvalid')
   return undefined
 }
 
@@ -201,13 +201,13 @@ export function changeProblem(state: Pick<UsersState, 'accounts' | 'shells' | 'g
     const n = nameProblem(c.name)
     if (n) return n
     if (acc) return msg('files_explorer_exists', { name: c.name })
-  } else if (!acc) return msg('users_doesNotExist', { name: c.name })
+  } else if (!acc) return msg('users_error_notFound', { name: c.name })
   if (c.kind === 'create' || c.kind === 'update') {
     const f = fullNameProblem(c.fullName)
     if (f) return f
-    if (!state.shells.includes(c.shell)) return msg('users_shellNotListedEtcShells', { shell: c.shell })
+    if (!state.shells.includes(c.shell)) return msg('users_error_shellNotListed', { shell: c.shell })
     const unknown = c.groups.find((g) => !state.groups.some((x) => x.name === g))
-    if (unknown) return msg('users_groupDoesNotExist', { unknown })
+    if (unknown) return msg('users_error_groupNotFound', { group: unknown })
   }
   if ((c.kind === 'create' && c.password !== undefined) || c.kind === 'password' || c.kind === 'samba-password') {
     const p = passwordProblem(c.password!)
@@ -217,7 +217,7 @@ export function changeProblem(state: Pick<UsersState, 'accounts' | 'shells' | 'g
   if (c.kind === 'samba-password') return undefined
   const before = adminsWithPassword(state.accounts)
   const after = adminsWithPassword(afterChange(state.accounts, c))
-  if (before.length && !after.length) return msg('users_afterwardsNobodyCouldLogAs')
+  if (before.length && !after.length) return msg('users_error_lastAdmin')
   return undefined
 }
 
@@ -229,13 +229,13 @@ export function describeChange(c: UserChange, adminGroup: string): string {
     case 'update':
       return msg('users_describe_update', { name: c.name, group: adminGroup, admin: String(!!c.admin) })
     case 'password':
-      return msg('users_setsNewPasswordRunningSessions', { name: c.name })
+      return msg('users_describe_setPassword', { name: c.name })
     case 'lock':
-      return msg('users_locksNoMoreLoginsNot', { name: c.name })
+      return msg('users_describe_lock', { name: c.name })
     case 'unlock':
-      return msg('users_unlocks', { name: c.name })
+      return msg('users_describe_unlock', { name: c.name })
     case 'samba-password':
-      return msg('users_setsSambaPasswordNetworkShares', { name: c.name })
+      return msg('users_describe_setSamba', { name: c.name })
     case 'delete':
       return msg('users_describe_delete', { name: c.name, removeHome: String(!!c.removeHome) })
   }

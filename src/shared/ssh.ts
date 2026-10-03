@@ -81,7 +81,7 @@ export const USER_NAME = /^[a-z_][a-z0-9_.-]{0,31}$/
 
 export function validateSettings(s: SshSettings): string[] {
   const e: string[] = []
-  if (!['yes', 'prohibit-password', 'no'].includes(s.permitRootLogin)) e.push(msg('ssh_permitrootloginYesProhibitPasswordNo'))
-  if (s.allowUsers.length > 50 || s.allowUsers.some((u) => !USER_NAME.test(u))) e.push(msg('ssh_allowedUsersNamesSeparatedBy'))
+  if (!['yes', 'prohibit-password', 'no'].includes(s.permitRootLogin)) e.push(msg('ssh_error_permitRootLogin'))
+  if (s.allowUsers.length > 50 || s.allowUsers.some((u) => !USER_NAME.test(u))) e.push(msg('ssh_error_allowUsers'))
   return e
 }

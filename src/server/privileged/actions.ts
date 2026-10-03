@@ -90,16 +90,16 @@ export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAd
 const UNIT_NAME = /^[A-Za-z0-9:_.\\@-]{1,240}\.(service|timer|socket)$/
 
 export function assertUnitName(name: string) {
-  if (!UNIT_NAME.test(name) || name.startsWith('-')) throw new Error(msg('privileged_invalidUnitName', { name }))
+  if (!UNIT_NAME.test(name) || name.startsWith('-')) throw new Error(msg('helper_error_invalidUnitName', { unit: name }))
 }
 
 /** Podman API reads the helper proxies. Everything else is refused. */
 const PODMAN_READS = [/^\/version$/, /^\/containers\/json\?all=true$/, /^\/v4\.0\.0\/libpod\/containers\/stats\?stream=false$/, /^\/containers\/[0-9a-f]{12,64}\/json$/]
 
 export function assertPodmanRead(path: string) {
-  if (!PODMAN_READS.some((r) => r.test(path))) throw new Error(msg('privileged_podmanPathNotAllowed', { path }))
+  if (!PODMAN_READS.some((r) => r.test(path))) throw new Error(msg('helper_error_podmanPathDenied', { path }))
 }
 
 export function assertContainerId(id: string) {
-  if (!/^[0-9a-f]{12,64}$/.test(id)) throw new Error(msg('privileged_invalidContainerId'))
+  if (!/^[0-9a-f]{12,64}$/.test(id)) throw new Error(msg('helper_error_invalidContainerId'))
 }

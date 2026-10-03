@@ -88,14 +88,14 @@ export class CaddyManager implements CaddyBackend {
   async locate(): Promise<Located> {
     const h = this.host
     const env = h.envPath()
-    if (env) return h.isFile(env) ? { source: { path: env, how: 'env' } } : { source: { path: env, how: 'env' }, problem: msg('proxy_errors_envMissing', { p: env }) }
+    if (env) return h.isFile(env) ? { source: { path: env, how: 'env' } } : { source: { path: env, how: 'env' }, problem: msg('proxy_errors_envMissing', { path: env }) }
     const manual = h.manualPath()
-    if (manual) return h.isFile(manual) ? { source: { path: manual, how: 'manual' } } : { source: { path: manual, how: 'manual' }, problem: msg('proxy_errors_manualGone', { p: manual }) }
+    if (manual) return h.isFile(manual) ? { source: { path: manual, how: 'manual' } } : { source: { path: manual, how: 'manual' }, problem: msg('proxy_errors_manualGone', { path: manual }) }
     for (const f of h.quadlets()) {
       const q = caddyFromQuadlet(f.name, f.content)
       if (!q) continue
       const base = { how: 'quadlet' as const, quadlet: q.quadlet, container: q.container, image: q.image, containerPath: q.containerPath }
-      if (q.json) return { quadlet: q, problem: msg('proxy_errors_json', { q: q.quadlet }) }
+      if (q.json) return { quadlet: q, problem: msg('proxy_errors_json', { quadlet: q.quadlet }) }
       let path = q.hostPath
       if (!path && q.volume) {
         const mp = await h.volumePath(q.volume.name)
@@ -104,9 +104,9 @@ export class CaddyManager implements CaddyBackend {
       if (!path)
         return {
           quadlet: q,
-          problem: msg('proxy_errors_notMounted', { q: q.quadlet, inside: q.containerPath }),
+          problem: msg('proxy_errors_notMounted', { quadlet: q.quadlet, containerPath: q.containerPath }),
         }
-      return h.isFile(path) ? { source: { ...base, path }, quadlet: q } : { source: { ...base, path }, quadlet: q, problem: msg('proxy_errors_mountedMissing', { q: q.quadlet, p: path }) }
+      return h.isFile(path) ? { source: { ...base, path }, quadlet: q } : { source: { ...base, path }, quadlet: q, problem: msg('proxy_errors_mountedMissing', { quadlet: q.quadlet, path: path }) }
     }
     const svc = await h.service()
     if (svc) {
@@ -132,8 +132,8 @@ export class CaddyManager implements CaddyBackend {
     const base: CaddyState = { source: loc.source, problem: loc.problem, blocks: [], unstructured: false, running: reload !== 'none', reload, history: [], manual: this.host.manualPath() }
     if (!loc.source || loc.problem) return base
     const content = this.host.read(loc.source.path)
-    if (content === undefined) return { ...base, problem: msg('proxy_errors_unreadable', { p: loc.source!.path }) }
-    if (content.length > MAX || content.includes('\0')) return { ...base, problem: msg('proxy_errors_notText', { p: loc.source!.path }) }
+    if (content === undefined) return { ...base, problem: msg('proxy_errors_unreadable', { path: loc.source!.path }) }
+    if (content.length > MAX || content.includes('\0')) return { ...base, problem: msg('proxy_errors_notText', { path: loc.source!.path }) }
     const parsed = parseCaddyfile(content)
     return { ...base, content, hash: contentHash(content), blocks: parsed.blocks, unstructured: parsed.unstructured, history: this.host.history.list(loc.source.path) }
   }
@@ -163,13 +163,13 @@ export class CaddyManager implements CaddyBackend {
     if (!this.host.isFile(p))
       throw new HttpError(
         404,
-        msg('proxy_errors_missing', { p }),
+        msg('proxy_errors_missing', { path: p }),
       )
     const content = this.host.read(p) ?? ''
     if (content.length > MAX || content.includes('\0'))
       throw new HttpError(
         400,
-        msg('proxy_errors_notText', { p }),
+        msg('proxy_errors_notText', { path: p }),
       )
     this.host.setManualPath(p)
     return this.state()
@@ -304,7 +304,7 @@ export class SystemCaddyHost implements CaddyHost {
     if (!statSync(real).isFile())
       throw new HttpError(
         409,
-        msg('proxy_errors_notRegular', { p: path }),
+        msg('proxy_errors_notRegular', { path: path }),
       )
     const fd = openSync(real, 'r+')
     try {

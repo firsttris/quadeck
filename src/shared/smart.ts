@@ -204,17 +204,17 @@ export function smartHints(assessments: SmartAssessment[]): SmartHint[] {
 const statusText = (s: SmartStatus): string => {
   switch (s) {
     case 'OK':
-      return msg('smart_ok')
+      return msg('smart_status_ok')
     case 'FAIL':
-      return msg('smart_driveItselfReportsImminentFailure')
+      return msg('smart_status_failurePredicted')
     case 'PREFAIL':
-      return msg('smart_preFailureAttributeBelowIts')
+      return msg('smart_status_prefailNow')
     case 'LOGFAIL':
-      return msg('smart_preFailureAttributeWasBelow')
+      return msg('smart_status_prefailPast')
     case 'LOGERR':
-      return msg('smart_errorsDriveSErrorLog')
+      return msg('smart_status_errorLog')
     case 'SELFERR':
-      return msg('smart_selfTestFailed')
+      return msg('smart_status_selfTestFailed')
     case 'UNKNOWN':
       return msg('podman_all_unknownVersion')
   }
@@ -223,22 +223,22 @@ const statusText = (s: SmartStatus): string => {
 const sectorText = (a: SectorAttribute): string => {
   switch (a) {
     case 'reallocated':
-      return msg('smart_sectorsReallocatedReallocated')
+      return msg('smart_label_reallocated')
     case 'pending':
-      return msg('smart_sectorsWaitingReallocationPending')
+      return msg('smart_label_pending')
     case 'uncorrectable':
-      return msg('smart_sectorsUnreadableOfflineUncorrectable')
+      return msg('smart_label_offlineUncorrectable')
   }
 }
 
 const errorText = (a: ErrorAttribute): string => {
   switch (a) {
     case 'reported_uncorrectable':
-      return msg('smart_uncorrectableReadErrors')
+      return msg('smart_label_uncorrectable')
     case 'crc':
-      return msg('smart_transferErrorsCrcUsuallyCable')
+      return msg('smart_label_crcErrors')
     case 'medium':
-      return msg('smart_mediaErrors')
+      return msg('smart_label_mediaErrors')
   }
 }
 
@@ -247,38 +247,38 @@ export function describeReason(r: SmartReason): string {
     case 'status':
       return statusText(r.status)
     case 'unreadable':
-      return msg('smart_smartDataNotReadable')
+      return msg('smart_status_unreadable')
     case 'sectors':
       return `${r.count} ${sectorText(r.attribute)}`
     case 'errors':
       return `${r.count} ${errorText(r.attribute)}`
     case 'crc':
-      return msg('smart_newTransferErrorsCrcSince', { added: r.added, value: shortDate(r.since), count: r.count })
+      return msg('smart_note_crcNew', { added: r.added, since: shortDate(r.since), count: r.count })
     case 'wear':
-      return msg('smart_ratedLifetimeUsed', { percent: r.percent })
+      return msg('smart_note_wear', { percent: r.percent })
     case 'temperature':
-      return msg('smart_cTooHot', { celsius: r.celsius })
+      return msg('smart_note_tooHot', { celsius: r.celsius })
     case 'selftest':
-      return msg('smart_lastSelfTest', { status: r.status })
+      return msg('smart_note_lastSelfTest', { status: r.status })
   }
 }
 
 const shortDate = (ts: number) => new Date(ts).toLocaleDateString(localeOf(), { day: 'numeric', month: 'numeric' })
 
 export function describeNote(n: SmartNote): string {
-  return n.since ? msg('smart_olderTransferErrorsCrcNone', { count: n.count, value: shortDate(n.since) }) : msg('smart_transferErrorsCrcSinceInstallation', { count: n.count })
+  return n.since ? msg('smart_note_crcOld', { count: n.count, since: shortDate(n.since) }) : msg('smart_note_crcTotal', { count: n.count })
 }
 
 /** What to do, as a sentence. */
 export function hintText(h: SmartHint): string {
   switch (h) {
     case 'replace':
-      return msg('smart_getReplacementBackUpYour')
+      return msg('smart_hint_replaceDrive')
     case 'cable':
-      return msg('smart_checkReplaceSataCablePower')
+      return msg('smart_hint_checkCable')
     case 'cooling':
-      return msg('smart_improveCoolingAirflowFansSpacing')
+      return msg('smart_hint_improveCooling')
     case 'access':
-      return msg('smart_smartctlCannotReadDriveUsb')
+      return msg('smart_hint_unreadable')
   }
 }

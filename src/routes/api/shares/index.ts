@@ -21,7 +21,7 @@ export const Route = createFileRoute('/api/shares/')({
         if (b.service) {
           assertWritable()
           const { kind, action } = b.service
-          if ((kind !== 'smb' && kind !== 'nfs') || !['start', 'stop', 'restart', 'enable'].includes(action as string)) throw new HttpError(400, msg('api_shares_invalidServiceAction'))
+          if ((kind !== 'smb' && kind !== 'nfs') || !['start', 'stop', 'restart', 'enable'].includes(action as string)) throw new HttpError(400, msg('api_shares_invalidAction'))
           const st = await p.shareService(unlockToken(session.id), kind, action as 'start')
           return Response.json(st)
         }

@@ -11,7 +11,7 @@ export const Route = createFileRoute('/api/lang')({
     handlers: {
       POST: authed(async ({ request }) => {
         const { lang } = await readJson<{ lang?: unknown }>(request)
-        if (!isLang(lang)) throw new HttpError(400, msg('api_lang_langMustDeEn'))
+        if (!isLang(lang)) throw new HttpError(400, msg('api_lang_invalid'))
         setSetting(LANG_SETTING, lang)
         return Response.json({ ok: true })
       }),

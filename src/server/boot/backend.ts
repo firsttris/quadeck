@@ -55,16 +55,16 @@ const isQuadeckEntry = (content: string | undefined) => !!content && (content.st
 
 /** Checks shared by the real machine and the demo. */
 export function entryForFlavor(state: BootState, pkg: string, read: (p: string) => string | undefined, exists: (p: string) => boolean) {
-  if (!isFlavor(pkg)) throw new HttpError(400, msg('boot_unknownKernel'))
-  if (state.loader !== 'systemd-boot' || !state.canCreateEntries) throw new HttpError(409, msg('boot_bootEntriesCreatedBySystem'))
+  if (!isFlavor(pkg)) throw new HttpError(400, msg('boot_error_unknownKernel'))
+  if (state.loader !== 'systemd-boot' || !state.canCreateEntries) throw new HttpError(409, msg('boot_error_entriesBySystem'))
   const k = state.kernels?.find((x) => x.pkg === pkg)
-  if (!k?.installed) throw new HttpError(409, msg('boot_notInstalled2', { pkg }))
-  if (k.entries.length) throw new HttpError(409, msg('boot_alreadyHasEntry', { pkg }))
+  if (!k?.installed) throw new HttpError(409, msg('boot_error_notInstalled', { pkg }))
+  if (k.entries.length) throw new HttpError(409, msg('boot_error_alreadyHasEntry', { pkg }))
   const def = state.entries.find((e) => e.isDefault && e.type === 'type1' && e.path)
   const template = def?.path ? read(def.path) : undefined
-  if (!def?.path || !template) throw new HttpError(409, msg('boot_noReadableDefaultEntryUse'))
+  if (!def?.path || !template) throw new HttpError(409, msg('boot_error_noTemplateEntry'))
   const boot = state.boot?.path ?? dirname(dirname(dirname(def.path)))
-  for (const f of [`/vmlinuz-${pkg}`, `/initramfs-${pkg}.img`]) if (!exists(join(boot, f))) throw new HttpError(409, msg('boot_missingWaitInstallationFirstMkinitcpio', { boot, f }))
+  for (const f of [`/vmlinuz-${pkg}`, `/initramfs-${pkg}.img`]) if (!exists(join(boot, f))) throw new HttpError(409, msg('boot_error_imageMissing', { boot, file: f }))
   const dir = dirname(def.path)
   let path = join(dir, kernelEntryId(pkg as KernelFlavor))
   if (exists(path)) path = join(dir, `quadeck-${pkg}.conf`)
@@ -72,12 +72,12 @@ export function entryForFlavor(state: BootState, pkg: string, read: (p: string) 
 }
 
 export function removableEntry(state: BootState, id: string, read: (p: string) => string | undefined) {
-  if (!ENTRY_ID.test(id)) throw new HttpError(400, msg('boot_invalidEntry'))
+  if (!ENTRY_ID.test(id)) throw new HttpError(400, msg('boot_error_invalidEntry'))
   const e = state.entries.find((x) => x.id === id)
-  if (!e) throw new HttpError(404, msg('boot_entryDoesNotExist', { id }))
-  if (e.type !== 'type1' || !e.path || !e.path.endsWith('.conf') || !/\/loader\/entries\/[^/]+$/.test(e.path)) throw new HttpError(409, msg('boot_onlyEntriesUnderLoaderEntries'))
-  if (e.isDefault || e.isSelected) throw new HttpError(409, msg('boot_defaultEntryRunningEntryStay'))
-  if (!e.missing.length && !isQuadeckEntry(read(e.path))) throw new HttpError(409, msg('boot_onlyEntriesMissingFilesOnes'))
+  if (!e) throw new HttpError(404, msg('boot_error_entryNotFound', { id }))
+  if (e.type !== 'type1' || !e.path || !e.path.endsWith('.conf') || !/\/loader\/entries\/[^/]+$/.test(e.path)) throw new HttpError(409, msg('boot_error_notLoaderEntry'))
+  if (e.isDefault || e.isSelected) throw new HttpError(409, msg('boot_error_entryInUse'))
+  if (!e.missing.length && !isQuadeckEntry(read(e.path))) throw new HttpError(409, msg('boot_error_entryNotRemovable'))
   return e.path
 }
 
@@ -102,12 +102,12 @@ const read = (p: string) => {
 }
 
 export function assertEntry(id: string, entries: BootEntry[]) {
-  if (!ENTRY_ID.test(id)) throw new HttpError(400, msg('boot_invalidEntry'))
-  if (!entries.some((e) => e.id === id)) throw new HttpError(404, msg('boot_entryDoesNotExist', { id }))
+  if (!ENTRY_ID.test(id)) throw new HttpError(400, msg('boot_error_invalidEntry'))
+  if (!entries.some((e) => e.id === id)) throw new HttpError(404, msg('boot_error_entryNotFound', { id }))
 }
 
 export function assertTimeout(v: string) {
-  if (!TIMEOUT_VALUE.test(v) || (/^\d+$/.test(v) && Number(v) > 600)) throw new HttpError(400, msg('boot_timeoutSeconds0600Menu'))
+  if (!TIMEOUT_VALUE.test(v) || (/^\d+$/.test(v) && Number(v) > 600)) throw new HttpError(400, msg('boot_error_invalidTimeout'))
 }
 
 export class SystemBoot implements BootBackend {
@@ -192,7 +192,7 @@ export class SystemBoot implements BootBackend {
 
   private async systemdBoot() {
     const s = await this.bootState()
-    if (s.loader !== 'systemd-boot') throw new HttpError(409, msg('boot_noSystemdBootQuadeckOnly'))
+    if (s.loader !== 'systemd-boot') throw new HttpError(409, msg('boot_error_noSystemdBoot'))
     return s
   }
 

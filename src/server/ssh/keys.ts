@@ -40,22 +40,22 @@ export const fingerprint = (blob: Buffer) => 'SHA256:' + createHash('sha256').up
  */
 export function parseKeyLine(line: string): { key: SshKey; blob: string } | { error: string } {
   const t = line.trim()
-  if (!t || t.startsWith('#')) return { error: msg('ssh_empty') }
+  if (!t || t.startsWith('#')) return { error: msg('ssh_keyError_empty') }
   // eslint-disable-next-line no-control-regex
-  if (/[\x00-\x08\x0a-\x1f\x7f]/.test(t)) return { error: msg('ssh_controlCharactersKey') }
+  if (/[\x00-\x08\x0a-\x1f\x7f]/.test(t)) return { error: msg('ssh_keyError_controlChars') }
   const tokens = t.match(/(?:[^\s"]+|"[^"]*")+/g) ?? []
   const idx = tokens.findIndex((x) => (KEY_TYPES as readonly string[]).includes(x) || x === 'ssh-dss')
-  if (idx < 0) return { error: msg('ssh_noKnownKeyTypeExpected') }
+  if (idx < 0) return { error: msg('ssh_keyError_unknownType') }
   const type = tokens[idx]!
   const b64 = tokens[idx + 1] ?? ''
-  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(b64)) return { error: msg('ssh_keyDataMissingNotBase64') }
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(b64)) return { error: msg('ssh_keyError_notBase64') }
   const blob = Buffer.from(b64, 'base64')
   const inner = fields(blob)[0]?.toString('latin1')
-  if (inner !== type) return { error: msg('ssh_keyDataDoesNotMatch', { type }) }
+  if (inner !== type) return { error: msg('ssh_keyError_typeMismatch', { type }) }
   const bits = keyBits(type, blob)
   let weak: string | undefined
-  if (type === 'ssh-dss') weak = msg('ssh_dsaNoLongerAcceptedBy')
-  else if (type === 'ssh-rsa' && bits !== undefined && bits < 3072) weak = msg('ssh_rsaBitsTooShortToday', { bits })
+  if (type === 'ssh-dss') weak = msg('ssh_weak_dsa')
+  else if (type === 'ssh-rsa' && bits !== undefined && bits < 3072) weak = msg('ssh_weak_rsaShort', { bits })
   return {
     key: {
       type,
@@ -92,9 +92,9 @@ export function removeKey(text: string, fp: string): string {
 export function addKey(text: string, line: string): string {
   const r = parseKeyLine(line)
   if (!('key' in r)) throw new Error(r.error)
-  if (r.key.options) throw new Error(msg('ssh_pleaseAddKeysOptionsFrom'))
+  if (r.key.options) throw new Error(msg('ssh_keyError_hasOptions'))
   if (r.key.type === 'ssh-dss') throw new Error(r.key.weak!)
-  if (parseAuthorizedKeys(text).some((k) => k.fingerprint === r.key.fingerprint)) throw new Error(msg('ssh_keyAlreadyAdded'))
+  if (parseAuthorizedKeys(text).some((k) => k.fingerprint === r.key.fingerprint)) throw new Error(msg('ssh_keyError_alreadyAdded'))
   const clean = [r.key.type, r.blob, r.key.comment].filter(Boolean).join(' ')
   const body = text.replace(/\s*$/, '')
   return `${body}${body ? '\n' : ''}${clean}\n`

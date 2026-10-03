@@ -26,7 +26,7 @@ export const Route = createFileRoute('/_app/disks')({
   beforeLoad: ({ search }) => {
     if (search.tab === 'files') throw redirect({ to: '/files', search: { path: search.path } })
   },
-  head: () => ({ meta: [{ title: msg('page__app_disks_disksQuadeck') }] }),
+  head: () => ({ meta: [{ title: msg('page_title_disks') }] }),
   component: DisksPage,
 })
 

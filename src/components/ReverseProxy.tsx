@@ -87,7 +87,7 @@ export function ReverseProxy() {
               <span className="font-mono">{src.path}</span>
               <span className="text-muted">
                 –{' '}
-                {src.how === 'quadlet' ? m.proxy_source_quadlet({ q: (src.quadlet ?? ''), inside: (src.containerPath ?? '') }) : src.how === 'service' ? m.proxy_source_service() : src.how === 'env' ? m.proxy_source_env() : src.how === 'manual' ? m.proxy_source_manual() : m.proxy_source_default()}
+                {src.how === 'quadlet' ? m.proxy_source_quadlet({ quadlet: (src.quadlet ?? ''), containerPath: (src.containerPath ?? '') }) : src.how === 'service' ? m.proxy_source_service() : src.how === 'env' ? m.proxy_source_env() : src.how === 'manual' ? m.proxy_source_manual() : m.proxy_source_default()}
               </span>
               {!readonly && src.how !== 'env' && (
                 <button type="button" className="border-0 bg-transparent p-0 text-[12px] text-accent hover:underline" onClick={() => setPick(src.how === 'manual' ? src.path : '')}>
@@ -164,7 +164,7 @@ export function ReverseProxy() {
                     readonly={!editable}
                     onEdit={() => setSite({ previous: b.addresses[0], addresses: b.addresses.join(', '), upstreams: (b.upstreams ?? []).join(' ') })}
                     onText={() => setText({ content: state.content ?? '', jump: b.line })}
-                    onDelete={() => propose({ kind: 'delete', address: b.addresses[0]! }, m.proxy_confirm_deleteTitle({ d: b.addresses.join(', ') }))}
+                    onDelete={() => propose({ kind: 'delete', address: b.addresses[0]! }, m.proxy_confirm_deleteTitle({ address: b.addresses.join(', ') }))}
                   />
                 ))}
               </tbody>
@@ -192,7 +192,7 @@ export function ReverseProxy() {
         </section>
       )}
 
-      {site && <SiteDialog init={site} onClose={() => setSite(null)} onNext={(change) => propose(change, change.kind === 'site' && change.previous ? m.proxy_site_editTitle({ d: change.previous }) : m.proxy_site_newTitle())} />}
+      {site && <SiteDialog init={site} onClose={() => setSite(null)} onNext={(change) => propose(change, change.kind === 'site' && change.previous ? m.proxy_site_editTitle({ address: change.previous }) : m.proxy_site_newTitle())} />}
       {text && (
         <Modal open wide title={m.proxy_text_title()} onClose={() => setText(null)}>
           {text.note && <p className="m-0 text-[13px] text-[#e3b341]">{text.note}</p>}
@@ -256,7 +256,7 @@ function SiteRow({ b, readonly, onEdit, onText, onDelete }: { b: CaddyBlock; rea
       <td>
         <div className="flex flex-col">
           {b.addresses.map((a) => (
-            <a key={a} href={/^https?:\/\//.test(a) ? a : a.startsWith(':') ? undefined : `https://${a}`} target="_blank" rel="noreferrer" className="font-mono text-[13px] font-medium text-fg hover:text-accent" title={m.proxy_actions_open({ d: a })}>
+            <a key={a} href={/^https?:\/\//.test(a) ? a : a.startsWith(':') ? undefined : `https://${a}`} target="_blank" rel="noreferrer" className="font-mono text-[13px] font-medium text-fg hover:text-accent" title={m.proxy_actions_open({ address: a })}>
               {a}
             </a>
           ))}
@@ -303,7 +303,7 @@ function SiteDialog({ init, onClose, onNext }: { init: { previous?: string; addr
       .map((x) => x.trim())
       .filter(Boolean)
   return (
-    <Modal open title={init.previous ? m.proxy_site_editTitle({ d: init.previous }) : m.proxy_site_newTitle()} onClose={onClose}>
+    <Modal open title={init.previous ? m.proxy_site_editTitle({ address: init.previous }) : m.proxy_site_newTitle()} onClose={onClose}>
       <form
         className="flex flex-col gap-3"
         onSubmit={(e) => {

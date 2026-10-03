@@ -46,7 +46,7 @@ export function hasPassword() {
 export const MIN_PASSWORD_LENGTH = 10
 
 export async function setPassword(password: string) {
-  if (password.length < MIN_PASSWORD_LENGTH) throw new Error(msg('auth_passwordMustHaveAtLeast', { MIN_PASSWORD_LENGTH }))
+  if (password.length < MIN_PASSWORD_LENGTH) throw new Error(msg('auth_error_passwordTooShort', { minLength: MIN_PASSWORD_LENGTH }))
   setSetting(PASSWORD_KEY, await Bun.password.hash(password, { algorithm: 'argon2id' }))
   // A new password ends all existing sessions.
   db().delete(schema.sessions).run()
@@ -183,11 +183,11 @@ export class HttpError extends Error {
 /** Throws HttpError unless the request carries a valid session (and CSRF token for writes). */
 export function requireSession(request: Request): Session {
   const session = getSession(request)
-  if (!session) throw new HttpError(401, msg('auth_notLogged'))
+  if (!session) throw new HttpError(401, msg('auth_error_notLoggedIn'))
   if (!SAFE_METHODS.has(request.method)) {
-    if (!isSameOrigin(request)) throw new HttpError(403, msg('auth_foreignOrigin'))
+    if (!isSameOrigin(request)) throw new HttpError(403, msg('auth_error_foreignOrigin'))
     const sent = request.headers.get('x-csrf-token') ?? ''
-    if (!timingSafeEqualStr(sent, session.csrf)) throw new HttpError(403, msg('auth_csrfTokenMissingInvalid'))
+    if (!timingSafeEqualStr(sent, session.csrf)) throw new HttpError(403, msg('auth_error_csrfInvalid'))
   }
   return session
 }
@@ -251,8 +251,8 @@ export function recordLoginSuccess(key: string) {
 export function beginAttempt(request: Request): (success: boolean) => void {
   const key = clientKey(request)
   const wait = loginBlockedFor(key)
-  if (wait) throw new HttpError(429, msg('auth_tooManyFailedAttemptsPlease', { wait }))
-  if (verifying >= MAX_VERIFYING) throw new HttpError(429, msg('auth_tooManySimultaneousLoginAttempts'))
+  if (wait) throw new HttpError(429, msg('auth_error_tooManyAttempts', { seconds: wait }))
+  if (verifying >= MAX_VERIFYING) throw new HttpError(429, msg('auth_error_tooManyParallel'))
   verifying++
   const before = failures.get(key)
   const snapshot = before ? { ...before } : undefined

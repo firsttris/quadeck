@@ -6,7 +6,7 @@ import { currentLang, msg } from '~/shared/i18n'
 export function errorResponse(e: unknown): Response {
   if (e instanceof HttpError || e instanceof ActionError) return Response.json({ error: localize(e.message, currentLang()) }, { status: e.status })
   console.error('[quadeck]', e)
-  return Response.json({ error: localize((e as Error).message || msg('http_internalError'), currentLang()) }, { status: 500 })
+  return Response.json({ error: localize((e as Error).message || msg('http_error_internal'), currentLang()) }, { status: 500 })
 }
 
 /** Wraps a server-route handler: requires a session (and CSRF token for writes) and maps errors to JSON. */
@@ -21,12 +21,12 @@ export function authed<C extends { request: Request }>(fn: (ctx: C, session: Ses
 }
 
 export async function readJson<T>(request: Request): Promise<T> {
-  if (!(request.headers.get('content-type') ?? '').includes('application/json')) throw new HttpError(415, msg('http_jsonExpected'))
+  if (!(request.headers.get('content-type') ?? '').includes('application/json')) throw new HttpError(415, msg('http_error_jsonExpected'))
   const text = await request.text()
-  if (text.length > 64 * 1024) throw new HttpError(413, msg('http_requestTooLarge'))
+  if (text.length > 64 * 1024) throw new HttpError(413, msg('http_error_tooLarge'))
   try {
     return JSON.parse(text) as T
   } catch {
-    throw new HttpError(400, msg('http_invalidJson'))
+    throw new HttpError(400, msg('http_error_invalidJson'))
   }
 }

@@ -21,11 +21,11 @@ type Handler = (body: Record<string, unknown>, p: Privileged) => Promise<unknown
 
 const str = (v: unknown) => (typeof v === 'string' ? v : undefined)
 const names = (v: unknown) => {
-  if (!Array.isArray(v) || !v.length || v.length > 200 || !v.every((n) => typeof n === 'string' && PACKAGE_NAME.test(n))) throw new HttpError(400, msg('api_system_invalidPackageNames'))
+  if (!Array.isArray(v) || !v.length || v.length > 200 || !v.every((n) => typeof n === 'string' && PACKAGE_NAME.test(n))) throw new HttpError(400, msg('api_packages_invalidNames'))
   return v as string[]
 }
 const action = (v: unknown): UnitAction => {
-  if (!UNIT_ACTIONS.includes(v as UnitAction)) throw new HttpError(400, msg('privileged_actionMustStartStopRestart'))
+  if (!UNIT_ACTIONS.includes(v as UnitAction)) throw new HttpError(400, msg('helper_error_invalidUnitAction'))
   return v as UnitAction
 }
 
@@ -62,7 +62,7 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/pkg/config-file': (b, p) => p.configFile(str(b.path) ?? ''),
   '/pkg/config-apply': (b, p) => {
     const a = b.action
-    if (a !== 'replace' && a !== 'keep' && a !== 'merge') throw new HttpError(400, msg('privileged_actionReplaceKeepMerge'))
+    if (a !== 'replace' && a !== 'keep' && a !== 'merge') throw new HttpError(400, msg('helper_error_invalidConfigAction'))
     return p.applyConfigFile(str(b.token), str(b.path) ?? '', a, str(b.content))
   },
   '/images/updates': (b, p) => p.imageUpdates(b.refresh === true),
@@ -92,20 +92,20 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/shares/preview': (b, p) => p.previewShare(parseShareChange(b.change)),
   '/shares/apply': (b, p) => p.applyShare(str(b.token), parseShareChange(b.change)),
   '/shares/service': (b, p) => {
-    if (b.kind !== 'smb' && b.kind !== 'nfs') throw new HttpError(400, msg('privileged_kindMustSmbNfs'))
-    if (!['start', 'stop', 'restart', 'enable'].includes(str(b.action) ?? '')) throw new HttpError(400, msg('api_ssh_invalidAction'))
+    if (b.kind !== 'smb' && b.kind !== 'nfs') throw new HttpError(400, msg('helper_error_invalidShareKind'))
+    if (!['start', 'stop', 'restart', 'enable'].includes(str(b.action) ?? '')) throw new HttpError(400, msg('helper_error_invalidServiceAction'))
     return p.shareService(str(b.token), b.kind, b.action as 'start')
   },
   '/ssh/state': (_b, p) => p.sshState(),
   '/ssh/preview': (b, p) => p.previewSsh(parseSshChange(b.change)),
   '/ssh/apply': (b, p) => p.applySsh(str(b.token), parseSshChange(b.change)),
   '/ssh/service': (b, p) => {
-    if (!['start', 'restart', 'enable'].includes(str(b.action) ?? '')) throw new HttpError(400, msg('api_ssh_invalidAction'))
+    if (!['start', 'restart', 'enable'].includes(str(b.action) ?? '')) throw new HttpError(400, msg('helper_error_invalidServiceAction'))
     return p.sshService(str(b.token), b.action as 'start')
   },
   '/smart/report': (b, p) => p.smartReport(b.refresh === true),
   '/smart/selftest': (b, p) => {
-    if (!DISK_NAME.test(str(b.disk) ?? '') || (b.type !== 'short' && b.type !== 'long')) throw new HttpError(400, msg('api_disks_diskTypeShortLongRequired'))
+    if (!DISK_NAME.test(str(b.disk) ?? '') || (b.type !== 'short' && b.type !== 'long')) throw new HttpError(400, msg('api_disks_diskTypeRequired'))
     return p.smartSelfTest(str(b.token), str(b.disk)!, b.type)
   },
   '/files/roots': async (_b, p) => ({ data: await p.fileRoots() }),

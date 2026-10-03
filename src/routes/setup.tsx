@@ -10,7 +10,7 @@ export const Route = createFileRoute('/setup')({
   beforeLoad: ({ context }) => {
     if (context.auth.state !== 'setup') throw redirect({ to: '/login' })
   },
-  head: () => ({ meta: [{ title: msg('page_setup_setupQuadeck') }] }),
+  head: () => ({ meta: [{ title: msg('page_title_setup') }] }),
   component: Setup,
 })
 

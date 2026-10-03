@@ -188,7 +188,7 @@ function HardwarePage() {
                   <div key={g.pci} className="flex flex-col gap-1.5 border-t border-line pt-2 first:border-t-0 first:pt-0" data-testid="gpu">
                     <div className="font-medium">{g.name}</div>
                     <div className="text-[12px] text-muted">
-                      {g.pci} · {m.hardware_driver({ d: (g.driver ?? '–') })} · {g.nodes.join(', ') || m.hardware_noDeviceNode()}
+                      {g.pci} · {m.hardware_label_driver({ driver: (g.driver ?? '–') })} · {g.nodes.join(', ') || m.hardware_noDeviceNode()}
                     </div>
                     {line && (
                       <div className="flex items-center gap-2">
@@ -214,7 +214,7 @@ function HardwarePage() {
                     <span className="font-medium">{u.name ?? `${u.vendor}:${u.product}`}</span>
                     <span className="text-[12px] text-muted">{u.manufacturer}</span>
                   </div>
-                  <div className="text-[12px] text-subtle">{[usbSpeed(u.speed), u.driver && m.hardware_driver({ d: u.driver }), `${u.vendor}:${u.product}`].filter(Boolean).join(' · ')}</div>
+                  <div className="text-[12px] text-subtle">{[usbSpeed(u.speed), u.driver && m.hardware_label_driver({ driver: u.driver }), `${u.vendor}:${u.product}`].filter(Boolean).join(' · ')}</div>
                   {u.serial.map((p) => (
                     <div key={p} className="flex items-center gap-2">
                       <code className="grow truncate rounded-md bg-[#0e1319] px-2 py-1 font-mono text-[12px]" title={p}>

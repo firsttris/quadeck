@@ -125,7 +125,7 @@ export function parseSmartctl(name: string, text: string): SmartDisk {
     attributes,
     selfTests,
     testRunning: testRunning !== undefined && testRunning > 0 ? testRunning : undefined,
-    message: !supported ? (messages.find((m) => !/^Warning/i.test(m)) ?? msg('disks_card_noSmart')) : standby ? msg('smart_asleepNotWokenUp') : undefined,
+    message: !supported ? (messages.find((m) => !/^Warning/i.test(m)) ?? msg('disks_card_noSmart')) : standby ? msg('smart_status_asleep') : undefined,
   }
 }
 

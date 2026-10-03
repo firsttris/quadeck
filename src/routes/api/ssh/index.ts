@@ -18,7 +18,7 @@ export const Route = createFileRoute('/api/ssh/')({
         const p = privileged()
         if (b.service !== undefined) {
           assertWritable()
-          if (!['start', 'restart', 'enable'].includes(b.service as string)) throw new HttpError(400, msg('api_ssh_invalidAction'))
+          if (!['start', 'restart', 'enable'].includes(b.service as string)) throw new HttpError(400, msg('helper_error_invalidServiceAction'))
           return Response.json(await p.sshService(unlockToken(session.id), b.service as 'start'))
         }
         const change = parseSshChange(b.change)

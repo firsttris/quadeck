@@ -40,38 +40,38 @@ export function parseConfigPath(path: string): { live: string; kind: 'new' | 'sa
 
 /** Files whose new default must never replace yours: it does not know your users, disks, rules. */
 const noReplace = (): Record<string, string> => ({
-  '/etc/passwd': msg('configfiles_newVersionDoesNotKnow'),
-  '/etc/shadow': msg('configfiles_holdsPasswordsNeverTakeOver'),
-  '/etc/group': msg('configfiles_newVersionDoesNotKnow2'),
-  '/etc/gshadow': msg('configfiles_groupPasswordsNeverTakeOver'),
-  '/etc/shells': msg('configfiles_listsAllowedShellsNewVersion'),
-  '/etc/fstab': msg('configfiles_holdsYourDisksPackageVersion'),
-  '/etc/crypttab': msg('configfiles_holdsYourEncryptedDrives'),
-  '/etc/sudoers': msg('configfiles_mistakeHereLocksSudoOnly'),
-  '/etc/hosts': msg('configfiles_holdsYourOwnNamesPackage'),
-  '/etc/hostname': msg('configfiles_nameServer'),
+  '/etc/passwd': msg('configfiles_hint_passwd'),
+  '/etc/shadow': msg('configfiles_hint_shadow'),
+  '/etc/group': msg('configfiles_hint_group'),
+  '/etc/gshadow': msg('configfiles_hint_gshadow'),
+  '/etc/shells': msg('configfiles_hint_shells'),
+  '/etc/fstab': msg('configfiles_hint_fstab'),
+  '/etc/crypttab': msg('configfiles_hint_crypttab'),
+  '/etc/sudoers': msg('configfiles_hint_sudoers'),
+  '/etc/hosts': msg('configfiles_hint_hosts'),
+  '/etc/hostname': msg('configfiles_hint_hostname'),
 })
 
 const notes = (): [RegExp, string, Partial<Pick<ConfigFileInfo, 'check' | 'after'>>?][] => [
-  [/^\/etc\/ssh\/sshd_config$/, msg('configfiles_settingsSshServerKeepYour'), { check: 'sshd -t', after: 'sshd-reload' }],
-  [/^\/etc\/mkinitcpio\.conf$/, msg('configfiles_buildsInitramfsKernelStartsSure'), { after: 'mkinitcpio' }],
-  [/^\/etc\/mkinitcpio\.d\//, msg('configfiles_presetKernelSInitramfsRebuild'), { after: 'mkinitcpio' }],
-  [/^\/etc\/pacman\.conf$/, msg('configfiles_settingsPacmanCarryOverYour')],
-  [/^\/etc\/pacman\.d\/mirrorlist$/, msg('configfiles_listDownloadServersIfYou')],
-  [/^\/etc\/locale\.gen$/, msg('configfiles_whichLocalesGeneratedKeepYour'), { after: 'locale-gen' }],
-  [/^\/etc\/samba\/smb\.conf$/, msg('configfiles_yourSharesDefinedHereNever'), { check: 'testparm', after: 'smb-reload' }],
-  [/^\/etc\/systemd\//, msg('configfiles_settingSystemdServicePackageVersion')],
-  [/^\/etc\/makepkg\.conf/, msg('configfiles_settingsBuildingPackagesAurCarry')],
-  [/^\/etc\/pam\.d\//, msg('configfiles_loginRulesPamCarefulMistakes')],
-  [/^\/etc\/containers\//, msg('configfiles_settingsPodmanKeepYourRegistries')],
-  [/^\/etc\/default\/grub$/, msg('configfiles_settingsGrubKeepYourGrub')],
-  [/^\/etc\/tpm2-tss\//, msg('configfiles_profilesTpmWithoutChangesYour')],
+  [/^\/etc\/ssh\/sshd_config$/, msg('configfiles_hint_sshd'), { check: 'sshd -t', after: 'sshd-reload' }],
+  [/^\/etc\/mkinitcpio\.conf$/, msg('configfiles_hint_mkinitcpio'), { after: 'mkinitcpio' }],
+  [/^\/etc\/mkinitcpio\.d\//, msg('configfiles_hint_mkinitcpioPreset'), { after: 'mkinitcpio' }],
+  [/^\/etc\/pacman\.conf$/, msg('configfiles_hint_pacman')],
+  [/^\/etc\/pacman\.d\/mirrorlist$/, msg('configfiles_hint_mirrorlist')],
+  [/^\/etc\/locale\.gen$/, msg('configfiles_hint_localeGen'), { after: 'locale-gen' }],
+  [/^\/etc\/samba\/smb\.conf$/, msg('configfiles_hint_samba'), { check: 'testparm', after: 'smb-reload' }],
+  [/^\/etc\/systemd\//, msg('configfiles_hint_systemd')],
+  [/^\/etc\/makepkg\.conf/, msg('configfiles_hint_makepkg')],
+  [/^\/etc\/pam\.d\//, msg('configfiles_hint_pam')],
+  [/^\/etc\/containers\//, msg('configfiles_hint_containers')],
+  [/^\/etc\/default\/grub$/, msg('configfiles_hint_grub')],
+  [/^\/etc\/tpm2-tss\//, msg('configfiles_hint_tpm')],
 ]
 
 export function describeConfigFile(path: string, kind: 'new' | 'save', live: string): Pick<ConfigFileInfo, 'note' | 'noReplace' | 'check' | 'after'> {
   const hit = notes().find(([re]) => re.test(live))
   const blocked = noReplace()[live]
-  const save = kind === 'save' ? msg('configfiles_savedVersionRemovedPackageNot') : undefined
+  const save = kind === 'save' ? msg('configfiles_hint_orphanSave') : undefined
   return { note: [save, blocked ? undefined : hit?.[1]].filter(Boolean).join(' ') || undefined, noReplace: blocked, ...(hit?.[2] ?? {}) }
 }
 
@@ -79,11 +79,11 @@ export function describeConfigFile(path: string, kind: 'new' | 'save', live: str
 export function describeConfigAction(f: Pick<ConfigFileInfo, 'path' | 'live' | 'kind'>, action: ConfigAction): string {
   switch (action) {
     case 'replace':
-      return msg('configfiles_replacedByNewVersionYour', { live: f.live })
+      return msg('configfiles_confirm_replace', { live: f.live })
     case 'keep':
-      return f.kind === 'save' ? msg('configfiles_deleted', { path: f.path }) : msg('configfiles_deletedStaysAs', { path: f.path, live: f.live })
+      return f.kind === 'save' ? msg('configfiles_confirm_deleteSave', { path: f.path }) : msg('configfiles_confirm_keep', { path: f.path, live: f.live })
     case 'merge':
-      return msg('configfiles_savedYourEditedTextPrevious', { live: f.live, path: f.path })
+      return msg('configfiles_confirm_merge', { live: f.live, path: f.path })
   }
 }
 
@@ -99,11 +99,11 @@ export function replaceRisk(live: string, liveContent: string | undefined, conte
   if (liveContent === undefined || content === undefined) return undefined
   if (/\/mkinitcpio\.conf$/.test(live)) {
     const diff = ['MODULES', 'HOOKS', 'BINARIES', 'FILES'].filter((k) => activeLine(liveContent, k) !== activeLine(content, k))
-    if (diff.length) return msg('configfiles_yourLinesDifferFromNew', { list: diff.join(', ') })
+    if (diff.length) return msg('configfiles_warn_mkinitcpioLines', { list: diff.join(', ') })
   }
   if (/\/samba\/smb\.conf$/.test(live)) {
     const shares = [...liveContent.matchAll(/^\s*\[([^\]]+)\]/gm)].map((m) => m[1]!).filter((n) => !['global', 'homes', 'printers', 'print$'].includes(n.toLowerCase()))
-    if (shares.length) return msg('configfiles_newVersionDoesNotContain', { list: shares.join(', ') })
+    if (shares.length) return msg('configfiles_warn_sambaShares', { list: shares.join(', ') })
   }
   return undefined
 }

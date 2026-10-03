@@ -90,7 +90,7 @@ export class LocalPrivileged implements Privileged {
   }
 
   private podman(path: string, init: RequestInit = {}) {
-    if (!existsSync(this.podmanSocket)) throw new HttpError(503, msg('privileged_podmanSocketMissingSystemctlEnable', { podmanSocket: this.podmanSocket }))
+    if (!existsSync(this.podmanSocket)) throw new HttpError(503, msg('helper_error_podmanSocketMissing', { socket: this.podmanSocket }))
     return fetch(`http://podman${path}`, { ...init, unix: this.podmanSocket, signal: AbortSignal.timeout(15_000) } as RequestInit)
   }
 
@@ -113,7 +113,7 @@ export class LocalPrivileged implements Privileged {
       throw new HttpError(400, (e as Error).message)
     }
     const res = await this.podman(`/containers/${id}/${action}`, { method: 'POST' })
-    if (!res.ok && res.status !== 304) throw new Error(msg('privileged_podmanFailedHttp', { action, status: res.status, value: await res.text() }))
+    if (!res.ok && res.status !== 304) throw new Error(msg('helper_error_podmanFailed', { action, status: res.status, body: await res.text() }))
   }
 
   // ---------- packages & images ----------

@@ -23,7 +23,7 @@ export async function archNews(): Promise<{ items: NewsItem[]; error?: string }>
     cache = { at: Date.now(), items: parseRss(text.slice(0, 2_000_000)).slice(0, 8) }
   } catch (e) {
     // Keep showing the last good list; retry in ten minutes.
-    cache = { at: Date.now() - TTL + 10 * 60_000, items: cache?.items ?? [], error: msg('news_archNewsNotReachable') + (e as Error).message }
+    cache = { at: Date.now() - TTL + 10 * 60_000, items: cache?.items ?? [], error: msg('news_error_unreachable') + (e as Error).message }
   }
   return cache
 }

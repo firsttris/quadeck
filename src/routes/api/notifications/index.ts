@@ -29,8 +29,8 @@ export const Route = createFileRoute('/api/notifications/')({
           const host = hub().snapshot().host.hostname
           // Kept language-neutral in the log, like every other message.
           const notice = outsideRequest(() => ({
-            title: msg('api_notifications_testMessage', { host }),
-            body: msg('api_notifications_notificationsFromQuadeckGettingThrough'),
+            title: msg('api_notifications_testTitle', { host }),
+            body: msg('api_notifications_testBody'),
             severity: 'info' as const,
           }))
           const sent = await n.deliver(notice, s.channels, true)

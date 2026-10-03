@@ -17,9 +17,9 @@ describe('msg()', () => {
     setLangResolver(() => 'en')
     expect(msg('common_save')).toBe('Save')
     setLangResolver(() => 'de')
-    expect(msg('proxy_errors_exists', { a: 'x.example.com', line: 6 })).toBe('x.example.com gibt es schon (Zeile 6)')
+    expect(msg('proxy_errors_exists', { address: 'x.example.com', line: 6 })).toBe('x.example.com gibt es schon (Zeile 6)')
     setLangResolver(() => undefined)
-    const marked = `Paket: ${msg('proxy_errors_exists', { a: 'x.example.com', line: 6 })} (404)`
+    const marked = `Paket: ${msg('proxy_errors_exists', { address: 'x.example.com', line: 6 })} (404)`
     expect(marked).toContain('\u0002["proxy_errors_exists"')
     expect(localize(marked, 'de')).toBe('Paket: x.example.com gibt es schon (Zeile 6) (404)')
     expect(localize(marked, 'en')).toBe('Paket: x.example.com exists already (line 6) (404)')
@@ -28,11 +28,11 @@ describe('msg()', () => {
 
   it('renders messages inside inputs, numbers per language, plurals and variants', () => {
     setLangResolver(() => undefined)
-    const nested = msg('packages_error', { message: msg('fstab_noFileSystem') })
+    const nested = msg('packages_job_error', { message: msg('fstab_label_noFileSystem') })
     expect(localize(nested, 'de')).toBe('Fehler: kein Dateisystem')
     expect(localize(nested, 'en')).toBe('Error: no file system')
-    expect(localize(msg('common_gib', { value: 1.5 }), 'de')).toBe('1,5 GiB')
-    expect(localize(msg('common_gib', { value: 1.5 }), 'en')).toBe('1.5 GiB')
+    expect(localize(msg('format_size_gib', { size: 1.5 }), 'de')).toBe('1,5 GiB')
+    expect(localize(msg('format_size_gib', { size: 1.5 }), 'en')).toBe('1.5 GiB')
     expect(localize(msg('common_items', { n: 1 }), 'en')).toBe('1 entry')
     expect(localize(msg('common_items', { n: 3 }), 'de')).toBe('3 Einträge')
     expect(localize(msg('timers_editor_saved', { name: 'b', enabled: 'true' }), 'de')).toBe('b.timer gespeichert und aktiviert')

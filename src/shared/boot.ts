@@ -177,18 +177,18 @@ export function decodeEfiString(buf: Uint8Array): string {
 }
 
 export const timeoutChoices = (): { value: string; label: string }[] => [
-  { value: 'menu-hidden', label: msg('boot_hideMenuPressKeyAt') },
-  { value: '1', label: msg('boot_1Second') },
-  { value: '3', label: msg('boot_3Seconds') },
-  { value: '5', label: msg('boot_5Seconds') },
-  { value: '10', label: msg('boot_10Seconds') },
-  { value: 'menu-force', label: msg('boot_alwaysWaitUntilSomeonePicks') },
+  { value: 'menu-hidden', label: msg('boot_timeout_menuHidden') },
+  { value: '1', label: msg('boot_timeout_oneSecond') },
+  { value: '3', label: msg('boot_timeout_threeSeconds') },
+  { value: '5', label: msg('boot_timeout_fiveSeconds') },
+  { value: '10', label: msg('boot_timeout_tenSeconds') },
+  { value: 'menu-force', label: msg('boot_timeout_menuForce') },
 ]
 
 export function describeTimeout(t: BootState['timeout']): string {
-  if (t === undefined) return msg('boot_defaultMenuHidden')
-  if (t === 'menu-force') return msg('boot_waitsChoice')
-  if (t === 'menu-hidden' || t === 0) return msg('boot_menuHidden')
+  if (t === undefined) return msg('boot_status_timeoutDefault')
+  if (t === 'menu-force') return msg('boot_status_waitsForChoice')
+  if (t === 'menu-hidden' || t === 0) return msg('boot_status_menuHidden')
   return `${t} s`
 }
 
@@ -203,24 +203,24 @@ export function bootWarnings(s: Omit<BootState, 'warnings'>): BootWarning[] {
         level: e.isDefault ? 'critical' : 'warning',
         text: msg('boot_warn_missingFiles', { title: e.title, files: e.missing.join(', '), isDefault: String(!!e.isDefault) }),
       })
-  for (const k of s.kernels ?? []) if (k.installed && !k.entries.length && s.canCreateEntries) out.push({ level: 'warning', text: msg('boot_installedButHasNoBoot', { pkg: k.pkg }) })
+  for (const k of s.kernels ?? []) if (k.installed && !k.entries.length && s.canCreateEntries) out.push({ level: 'warning', text: msg('boot_warn_kernelNoEntry', { pkg: k.pkg }) })
   if (s.boot) {
     const biggest = Math.max(0, ...s.entries.map((e) => e.size ?? 0))
     if (biggest && s.boot.free < biggest)
       out.push({
         level: 'critical',
-        text: msg('boot_onlyLeftKernelInitramfsNeeds', { path: s.boot.path, free: mib(s.boot.free), needed: mib(biggest) }),
+        text: msg('boot_warn_espTooSmall', { path: s.boot.path, free: mib(s.boot.free), needed: mib(biggest) }),
       })
     else if (s.boot.size && s.boot.free / s.boot.size < 0.15)
       out.push({
         level: 'warning',
-        text: msg('boot_fullFree', { path: s.boot.path, value: Math.round(100 - (s.boot.free / s.boot.size) * 100), free: mib(s.boot.free) }),
+        text: msg('boot_warn_espFull', { path: s.boot.path, percent: Math.round(100 - (s.boot.free / s.boot.size) * 100), free: mib(s.boot.free) }),
       })
   }
   if (s.espVersion && s.packageVersion && versionOlder(s.espVersion, s.packageVersion))
     out.push({
       level: 'warning',
-      text: msg('boot_systemdBootEspOlderThan', { espVersion: s.espVersion, packageVersion: s.packageVersion }),
+      text: msg('boot_warn_loaderOutdated', { espVersion: s.espVersion, packageVersion: s.packageVersion }),
     })
   const kernels = new Set(s.entries.filter((e) => e.type !== 'auto' && e.linux).map((e) => e.linux))
   const ukis = s.entries.filter((e) => e.type === 'type2').length
@@ -229,13 +229,13 @@ export function bootWarnings(s: Omit<BootState, 'warnings'>): BootWarning[] {
       level: 'info',
       text: msg('boot_warn_oneKernel', { canInstall: String(!!s.kernels) }),
     })
-  if (!s.entries.some((e) => e.isDefault)) out.push({ level: 'warning', text: msg('boot_noDefaultEntryFoundSystemd') })
+  if (!s.entries.some((e) => e.isDefault)) out.push({ level: 'warning', text: msg('boot_warn_noDefaultEntry') })
   return out
 }
 
 // Both languages are built at once (the helper has no viewer), so no localeOf() here.
 /** Size in the viewer's number format (rendered with the message, also later on the server). */
-const mib = (b: number) => (b >= 1024 ** 3 ? msg('common_gib', { value: b / 1024 ** 3 }) : msg('common_mib', { value: Math.round(b / 1024 ** 2) }))
+const mib = (b: number) => (b >= 1024 ** 3 ? msg('format_size_gib', { size: b / 1024 ** 3 }) : msg('format_size_mib', { size: Math.round(b / 1024 ** 2) }))
 
 // ---------- kernel command line ----------
 
@@ -260,68 +260,68 @@ export function parseCmdline(cmdline: string): CmdlineParam[] {
 }
 
 const params = (): Record<string, string | ((v?: string) => string)> => ({
-  root: msg('boot_partitionSystem'),
-  rootflags: msg('boot_optionsMountingEGBtrfs'),
-  rootfstype: msg('boot_fileSystem'),
-  rw: msg('boot_mountSystemWritableRightAway'),
-  ro: msg('boot_mountSystemReadOnlyFirst'),
-  resume: msg('boot_partitionHibernation'),
-  cryptdevice: msg('boot_encryptedPartitionUnlockedAtBoot'),
-  'rd.luks.uuid': msg('boot_encryptedPartitionUnlockedAtBoot'),
-  'rd.luks.name': msg('boot_encryptedPartitionUnlockedAtBoot'),
-  initrd: msg('boot_initramfsLoadedAlongKernel'),
-  quiet: msg('boot_fewerMessagesAtBoot'),
-  splash: msg('boot_graphicalBootScreen'),
-  loglevel: (v) => msg('boot_onlyShowKernelMessagesUp', { value: v ?? '?' }),
-  nowatchdog: msg('boot_hardwareWatchdogOffBitFaster'),
-  nmi_watchdog: msg('boot_nmiWatchdog0Off'),
-  mitigations: (v) => (v === 'off' ? msg('boot_protectionAgainstCpuVulnerabilitiesSpectre') : msg('boot_protectionAgainstCpuVulnerabilitiesSpectre2')),
-  'i915.enable_guc': msg('boot_intelGpuLoadGucHuc'),
-  'i915.enable_fbc': msg('boot_intelGpuFramebufferCompressionSaves'),
-  'xe.force_probe': msg('boot_intelGpuArcXeForce'),
-  'i915.force_probe': msg('boot_intelGpuForceDriverCards'),
-  'amdgpu.ppfeaturemask': msg('boot_amdGpuPowerOverclockingFeatures'),
-  'nvidia-drm.modeset': msg('boot_nvidiaKernelModeSettingNeeded'),
-  'nvidia_drm.modeset': msg('boot_nvidiaKernelModeSettingNeeded'),
-  'usbcore.autosuspend': (v) => (v === '-1' ? msg('boot_usbPowerSavingOffHelps') : msg('boot_suspendUsbDevicesAfterMany')),
-  'nvme_core.default_ps_max_latency_us': (v) => (v === '0' ? msg('boot_nvmePowerSavingStatesOff') : msg('boot_nvmeDeepestAllowedPowerSaving')),
-  pcie_aspm: (v) => (v === 'off' ? msg('boot_pciePowerSavingOff') : v === 'force' ? msg('boot_forcePciePowerSavingEven') : msg('boot_pciePowerSaving')),
-  'pcie_aspm.policy': msg('boot_pciePowerSavingLevelPowersupersave'),
-  intel_iommu: (v) => (v === 'on' ? msg('boot_iommuPassDevicesThroughVms') : msg('boot_intelIommu')),
-  amd_iommu: msg('boot_amdIommuPassDevicesThrough'),
-  iommu: (v) => (v === 'pt' ? msg('boot_iommuOnlyPassedThroughDevices') : msg('boot_iommuMode')),
-  'vfio-pci.ids': msg('boot_reserveThesePciDevicesVms'),
-  consoleblank: (v) => msg('boot_blankConsoleScreenAfterS', { value: v ?? '?' }),
-  console: msg('boot_whereKernelMessagesGoScreen'),
-  'zswap.enabled': (v) => (v === '1' ? msg('boot_compressedCacheFrontSwap') : msg('boot_compressedSwapCacheZswap')),
-  'zswap.compressor': msg('boot_compressionZswap'),
-  'systemd.unified_cgroup_hierarchy': msg('boot_cgroupsVersion1V2Only'),
-  'systemd.show_status': msg('boot_showStatusUnitsAtBoot'),
-  'rd.udev.log_level': msg('boot_messagesUdevInitramfs'),
-  'rd.systemd.show_status': msg('boot_showStatusUnitsInitramfs'),
-  'udev.log_level': msg('boot_messagesUdev'),
+  root: msg('boot_param_root'),
+  rootflags: msg('boot_param_rootflags'),
+  rootfstype: msg('boot_param_rootfstype'),
+  rw: msg('boot_param_rw'),
+  ro: msg('boot_param_ro'),
+  resume: msg('boot_param_resume'),
+  cryptdevice: msg('boot_param_cryptdevice'),
+  'rd.luks.uuid': msg('boot_param_cryptdevice'),
+  'rd.luks.name': msg('boot_param_cryptdevice'),
+  initrd: msg('boot_param_initrd'),
+  quiet: msg('boot_param_quiet'),
+  splash: msg('boot_param_splash'),
+  loglevel: (v) => msg('boot_param_loglevel', { level: v ?? '?' }),
+  nowatchdog: msg('boot_param_nowatchdog'),
+  nmi_watchdog: msg('boot_param_nmiWatchdog'),
+  mitigations: (v) => (v === 'off' ? msg('boot_param_mitigationsOff') : msg('boot_param_mitigations')),
+  'i915.enable_guc': msg('boot_param_i915Guc'),
+  'i915.enable_fbc': msg('boot_param_i915Fbc'),
+  'xe.force_probe': msg('boot_param_xeForceProbe'),
+  'i915.force_probe': msg('boot_param_i915ForceProbe'),
+  'amdgpu.ppfeaturemask': msg('boot_param_amdgpuFeatureMask'),
+  'nvidia-drm.modeset': msg('boot_param_nvidiaModeset'),
+  'nvidia_drm.modeset': msg('boot_param_nvidiaModeset'),
+  'usbcore.autosuspend': (v) => (v === '-1' ? msg('boot_param_usbAutosuspendOff') : msg('boot_param_usbAutosuspend')),
+  'nvme_core.default_ps_max_latency_us': (v) => (v === '0' ? msg('boot_param_nvmeApstOff') : msg('boot_param_nvmeApst')),
+  pcie_aspm: (v) => (v === 'off' ? msg('boot_param_pcieAspmOff') : v === 'force' ? msg('boot_param_pcieAspmForce') : msg('boot_param_pcieAspm')),
+  'pcie_aspm.policy': msg('boot_param_pcieAspmPolicy'),
+  intel_iommu: (v) => (v === 'on' ? msg('boot_param_intelIommuOn') : msg('boot_param_intelIommu')),
+  amd_iommu: msg('boot_param_amdIommu'),
+  iommu: (v) => (v === 'pt' ? msg('boot_param_iommuPassthrough') : msg('boot_param_iommu')),
+  'vfio-pci.ids': msg('boot_param_vfioPciIds'),
+  consoleblank: (v) => msg('boot_param_consoleblank', { seconds: v ?? '?' }),
+  console: msg('boot_param_console'),
+  'zswap.enabled': (v) => (v === '1' ? msg('boot_param_zswapOn') : msg('boot_param_zswap')),
+  'zswap.compressor': msg('boot_param_zswapCompressor'),
+  'systemd.unified_cgroup_hierarchy': msg('boot_param_unifiedCgroup'),
+  'systemd.show_status': msg('boot_param_showStatus'),
+  'rd.udev.log_level': msg('boot_param_rdUdevLogLevel'),
+  'rd.systemd.show_status': msg('boot_param_rdShowStatus'),
+  'udev.log_level': msg('boot_param_udevLogLevel'),
   ipv6: 'IPv6',
-  'ipv6.disable': (v) => (v === '1' ? msg('boot_ipv6OffEntirely') : 'IPv6'),
-  transparent_hugepage: msg('boot_useHugePagesAutomatically'),
-  hugepages: msg('boot_reserveFixedNumberHugePages'),
-  amd_pstate: msg('boot_amdCpuFrequencyScalingVia'),
-  intel_pstate: msg('boot_intelCpuFrequencyScaling'),
-  acpi_osi: msg('boot_operatingSystemReportedBiosWorkaround'),
-  acpi_enforce_resources: msg('boot_acpiResourcesLaxSensorsSome'),
-  'libata.force': msg('boot_forceSettingsSataPortsE'),
-  'random.trust_cpu': msg('boot_trustCpuSRandomNumbers'),
-  apparmor: msg('boot_apparmorSecurityModule'),
-  lsm: msg('boot_activeSecurityModules'),
+  'ipv6.disable': (v) => (v === '1' ? msg('boot_param_ipv6Disable') : 'IPv6'),
+  transparent_hugepage: msg('boot_param_transparentHugepage'),
+  hugepages: msg('boot_param_hugepages'),
+  amd_pstate: msg('boot_param_amdPstate'),
+  intel_pstate: msg('boot_param_intelPstate'),
+  acpi_osi: msg('boot_param_acpiOsi'),
+  acpi_enforce_resources: msg('boot_param_acpiEnforceResources'),
+  'libata.force': msg('boot_param_libataForce'),
+  'random.trust_cpu': msg('boot_param_randomTrustCpu'),
+  apparmor: msg('boot_param_apparmor'),
+  lsm: msg('boot_param_lsm'),
   selinux: 'SELinux',
-  audit: msg('boot_auditLogKernel'),
-  module_blacklist: msg('boot_neverLoadTheseKernelModules'),
-  'modprobe.blacklist': msg('boot_neverLoadTheseKernelModules'),
-  fbcon: msg('boot_consoleScreen'),
-  nomodeset: msg('boot_noGraphicsModeSettingOnly'),
-  init: msg('boot_programStartsFirstOtherwiseSystemd'),
-  panic: (v) => msg('boot_rebootSAfterKernelPanic', { value: v ?? '?' }),
-  'kvm.ignore_msrs': msg('boot_kvmIgnoreUnknownCpuRegisters'),
-  split_lock_detect: msg('boot_splitLockDetectionOffSome'),
+  audit: msg('boot_param_audit'),
+  module_blacklist: msg('boot_param_moduleBlacklist'),
+  'modprobe.blacklist': msg('boot_param_moduleBlacklist'),
+  fbcon: msg('boot_param_fbcon'),
+  nomodeset: msg('boot_param_nomodeset'),
+  init: msg('boot_param_init'),
+  panic: (v) => msg('boot_param_panic', { seconds: v ?? '?' }),
+  'kvm.ignore_msrs': msg('boot_param_kvmIgnoreMsrs'),
+  split_lock_detect: msg('boot_param_splitLockDetect'),
 })
 
 export function explainParam(name: string, value?: string): string | undefined {
@@ -392,9 +392,9 @@ export function kernelInfos(installed: Map<string, string>, release: string, ent
 
 /** Why a flavour may not be removed, or undefined. */
 export function kernelRemoveProblem(k: KernelInfo, all: KernelInfo[]): string | undefined {
-  if (k.running) return msg('boot_runningRightNowBootAnother')
-  if (k.isDefault) return msg('boot_defaultEntryMakeAnotherKernel')
-  if (!all.some((x) => x.installed && x.pkg !== k.pkg)) return msg('boot_lastInstalledKernel')
+  if (k.running) return msg('boot_note_kernelRunning')
+  if (k.isDefault) return msg('boot_note_kernelIsDefault')
+  if (!all.some((x) => x.installed && x.pkg !== k.pkg)) return msg('boot_note_lastKernel')
   return undefined
 }
 

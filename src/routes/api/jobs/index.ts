@@ -12,7 +12,7 @@ export const Route = createFileRoute('/api/jobs/')({
     handlers: {
       GET: authed(async () => Response.json({ jobs: await privileged().jobs() })),
       POST: authed(async ({ request }, session) => {
-        if (config().readonly) throw new HttpError(403, msg('api_jobs_readOnlyModeActionsDisabled'))
+        if (config().readonly) throw new HttpError(403, msg('hub_error_readonly'))
         const spec = parseJobSpec((await readJson<{ spec?: unknown }>(request)).spec)
         return Response.json(await privileged().startJob(unlockToken(session.id), spec))
       }),

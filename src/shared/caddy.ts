@@ -190,7 +190,7 @@ const ADDRESS = /^(?:https?:\/\/)?(?:\*\.)?(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A
 
 export function addressProblem(a: string): string | undefined {
   if (!a) return msg('proxy_errors_domainMissing')
-  if (!ADDRESS.test(a)) return msg('proxy_errors_badAddress', { a })
+  if (!ADDRESS.test(a)) return msg('proxy_errors_badAddress', { address: a })
   return undefined
 }
 
@@ -216,7 +216,7 @@ export function applyCaddyChange(text: string, change: CaddyChange): string {
   const find = (address: string) => sites.find((b) => b.addresses.includes(address))
   if (change.kind === 'delete') {
     const b = find(change.address)
-    if (!b) throw new Error(msg('proxy_errors_notInFile', { a: change.address }))
+    if (!b) throw new Error(msg('proxy_errors_notInFile', { address: change.address }))
     return tidy(text.slice(0, b.start) + text.slice(b.end))
   }
   const addresses = change.addresses.map((a) => a.trim()).filter(Boolean)
@@ -232,11 +232,11 @@ export function applyCaddyChange(text: string, change: CaddyChange): string {
     if (p) throw new Error(p)
   }
   const previous = change.previous ? find(change.previous) : undefined
-  if (change.previous && !previous) throw new Error(msg('proxy_errors_notInFile', { a: change.previous! }))
-  if (previous && previous.kind !== 'proxy') throw new Error(msg('proxy_errors_custom', { a: change.previous! }))
+  if (change.previous && !previous) throw new Error(msg('proxy_errors_notInFile', { address: change.previous! }))
+  if (previous && previous.kind !== 'proxy') throw new Error(msg('proxy_errors_custom', { address: change.previous! }))
   for (const a of addresses) {
     const other = find(a)
-    if (other && other !== previous) throw new Error(msg('proxy_errors_exists', { a, line: other.line }))
+    if (other && other !== previous) throw new Error(msg('proxy_errors_exists', { address: a, line: other.line }))
   }
   const block = renderSite(addresses, upstreams)
   if (previous) return text.slice(0, previous.start) + block + text.slice(previous.end)

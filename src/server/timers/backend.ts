@@ -41,11 +41,11 @@ export interface TimersBackend extends TimersAdmin {
 }
 
 export function assertTimerUnit(name: string) {
-  if (!TIMER_UNIT.test(name) || name.startsWith('-')) throw new HttpError(400, msg('timers_invalidTimer', { name }))
+  if (!TIMER_UNIT.test(name) || name.startsWith('-')) throw new HttpError(400, msg('timers_error_invalidTimer', { name }))
 }
 
 export function assertCalendar(expr: string) {
-  if (!CALENDAR.test(expr)) throw new HttpError(400, msg('quadlets_invalidSchedule'))
+  if (!CALENDAR.test(expr)) throw new HttpError(400, msg('quadlets_error_invalidSchedule'))
 }
 
 /** Body of a save request (web app → helper). */
@@ -62,12 +62,12 @@ export function parseSave(v: unknown): {
     throw new HttpError(400, (e as Error).message)
   }
   const previous = typeof o.previous === 'string' && o.previous ? o.previous : undefined
-  if (previous && !TIMER_BASE.test(previous)) throw new HttpError(400, msg('timers_invalidPreviousName'))
+  if (previous && !TIMER_BASE.test(previous)) throw new HttpError(400, msg('timers_error_invalidPrevious'))
   return { spec, previous, enable: o.enable !== false }
 }
 
 export function parseTimerAction(v: unknown): TimerAction {
-  if (!TIMER_ACTIONS.includes(v as TimerAction)) throw new HttpError(400, msg('timers_actionMustRunEnableDisable'))
+  if (!TIMER_ACTIONS.includes(v as TimerAction)) throw new HttpError(400, msg('timers_error_invalidAction'))
   return v as TimerAction
 }
 
@@ -173,7 +173,7 @@ export class SystemTimers implements TimersBackend {
       return {
         timers: [],
         unitDir: this.dir,
-        error: (files.stderr || loaded.stderr).trim() || msg('timers_systemctlNotAvailable'),
+        error: (files.stderr || loaded.stderr).trim() || msg('timers_error_noSystemctl'),
       }
     for (const l of `${files.stdout}\n${loaded.stdout}`.split('\n')) {
       const n = l.trim().split(/\s+/)[0]
@@ -222,16 +222,16 @@ export class SystemTimers implements TimersBackend {
       return {
         ok: false,
         next: [],
-        error: msg('timers_allowedLettersDigits'),
+        error: msg('timers_error_calendarChars'),
       }
     const r = await run(['systemd-analyze', 'calendar', '--iterations=5', '--', e])
-    if (r.code === 127) return { ok: false, next: [], error: msg('timers_systemdAnalyzeMissing') }
+    if (r.code === 127) return { ok: false, next: [], error: msg('timers_error_noAnalyze') }
     if (r.code !== 0) {
       const reason = (r.stderr || r.stdout)
         .trim()
         .split('\n')[0]
         ?.replace(/^Failed to parse calendar specification '[^']*': /, '')
-      return { ok: false, next: [], error: !reason || reason === 'Invalid argument' ? msg('timers_expressionNotUnderstood') : reason }
+      return { ok: false, next: [], error: !reason || reason === 'Invalid argument' ? msg('timers_error_notUnderstood') : reason }
     }
     return { ok: true, ...parseCalendarOutput(r.stdout) }
   }
@@ -240,7 +240,7 @@ export class SystemTimers implements TimersBackend {
     assertTimerUnit(name)
     const svc = (await run(['systemctl', 'show', '-p', 'Unit', '--value', '--', name])).stdout.trim()
     const r = await run(['systemctl', 'cat', '--no-pager', '--', name, ...(svc && /^[\w:.\\@-]+$/.test(svc) ? [svc] : [])])
-    if (!r.stdout.trim()) throw new HttpError(404, (r.stderr || msg('quadlets_notFound', { name })).trim())
+    if (!r.stdout.trim()) throw new HttpError(404, (r.stderr || msg('quadlets_error_notFound', { name })).trim())
     return r.stdout
   }
 
@@ -254,16 +254,16 @@ export class SystemTimers implements TimersBackend {
 
   async saveTimer(spec: TimerSpec, previous: string | undefined, enable: boolean) {
     const check = await this.previewCalendar(spec.calendar)
-    if (!check.ok) throw new HttpError(422, msg('timers_invalidSchedule', { error: check.error ?? '' }))
-    if (spec.user && spec.user !== 'root' && (await run(['getent', 'passwd', spec.user])).code !== 0) throw new HttpError(422, msg('timers_userDoesNotExist', { user: spec.user }))
-    if (spec.workingDirectory && !existsSync(spec.workingDirectory)) throw new HttpError(422, msg('timers_doesNotExist', { workingDirectory: spec.workingDirectory }))
+    if (!check.ok) throw new HttpError(422, msg('timers_error_invalidSchedule', { error: check.error ?? '' }))
+    if (spec.user && spec.user !== 'root' && (await run(['getent', 'passwd', spec.user])).code !== 0) throw new HttpError(422, msg('timers_error_userMissing', { user: spec.user }))
+    if (spec.workingDirectory && !existsSync(spec.workingDirectory)) throw new HttpError(422, msg('timers_error_workDirMissing', { path: spec.workingDirectory }))
     const managed = this.managed()
-    if (previous && !managed.has(previous)) throw new HttpError(404, msg('timers_notQuadeckSchedule', { previous }))
+    if (previous && !managed.has(previous)) throw new HttpError(404, msg('timers_error_notManaged', { previous }))
     if (!managed.has(spec.name) || (previous && previous !== spec.name)) {
       if (managed.has(spec.name)) throw new HttpError(409, msg('files_explorer_exists', { name: spec.name }))
       for (const u of [`${spec.name}.service`, `${spec.name}.timer`]) {
         const state = await this.loadState(u)
-        if ((state && state !== 'not-found') || existsSync(join(this.dir, u))) throw new HttpError(409, msg('timers_alreadyExistsPleaseChooseAnother', { u }))
+        if ((state && state !== 'not-found') || existsSync(join(this.dir, u))) throw new HttpError(409, msg('timers_error_unitExists', { unit: u }))
       }
     }
     const svcPath = join(this.dir, `${spec.name}.service`)
@@ -279,7 +279,7 @@ export class SystemTimers implements TimersBackend {
         [tmrPath, before.tmr],
       ] as const)
         c === undefined ? rmSync(p, { force: true }) : atomicWrite(p, c)
-      throw new HttpError(422, msg('timers_systemdRejectsUnit', { list: ours.join(' · ') }))
+      throw new HttpError(422, msg('timers_error_unitRejected', { list: ours.join(' · ') }))
     }
     if (previous && previous !== spec.name) {
       await run(['systemctl', 'disable', '--now', '--', `${previous}.timer`], {
@@ -295,7 +295,7 @@ export class SystemTimers implements TimersBackend {
 
   async deleteTimer(name: string) {
     const base = name.replace(/\.timer$/, '')
-    if (!this.managed().has(base)) throw new HttpError(409, msg('timers_wasNotCreatedByQuadeck', { name }))
+    if (!this.managed().has(base)) throw new HttpError(409, msg('timers_error_notDeletable', { name }))
     await run(['systemctl', 'disable', '--now', '--', `${base}.timer`], {
       timeoutMs: 60_000,
     })
@@ -309,13 +309,13 @@ export class SystemTimers implements TimersBackend {
 
   async setTimerSchedule(name: string, calendar: string) {
     assertTimerUnit(name)
-    if (this.managed().has(name.replace(/\.timer$/, ''))) throw new HttpError(409, msg('timers_pleaseChangeQuadeckSchedulesVia'))
+    if (this.managed().has(name.replace(/\.timer$/, ''))) throw new HttpError(409, msg('timers_error_useEditor'))
     const state = await this.loadState(name)
-    if (state !== 'loaded') throw new HttpError(404, msg('quadlets_notFound', { name }))
+    if (state !== 'loaded') throw new HttpError(404, msg('quadlets_error_notFound', { name }))
     const path = join(this.dir, `${name}.d`, OVERRIDE_FILE)
     if (calendar) {
       const check = await this.previewCalendar(calendar)
-      if (!check.ok) throw new HttpError(422, msg('timers_invalidSchedule', { error: check.error ?? '' }))
+      if (!check.ok) throw new HttpError(422, msg('timers_error_invalidSchedule', { error: check.error ?? '' }))
       atomicWrite(path, overrideDropIn(calendar))
     } else rmSync(path, { force: true })
     await this.reload()
@@ -326,7 +326,7 @@ export class SystemTimers implements TimersBackend {
     assertTimerUnit(name)
     if (action === 'run') {
       const svc = (await run(['systemctl', 'show', '-p', 'Unit', '--value', '--', name])).stdout.trim()
-      if (!svc || !/^[\w:.\\@-]+\.service$/.test(svc)) throw new HttpError(404, msg('timers_doesNotTriggerService', { name }))
+      if (!svc || !/^[\w:.\\@-]+\.service$/.test(svc)) throw new HttpError(404, msg('timers_error_noService', { name }))
       await runOk(['systemctl', 'start', '--no-block', '--', svc], {
         timeoutMs: 30_000,
       })
@@ -432,7 +432,7 @@ export class FixtureTimers implements TimersBackend {
   private get(name: string) {
     assertTimerUnit(name)
     const e = this.entries.get(name)
-    if (!e) throw new HttpError(404, msg('quadlets_notFound', { name }))
+    if (!e) throw new HttpError(404, msg('quadlets_error_notFound', { name }))
     return e
   }
 
@@ -445,7 +445,7 @@ export class FixtureTimers implements TimersBackend {
 
   async previewCalendar(expr: string): Promise<CalendarPreview> {
     if (this.real) return new SystemTimers().previewCalendar(expr)
-    return CALENDAR.test(expr.trim()) ? { ok: true, normalized: expr.trim(), next: [] } : { ok: false, next: [], error: msg('timers_invalid') }
+    return CALENDAR.test(expr.trim()) ? { ok: true, normalized: expr.trim(), next: [] } : { ok: false, next: [], error: msg('timers_error_invalid') }
   }
 
   async timerFiles(name: string) {
@@ -460,10 +460,10 @@ export class FixtureTimers implements TimersBackend {
 
   async saveTimer(spec: TimerSpec, previous: string | undefined, enable: boolean) {
     const check = await this.previewCalendar(spec.calendar)
-    if (!check.ok) throw new HttpError(422, msg('timers_invalidSchedule', { error: check.error ?? '' }))
-    if (previous && !this.entries.get(`${previous}.timer`)?.managed) throw new HttpError(404, msg('timers_notQuadeckSchedule', { previous }))
+    if (!check.ok) throw new HttpError(422, msg('timers_error_invalidSchedule', { error: check.error ?? '' }))
+    if (previous && !this.entries.get(`${previous}.timer`)?.managed) throw new HttpError(404, msg('timers_error_notManaged', { previous }))
     const existing = this.entries.get(`${spec.name}.timer`)
-    if (existing && (!existing.managed || (previous ?? '') !== spec.name)) throw new HttpError(409, msg('timers_timerAlreadyExistsPleaseChoose', { name: spec.name }))
+    if (existing && (!existing.managed || (previous ?? '') !== spec.name)) throw new HttpError(409, msg('timers_error_timerExists', { name: spec.name }))
     if (previous && previous !== spec.name) this.entries.delete(`${previous}.timer`)
     this.put(spec, enable)
     return this.timersState()
@@ -471,17 +471,17 @@ export class FixtureTimers implements TimersBackend {
 
   async deleteTimer(name: string) {
     const e = this.get(name)
-    if (!e.managed) throw new HttpError(409, msg('timers_wasNotCreatedByQuadeck', { name }))
+    if (!e.managed) throw new HttpError(409, msg('timers_error_notDeletable', { name }))
     this.entries.delete(name)
     return this.timersState()
   }
 
   async setTimerSchedule(name: string, calendar: string) {
     const e = this.get(name)
-    if (e.managed) throw new HttpError(409, msg('timers_pleaseChangeQuadeckSchedulesVia'))
+    if (e.managed) throw new HttpError(409, msg('timers_error_useEditor'))
     if (calendar) {
       const check = await this.previewCalendar(calendar)
-      if (!check.ok) throw new HttpError(422, msg('timers_invalidSchedule', { error: check.error ?? '' }))
+      if (!check.ok) throw new HttpError(422, msg('timers_error_invalidSchedule', { error: check.error ?? '' }))
     }
     if (!this.originals.has(name)) this.originals.set(name, e.calendars[0] ?? 'daily')
     e.override = calendar || undefined

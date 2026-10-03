@@ -105,16 +105,16 @@ export function parseFstab(text: string): { entries: FstabEntry[]; diagnostics: 
     if (!t || t.startsWith('#')) return
     const f = t.split(/\s+/)
     const line = i + 1
-    if (f.length < 2) return void diagnostics.push({ line, severity: 'error', message: msg('fstab_tooFewFieldsAtLeast') })
+    if (f.length < 2) return void diagnostics.push({ line, severity: 'error', message: msg('fstab_check_tooFewFields') })
     if (f.length > 6)
       return void diagnostics.push({
         line,
         severity: 'error',
-        message: msg('fstab_fieldsFstabHasAtMost', { length: f.length }),
+        message: msg('fstab_check_tooManyFields', { count: f.length }),
       })
     const num = (v: string | undefined, name: string) => {
       if (v === undefined) return 0
-      if (!/^\d+$/.test(v)) diagnostics.push({ line, severity: 'error', message: name + msg('fstab_mustNumberNot', { v }) })
+      if (!/^\d+$/.test(v)) diagnostics.push({ line, severity: 'error', message: name + msg('fstab_check_notNumber', { value: v }) })
       return Number(v) || 0
     }
     entries.push({
@@ -124,8 +124,8 @@ export function parseFstab(text: string): { entries: FstabEntry[]; diagnostics: 
       file: unescapeField(f[1]!),
       vfstype: f[2] ?? 'auto',
       options: (f[3] ?? 'defaults').split(',').filter(Boolean),
-      freq: num(f[4], msg('fstab_field5Dump')),
-      passno: num(f[5], msg('fstab_field6CheckOrder')),
+      freq: num(f[4], msg('fstab_label_dumpField')),
+      passno: num(f[5], msg('fstab_label_passnoField')),
     })
   })
   return { entries, diagnostics }
@@ -172,7 +172,7 @@ export function applyChange(text: string, change: FstabChange): string {
 
 export class FstabConflict extends Error {
   constructor() {
-    super(msg('fstab_fstabHasBeenChangedMeantime'))
+    super(msg('fstab_error_changedMeanwhile'))
   }
 }
 
@@ -210,11 +210,11 @@ const FORBIDDEN_TARGET = /^\/(?:$|(?:boot|efi|usr|etc|proc|sys|dev|run|tmp|bin|s
 
 /** Why an entry is read-only, or undefined when Quadeck may change it. `rootSpecs` are the sources of `/`. */
 export function systemReason(e: Pick<FstabEntry, 'spec' | 'file' | 'vfstype'>, rootSpecs: string[] = []): string | undefined {
-  if (e.vfstype === 'swap' || e.file === 'none' || e.file === 'swap') return msg('fstab_swap')
-  if (SYSTEM_TARGETS.has(e.file)) return msg('fstab_systemPartition')
-  if (PSEUDO_FS.has(e.vfstype)) return msg('fstab_systemFileSystem')
-  if (e.file !== '/' && rootSpecs.includes(e.spec)) return msg('fstab_partSystemPartitionSubvolume')
-  if (/^\/(boot|efi|usr|var|etc)\//.test(e.file)) return msg('fstab_systemDirectory')
+  if (e.vfstype === 'swap' || e.file === 'none' || e.file === 'swap') return msg('fstab_label_swap')
+  if (SYSTEM_TARGETS.has(e.file)) return msg('fstab_label_systemPartition')
+  if (PSEUDO_FS.has(e.vfstype)) return msg('fstab_label_systemFs')
+  if (e.file !== '/' && rootSpecs.includes(e.spec)) return msg('fstab_label_systemSubvolume')
+  if (/^\/(boot|efi|usr|var|etc)\//.test(e.file)) return msg('fstab_label_systemDir')
   return undefined
 }
 
@@ -363,11 +363,11 @@ const FSTYPE_RE = /^[a-z0-9][a-z0-9_.+-]{0,39}$/
 
 /** Mount point a new entry may use. */
 export function targetProblem(path: string): string | undefined {
-  if (!path.startsWith('/')) return msg('fstab_mountPointMustAbsolutePath')
-  if (/\/\.\.?(\/|$)/.test(path) || /\/\//.test(path) || (path.length > 1 && path.endsWith('/'))) return msg('fstab_givePathWithoutDoubleTrailing')
-  if (/[\x00-\x1f#]/.test(path)) return msg('fstab_controlCharactersNotAllowedPath')
-  if (FORBIDDEN_TARGET.test(path)) return msg('fstab_systemDirectoryUseEG', { path })
-  if (path.length > 240) return msg('files_pathTooLong')
+  if (!path.startsWith('/')) return msg('fstab_check_mountPointNotAbsolute')
+  if (/\/\.\.?(\/|$)/.test(path) || /\/\//.test(path) || (path.length > 1 && path.endsWith('/'))) return msg('fstab_check_pathNotNormalized')
+  if (/[\x00-\x1f#]/.test(path)) return msg('fstab_check_pathInvalidChars')
+  if (FORBIDDEN_TARGET.test(path)) return msg('fstab_check_systemDir', { path })
+  if (path.length > 240) return msg('files_check_pathTooLong')
   return undefined
 }
 
@@ -375,33 +375,33 @@ export function targetProblem(path: string): string | undefined {
 export function checkInput(e: EntryInput): Diagnostic[] {
   const d: Diagnostic[] = []
   const err = (message: string) => d.push({ severity: 'error', message })
-  if (!e.spec.trim() || /[\x00-\x1f]/.test(e.spec) || !SPEC_RE.test(e.spec)) err(msg('fstab_sourceGiveUuidLabelPartuuid'))
+  if (!e.spec.trim() || /[\x00-\x1f]/.test(e.spec) || !SPEC_RE.test(e.spec)) err(msg('fstab_check_sourceInvalid'))
   const t = targetProblem(e.file)
   if (t) err(t)
-  if (!FSTYPE_RE.test(e.vfstype)) err(msg('fstab_fileSystemEGExt4'))
+  if (!FSTYPE_RE.test(e.vfstype)) err(msg('fstab_check_fsTypeInvalid'))
   for (const o of e.options) {
-    if (!OPTION_RE.test(o)) err(msg('fstab_optionContainsInvalidCharacters', { o }))
+    if (!OPTION_RE.test(o)) err(msg('fstab_check_optionInvalidChars', { option: o }))
     else if (!knownOption(o, e.vfstype))
       d.push({
         severity: 'warning',
-        message: msg('fstab_quadeckDoesNotKnowOption', { o, vfstype: e.vfstype }),
+        message: msg('fstab_check_optionUnknown', { option: o, vfstype: e.vfstype }),
       })
   }
   const names = e.options.map(optionName)
   const dup = names.find((n, i) => names.indexOf(n) !== i)
-  if (dup) err(msg('fstab_optionAppearsTwice', { dup }))
-  if (names.includes('ro') && names.includes('rw')) err(msg('fstab_roRwAtSameTime'))
-  if (names.includes('noauto') && names.includes('x-systemd.automount')) d.push({ severity: 'warning', message: msg('fstab_noautoAutomountMountedAccessOnly') })
-  if (!Number.isInteger(e.freq) || e.freq < 0 || e.freq > 1) err(msg('fstab_field5Dump01'))
-  if (!Number.isInteger(e.passno) || e.passno < 0 || e.passno > 2) err(msg('fstab_field6CheckOrder0'))
-  if (e.passno === 1 && e.file !== '/') d.push({ severity: 'warning', message: msg('fstab_checkOrder1MeantData') })
-  if (e.passno > 0 && ['xfs', 'btrfs', 'ntfs3', 'ntfs', 'exfat', 'zfs'].includes(e.vfstype)) d.push({ severity: 'warning', message: msg('fstab_notCheckedFsckAtBoot', { vfstype: e.vfstype }) })
+  if (dup) err(msg('fstab_check_optionDuplicate', { option: dup }))
+  if (names.includes('ro') && names.includes('rw')) err(msg('fstab_check_roAndRw'))
+  if (names.includes('noauto') && names.includes('x-systemd.automount')) d.push({ severity: 'warning', message: msg('fstab_check_noautoAutomount') })
+  if (!Number.isInteger(e.freq) || e.freq < 0 || e.freq > 1) err(msg('fstab_check_dumpRange'))
+  if (!Number.isInteger(e.passno) || e.passno < 0 || e.passno > 2) err(msg('fstab_check_passnoRange'))
+  if (e.passno === 1 && e.file !== '/') d.push({ severity: 'warning', message: msg('fstab_check_passnoOneNotRoot') })
+  if (e.passno > 0 && ['xfs', 'btrfs', 'ntfs3', 'ntfs', 'exfat', 'zfs'].includes(e.vfstype)) d.push({ severity: 'warning', message: msg('fstab_check_passnoNoFsck', { vfstype: e.vfstype }) })
   for (const o of e.options) {
     const v = optionValue(o)
     const doc = optionDoc(o)
-    if (doc?.value && (v === undefined || v === '')) err(msg('fstab_optionNeedsValue', { name: doc.name }))
-    if (doc?.value === 'number' && v !== undefined && !/^\d+$/.test(v)) err(msg('fstab_expectsNumber', { name: doc.name }))
-    if (doc?.value === 'seconds' && v !== undefined && !/^\d+(ms|s|min|h)?$/.test(v)) err(msg('fstab_expectsDurationLike10s', { name: doc.name }))
+    if (doc?.value && (v === undefined || v === '')) err(msg('fstab_check_optionNeedsValue', { option: doc.name }))
+    if (doc?.value === 'number' && v !== undefined && !/^\d+$/.test(v)) err(msg('fstab_check_optionNumber', { option: doc.name }))
+    if (doc?.value === 'seconds' && v !== undefined && !/^\d+(ms|s|min|h)?$/.test(v)) err(msg('fstab_check_optionDuration', { option: doc.name }))
   }
   return d
 }
@@ -413,10 +413,10 @@ export function checkFile(text: string, rootSpecs: string[] = []): Diagnostic[] 
   for (const e of entries) {
     if (e.vfstype === 'swap' || e.file === 'none') continue
     const prev = seen.get(e.file)
-    if (prev) diagnostics.push({ line: e.line, severity: 'error', message: msg('fstab_alreadyLineMountPointMay', { file: e.file, prev }) })
+    if (prev) diagnostics.push({ line: e.line, severity: 'error', message: msg('fstab_check_mountPointDuplicate', { file: e.file, line: prev }) })
     else seen.set(e.file, e.line)
   }
-  if (!entries.some((e) => e.file === '/') && rootSpecs.length) diagnostics.push({ severity: 'warning', message: msg('fstab_noEntryUnusual') })
+  if (!entries.some((e) => e.file === '/') && rootSpecs.length) diagnostics.push({ severity: 'warning', message: msg('fstab_check_noRootEntry') })
   return diagnostics
 }
 
@@ -430,9 +430,9 @@ export function protectedLinesChanged(before: string, after: string, rootSpecs: 
   const a = sys(before)
   const b = sys(after)
   const gone = a.find((l) => !b.includes(l))
-  if (gone) return msg('fstab_systemEntryWouldChangedRemoved', { gone })
+  if (gone) return msg('fstab_check_systemEntryChanged', { entries: gone })
   const added = b.find((l) => !a.includes(l))
-  if (added) return msg('fstab_newSystemEntryNotAllowed', { added })
+  if (added) return msg('fstab_check_systemEntryAdded', { entries: added })
   return undefined
 }
 

@@ -31,7 +31,7 @@ import { m } from '~/paraglide/messages'
 const FAT_LIKE = ['vfat', 'exfat', 'ntfs3', 'ntfs', 'ntfs-3g']
 
 function deviceLabel(d: BlockDevice) {
-  return [d.label && msg('ui_Mounts_text', { label: d.label }), d.model, diskSize(d.size)].filter(Boolean).join(' · ')
+  return [d.label && msg('mounts_label_quoted', { label: d.label }), d.model, diskSize(d.size)].filter(Boolean).join(' · ')
 }
 
 /**

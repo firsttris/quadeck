@@ -37,10 +37,10 @@ export class HelperClient implements Privileged {
         signal: AbortSignal.timeout(timeoutMs),
       } as RequestInit)
     } catch (e) {
-      throw new HttpError(503, msg('privileged_rootHelperNotReachable', { socket: this.socket, message: (e as Error).message }))
+      throw new HttpError(503, msg('helper_error_unreachable', { socket: this.socket, message: (e as Error).message }))
     }
     const data = (await res.json().catch(() => ({}))) as { error?: string }
-    if (!res.ok) throw new HttpError(res.status, data.error ?? msg('privileged_helperHttp', { status: res.status }))
+    if (!res.ok) throw new HttpError(res.status, data.error ?? msg('helper_error_http', { status: res.status }))
     return data as T
   }
 

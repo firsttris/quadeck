@@ -162,11 +162,11 @@ export class Notifier {
       setSetting(UPDATES, { day, hash })
       if ((!pkgs.length && !images.length) || hash === last?.hash) return
       const lines = [
-        pkgs.length ? msg('notify_packageUpdate', { length: pkgs.length, value: pkgs.length === 1 ? '' : 's' }) : '',
-        images.length ? msg('notify_newImages', { list: images.join(', ') }) : '',
-        msg('notify_installUnderSystemUpdates'),
+        pkgs.length ? msg('notify_updates_packages', { count: pkgs.length, plural: pkgs.length === 1 ? '' : 's' }) : '',
+        images.length ? msg('notify_updates_images', { images: images.join(', ') }) : '',
+        msg('notify_updates_installHint'),
       ].filter(Boolean)
-      await this.deliver({ title: msg('notify_updatesAvailable', { host }), body: lines.join('\n'), severity: 'info' }, channels)
+      await this.deliver({ title: msg('notify_updates_title', { host }), body: lines.join('\n'), severity: 'info' }, channels)
     } finally {
       this.updatesRunning = false
     }

@@ -63,14 +63,14 @@ export function validName(name: string) {
 }
 
 export function validContent(content: string) {
-  if (typeof content !== 'string') throw new HttpError(400, msg('quadlets_contentMissing'))
-  if (content.length > MAX_FILE) throw new HttpError(413, msg('quadlets_fileTooLarge'))
+  if (typeof content !== 'string') throw new HttpError(400, msg('quadlets_error_contentMissing'))
+  if (content.length > MAX_FILE) throw new HttpError(413, msg('quadlets_error_fileTooLarge'))
   // eslint-disable-next-line no-control-regex
-  if (/[\x00-\x08\x0e-\x1f]/.test(content)) throw new HttpError(400, msg('quadlets_controlCharactersFile'))
+  if (/[\x00-\x08\x0e-\x1f]/.test(content)) throw new HttpError(400, msg('quadlets_error_controlChars'))
 }
 
 export function validCalendar(cal: string) {
-  if (cal && !CALENDAR.test(cal)) throw new HttpError(400, msg('quadlets_invalidSchedule'))
+  if (cal && !CALENDAR.test(cal)) throw new HttpError(400, msg('quadlets_error_invalidSchedule'))
 }
 
 /** Lint + generator messages mapped to lines. */
@@ -105,7 +105,7 @@ export function missingReferences(content: string, name: string, files: string[]
   for (const e of parseIni(content)) {
     if (e.kind !== 'kv' || !['Network', 'Volume', 'Pod'].includes(e.key!)) continue
     const ref = e.value!.split(':')[0]!
-    if (/\.(network|volume|pod)$/.test(ref) && !base.has(ref)) out.push({ line: e.start + 1, severity: 'warning', message: msg('quadlets_doesNotExistYetUnit', { ref }) })
+    if (/\.(network|volume|pod)$/.test(ref) && !base.has(ref)) out.push({ line: e.start + 1, severity: 'warning', message: msg('quadlets_lint_refMissing', { ref }) })
   }
   return out
 }
@@ -115,11 +115,11 @@ export function missingReferences(content: string, name: string, files: string[]
  * ones); either way they are shown in the viewer's language.
  */
 export function commitLabel(message: string): string {
-  if (message === 'Initial state' || message === 'Ausgangszustand') return msg('quadlets_initialState')
+  if (message === 'Initial state' || message === 'Ausgangszustand') return msg('quadlets_history_initial')
   const all = message.match(/^(?:Auto-update for all containers (on|off)|Auto-Update für alle Container (an|aus))$/)
   if (all) {
     const on = all[1] === 'on' || all[2] === 'an'
-    return msg('quadlets_autoUpdateAll', { on: String(on) })
+    return msg('quadlets_history_autoUpdate', { enabled: String(on) })
   }
   const m = message.match(/^(.+) (created|changed|deleted|angelegt|geändert|gelöscht)$/)
   if (m) {
@@ -193,7 +193,7 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
     try {
       return readFileSync(join(this.dir, name), 'utf8')
     } catch {
-      throw new HttpError(404, msg('quadlets_notFound', { name }))
+      throw new HttpError(404, msg('quadlets_error_notFound', { name }))
     }
   }
 
@@ -214,7 +214,7 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
     ]
     const gen = this.generator()
     let generated: string | undefined
-    if (!gen) diagnostics.push({ severity: 'warning', message: msg('quadlets_quadletGeneratorNotFoundOwn') })
+    if (!gen) diagnostics.push({ severity: 'warning', message: msg('quadlets_lint_generatorMissing') })
     else {
       // Dry run over a copy of the whole directory (references to .network/.volume files resolve).
       const tmp = mkdtempSync(join(tmpdir(), 'quadeck-quadlet-'))
@@ -224,7 +224,7 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
         const r = await run([gen, '-dryrun'], { timeoutMs: 30_000, env: { QUADLET_UNIT_DIRS: tmp } })
         diagnostics.push(...generatorDiagnostics(r.stderr, name, content))
         generated = generatedUnit(r.stdout, quadletUnit(name))
-        if (!generated && !diagnostics.some((d) => d.severity === 'error')) diagnostics.push({ severity: 'error', message: msg('quadlets_generatorProducedNoUnit') + (r.stderr.trim() ? `: ${r.stderr.trim().split('\n').pop()}` : '') })
+        if (!generated && !diagnostics.some((d) => d.severity === 'error')) diagnostics.push({ severity: 'error', message: msg('quadlets_lint_noGeneratedUnit') + (r.stderr.trim() ? `: ${r.stderr.trim().split('\n').pop()}` : '') })
       } finally {
         rmSync(tmp, { recursive: true, force: true })
       }
@@ -268,9 +268,9 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
 
   async quadletRevision(name: string, id: string) {
     validName(name)
-    if (!/^[0-9a-f]{7,40}$/.test(id)) throw new HttpError(400, msg('quadlets_invalidRevision'))
+    if (!/^[0-9a-f]{7,40}$/.test(id)) throw new HttpError(400, msg('quadlets_error_invalidRevision'))
     const r = await this.git('show', `${id}:${name}`)
-    if (r.code !== 0) throw new HttpError(404, msg('quadlets_revisionNotFound'))
+    if (r.code !== 0) throw new HttpError(404, msg('quadlets_error_revisionNotFound'))
     return r.stdout
   }
 
@@ -279,7 +279,7 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
   async writeQuadlet(name: string, content: string, restart: boolean): Promise<WriteResult> {
     const v = await this.validateQuadlet(name, content)
     const err = v.diagnostics.find((d) => d.severity === 'error')
-    if (err) throw new HttpError(422, `${err.line ? msg('fstab_line', { line: err.line }) : ''}${err.message}`)
+    if (err) throw new HttpError(422, `${err.line ? msg('fstab_label_linePrefix', { line: err.line }) : ''}${err.message}`)
     const history = await this.ensureRepo()
     const isNew = !existsSync(join(this.dir, name))
     atomicWrite(join(this.dir, name), content.endsWith('\n') ? content : content + '\n')
@@ -291,14 +291,14 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
       await this.manager('RestartUnit', 'ss', unit, 'replace')
       return { unit, restarted: true }
     } catch (e) {
-      return { unit, restarted: false, warning: msg('quadlets_savedButDoesNotStart', { unit }) + `: ${(e as Error).message}` }
+      return { unit, restarted: false, warning: msg('quadlets_warn_savedNotStarted', { unit }) + `: ${(e as Error).message}` }
     }
   }
 
   async deleteQuadlet(name: string) {
     validName(name)
     const path = join(this.dir, name)
-    if (!existsSync(path)) throw new HttpError(404, msg('quadlets_notFound', { name }))
+    if (!existsSync(path)) throw new HttpError(404, msg('quadlets_error_notFound', { name }))
     const history = await this.ensureRepo()
     await this.manager('StopUnit', 'ss', quadletUnit(name), 'replace').catch(() => {})
     rmSync(path)
@@ -359,7 +359,7 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
     validCalendar(calendar)
     if (calendar) {
       const check = await run(['systemd-analyze', 'calendar', '--', calendar])
-      if (check.code !== 0) throw new HttpError(422, msg('quadlets_invalidSchedule2') + `: ${(check.stderr || check.stdout).trim().split('\n')[0]}`)
+      if (check.code !== 0) throw new HttpError(422, msg('quadlets_check_invalidSchedule') + `: ${(check.stderr || check.stdout).trim().split('\n')[0]}`)
       atomicWrite(this.timerDropIn, `# Quadeck: schedule for podman auto-update\n[Timer]\nOnCalendar=\nOnCalendar=${calendar}\n`)
     } else rmSync(this.timerDropIn, { force: true })
     await this.manager('Reload')
@@ -368,7 +368,7 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
 
   async setAutoUpdateDefault(enabled: boolean) {
     const v = await this.version()
-    if (!(Number(v?.split('.')[0]) >= 5)) throw new HttpError(409, msg('quadlets_defaultsNeedPodman5', { version: v ?? msg('packages_unknownState') }))
+    if (!(Number(v?.split('.')[0]) >= 5)) throw new HttpError(409, msg('quadlets_error_needsPodman5', { version: v ?? msg('packages_status_unknown') }))
     const history = await this.ensureRepo()
     if (enabled) atomicWrite(this.defaultsDropIn, '# Quadeck: auto-update for all .container files\n[Container]\nAutoUpdate=registry\n')
     else rmSync(this.defaultsDropIn, { force: true })
@@ -377,12 +377,12 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
   }
 
   async writePodmanConfig(name: PodmanConfigName, content: string) {
-    if (!EDITABLE_CONFIGS.includes(name)) throw new HttpError(400, msg('quadlets_cannotEditedHere', { name }))
+    if (!EDITABLE_CONFIGS.includes(name)) throw new HttpError(400, msg('quadlets_error_notEditable', { name }))
     validContent(content)
     try {
       Bun.TOML.parse(content)
     } catch (e) {
-      throw new HttpError(422, msg('quadlets_tomlError') + `: ${(e as Error).message}`)
+      throw new HttpError(422, msg('quadlets_error_toml') + `: ${(e as Error).message}`)
     }
     const path = join(this.confDir, name)
     if (existsSync(path)) writeFileSync(`${path}.quadeck-bak`, readFileSync(path), { mode: 0o644 })
@@ -430,7 +430,7 @@ export class FixturePodmanAdmin implements PodmanAdminBackend {
   async readQuadlet(name: string) {
     validName(name)
     const f = this.files.get(name)
-    if (!f) throw new HttpError(404, msg('quadlets_notFound', { name }))
+    if (!f) throw new HttpError(404, msg('quadlets_error_notFound', { name }))
     return f.content
   }
   async validateQuadlet(name: string, content: string) {
@@ -445,19 +445,19 @@ export class FixturePodmanAdmin implements PodmanAdminBackend {
   }
   async quadletRevision(name: string, id: string) {
     const v = this.files.get(name)?.versions.get(id)
-    if (v === undefined) throw new HttpError(404, msg('quadlets_revisionNotFound'))
+    if (v === undefined) throw new HttpError(404, msg('quadlets_error_revisionNotFound'))
     return v
   }
   async writeQuadlet(name: string, content: string, restart: boolean) {
     const v = await this.validateQuadlet(name, content)
     const err = v.diagnostics.find((d) => d.severity === 'error')
-    if (err) throw new HttpError(422, `${err.line ? msg('fstab_line', { line: err.line }) : ''}${err.message}`)
+    if (err) throw new HttpError(422, `${err.line ? msg('fstab_label_linePrefix', { line: err.line }) : ''}${err.message}`)
     this.put(name, content.endsWith('\n') ? content : content + '\n', `${name} ${this.files.has(name) ? 'changed' : 'created'}`)
     return { unit: quadletUnit(name), restarted: restart }
   }
   async deleteQuadlet(name: string) {
     validName(name)
-    if (!this.files.delete(name)) throw new HttpError(404, msg('quadlets_notFound', { name }))
+    if (!this.files.delete(name)) throw new HttpError(404, msg('quadlets_error_notFound', { name }))
   }
   async podmanSettings() {
     return structuredClone(this.settings)
@@ -470,12 +470,12 @@ export class FixturePodmanAdmin implements PodmanAdminBackend {
     this.settings.autoUpdateDefault.enabled = enabled
   }
   async writePodmanConfig(name: PodmanConfigName, content: string) {
-    if (!EDITABLE_CONFIGS.includes(name)) throw new HttpError(400, msg('quadlets_cannotEditedHere', { name }))
+    if (!EDITABLE_CONFIGS.includes(name)) throw new HttpError(400, msg('quadlets_error_notEditable', { name }))
     validContent(content)
     try {
       Bun.TOML.parse(content)
     } catch (e) {
-      throw new HttpError(422, msg('quadlets_tomlError') + `: ${(e as Error).message}`)
+      throw new HttpError(422, msg('quadlets_error_toml') + `: ${(e as Error).message}`)
     }
     const f = this.settings.files.find((x) => x.name === name)!
     f.content = content
