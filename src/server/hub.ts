@@ -9,6 +9,7 @@ import { join } from 'node:path'
 import type { Container, Disk, GpuMetrics, HiddenService, Share, Snapshot, SourceStatus, SystemMetrics, Unit } from '~/shared/types'
 import { collectDisks, diskRole } from './collectors/disks'
 import { GpuCollector } from './collectors/gpu'
+import { speedCheck, speedTick, seedSpeedHistory } from './speedtest'
 import { demoSystemSample, metricRows, pruneHistory, SAMPLE_EVERY_MS, seedFixtureHistory, seedSmartHistory, smartBaselines } from './metrics'
 import { assessSmart } from '~/shared/smart'
 import { smartSamples } from '~/shared/smart-metrics'
@@ -156,8 +157,16 @@ export class Hub {
     const gpu = every(5000, async () => this.collectGpus())
     every(3600_000, async () => pruneHistory(db()))
     const updates = every(15 * 60_000, () => notifier().checkUpdates(this.host.hostname, this.priv))
+    // Automatic speed test (Network → Speed test), when switched on.
+    every(60_000, async () => {
+      const n = notifier().settings()
+      if (await speedTick({ demo: !!this.fixtures, rule: { enabled: !!n.rules.internet, speedMode: n.speedMode, speedPercent: n.speedPercent, speedMbit: n.speedMbit } })) this.publish()
+    })
     setTimeout(() => void updates(), 60_000)
-    if (this.fixtures) seedFixtureHistory(db())
+    if (this.fixtures) {
+      seedFixtureHistory(db())
+      seedSpeedHistory()
+    }
     // First round right away (timers are already registered, so a failure here
     // does not leave the hub dead).
     await gpu()
@@ -351,6 +360,7 @@ export class Hub {
       smart: this.smart,
       sources: this.sources,
       readonly: config().readonly,
+      speed: speedSnapshot(),
     }
   }
 
@@ -474,4 +484,10 @@ export async function hubReady(): Promise<Hub> {
   const h = hub()
   await g.__quadeckHubStarted
   return h
+}
+
+/** The confirmed speed problem (if any) for the snapshot and the notification rule. */
+function speedSnapshot(): Snapshot['speed'] {
+  const c = speedCheck()
+  return c ? { at: c.at, alert: c.alert, down: c.down, expected: c.expected, detail: c.detail } : undefined
 }

@@ -170,6 +170,8 @@ export interface Snapshot {
   smart: { name: string; level: 'ok' | 'warning' | 'critical'; supported: boolean; standby?: boolean }[]
   sources: Record<'system' | 'disks' | 'podman' | 'systemd' | 'caddy' | 'shares' | 'smart', SourceStatus>
   readonly: boolean
+  /** The last automatic internet check: a confirmed problem (measured twice) for the notification. */
+  speed?: { alert?: 'slow' | 'down'; down?: number; expected?: number; detail?: string; at: number }
 }
 
 export interface JournalEntry {

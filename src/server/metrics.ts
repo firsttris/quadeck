@@ -42,7 +42,8 @@ export const SMART_KEEP_MS = 365 * 24 * 3600_000
 
 export function pruneHistory(d: DB, now = Date.now()) {
   const t = schema.metricSamples
-  d.delete(t).where(and(lt(t.ts, now - KEEP_MS), sql`${t.metric} NOT LIKE 'smart:%'`)).run()
+  // SMART trends and speed tests are kept for a year (below), everything else for KEEP_MS.
+  d.delete(t).where(and(lt(t.ts, now - KEEP_MS), sql`${t.metric} NOT LIKE 'smart:%'`, sql`${t.metric} NOT LIKE 'speed:%'`)).run()
   d.delete(t).where(lt(t.ts, now - SMART_KEEP_MS)).run()
 }
 

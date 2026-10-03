@@ -31,7 +31,7 @@ export interface Channel {
   to?: string
 }
 
-export type RuleKey = 'unit-failed' | 'service-down' | 'container-unhealthy' | 'smart' | 'disk-full' | 'updates'
+export type RuleKey = 'unit-failed' | 'service-down' | 'container-unhealthy' | 'smart' | 'disk-full' | 'updates' | 'internet'
 
 export interface NotifySettings {
   channels: Channel[]
@@ -42,6 +42,10 @@ export interface NotifySettings {
   recovery: boolean
   /** Hour of the day for the update summary. */
   updatesHour: number
+  /** Internet too slow: below `speedPercent` % of the usual (relative) or below `speedMbit` Mbit/s download (fixed). */
+  speedMode: 'relative' | 'fixed'
+  speedPercent: number
+  speedMbit: number
 }
 
 export type Severity = 'critical' | 'warning' | 'info' | 'ok'
@@ -77,7 +81,7 @@ export interface NotifyState {
 
 export const MASK = '••••••••'
 
-export const RULE_KEYS: RuleKey[] = ['unit-failed', 'service-down', 'container-unhealthy', 'smart', 'disk-full', 'updates']
+export const RULE_KEYS: RuleKey[] = ['unit-failed', 'service-down', 'container-unhealthy', 'smart', 'disk-full', 'updates', 'internet']
 
 export const rules = (): { key: RuleKey; label: string; help: string }[] => [
   {
@@ -97,6 +101,7 @@ export const rules = (): { key: RuleKey; label: string; help: string }[] => [
   },
   { key: 'smart', label: msg('notify_rule_smart'), help: msg('notify_rule_smartHelp') },
   { key: 'disk-full', label: msg('notify_rule_diskFull'), help: msg('notify_rule_diskFullHelp') },
+  { key: 'internet', label: msg('notify_rule_internet'), help: msg('notify_rule_internetHelp') },
   {
     key: 'updates',
     label: msg('notify_rule_updates'),
@@ -152,14 +157,17 @@ export const recipients = (to: string | undefined) =>
 
 export const defaultSettings = (): NotifySettings => ({
   channels: [],
-  rules: { 'unit-failed': true, 'service-down': true, 'container-unhealthy': true, smart: true, 'disk-full': true, updates: true },
+  rules: { 'unit-failed': true, 'service-down': true, 'container-unhealthy': true, smart: true, 'disk-full': true, updates: true, internet: false },
   diskThreshold: 90,
   recovery: true,
   updatesHour: 9,
+  speedMode: 'relative',
+  speedPercent: 50,
+  speedMbit: 100,
 })
 
 /** How long a problem must persist before it is reported. */
-export const DELAY_MS: Record<RuleKey, number> = { 'unit-failed': 0, 'service-down': 120_000, 'container-unhealthy': 120_000, smart: 0, 'disk-full': 0, updates: 0 }
+export const DELAY_MS: Record<RuleKey, number> = { 'unit-failed': 0, 'service-down': 120_000, 'container-unhealthy': 120_000, smart: 0, 'disk-full': 0, updates: 0, internet: 0 }
 
 // ---------- validation ----------
 
@@ -227,15 +235,21 @@ export function parseSettings(v: unknown, previous: NotifySettings): NotifySetti
     return ch
   })
   const r = (o.rules ?? {}) as Record<string, unknown>
-  const rules = Object.fromEntries(RULE_KEYS.map((key) => [key, r[key] !== false])) as Record<RuleKey, boolean>
+  // New rules that cost something (the internet one measures) start switched off.
+  const rules = Object.fromEntries(RULE_KEYS.map((key) => [key, key === 'internet' ? r[key] === true : r[key] !== false])) as Record<RuleKey, boolean>
   const threshold = Number(o.diskThreshold)
   const hour = Number(o.updatesHour)
+  const percent = Number(o.speedPercent)
+  const mbit = Number(o.speedMbit)
   return {
     channels,
     rules,
     diskThreshold: Number.isInteger(threshold) && threshold >= 50 && threshold <= 99 ? threshold : 90,
     recovery: o.recovery !== false,
     updatesHour: Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : 9,
+    speedMode: o.speedMode === 'fixed' ? 'fixed' : 'relative',
+    speedPercent: Number.isInteger(percent) && percent >= 10 && percent <= 90 ? percent : 50,
+    speedMbit: Number.isFinite(mbit) && mbit >= 1 && mbit <= 100_000 ? Math.round(mbit) : 100,
   }
 }
 
@@ -306,6 +320,15 @@ export function currentAlerts(snap: Snapshot, s: NotifySettings, active: Set<str
       if (used >= limit) alerts.push({ key, rule: 'disk-full', severity: used >= 0.97 ? 'critical' : 'warning', title: msg('notify_alert_diskFull', { mount: d.mount, percent: pct(used) }), detail: `${d.dev} · ${d.fstype}` })
     }
   }
+  if (on('internet') && snap.speed?.alert)
+    alerts.push({
+      key: 'internet',
+      rule: 'internet',
+      severity: 'warning',
+      title: snap.speed.alert === 'down' ? msg('notify_alert_internetDown') : msg('notify_alert_internetSlow', { down: Math.round(snap.speed.down ?? 0), expected: Math.round(snap.speed.expected ?? 0) }),
+      subject: msg('notify_subject_internet'),
+      detail: snap.speed.detail,
+    })
   return { alerts, unknown }
 }
 

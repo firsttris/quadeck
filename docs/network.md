@@ -129,3 +129,15 @@ the steps ping → download → upload and a curve while it runs:
 
 Every result shows Mbit/s and MB/s (Mbit/s ÷ 8): connections are sold in Mbit/s, file sizes are in
 bytes. The last 50 results are kept in a history.
+
+**Measure automatically** (off by default): daily or every six hours from a chosen hour (a fixed
+random minute per server). Only the internet test runs on its own – the device test needs a
+browser. Each run downloads at full speed for a few seconds (about 400 MB at 500 Mbit/s), so with a
+data cap daily is the better choice. Manual and automatic results go into a **graph** over 7, 30, 90
+or 365 days (download and upload, ping below); speed results are kept for a year.
+
+**Notification** – the rule *Internet slow or down* on the [notifications](notifications.md) page,
+off by default. The limit is relative (below a share of the usual download, the average of the
+last 7 days, default 50 %) or a fixed value in Mbit/s. A slow or failed run is measured again 15
+minutes later; only when that one is bad too, the notification goes out, and an all-clear follows
+once a run is fine again.

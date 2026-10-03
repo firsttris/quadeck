@@ -4,8 +4,11 @@
 // web app itself – no root, nothing to install.
 
 import { randomBytes } from 'node:crypto'
+import { and, asc, gte, sql } from 'drizzle-orm'
 import { getSetting, setSetting } from './settings'
-import { mbps, pingStats, SPEED_HISTORY, type SpeedResult } from '~/shared/speedtest'
+import { db, schema } from './db'
+import { msg } from '~/shared/i18n'
+import { DEFAULT_SCHEDULE, judgeSpeed, lastSlot, mbps, pingStats, SPEED_HISTORY, usualDown, type SpeedResult, type SpeedSchedule } from '~/shared/speedtest'
 
 const CHUNK = randomBytes(1024 * 1024)
 /** Upper limit of one download request from the page. */
@@ -140,4 +143,160 @@ export async function demoInternetSpeed(onProgress: (p: SpeedProgress) => void =
       onProgress({ phase, value: Math.round(top * Math.min(1, (i / steps) * 1.6) * j()), done: i / steps })
     }
   return { at: Date.now(), kind: 'internet', down: Math.round(480 * j()), up: Math.round(46 * j()), ping: Math.round(9 * j() * 10) / 10, jitter: 1.4, where: 'FRA' }
+}
+
+// ---------- one run at a time, saved, judged ----------
+
+export type SpeedCheck = { at: number; alert?: 'slow' | 'down'; down?: number; expected?: number; detail?: string; /** A bad result waits for a second one. */ recheckAt?: number }
+
+const CHECK = 'speedtest.check'
+const SCHEDULE = 'speedtest.schedule'
+const LAST_AUTO = 'speedtest.lastAuto'
+const RECHECK_MS = 15 * 60_000
+
+let running: Promise<SpeedResult> | undefined
+export const speedRunning = () => !!running
+
+export function speedCheck(): SpeedCheck | undefined {
+  return getSetting<SpeedCheck>(CHECK)
+}
+
+export function speedSchedule(): SpeedSchedule {
+  return { ...DEFAULT_SCHEDULE, ...(getSetting<SpeedSchedule>(SCHEDULE) ?? {}) }
+}
+
+export function setSpeedSchedule(v: unknown): SpeedSchedule {
+  const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>
+  const hour = Number(o.hour)
+  const s: SpeedSchedule = { enabled: o.enabled === true, every: o.every === '6h' ? '6h' : 'daily', hour: Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : 4 }
+  setSetting(SCHEDULE, s)
+  return s
+}
+
+/** The minute past the hour this server measures at (spreads many servers over the hour). */
+export function speedMinute(): number {
+  let mnt = getSetting<number>('speedtest.minute')
+  if (mnt === undefined) {
+    mnt = 5 + Math.floor(Math.random() * 40)
+    setSetting('speedtest.minute', mnt)
+  }
+  return mnt
+}
+
+/** When the next automatic run is due. */
+export function nextSpeedRun(now = Date.now()): number | undefined {
+  const s = speedSchedule()
+  if (!s.enabled) return undefined
+  const check = speedCheck()
+  if (check?.recheckAt) return check.recheckAt
+  const step = s.every === '6h' ? 6 * 3600_000 : 86_400_000
+  return lastSlot(s, now, speedMinute()) + step
+}
+
+/** Download, upload and ping as metrics (one year, for the graph). */
+function record(r: SpeedResult) {
+  db()
+    .insert(schema.metricSamples)
+    .values([
+      { ts: r.at, metric: 'speed:down', value: r.down },
+      { ts: r.at, metric: 'speed:up', value: r.up },
+      { ts: r.at, metric: 'speed:ping', value: r.ping },
+    ])
+    .run()
+}
+
+export function speedSeries(days = 365, now = Date.now()): Record<'down' | 'up' | 'ping', [number, number][]> {
+  const t = schema.metricSamples
+  const rows = db()
+    .select({ ts: t.ts, metric: t.metric, value: t.value })
+    .from(t)
+    .where(and(gte(t.ts, now - days * 86_400_000), sql`${t.metric} LIKE 'speed:%'`))
+    .orderBy(asc(t.ts))
+    .all()
+  const out: Record<'down' | 'up' | 'ping', [number, number][]> = { down: [], up: [], ping: [] }
+  for (const r of rows) {
+    const k = r.metric.slice(6) as 'down' | 'up' | 'ping'
+    if (k in out) out[k].push([r.ts, r.value])
+  }
+  return out
+}
+
+/**
+ * Server ↔ internet, one at a time (a second caller waits for the same run). The result is
+ * saved, recorded for the graph and judged for the notification rule: a bad result is
+ * measured again after 15 minutes and only reported when that one is bad too.
+ */
+export function runInternetTest(opts: { demo: boolean; auto?: boolean; rule?: { enabled: boolean; speedMode: 'relative' | 'fixed'; speedPercent: number; speedMbit: number }; onProgress?: (p: SpeedProgress) => void }): Promise<SpeedResult> {
+  if (running) return running
+  const before = speedHistory()
+  running = (opts.demo ? demoInternetSpeed(opts.onProgress) : internetSpeed({ onProgress: opts.onProgress }))
+    .then((r) => {
+      const res: SpeedResult = opts.auto ? { ...r, auto: true } : r
+      saveSpeed(res)
+      record(res)
+      judge(res.down, undefined, before, opts.rule)
+      return res
+    })
+    .catch((e: Error) => {
+      judge(undefined, e.message, before, opts.rule)
+      throw e
+    })
+    .finally(() => {
+      running = undefined
+      if (opts.auto) setSetting(LAST_AUTO, Date.now())
+    })
+  return running
+}
+
+function judge(down: number | undefined, error: string | undefined, before: SpeedResult[], rule: { enabled: boolean; speedMode: 'relative' | 'fixed'; speedPercent: number; speedMbit: number } | undefined) {
+  const now = Date.now()
+  const prev = speedCheck()
+  if (!rule?.enabled) return setSetting(CHECK, { at: now })
+  const verdict = down === undefined ? { slow: true, expected: undefined } : judgeSpeed(down, usualDown(before, now), rule)
+  if (!verdict.slow) return setSetting(CHECK, { at: now })
+  const bad = { at: now, down, expected: verdict.expected, detail: error }
+  // First bad result: measure again before telling anyone.
+  if (!prev?.recheckAt && !prev?.alert) return setSetting(CHECK, { ...bad, recheckAt: now + RECHECK_MS })
+  setSetting(CHECK, { ...bad, alert: down === undefined ? 'down' : 'slow' })
+}
+
+/** Called every minute by the hub: runs the automatic test when it is due. */
+export async function speedTick(opts: { demo: boolean; rule: { enabled: boolean; speedMode: 'relative' | 'fixed'; speedPercent: number; speedMbit: number } }, now = Date.now()): Promise<boolean> {
+  const s = speedSchedule()
+  if (!s.enabled || running) return false
+  const check = speedCheck()
+  const last = getSetting<number>(LAST_AUTO) ?? 0
+  const due = check?.recheckAt ? now >= check.recheckAt : lastSlot(s, now, speedMinute()) > last
+  if (!due) return false
+  await runInternetTest({ demo: opts.demo, auto: true, rule: opts.rule }).catch(() => undefined)
+  return true
+}
+
+export const speedCheckMessage = (c: SpeedCheck | undefined) =>
+  c?.alert === 'down' ? msg('speed_alert_down', { detail: c.detail ?? '' }) : c?.alert === 'slow' ? msg('speed_alert_slow', { down: Math.round(c.down ?? 0), expected: Math.round(c.expected ?? 0) }) : undefined
+
+/** Demo: two months of daily measurements for the graph (once). */
+export function seedSpeedHistory(now = Date.now()) {
+  const t = schema.metricSamples
+  if (
+    db()
+      .select({ n: sql<number>`count(*)` })
+      .from(t)
+      .where(sql`${t.metric} LIKE 'speed:%'`)
+      .get()!.n > 0
+  )
+    return
+  const rows: { ts: number; metric: string; value: number }[] = []
+  let seed = 11
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+  for (let d = 60; d >= 1; d--) {
+    const ts = now - d * 86_400_000
+    const dip = d === 23 || d === 22 ? 0.35 : 1 // a bad evening at the provider
+    rows.push(
+      { ts, metric: 'speed:down', value: Math.round(470 * dip * (0.9 + rnd() * 0.15)) },
+      { ts, metric: 'speed:up', value: Math.round(46 * (0.9 + rnd() * 0.15)) },
+      { ts, metric: 'speed:ping', value: Math.round((8 + rnd() * 4) * 10) / 10 },
+    )
+  }
+  db().insert(t).values(rows).run()
 }

@@ -227,6 +227,26 @@ function Rules({ settings, onSave }: { settings: NotifySettings; onSave: (s: Not
                 {m.notifications_rules_usage()}
               </span>
             )}
+            {r.key === 'internet' && (
+              <span className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-muted">
+                <select className="field !w-auto !py-1" aria-label={m.notifications_rules_speedMode()} value={draft.speedMode} onChange={(e) => setDraft({ ...draft, speedMode: e.target.value === 'fixed' ? 'fixed' : 'relative' })}>
+                  <option value="relative">{m.notifications_rules_speedModeRelative()}</option>
+                  <option value="fixed">{m.notifications_rules_speedModeFixed()}</option>
+                </select>
+                {m.notifications_rules_speedRelative()}
+                {draft.speedMode === 'relative' ? (
+                  <>
+                    <input className="field w-[70px]" type="number" min={10} max={90} aria-label={m.notifications_rules_speedValue()} value={draft.speedPercent} onChange={(e) => setDraft({ ...draft, speedPercent: Math.min(90, Math.max(10, Number(e.target.value) || 50)) })} />
+                    {m.notifications_rules_speedRelativeAfter()}
+                  </>
+                ) : (
+                  <>
+                    <input className="field w-[90px]" type="number" min={1} max={100000} aria-label={m.notifications_rules_speedValue()} value={draft.speedMbit} onChange={(e) => setDraft({ ...draft, speedMbit: Math.min(100_000, Math.max(1, Number(e.target.value) || 100)) })} />
+                    {m.notifications_rules_speedFixedAfter()}
+                  </>
+                )}
+              </span>
+            )}
             {r.key === 'updates' && (
               <span className="mt-1 flex items-center gap-2 text-[12px] text-muted">
                 {m.notifications_rules_from()}
@@ -253,7 +273,7 @@ function Rules({ settings, onSave }: { settings: NotifySettings; onSave: (s: Not
             {m.notifications_rules_discard()}
           </button>
         )}
-        <button type="button" className="btn primary sm" disabled={!dirty} onClick={() => void onSave({ ...settings, rules: draft.rules, diskThreshold: draft.diskThreshold, recovery: draft.recovery, updatesHour: draft.updatesHour })}>
+        <button type="button" className="btn primary sm" disabled={!dirty} onClick={() => void onSave({ ...settings, rules: draft.rules, diskThreshold: draft.diskThreshold, recovery: draft.recovery, updatesHour: draft.updatesHour, speedMode: draft.speedMode, speedPercent: draft.speedPercent, speedMbit: draft.speedMbit })}>
           {m.notifications_rules_save()}
         </button>
       </div>
