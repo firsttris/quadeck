@@ -29,6 +29,10 @@ test.describe.serial('Festplatten', () => {
 
     await storage.getByRole('link', { name: 'SMART' }).click()
     await expect(page.getByTestId('smart-disk')).toHaveCount(5)
+    // The demo has no drivetemp: the page says so and how to load it.
+    const sensor = page.getByRole('region', { name: 'Temperatursensor' })
+    await expect(sensor).toContainText('drivetemp ist nicht geladen')
+    await expect(sensor).toContainText('echo drivetemp | sudo tee /etc/modules-load.d/drivetemp.conf')
     const sdb = page.getByRole('region', { name: 'Platte sdb' })
     await expect(sdb).toContainText('Warnung')
     await expect(sdb.getByRole('list', { name: 'Befund' })).toContainText('8 Sektoren wurden ersetzt')

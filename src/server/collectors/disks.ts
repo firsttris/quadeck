@@ -1,9 +1,10 @@
 // Disk collector: block devices from `lsblk -J -b`, usage via statfs, drive
 // temperatures from the kernel's drivetemp/nvme hwmon sensors.
 
-import { readdirSync, readFileSync, readlinkSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, readlinkSync } from 'node:fs'
 import { statfs } from 'node:fs/promises'
 import { basename } from 'node:path'
+import type { SmartDisk, TempSensorGap } from '~/shared/smart'
 import type { Disk } from '~/shared/types'
 import { msg } from '~/shared/i18n'
 import { runOk } from '../exec'
@@ -108,4 +109,14 @@ export async function collectDisks(): Promise<Disk[]> {
 export function withSmartTemp(d: Disk, smart: { tempC: number; at: number } | undefined, now = Date.now()): Disk {
   if (d.tempC !== undefined || !smart || now - smart.at > 2 * 3600_000) return d
   return { ...d, tempC: smart.tempC, tempFromSmart: true }
+}
+
+/** SATA/SAS disks whose temperature only comes from SMART; undefined when there are none. */
+export function tempSensorGap(disks: Pick<SmartDisk, 'name' | 'protocol' | 'temperature'>[], sensors: Set<string>, drivetempLoaded: boolean): TempSensorGap | undefined {
+  const without = disks.filter((d) => d.protocol !== 'NVMe' && d.temperature !== undefined && !sensors.has(d.name)).map((d) => d.name)
+  return without.length ? { disks: without, drivetempLoaded } : undefined
+}
+
+export function hostTempSensorGap(disks: SmartDisk[]): TempSensorGap | undefined {
+  return tempSensorGap(disks, new Set(readDriveTemps().keys()), existsSync('/sys/module/drivetemp'))
 }

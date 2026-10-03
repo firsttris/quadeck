@@ -64,6 +64,8 @@ export interface SmartReport {
   disks: SmartDisk[]
   installed: boolean
   error?: string
+  /** Disks whose temperature only SMART knows, no kernel sensor (web app only). */
+  tempSensors?: TempSensorGap
   /** Per disk id: counter values from the history (web app only). */
   baselines?: Record<string, SmartBaseline>
 }
@@ -281,4 +283,11 @@ export function hintText(h: SmartHint): string {
     case 'access':
       return msg('smart_hint_unreadable')
   }
+}
+
+export interface TempSensorGap {
+  /** Kernel names of SATA/SAS disks with a SMART temperature but no hwmon sensor. */
+  disks: string[]
+  /** drivetemp is loaded: the disks above do not report to the kernel (USB enclosure, RAID controller). */
+  drivetempLoaded: boolean
 }

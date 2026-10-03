@@ -1,6 +1,6 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
-import { diskRole, parseLsblk, withSmartTemp } from '~/server/collectors/disks'
+import { diskRole, parseLsblk, tempSensorGap, withSmartTemp } from '~/server/collectors/disks'
 
 describe('lsblk', () => {
   const fs = parseLsblk(readFileSync(new URL('./fixtures/lsblk.json', import.meta.url), 'utf8'))
@@ -35,5 +35,19 @@ describe('disk temperature from SMART', () => {
     expect(withSmartTemp({ ...disk, tempC: 40 }, { tempC: 34, at: now }, now)).toEqual({ ...disk, tempC: 40 })
     expect(withSmartTemp(disk, { tempC: 34, at: now - 3 * 3600_000 }, now)).toBe(disk)
     expect(withSmartTemp(disk, undefined, now)).toBe(disk)
+  })
+})
+
+describe('tempSensorGap', () => {
+  const disks = [
+    { name: 'sda', protocol: 'ATA', temperature: 31 },
+    { name: 'sdb', protocol: 'ATA', temperature: 33 },
+    { name: 'sdc', protocol: 'ATA' }, // asleep: no reading, nothing to say
+    { name: 'nvme0n1', protocol: 'NVMe', temperature: 40 },
+  ]
+  it('names SATA disks with a SMART reading but no kernel sensor', () => {
+    expect(tempSensorGap(disks, new Set(['sda', 'nvme0n1']), false)).toEqual({ disks: ['sdb'], drivetempLoaded: false })
+    expect(tempSensorGap(disks, new Set(['sda']), true)).toEqual({ disks: ['sdb'], drivetempLoaded: true })
+    expect(tempSensorGap(disks, new Set(['sda', 'sdb']), false)).toBeUndefined()
   })
 })

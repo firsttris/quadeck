@@ -13,7 +13,7 @@ import { useGuardedApi } from '~/components/Unlock'
 import { api } from '~/lib/api'
 import { diskSize, num, relative } from '~/lib/format'
 import { msg } from '~/shared/i18n'
-import { assessSmart, attributeLevel, describeNote, describeReason, hintText, smartHints, type SmartAssessment, type SmartBaseline, type SmartDisk, type SmartLevel, type SmartReport } from '~/shared/smart'
+import { assessSmart, attributeLevel, describeNote, describeReason, hintText, smartHints, type SmartAssessment, type SmartBaseline, type SmartDisk, type SmartLevel, type SmartReport, type TempSensorGap } from '~/shared/smart'
 import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
 
@@ -113,6 +113,7 @@ function Smart() {
           <InstallHint feature="smart" what={m.disks_smart_notInstalled()} onInstalled={readNow} />
         </section>
       )}
+      {report?.tempSensors && <TempSensorNote gap={report.tempSensors} />}
       {problems.length > 0 && (
         <section className={`panel flex flex-col gap-2 px-[18px] py-4 ${problems.some((p) => p.a.level === 'critical') ? 'alertcard' : ''}`} aria-label={m.disks_smart_actionNeeded()}>
           <h2 className="h2">{m.disks_smart_actionNeeded()}</h2>
@@ -399,5 +400,26 @@ function DetailDialog({ disk: d, baseline, onClose }: { disk: SmartDisk | null; 
         </button>
       </div>
     </Modal>
+  )
+}
+
+function TempSensorNote({ gap }: { gap: TempSensorGap }) {
+  const disks = gap.disks.join(', ')
+  return (
+    <section className="panel flex flex-col gap-2 px-[18px] py-3 text-[13px]" aria-label={m.disks_temp_label()} data-testid="temp-sensor-note">
+      {gap.drivetempLoaded ? (
+        <p className="m-0 text-muted">{m.disks_temp_noSensor({ disks })}</p>
+      ) : (
+        <>
+          <p className="m-0 text-[#e3b341]">{m.disks_temp_noModule({ disks })}</p>
+          <div className="grid grid-cols-[auto_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1">
+            <span className="text-muted">{m.disks_temp_loadNow()}</span>
+            <code className="font-mono text-[12px] break-all select-all">sudo modprobe drivetemp</code>
+            <span className="text-muted">{m.disks_temp_loadAtBoot()}</span>
+            <code className="font-mono text-[12px] break-all select-all">echo drivetemp | sudo tee /etc/modules-load.d/drivetemp.conf</code>
+          </div>
+        </>
+      )}
+    </section>
   )
 }
