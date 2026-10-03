@@ -6,26 +6,26 @@ spec sheet of the machine, read only. It is also in the command palette (Ctrl+K 
 ## On one screen
 
 - **At a glance**: CPU, memory, GPUs, mainboard and BIOS.
-- **Prozessor**: model, cores and threads, maximum clock, L3 cache, and whether hardware
+- **Processor**: model, cores and threads, maximum clock, L3 cache, and whether hardware
   virtualisation (VT-x/AMD-V) is available for virtual machines.
-- **Arbeitsspeicher**: the slots as boxes – filled with size, type, speed and module, or free –
+- **Memory**: the slots as boxes – filled with size, type, speed and module, or free –
   plus the maximum the board supports and whether ECC is active. Useful to plan an upgrade
   without opening the case. Slots come from `dmidecode` (root, in the helper); without it only the
   total is shown.
-- **Mainboard und BIOS**: vendor, model, form factor, BIOS version and date. A BIOS that is four
+- **Mainboard and BIOS**: vendor, model, form factor, BIOS version and date. A BIOS that is four
   years or older gets a hint to look for an update.
-- **Grafik**: every GPU with driver and device nodes, and the ready-made Quadlet line
+- **Graphics**: every GPU with driver and device nodes, and the ready-made Quadlet line
   (`AddDevice=/dev/dri/renderD128`) that gives a container such as Jellyfin or Immich the GPU for
   hardware transcoding, with a copy button.
-- **Sensoren**: temperatures (with a bar up to the critical value), fan speeds ("steht" for a
+- **Sensors**: temperatures (with a bar up to the critical value), fan speeds ("stopped" for a
   stopped fan), labelled voltages and power, grouped by chip, refreshed every 15 seconds.
-- **USB-Geräte**: name, maker, USB version, driver – and for serial devices (Zigbee and Z-Wave
+- **USB devices**: name, maker, USB version, driver – and for serial devices (Zigbee and Z-Wave
   sticks) the stable path under `/dev/serial/by-id/…` with a copy button. That path survives
   reboots, unlike `ttyUSB0`, and belongs into Home Assistant, Zigbee2MQTT or `AddDevice=`.
-- **SATA-Anbindung**: per disk the negotiated speed. 3 Gbit/s on a 6 Gbit/s disk and port usually
+- **SATA links**: per disk the negotiated speed. 3 Gbit/s on a 6 Gbit/s disk and port usually
   means a cable or port problem – the same cause as rising CRC errors on the
   [disks page](disks.md).
-- **PCIe-Geräte**: grouped (NVMe, storage controllers, network, graphics, …) with the kernel name
+- **PCIe devices**: grouped (NVMe, storage controllers, network, graphics, …) with the kernel name
   (`nvme0`, `enp5s0`), driver and link (`x4 · PCIe 4.0`).
 
 ## Warnings

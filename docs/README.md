@@ -42,24 +42,24 @@ disks, shares and the host itself, with the actions you need day to day.
 
 ## Which page does what
 
-The navigation is grouped into *Dienste* (services), *Speicher* (storage) and *Server*. On a
+The navigation is grouped into *Services*, *Storage* and *Server*. On a
 phone it folds into a menu behind the button at the top left; the bar keeps search, a running job
 and the unlock countdown in reach.
 
 | Page | Group | Content |
 |---|---|---|
 | **Hardware** | host card in the sidebar | CPU, memory, GPUs, USB, sensors, PCIe/SATA links |
-| **Übersicht** (overview) | | gauges with history, failed units, services, storage, timers, shares |
-| **Units** | Dienste | services, timers and containers with actions; the *Timer* filter is the schedule editor; from here the Quadlet and systemd editors open |
-| **Journal** | Dienste | `journalctl` live, per unit and priority, searchable |
-| **Festplatten** (disks) | Speicher | SMART verdicts, history, self-tests; mounting disks via `/etc/fstab` |
-| **Dateien** (files) | Speicher | file explorer for the data areas |
-| **Freigaben** (shares) | Speicher | SMB and NFS |
-| **Netzwerk** (network) | Server | interfaces, ports, firewall, reverse proxy (Caddyfile) |
-| **Benutzer** (users) | Server | accounts, groups, passwords, Samba, keys |
+| **Overview** | | gauges with history, failed units, services, storage, timers, shares |
+| **Units** | Services | services, timers and containers with actions; the *Timer* filter is the schedule editor; from here the Quadlet and systemd editors open |
+| **Journal** | Services | `journalctl` live, per unit and priority, searchable |
+| **Disks** | Storage | SMART verdicts, history, self-tests; mounting disks via `/etc/fstab` |
+| **Files** | Storage | file explorer for the data areas |
+| **Shares** | Storage | SMB and NFS |
+| **Network** | Server | interfaces, ports, firewall, reverse proxy (Caddyfile) |
+| **Users** | Server | accounts, groups, passwords, Samba, keys |
 | **SSH** | Server | keys, hardening, logins |
 | **System** | Server | updates, installed packages, Podman settings, boot and reboot |
-| **Benachrichtigungen** (notifications) | Server | channels and rules |
+| **Notifications** | Server | channels and rules |
 
 The UI is in German and English. It follows the browser's language; the switch at the bottom of
 the sidebar (and on the login page) overrides it and is remembered in a cookie. E-mails and push

@@ -1,6 +1,6 @@
 # Overview and services
 
-The overview (**Übersicht**) is the start page: gauges for the host, failed units, the service
+The overview (**Overview**) is the start page: gauges for the host, failed units, the service
 tiles, storage, the next timers and your shares. Everything on it is discovered; the layout, the
 tiles and the links are the only things you edit.
 
@@ -25,7 +25,7 @@ places and merges them in a fixed order; later sources override earlier ones.
    ```ini
    [Container]
    Label=quadeck.name=Jellyfin
-   Label=quadeck.group=Medien
+   Label=quadeck.group=Media
    Label=quadeck.icon=jellyfin          # slug from dashboard-icons, or glyph:play
    Label=quadeck.url=https://jf.example.de
    Label=quadeck.hidden=true
@@ -42,13 +42,13 @@ automation, …); everything else lands in *Apps*, manual links in *Links*.
 
 ### Manual links
 
-Devices without a Quadlet (router, printer, another host, a NAS) are added with **Link hinzufügen**
+Devices without a Quadlet (router, printer, another host, a NAS) are added with **Add link**
 on the services card: name, URL, group, icon (with the same search over dashboard-icons as when editing) and whether the URL is health-checked. They live in
 the same card as the discovered services and are edited in the same dialog.
 
 ### Editing a service
 
-In edit mode (**Bearbeiten** or the `E` key) a click on a tile opens **Service bearbeiten**: name,
+In edit mode (**Edit** or the `E` key) a click on a tile opens **Edit service**: name,
 group, URL and icon (with a search over the dashboard-icons collection) override the discovery,
 empty fields follow it. Tiles can be pinned (always first in their group) and hidden; hidden
 services are listed in the edit bar so they can be shown again.
@@ -94,8 +94,8 @@ sensor the card says so instead of showing zero.
 ## Failed units
 
 Units in the `failed` state appear at the top of the overview with the reason systemd recorded:
-OOM kill with the memory limit that was hit, exit code, signal, timeout, start limit. **Neu starten**
-restarts the unit through systemd after a confirmation; **Journal anzeigen** opens its journal.
+OOM kill with the memory limit that was hit, exit code, signal, timeout, start limit. **Restart**
+restarts the unit through systemd after a confirmation; **Show journal** opens its journal.
 
 ## Storage card
 
@@ -105,12 +105,12 @@ yellow, red; grey for disks without SMART). The dot links to the [disks page](di
 ## Timers card
 
 The next six active timers with their schedule in plain words and the time until the next run; a
-red dot means the last run of the triggered service failed. **Alle** opens the timer editor on the
+red dot means the last run of the triggered service failed. **All** opens the timer editor on the
 [units page](systemd.md#timers).
 
 ## Layout editing
 
-The overview starts with a finished layout. **Bearbeiten** (or `E`) edits it on two levels:
+The overview starts with a finished layout. **Edit** (or `E`) edits it on two levels:
 
 - **Cards** (CPU, RAM, temperature, network, GPU, services, storage, timers, shares): drag by the
   handle, resize at the bottom-right corner, hide and show again. The metric cards (CPU, RAM,
@@ -121,12 +121,12 @@ The overview starts with a finished layout. **Bearbeiten** (or `E`) edits it on 
 
 The layout is stored per screen width (desktop from 960 px content width with 12 columns, tablet
 with 6, phone with 1) in SQLite. Metric cards start at a fixed height; the other cards size their
-height to their content until you resize them yourself. **Auf Auto-Layout zurücksetzen** restores the
+height to their content until you resize them yourself. **Reset to auto layout** restores the
 default.
 
 ## Command palette
 
-**Ctrl+K** (⌘K) or **Suchen** in the sidebar: open services, jump to pages, restart or stop units
+**Ctrl+K** (⌘K) or **Search** in the sidebar: open services, jump to pages, restart or stop units
 (with the usual confirmation) and open their journal. Typing filters across all of it.
 
 ## Journal

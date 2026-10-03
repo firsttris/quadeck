@@ -1,13 +1,13 @@
 # Shares
 
-The shares card on the overview lists SMB shares and NFS exports; **Verwalten** opens the
-**Freigaben** page, where they are created, changed and removed. Existing configuration written by
+The shares card on the overview lists SMB shares and NFS exports; **Manage** opens the
+**Shares** page, where they are created, changed and removed. Existing configuration written by
 hand appears there too and is edited in place.
 
 ## SMB (Samba)
 
 A share has a name, a path, a description, read-only or read/write, allowed users and groups,
-guest access and whether it is browseable. **Neue Freigabe** creates one, the pencil edits it
+guest access and whether it is browseable. **New share** creates one, the pencil edits it
 (renaming included), the bin removes it.
 
 Only the share's own `[section]` in `smb.conf` is touched. `[global]`, comments, other shares and

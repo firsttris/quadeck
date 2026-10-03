@@ -3,9 +3,9 @@
 ## Units page
 
 **Units** lists everything systemd runs for you: Quadlet units with their container, plain
-services, timers, sockets and containers without a unit. Filters: *Alle*, *Container*,
+services, timers, sockets and containers without a unit. Filters: *All*, *Container*,
 *Services*, *Timer* (this one opens the [timer editor](systemd.md#timers)), *Sockets* and
-*Fehlgeschlagen* (failed).
+*Failed*.
 
 Per row: name and description (for a socket: what it listens on and which service it starts),
 status (for a container with a healthcheck its health, otherwise the systemd state), memory and
@@ -15,24 +15,23 @@ containers without a unit; Quadlets are highlighted) and whether the unit starts
 
 ### Actions
 
-Each row has one button for the likely next step – **Starten** for a stopped unit, **Neu
-starten** for a running or failed one – and a **⋯** menu with the rest. The unit name itself
+Each row has one button for the likely next step – **Start** for a stopped unit, **Restart** for a running or failed one – and a **⋯** menu with the rest. The unit name itself
 opens the journal.
 
-- **Starten / Stoppen / Neu starten** go through systemd over D-Bus (`StartUnit`, `StopUnit`,
+- **Start / Stop / Restart** go through systemd over D-Bus (`StartUnit`, `StopUnit`,
   `RestartUnit`). A container with a Quadlet unit is always controlled through its unit: stopping
   the container directly would only make systemd restart it, and `--rm` containers would vanish.
   Only containers without a unit are started and stopped through the Podman API.
 - Stop and restart ask for a confirmation that names the exact command. All of them need the
   [unlock](security.md#unlock).
 - **Journal** opens the journal filtered to the unit.
-- **Quadlet bearbeiten / Unit bearbeiten** opens the Quadlet file for Quadlet units and the
+- **Edit Quadlet / Edit unit** opens the Quadlet file for Quadlet units and the
   [systemd editor](systemd.md) for everything else.
-- **Beim Booten starten** enables or disables the unit (`systemctl enable/disable`); only shown
+- **Start at boot** enables or disables the unit (`systemctl enable/disable`); only shown
   for units that have an install section.
-- **+ Neue Unit** creates a plain systemd unit from a template.
+- **+ New unit** creates a plain systemd unit from a template.
 
-The timer view uses the same pattern: **Jetzt ausführen** plus a menu for changing the schedule,
+The timer view uses the same pattern: **Run now** plus a menu for changing the schedule,
 the journal and the unit files.
 
 Unit names are validated before anything is sent to systemd, and only units Quadeck has seen in
@@ -41,8 +40,8 @@ its own list can be acted on.
 ## Quadlet editor
 
 The Quadlet editor is not a menu entry of its own; like the [systemd editor](systemd.md) it is
-reached from the units page: **Bearbeiten** on a container, **+ Neuer Container** (template or
-empty file) or **Quadlet-Dateien**. It lists every file in `/etc/containers/systemd`
+reached from the units page: **Edit** on a container, **+ New container** (template or
+empty file) or **Quadlet files**. It lists every file in `/etc/containers/systemd`
 (`QUADECK_QUADLET_DIR`): `.container`,
 `.pod`, `.network`, `.volume`, `.kube`, `.image` and `.build`, including one level of
 subdirectories, each with the state of the unit it generates.
@@ -63,7 +62,7 @@ file with line numbers; both views work on the same content.
 
 ### Validation
 
-**Prüfen** (and automatically before saving) runs two checks:
+**Check** (and automatically before saving) runs two checks:
 
 1. Quadeck's own lint with line numbers: unknown keys for the file type, duplicate single-value
    keys, a `.container` without `Image=`, references to `.network`, `.volume` or `.pod` files that
@@ -75,7 +74,7 @@ Errors block saving, warnings do not.
 
 ### Saving
 
-**Speichern …** shows the diff against the file on disk, lets you choose whether the unit is
+**Save …** shows the diff against the file on disk, lets you choose whether the unit is
 restarted afterwards, and writes through the root helper: atomic write, `systemctl daemon-reload`,
 optionally `RestartUnit`. If the restart fails, the file stays saved and the error is shown with a
 hint to the journal. Saving needs the [unlock](security.md#unlock).
@@ -84,19 +83,19 @@ hint to the journal. Saving needs the [unlock](security.md#unlock).
 
 Every save is committed to a git repository that Quadeck keeps under
 `/var/lib/quadeck-helper/quadlets.git` (the Quadlet directory itself stays clean, no `.git` in
-`/etc`). **Verlauf** lists the versions, shows the diff of a version against the editor content
+`/etc`). **History** lists the versions, shows the diff of a version against the editor content
 and can load it back into the editor. Without `git` on the host, everything except the history
 works.
 
 ### New files and templates
 
-**+ Neu** creates a file from a template: web service with a published port, PostgreSQL database,
+**+ New** creates a file from a template: web service with a published port, PostgreSQL database,
 empty container, network, volume, pod. The name becomes the file name and the generated unit name
 (`name.container` → `name.service`, `name.network` → `name-network.service`).
 
 ### Compose import
 
-**Compose-Import** turns a `docker-compose.yml` into Quadlet files: every service becomes a
+**Compose import** turns a `docker-compose.yml` into Quadlet files: every service becomes a
 `.container`, named volumes become `.volume` files, and one `.network` per project connects
 them. Image, ports, volumes, environment, env files, command and entrypoint, user, working
 directory, hostname, restart policy, devices, privileged, added capabilities, healthcheck,
@@ -107,7 +106,7 @@ written until you save each one.
 
 ### Deleting
 
-**Löschen** stops the unit, deletes the file and commits the deletion to the history, so the file
+**Delete** stops the unit, deletes the file and commits the deletion to the history, so the file
 can be restored from there.
 
 ## Podman settings

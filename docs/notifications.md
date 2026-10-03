@@ -1,6 +1,6 @@
 # Notifications
 
-**Benachrichtigungen** makes the server report problems instead of waiting for you to look at the
+**Notifications** makes the server report problems instead of waiting for you to look at the
 dashboard. Messages go to your phone, your chat or your inbox; each problem is reported once, and an all-clear
 follows when it is resolved.
 
@@ -14,7 +14,7 @@ follows when it is resolved.
 | **Gotify** | the server URL and an application token from Gotify |
 | **Telegram** | a bot token from @BotFather and your chat ID (write to the bot once, then ask @userinfobot or look at `getUpdates`) |
 | **Webhook** | a URL that accepts `POST` with JSON. The body contains `title`, `message`, `severity`, and `text`/`content` with both combined, so Discord, Slack, Mattermost and Home Assistant work without a template |
-| **E-Mail** | the SMTP server of your mail provider: server, port, encryption, login, sender and one or more recipients. Buttons fill in server and port for Gmail, GMX, web.de, Posteo, mailbox.org, iCloud and Outlook. Most providers need an *app password* for this, not your normal password, and the sender must be your own address |
+| **E-mail** | the SMTP server of your mail provider: server, port, encryption, login, sender and one or more recipients. Buttons fill in server and port for Gmail, GMX, web.de, Posteo, mailbox.org, iCloud and Outlook. Most providers need an *app password* for this, not your normal password, and the sender must be your own address |
 
 E-mail encryption: **SSL/TLS** (port 465) encrypts from the first byte, **STARTTLS** (port 587)
 upgrades the connection and is required – Quadeck never falls back to plain text. **None** is only
@@ -36,17 +36,17 @@ Each rule can be switched off:
 
 | Rule | Fires when |
 |---|---|
-| Dienst oder Timer fehlgeschlagen | a unit (container units included) is in the `failed` state, with the reason (exit code, OOM kill) |
-| Webdienst nicht erreichbar | the HTTP check of a service tile fails for more than 2 minutes |
-| Container ungesund | a healthcheck reports unhealthy, or a container without a unit exited with an error, for more than 2 minutes |
-| Festplatte meldet Probleme | the [SMART verdict](disks.md#the-verdict) is warning or critical |
-| Platte fast voll | usage is above the threshold (50–99 %, default 90 %) |
-| Updates verfügbar | once a day from the chosen hour: package updates and new container images, only when the list differs from the last message |
+| Service or timer failed | a unit (container units included) is in the `failed` state, with the reason (exit code, OOM kill) |
+| Web service not reachable | the HTTP check of a service tile fails for more than 2 minutes |
+| Container unhealthy | a healthcheck reports unhealthy, or a container without a unit exited with an error, for more than 2 minutes |
+| Disk reports problems (SMART) | the [SMART verdict](disks.md#the-verdict) is warning or critical |
+| Disk almost full | usage is above the threshold (50–99 %, default 90 %) |
+| Updates available (daily) | once a day from the chosen hour: package updates and new container images, only when the list differs from the last message |
 
 ## How spam is avoided
 
 - A problem is reported **once**. It stays "reported" until it is gone; then, if enabled, one
-  all-clear is sent ("backup.service läuft wieder").
+  all-clear is sent ("backup.service is running again").
 - Several new problems at the same time become **one message** with a list; the highest severity
   sets the priority.
 - Web service and container checks must fail for **2 minutes** before they count, so a restart
