@@ -16,6 +16,7 @@ import type { FstabChange, FstabCheck, FstabState } from '~/shared/fstab'
 import type { BootState } from '~/shared/boot'
 import type { UserChange, UsersState } from '~/shared/users'
 import type { Hardware } from '~/shared/hardware'
+import type { CaddyChange, CaddyResult, CaddyState } from '~/shared/caddy'
 import type { ConfigAction, ConfigFileInfo } from '~/shared/configfiles'
 import type { UnlockInfo } from './gate'
 
@@ -280,6 +281,18 @@ export class HelperClient implements Privileged {
   }
   hardware() {
     return this.call<Hardware>('POST', '/hardware', {}, 60_000)
+  }
+  caddyState() {
+    return this.call<CaddyState>('POST', '/caddy/state', {}, 30_000)
+  }
+  async caddyRevision(id: string) {
+    return (await this.call<{ data: string }>('POST', '/caddy/revision', { id })).data
+  }
+  applyCaddy(token: string | undefined, change: CaddyChange, expected: string | undefined) {
+    return this.call<CaddyResult>('POST', '/caddy/apply', { token, change, expected }, 180_000)
+  }
+  setCaddyPath(token: string | undefined, path: string | null) {
+    return this.call<CaddyState>('POST', '/caddy/path', { token, path }, 30_000)
   }
   configFile(path: string) {
     return this.call<ConfigFileInfo>('POST', '/pkg/config-file', { path })

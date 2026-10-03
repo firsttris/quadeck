@@ -55,7 +55,7 @@ and the unlock countdown in reach.
 | **Festplatten** (disks) | Speicher | SMART verdicts, history, self-tests; mounting disks via `/etc/fstab` |
 | **Dateien** (files) | Speicher | file explorer for the data areas |
 | **Freigaben** (shares) | Speicher | SMB and NFS |
-| **Netzwerk** (network) | Server | interfaces, ports, firewall |
+| **Netzwerk** (network) | Server | interfaces, ports, firewall, reverse proxy (Caddyfile) |
 | **Benutzer** (users) | Server | accounts, groups, passwords, Samba, keys |
 | **SSH** | Server | keys, hardening, logins |
 | **System** | Server | updates, installed packages, Podman settings, boot and reboot |

@@ -1,9 +1,10 @@
 # Network
 
-The **Netzwerk** page shows the network side of the server and changes nothing: interfaces,
-listening ports with who is behind them, the firewall's view on those ports, routes and DNS. It
-answers "why can't I reach it?" and "what is listening on 8080?" without a terminal. Three tabs:
-**Schnittstellen** (interfaces, routes and DNS), **Ports** and **Firewall**.
+The **Netzwerk** page shows the network side of the server: interfaces, listening ports with who
+is behind them, the firewall's view on those ports, routes and DNS. It answers "why can't I reach
+it?" and "what is listening on 8080?" without a terminal. Four tabs: **Schnittstellen**
+(interfaces, routes and DNS), **Ports** and **Firewall** only show; **Reverse Proxy** edits the
+Caddyfile (see [below](#reverse-proxy)).
 
 <img src="screenshot-network.png" alt="Network page: interfaces, listening ports with program, unit or container, firewall verdicts, routes and DNS" width="900">
 
@@ -56,3 +57,43 @@ interfaces is reachable in the LAN, and from the internet only what the router f
 Hostname, default gateways for IPv4 and IPv6 with the interface, DNS servers (behind
 `systemd-resolved` the real upstream servers from `resolvectl`), search domains, and the full
 routing table on request.
+
+## Reverse proxy
+
+The tab **Reverse Proxy** edits the Caddyfile: each site block is a row (domain → target). Simple
+blocks – a domain with nothing but `reverse_proxy <target>` – can be added, changed and deleted in
+a form; everything else (global options, snippets, `import`, headers, auth, matchers) stays exactly
+as written and is edited in the text editor, which jumps to the block. Target suggestions are the
+containers with a published port (`localhost:<port>`).
+
+**Which file.** The first that applies:
+
+1. `QUADECK_CADDYFILE` in `/etc/quadeck/quadeck.env` – fixed, cannot be changed in the UI.
+2. A path picked in the UI (*Pfad ändern …*), remembered by the root helper.
+3. The Caddy Quadlet (image `caddy`, `caddy-…`): the path inside the container comes from
+   `Exec=… --config …` or the image default `/etc/caddy/Caddyfile` and is mapped to the host
+   through its `Volume=` lines (a mounted file, a mounted directory or a named volume). This works
+   while the container is stopped. If the Caddyfile is not mounted, it lives in the image and
+   changes would be lost – Quadeck shows it read-only and names the `Volume=` line to add.
+4. `caddy.service` on the host (`--config` of its `ExecStart`).
+5. `/etc/caddy/Caddyfile`, if it exists. Otherwise the tab asks for the path.
+
+The tab always shows which file is used and where it came from.
+
+**Saving** shows the diff first, then:
+
+1. Caddy checks the new version – through the admin API (`POST /adapt`) when it is reachable,
+   otherwise with `caddy validate` in a throwaway container of the same image and mounts, or the
+   `caddy` binary on the host. If Caddy rejects it, nothing is written and its message is shown.
+2. The previous version goes to the history (*Verlauf*, restorable).
+3. The file is written **in place** (same inode, owner and mode): a Caddyfile mounted as a single
+   file would otherwise still show the old version inside the container.
+4. Caddy reloads without interruption – admin API (`POST /load`), else
+   `podman exec <container> caddy reload`, else `systemctl reload caddy`. If the reload fails, the
+   old file is restored; Caddy keeps running with its previous config. When Caddy is not running,
+   the file is only saved and read at the next start.
+
+A change made elsewhere in the meantime is noticed (hash of the file) instead of being overwritten.
+New domains appear as tiles on the overview right away. Writing needs the
+[unlock](security.md#unlock); `QUADECK_CADDY_ADMIN` (default `http://localhost:2019`) is the admin
+API address.

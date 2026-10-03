@@ -46,6 +46,16 @@ export function tr(de: string, en: string): string {
   return `\u0002${de}\u001f${en}\u0003`
 }
 
+/**
+ * A text from a namespace file (src/i18n/<ns>.ts) in code outside of
+ * components – server, root helper, src/shared. Same rules as tr(): the
+ * viewer's language inside a request, both languages where nobody is asking.
+ *   msg(proxy, (m) => m.errors.exists(address, line))
+ */
+export function msg<T>(ns: { de: T; en: T }, pick: (m: T) => string): string {
+  return tr(pick(ns.de), pick(ns.en))
+}
+
 export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
 const MARKED = /\u0002([^\u0003]*?)(?:\u001f([^\u0003]*))?(?:\u0003|$)/g

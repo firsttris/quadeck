@@ -23,7 +23,7 @@ import { iconIndex } from './icons'
 import type { UnitAction } from './privileged/actions'
 import { assertUnitName } from './privileged/actions'
 import { privileged } from './privileged'
-import { CaddyProvider, candidatesFromConfig } from './providers/caddy'
+import { CaddyProvider, candidatesFromCaddyfile, candidatesFromConfig } from './providers/caddy'
 import type { ServiceCandidate } from './providers/types'
 import { localHostSet, mergeServices } from './registry'
 import { notifier } from './notify'
@@ -282,6 +282,12 @@ export class Hub {
     this.publish()
   }
 
+  /** After a change on the reverse-proxy page: new domains become tiles. */
+  async refreshCaddy() {
+    await this.collectCaddy()
+    await this.refreshServices()
+  }
+
   /** After a change on the shares page. */
   async refreshShares() {
     await this.collectShares()
@@ -291,7 +297,9 @@ export class Hub {
   private async collectCaddy() {
     try {
       if (this.fixtures) {
-        this.candidates = this.fixtures.caddy ? candidatesFromConfig(this.fixtures.caddy as never) : []
+        // Demo: the editable Caddyfile of the reverse-proxy page, else the static config.
+        const content = (await privileged().caddyState()).content
+        this.candidates = content !== undefined ? candidatesFromCaddyfile(content) : this.fixtures.caddy ? candidatesFromConfig(this.fixtures.caddy as never) : []
       } else {
         this.candidates = await this.caddy.discover()
       }

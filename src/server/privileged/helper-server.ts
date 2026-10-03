@@ -13,6 +13,7 @@ import { parseSshChange } from '../ssh/backend'
 import { DISK_NAME } from '../smart/backend'
 import { parseSave, parseTimerAction } from '../timers/backend'
 import { parseFstabChange } from '../fstab/parse'
+import { parseCaddyChange } from '~/shared/caddy'
 import { parseUserChange } from '../users/parse'
 import { UNIT_ACTIONS, type Privileged, type UnitAction } from './actions'
 
@@ -135,6 +136,10 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/boot/entry-remove': (b, p) => p.removeBootEntry(str(b.token), str(b.id) ?? ''),
   '/users/state': (_b, p) => p.usersState(),
   '/hardware': (_b, p) => p.hardware(),
+  '/caddy/state': (_b, p) => p.caddyState(),
+  '/caddy/revision': async (b, p) => ({ data: await p.caddyRevision(str(b.id) ?? '') }),
+  '/caddy/apply': (b, p) => p.applyCaddy(str(b.token), parseCaddyChange(b.change), str(b.expected)),
+  '/caddy/path': (b, p) => p.setCaddyPath(str(b.token), b.path === null ? null : (str(b.path) ?? '')),
   '/users/apply': (b, p) => p.applyUser(str(b.token), parseUserChange(b.change)),
   '/boot/default': (b, p) => p.setBootDefault(str(b.token), str(b.id) ?? ''),
   '/boot/timeout': (b, p) => p.setBootTimeout(str(b.token), str(b.value) ?? ''),

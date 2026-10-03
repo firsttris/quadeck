@@ -26,6 +26,7 @@ import { SystemFiles } from './server/files/backend'
 import { SystemTimers } from './server/timers/backend'
 import { SystemUnitEditor } from './server/systemd/editor'
 import { SystemNetwork } from './server/network/collect'
+import { CaddyManager, SystemCaddyHost } from './server/caddy/backend'
 
 export interface StartServer {
   fetch(request: Request): Response | Promise<Response>
@@ -197,6 +198,7 @@ export async function main(argv: string[], opts: MainOptions) {
           new SystemBoot(),
           new SystemUsers(),
           new SystemHardware(),
+          new CaddyManager(new SystemCaddyHost()),
         ),
       )
       return

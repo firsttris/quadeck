@@ -121,11 +121,13 @@ generated notes. `quadeck update` and `install.sh` pick the newest release from 
   - Components take their texts from `useT()` (`src/i18n`): one namespace file per area
     (`src/i18n/units.ts` …) with `de` defining the shape and `en: typeof de` – tsc reports a
     missing translation. Interpolations are functions (`removed: (n: string) => …`).
-  - Code outside of components (`src/shared`, `src/server`, `src/lib`) uses
-    `tr('Deutsch', 'English')` from `src/shared/i18n.ts`. In a request it answers in the
+  - Code outside of components (`src/shared`, `src/server`, `src/lib`) takes its texts from
+    the same namespace files through `msg(ns, (m) => m.errors.exists(name))` from
+    `src/shared/i18n.ts` – all texts live in `src/i18n`. (Older code still calls
+    `tr('Deutsch', 'English')` directly; it is being moved over.) In a request it answers in the
     viewer's language (cookie `qd_lang`, else `Accept-Language`); in the root helper and in
     background work it returns both, marked, and JSON responses, the event stream and
-    notifications pick the language at the end. Never call `tr()` at module top level.
+    notifications pick the language at the end. Never call `msg()`/`tr()` at module top level.
   - `e2e/zz-i18n.spec.ts` walks every page in English and fails on German leftovers.
   - Only the UI is bilingual. Everything Quadeck writes for the system is English: comments and
     headers in files it writes (drop-ins, timers, boot entries, exports, sudoers), Git messages of
