@@ -45,14 +45,14 @@ export function smoothPath(pts: [number, number][]): string {
   const f = (v: number) => v.toFixed(1)
   if (n < 3) return 'M' + pts.map(([a, b]) => `${f(a)},${f(b)}`).join('L')
   const dx: number[] = []
-  const m: number[] = []
+  const slopes: number[] = []
   for (let i = 0; i < n - 1; i++) {
     dx.push(pts[i + 1]![0] - pts[i]![0] || 1e-6)
-    m.push((pts[i + 1]![1] - pts[i]![1]) / dx[i]!)
+    slopes.push((pts[i + 1]![1] - pts[i]![1]) / dx[i]!)
   }
-  const t: number[] = [m[0]!]
-  for (let i = 1; i < n - 1; i++) t.push(m[i - 1]! * m[i]! <= 0 ? 0 : (3 * (dx[i - 1]! + dx[i]!)) / ((2 * dx[i]! + dx[i - 1]!) / m[i - 1]! + (dx[i]! + 2 * dx[i - 1]!) / m[i]!))
-  t.push(m[n - 2]!)
+  const t: number[] = [slopes[0]!]
+  for (let i = 1; i < n - 1; i++) t.push(slopes[i - 1]! * slopes[i]! <= 0 ? 0 : (3 * (dx[i - 1]! + dx[i]!)) / ((2 * dx[i]! + dx[i - 1]!) / slopes[i - 1]! + (dx[i]! + 2 * dx[i - 1]!) / slopes[i]!))
+  t.push(slopes[n - 2]!)
   let d = `M${f(pts[0]![0])},${f(pts[0]![1])}`
   for (let i = 0; i < n - 1; i++) {
     const [x0, y0] = pts[i]!

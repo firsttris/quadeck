@@ -2,7 +2,7 @@
 
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import type { JournalEntry } from '~/shared/types'
 import { config } from './config'
 
@@ -33,10 +33,10 @@ export function parseJournalLine(line: string): JournalEntry | undefined {
 export function journalArgs(opts: { unit?: string; priority?: number; lines?: number }): string[] {
   const args = ['journalctl', '-o', 'json', '--no-pager', '-f', '-n', String(opts.lines ?? 200)]
   if (opts.unit) {
-    if (!UNIT.test(opts.unit) || opts.unit.startsWith('-')) throw new Error(tr('Ungültige Unit', 'Invalid unit'))
+    if (!UNIT.test(opts.unit) || opts.unit.startsWith('-')) throw new Error(msg('journal_invalidUnit'))
     args.push('-u', opts.unit)
   }
-  if (opts.priority !== undefined && !(Number.isInteger(opts.priority) && opts.priority >= 0 && opts.priority <= 7)) throw new Error(tr('Ungültige Priorität', 'Invalid priority'))
+  if (opts.priority !== undefined && !(Number.isInteger(opts.priority) && opts.priority >= 0 && opts.priority <= 7)) throw new Error(msg('journal_invalidPriority'))
   if (opts.priority !== undefined) args.push('-p', `0..${opts.priority}`)
   return args
 }

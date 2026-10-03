@@ -7,7 +7,7 @@ import { hostname } from 'node:os'
 import { join } from 'node:path'
 import { HttpError } from '../auth'
 import { run } from '../exec'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { USER_NAME, validateSettings, type SshChange, type SshKey, type SshLogin, type SshPreview, type SshSettings, type SshState, type SshUser } from '~/shared/ssh'
 import { addKey, parseAuthLog, parseAuthorizedKeys, parseEstablished, parseDropIn, parseKeyLine, parseSshdT, removeKey, renderDropIn } from './keys'
 
@@ -27,13 +27,13 @@ export function parseSshChange(v: unknown): SshChange {
   const str = (x: unknown) => (typeof x === 'string' ? x : '')
   const user = str(o.user)
   if (o.kind === 'add-key' || o.kind === 'remove-key') {
-    if (!USER_NAME.test(user)) throw new HttpError(400, tr('Ungültiger Benutzer', 'Invalid user'))
+    if (!USER_NAME.test(user)) throw new HttpError(400, msg('ssh_invalidUser'))
     if (o.kind === 'add-key') {
       const key = str(o.key).trim()
-      if (!key || key.length > 16_384 || key.includes('\n')) throw new HttpError(400, tr('Genau eine Schlüsselzeile einfügen', 'Paste exactly one key line'))
+      if (!key || key.length > 16_384 || key.includes('\n')) throw new HttpError(400, msg('ssh_pasteExactlyOneKeyLine'))
       return { kind: 'add-key', user, key }
     }
-    if (!/^SHA256:[A-Za-z0-9+/]{43}$/.test(str(o.fingerprint))) throw new HttpError(400, tr('Ungültiger Fingerprint', 'Invalid fingerprint'))
+    if (!/^SHA256:[A-Za-z0-9+/]{43}$/.test(str(o.fingerprint))) throw new HttpError(400, msg('ssh_invalidFingerprint'))
     return { kind: 'remove-key', user, fingerprint: str(o.fingerprint), force: o.force === true }
   }
   if (o.kind === 'settings') {
@@ -47,7 +47,7 @@ export function parseSshChange(v: unknown): SshChange {
     if (errs.length) throw new HttpError(400, errs.join(' · '))
     return { kind: 'settings', settings, force: o.force === true }
   }
-  throw new HttpError(400, tr('Unbekannte Änderung', 'Unknown change'))
+  throw new HttpError(400, msg('fstab_unknownChange'))
 }
 
 /** Who could still log in with a key after a change (lock-out guard). */
@@ -63,17 +63,16 @@ export function keyLoginPossible(users: SshUser[], s: SshSettings): boolean {
 export function judgeSettings(users: SshUser[], s: SshSettings): { warnings: string[]; blocked?: string } {
   const warnings: string[] = []
   const unknown = s.allowUsers.filter((u) => !users.some((x) => x.name === u))
-  if (unknown.length) warnings.push(tr(`Unbekannte Benutzer in AllowUsers: ${unknown.join(', ')}`, `Unknown users in AllowUsers: ${unknown.join(', ')}`))
-  if (s.permitRootLogin === 'yes') warnings.push(tr('root darf sich mit Passwort anmelden – besser „nur mit Schlüssel“ oder „nein“', 'root may log in with a password – better “key only” or “no”'))
-  if (s.passwordAuthentication) warnings.push(tr('Passwort-Login ist an – Angreifer können Passwörter durchprobieren', 'Password login is on – attackers can try out passwords'))
+  if (unknown.length) warnings.push(msg('ssh_unknownUsersAllowusers', { list: unknown.join(', ') }))
+  if (s.permitRootLogin === 'yes') warnings.push(msg('ssh_rootMayLogPasswordBetter'))
+  if (s.passwordAuthentication) warnings.push(msg('ssh_passwordLoginAttackersCanTry'))
   if (!s.passwordAuthentication && !keyLoginPossible(users, s))
     return {
       warnings,
-      blocked: tr('Ohne Passwort-Login könnte sich niemand mehr anmelden: kein erlaubter Benutzer hat einen funktionierenden Schlüssel.', 'Without password login nobody could log in anymore: no allowed user has a working key.'),
+      blocked: msg('ssh_withoutPasswordLoginNobodyCould'),
     }
-  if (s.allowUsers.length && !users.some((u) => s.allowUsers.includes(u.name) && !(u.uid === 0 && s.permitRootLogin === 'no')))
-    return { warnings, blocked: tr('Kein erlaubter Benutzer dürfte sich anmelden.', 'No allowed user would be able to log in.') }
-  warnings.push(tr('Bleib in deiner jetzigen SSH-Sitzung angemeldet und teste den Zugang in einer zweiten, bevor du sie schließt.', 'Stay logged in to your current SSH session and test access in a second one before closing it.'))
+  if (s.allowUsers.length && !users.some((u) => s.allowUsers.includes(u.name) && !(u.uid === 0 && s.permitRootLogin === 'no'))) return { warnings, blocked: msg('ssh_noAllowedUserWouldAble') }
+  warnings.push(msg('ssh_stayLoggedYourCurrentSsh'))
   return { warnings }
 }
 
@@ -135,14 +134,14 @@ export class SystemSsh implements SshBackend {
       if (text !== undefined) {
         // StrictModes: sshd ignores keys if these are writable by others or owned by someone else.
         for (const [p, what] of [
-          [u.home, tr('Home-Verzeichnis', 'Home directory')],
+          [u.home, msg('ssh_homeDirectory')],
           [join(u.home, '.ssh'), '~/.ssh'],
           [file, 'authorized_keys'],
         ] as const) {
           try {
             const st = statSync(p)
-            if (this.live && st.uid !== u.uid && st.uid !== 0) problems.push(tr(`${what} gehört nicht ${u.name}`, `${what} is not owned by ${u.name}`))
-            if (st.mode & 0o022) problems.push(tr(`${what} ist für andere beschreibbar – sshd ignoriert die Schlüssel`, `${what} is writable by others – sshd ignores the keys`))
+            if (this.live && st.uid !== u.uid && st.uid !== 0) problems.push(msg('ssh_notOwnedBy', { what, name: u.name }))
+            if (st.mode & 0o022) problems.push(msg('ssh_writableByOthersSshdIgnores', { what }))
           } catch {
             // missing
           }
@@ -155,7 +154,7 @@ export class SystemSsh implements SshBackend {
 
   private async effective() {
     const sshd = this.sshd()
-    if (!sshd || !this.live) return { ...parseSshdT(''), ...(parseDropIn(read(this.dropIn) ?? '') ?? {}), error: sshd ? undefined : tr('sshd ist nicht installiert', 'sshd is not installed') }
+    if (!sshd || !this.live) return { ...parseSshdT(''), ...(parseDropIn(read(this.dropIn) ?? '') ?? {}), error: sshd ? undefined : msg('ssh_sshdNotInstalled') }
     const r = await run([sshd, '-T'], { timeoutMs: 10_000 })
     return { ...parseSshdT(r.stdout), error: r.code === 0 ? undefined : `sshd -T: ${(r.stderr || r.stdout).trim().split('\n')[0]}` }
   }
@@ -233,7 +232,7 @@ export class SystemSsh implements SshBackend {
       return { file: this.dropIn, before, after: renderDropIn(change.settings), ...verdict }
     }
     const u = users.find((x) => x.name === change.user)
-    if (!u) throw new HttpError(404, tr(`Benutzer ${change.user} kann sich nicht per SSH anmelden (kein Login-Konto)`, `User ${change.user} cannot log in via SSH (no login account)`))
+    if (!u) throw new HttpError(404, msg('ssh_userCannotLogViaSsh', { user: change.user }))
     const file = this.keysFile(u.home)
     const before = read(file) ?? ''
     if (change.kind === 'add-key') {
@@ -245,17 +244,11 @@ export class SystemSsh implements SshBackend {
         throw new HttpError(422, (e as Error).message)
       }
     }
-    if (!u.keys.some((k) => k.fingerprint === change.fingerprint)) throw new HttpError(404, tr('Schlüssel nicht gefunden', 'Key not found'))
+    if (!u.keys.some((k) => k.fingerprint === change.fingerprint)) throw new HttpError(404, msg('ssh_keyNotFound'))
     const after = removeKey(before, change.fingerprint)
     const remaining = st.users.map((x) => (x.name === u.name ? { ...x, keys: x.keys.filter((k) => k.fingerprint !== change.fingerprint) } : x))
     const eff = st.effective
-    const blocked =
-      !eff.passwordAuthentication && !keyLoginPossible(remaining, eff)
-        ? tr(
-            'Das ist der letzte funktionierende Schlüssel und Passwort-Login ist aus – danach käme niemand mehr per SSH auf den Server.',
-            'This is the last working key and password login is off – afterwards nobody could get onto the server via SSH.',
-          )
-        : undefined
+    const blocked = !eff.passwordAuthentication && !keyLoginPossible(remaining, eff) ? msg('ssh_lastWorkingKeyPasswordLogin') : undefined
     return { file, before, after, warnings: [], blocked, user: u }
   }
 
@@ -295,14 +288,7 @@ export class SystemSsh implements SshBackend {
     const p = this.plan(change, st, users)
     if (p.blocked && !(change.kind !== 'add-key' && change.force)) throw new HttpError(409, p.blocked)
     if (change.kind === 'settings') {
-      if (!st.dropInActive)
-        throw new HttpError(
-          409,
-          tr(
-            `${join(this.etc, 'sshd_config')} bindet sshd_config.d/*.conf nicht ein – „Include /etc/ssh/sshd_config.d/*.conf“ oben ergänzen`,
-            `${join(this.etc, 'sshd_config')} does not include sshd_config.d/*.conf – add “Include /etc/ssh/sshd_config.d/*.conf” at the top`,
-          ),
-        )
+      if (!st.dropInActive) throw new HttpError(409, msg('ssh_noInclude', { file: join(this.etc, 'sshd_config') }))
       mkdirSync(join(this.etc, 'sshd_config.d'), { recursive: true, mode: 0o755 })
       if (existsSync(this.dropIn)) writeFileSync(`${this.dropIn}.quadeck-bak`, p.before, { mode: 0o644 })
       writeFileSync(`${this.dropIn}.quadeck-tmp`, p.after, { mode: 0o644 })
@@ -314,18 +300,14 @@ export class SystemSsh implements SshBackend {
           // Never leave a config behind that sshd refuses (it would not start again).
           if (p.before) writeFileSync(this.dropIn, p.before, { mode: 0o644 })
           else rmSync(this.dropIn, { force: true })
-          throw new HttpError(422, tr(`sshd -t lehnt die Einstellung ab (zurückgesetzt): ${(t.stderr || t.stdout).trim()}`, `sshd -t rejects the setting (reverted): ${(t.stderr || t.stdout).trim()}`))
+          throw new HttpError(422, msg('ssh_sshdTRejectsSettingReverted', { value: (t.stderr || t.stdout).trim() }))
         }
       }
       await this.reload()
       const after = await this.sshState()
       const e = after.effective
       const s = change.settings
-      if (this.live && (e.passwordAuthentication !== s.passwordAuthentication || e.permitRootLogin !== s.permitRootLogin))
-        after.error = tr(
-          `Gespeichert, aber sshd verwendet andere Werte (Passwort-Login ${e.passwordAuthentication ? 'an' : 'aus'}, root ${e.permitRootLogin}) – eine andere Datei in sshd_config.d oder sshd_config setzt sie zuerst.`,
-          `Saved, but sshd uses different values (password login ${e.passwordAuthentication ? 'on' : 'off'}, root ${e.permitRootLogin}) – another file in sshd_config.d or sshd_config sets them first.`,
-        )
+      if (this.live && (e.passwordAuthentication !== s.passwordAuthentication || e.permitRootLogin !== s.permitRootLogin)) after.error = msg('ssh_otherValues', { password: String(!!e.passwordAuthentication), root: e.permitRootLogin ?? '' })
       return after
     }
     const u = p.user!
@@ -335,7 +317,7 @@ export class SystemSsh implements SshBackend {
 
   async sshService(action: 'start' | 'restart' | 'enable'): Promise<SshState> {
     const units = (await this.services()).filter((s) => s.unit.endsWith('.service')).map((s) => s.unit)
-    if (!units.length) throw new HttpError(404, tr('Kein SSH-Dienst installiert (Paket openssh bzw. openssh-server)', 'No SSH service installed (package openssh or openssh-server)'))
+    if (!units.length) throw new HttpError(404, msg('ssh_noSshServiceInstalledPackage'))
     const argv = action === 'enable' ? ['systemctl', 'enable', '--now', ...units] : ['systemctl', action, ...units]
     const r = await run(argv, { timeoutMs: 60_000 })
     if (r.code !== 0) throw new HttpError(500, `${argv.join(' ')}: ${r.stderr.trim()}`)
@@ -396,7 +378,7 @@ export class FixtureSsh implements SshBackend {
     const st = await this.sshState()
     if (change.kind === 'settings') return { file: '/etc/ssh/sshd_config.d/01-quadeck.conf', before: this.managed ? renderDropIn(this.managed) : '', after: renderDropIn(change.settings), ...judgeSettings(st.users, change.settings) }
     const u = this.data.users.find((x) => x.name === change.user)
-    if (!u) throw new HttpError(404, tr(`Benutzer ${change.user} kann sich nicht per SSH anmelden (kein Login-Konto)`, `User ${change.user} cannot log in via SSH (no login account)`))
+    if (!u) throw new HttpError(404, msg('ssh_userCannotLogViaSsh', { user: change.user }))
     const file = `${u.home}/.ssh/authorized_keys`
     const before = u.keys.length ? u.keys.join('\n') + '\n' : ''
     if (change.kind === 'add-key') {
@@ -410,13 +392,7 @@ export class FixtureSsh implements SshBackend {
     }
     const after = removeKey(before, change.fingerprint)
     const remaining = st.users.map((x) => (x.name === u.name ? { ...x, keys: x.keys.filter((k) => k.fingerprint !== change.fingerprint) } : x))
-    const blocked =
-      !st.effective.passwordAuthentication && !keyLoginPossible(remaining, st.effective)
-        ? tr(
-            'Das ist der letzte funktionierende Schlüssel und Passwort-Login ist aus – danach käme niemand mehr per SSH auf den Server.',
-            'This is the last working key and password login is off – afterwards nobody could get onto the server via SSH.',
-          )
-        : undefined
+    const blocked = !st.effective.passwordAuthentication && !keyLoginPossible(remaining, st.effective) ? msg('ssh_lastWorkingKeyPasswordLogin') : undefined
     return { file, before, after, warnings: [] as string[], blocked }
   }
 

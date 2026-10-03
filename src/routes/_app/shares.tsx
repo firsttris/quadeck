@@ -25,12 +25,12 @@ import {
   type SmbShareInfo,
   type SmbShareSpec,
 } from '~/shared/shares'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
 
 export const Route = createFileRoute('/_app/shares')({
-  head: () => ({ meta: [{ title: tr('Freigaben · Quadeck', 'Shares · Quadeck') }] }),
+  head: () => ({ meta: [{ title: msg('page__app_shares_sharesQuadeck') }] }),
   component: SharesPage,
 })
 
@@ -100,7 +100,11 @@ function SharesPage() {
         onNext={(spec) => {
           const o = nfsEdit?.original
           setNfsEdit(null)
-          setPending({ change: { kind: 'nfs', original: o ? { file: o.file, path: o.path } : undefined, spec }, title: o ? m.shares_page_changeNfs({ path: spec.path }) : m.shares_page_createNfs({ path: spec.path }), confirm: m.common_save() })
+          setPending({
+            change: { kind: 'nfs', original: o ? { file: o.file, path: o.path } : undefined, spec },
+            title: o ? m.shares_page_changeNfs({ path: spec.path }) : m.shares_page_createNfs({ path: spec.path }),
+            confirm: m.common_save(),
+          })
         }}
       />
       <PreviewDialog pending={pending} onClose={() => setPending(null)} onDone={setState} />
@@ -124,7 +128,7 @@ function Services({ kind, services, onState }: { kind: 'smb' | 'nfs'; services: 
       const st = await guarded<SharesState>('/api/shares', { body: { service: { kind, action } } })
       if (st) {
         onState(st)
-        say(`${services.map((s) => s.unit).join(', ')}: ${pickMsg({ "stop": m.shares_services_done_stop, "enable": m.shares_services_done_enable, "restart": m.shares_services_done_restart, "start": m.shares_services_done_start }, action)}`)
+        say(`${services.map((s) => s.unit).join(', ')}: ${pickMsg({ stop: m.shares_services_done_stop, enable: m.shares_services_done_enable, restart: m.shares_services_done_restart, start: m.shares_services_done_start }, action)}`)
       }
     } catch (e) {
       say((e as Error).message, 'bad')
@@ -224,7 +228,7 @@ function SmbPanel({ state, onState, onEdit, onDelete, onReload }: { state: Share
           {smb.connections.map((c, i) => (
             <span key={i} className="mr-3 font-mono" suppressHydrationWarning>
               {c.client} → {c.share}
-              {c.since ? m.shares_smb_since({ when: (relative(c.since).replace(/^vor | ago$/g, '')) }) : ''}
+              {c.since ? m.shares_smb_since({ when: relative(c.since).replace(/^vor | ago$/g, '') }) : ''}
             </span>
           ))}
         </div>
@@ -443,7 +447,7 @@ function NfsDialog({ open, original, onClose, onNext }: { open: boolean; origina
               </label>
               <label className={label}>
                 {m.shares_smbDialog_access()}
-                <select className="field" value={c.rw ? 'rw' : 'ro'} onChange={(e) => upd(i, { rw: e.target.value === 'rw' })} aria-label={m.shares_nfsDialog_accessLabel({ n: (i + 1) })}>
+                <select className="field" value={c.rw ? 'rw' : 'ro'} onChange={(e) => upd(i, { rw: e.target.value === 'rw' })} aria-label={m.shares_nfsDialog_accessLabel({ n: i + 1 })}>
                   <option value="ro">{m.shares_nfsDialog_ro()}</option>
                   <option value="rw">{m.shares_nfsDialog_rw()}</option>
                 </select>
@@ -464,7 +468,7 @@ function NfsDialog({ open, original, onClose, onNext }: { open: boolean; origina
                 <input className="field font-mono" value={c.extra} onChange={(e) => upd(i, { extra: e.target.value })} placeholder="crossmnt,fsid=0" />
               </label>
               {clients.length > 1 && (
-                <button type="button" className="btn sm mb-1" onClick={() => setClients((cs) => cs.filter((_, j) => j !== i))} aria-label={m.shares_nfsDialog_removeClient({ n: (i + 1) })}>
+                <button type="button" className="btn sm mb-1" onClick={() => setClients((cs) => cs.filter((_, j) => j !== i))} aria-label={m.shares_nfsDialog_removeClient({ n: i + 1 })}>
                   <Glyph name="trash" size={13} />
                 </button>
               )}

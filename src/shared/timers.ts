@@ -2,7 +2,7 @@
 // for its own timers, a schedule builder for OnCalendar= and a cron converter.
 // Shared by the page, the web app and the root helper.
 
-import { tr } from './i18n'
+import { msg } from './i18n'
 
 /** A timer Quadeck manages: `<name>.service` + `<name>.timer` in /etc/systemd/system. */
 export interface TimerSpec {
@@ -98,21 +98,20 @@ export const emptySpec = (): TimerSpec => ({
 /** Problems with a spec (in the viewer's language), empty when fine. */
 export function specErrors(s: TimerSpec): string[] {
   const out: string[] = []
-  if (!TIMER_BASE.test(s.name) || /\.(service|timer)$/.test(s.name)) out.push(tr('Name: Buchstaben, Ziffern, „-“, „_“ oder „.“ (ohne .service/.timer)', 'Name: letters, digits, “-”, “_” or “.” (without .service/.timer)'))
-  if (s.description.length > 200 || /[\n\r\\]/.test(s.description) || CONTROL.test(s.description)) out.push(tr('Beschreibung: eine Zeile, ohne „\\“', 'Description: one line, without “\\”'))
-  if (!s.command.trim()) out.push(tr('Befehl fehlt', 'Command missing'))
-  else if (s.command.length > MAX_COMMAND || /[\x00\r]/.test(s.command) || CONTROL.test(s.command.replace(/\t/g, ''))) out.push(tr('Befehl enthält Steuerzeichen oder ist zu lang', 'Command contains control characters or is too long'))
-  if (s.user && !USER.test(s.user)) out.push(tr('Benutzer ungültig', 'Invalid user'))
-  if (s.workingDirectory && (!s.workingDirectory.startsWith('/') || /[\n\r\\]/.test(s.workingDirectory) || CONTROL.test(s.workingDirectory) || s.workingDirectory.length > 400))
-    out.push(tr('Arbeitsverzeichnis muss ein absoluter Pfad sein', 'Working directory must be an absolute path'))
-  if (!CALENDAR.test(s.calendar.trim())) out.push(tr('Zeitplan ungültig', 'Invalid schedule'))
-  if (!Number.isInteger(s.randomDelay) || s.randomDelay < 0 || s.randomDelay > 24 * 60) out.push(tr('Zufällige Verzögerung: 0 bis 1440 Minuten', 'Random delay: 0 to 1440 minutes'))
+  if (!TIMER_BASE.test(s.name) || /\.(service|timer)$/.test(s.name)) out.push(msg('timers_nameLettersDigitsWithoutService'))
+  if (s.description.length > 200 || /[\n\r\\]/.test(s.description) || CONTROL.test(s.description)) out.push(msg('timers_descriptionOneLineWithout'))
+  if (!s.command.trim()) out.push(msg('timers_commandMissing'))
+  else if (s.command.length > MAX_COMMAND || /[\x00\r]/.test(s.command) || CONTROL.test(s.command.replace(/\t/g, ''))) out.push(msg('timers_commandContainsControlCharactersToo'))
+  if (s.user && !USER.test(s.user)) out.push(msg('timers_invalidUser'))
+  if (s.workingDirectory && (!s.workingDirectory.startsWith('/') || /[\n\r\\]/.test(s.workingDirectory) || CONTROL.test(s.workingDirectory) || s.workingDirectory.length > 400)) out.push(msg('timers_workingDirectoryMustAbsolutePath'))
+  if (!CALENDAR.test(s.calendar.trim())) out.push(msg('quadlets_invalidSchedule2'))
+  if (!Number.isInteger(s.randomDelay) || s.randomDelay < 0 || s.randomDelay > 24 * 60) out.push(msg('timers_randomDelay01440Minutes'))
   return out
 }
 
 /** Spec from untrusted JSON (API, helper socket); throws a message for the user. */
 export function parseSpec(v: unknown): TimerSpec {
-  if (!v || typeof v !== 'object') throw new Error(tr('Zeitplan fehlt', 'Schedule missing'))
+  if (!v || typeof v !== 'object') throw new Error(msg('timers_scheduleMissing'))
   const o = v as Record<string, unknown>
   const str = (k: string) => (typeof o[k] === 'string' ? (o[k] as string) : '')
   const spec: TimerSpec = {
@@ -200,7 +199,7 @@ export function overrideDropIn(calendar: string) {
 export const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 export type Day = (typeof DAYS)[number]
 /** Short weekday name in the viewer's language. */
-export const dayLabel = (d: Day): string => tr('Mo Di Mi Do Fr Sa So', 'Mon Tue Wed Thu Fri Sat Sun').split(' ')[DAYS.indexOf(d)]!
+export const dayLabel = (d: Day): string => msg('timers_monTueWedThuFri').split(' ')[DAYS.indexOf(d)]!
 
 export type Schedule =
   | { kind: 'minutes'; every: number }
@@ -313,21 +312,17 @@ export function describeCalendar(expr: string | undefined): string {
   const s = parseCalendar(expr)
   switch (s.kind) {
     case 'minutes':
-      return s.every === 1 ? tr('jede Minute', 'every minute') : tr(`alle ${s.every} Minuten`, `every ${s.every} minutes`)
+      return s.every === 1 ? msg('timers_everyMinute') : msg('timers_everyMinutes', { every: s.every })
     case 'hours':
-      return s.every === 1
-        ? s.minute
-          ? tr(`stündlich um :${two(s.minute)}`, `hourly at :${two(s.minute)}`)
-          : tr('stündlich', 'hourly')
-        : tr(`alle ${s.every} Stunden${s.minute ? ` um :${two(s.minute)}` : ''}`, `every ${s.every} hours${s.minute ? ` at :${two(s.minute)}` : ''}`)
+      return s.every === 1 ? (s.minute ? msg('timers_hourlyAt', { value: two(s.minute) }) : msg('timers_hourly')) : msg('timers_everyHours', { every: s.every, minute: s.minute ? two(s.minute) : '', hasMinute: String(!!s.minute) })
     case 'daily':
-      return tr(`täglich ${s.time}`, `daily ${s.time}`)
+      return msg('timers_daily', { time: s.time })
     case 'weekly': {
-      const days = s.days.length === 5 && !s.days.includes('Sat') && !s.days.includes('Sun') ? tr('Mo–Fr', 'Mon–Fri') : s.days.length === 7 ? tr('täglich', 'daily') : s.days.map(dayLabel).join(', ')
+      const days = s.days.length === 5 && !s.days.includes('Sat') && !s.days.includes('Sun') ? msg('timers_monFri') : s.days.length === 7 ? msg('timers_daily2') : s.days.map(dayLabel).join(', ')
       return `${days} ${s.time}`
     }
     case 'monthly':
-      return tr(`monatlich am ${s.day}. um ${s.time}`, `monthly on day ${s.day} at ${s.time}`)
+      return msg('timers_monthlyDayAt', { day: s.day, time: s.time })
     case 'custom':
       return s.expr
   }
@@ -359,14 +354,14 @@ function cronField(f: string, min: number, max: number, names?: string[]): strin
   const value = (v: string) => {
     const i = names?.indexOf(v.toLowerCase()) ?? -1
     const n = i >= 0 ? i + (names === MONTHS ? 1 : 0) : /^\d+$/.test(v) ? Number(v) : NaN
-    if (!Number.isInteger(n) || n < min || n > max) throw new Error(tr(`Wert „${v}“ außerhalb ${min}–${max}`, `Value “${v}” outside ${min}–${max}`))
+    if (!Number.isInteger(n) || n < min || n > max) throw new Error(msg('timers_valueOutside', { v, min, max }))
     return n
   }
   return f
     .split(',')
     .map((part) => {
       const [range, step] = part.split('/') as [string, string | undefined]
-      if (step !== undefined && !/^\d+$/.test(step)) throw new Error(tr(`Schritt „${step}“ ungültig`, `Invalid step “${step}”`))
+      if (step !== undefined && !/^\d+$/.test(step)) throw new Error(msg('timers_invalidStep', { step }))
       let out: string
       if (range === '*') out = step ? two(min) : '*'
       else if (range.includes('-')) {
@@ -382,14 +377,14 @@ function cronDays(f: string): string {
   const day = (v: string) => {
     const i = CRON_DAYS.indexOf(v.toLowerCase().slice(0, 3))
     const n = i >= 0 ? i : /^\d$/.test(v) ? Number(v) % 7 : NaN
-    if (!Number.isInteger(n) || n > 6) throw new Error(tr(`Wochentag „${v}“ ungültig`, `Invalid weekday “${v}”`))
+    if (!Number.isInteger(n) || n > 6) throw new Error(msg('timers_invalidWeekday', { v }))
     return n
   }
   const name = (n: number) => DAYS[(n + 6) % 7]!
   return f
     .split(',')
     .map((part) => {
-      if (part.includes('/')) throw new Error(tr('Schritte bei Wochentagen kann systemd nicht', 'systemd does not support steps for weekdays'))
+      if (part.includes('/')) throw new Error(msg('timers_systemdDoesNotSupportSteps'))
       if (!part.includes('-')) return name(day(part))
       const [a, b] = part.split('-').map(day) as [number, number]
       // Sun is 0 in cron but last in systemd: 0-2 → Sun,Mon..Tue
@@ -407,28 +402,27 @@ function cronDays(f: string): string {
  */
 export function cronToCalendar(line: string): CronResult {
   const l = line.trim()
-  if (!l) return { error: tr('Leer', 'Empty') }
+  if (!l) return { error: msg('timers_empty') }
   const special = l.match(/^(@\w+)\s*(.*)$/)
   if (special) {
     if (special[1] === '@reboot')
       return {
-        error: tr('@reboot ist kein Zeitplan – dafür passt eine Unit mit WantedBy=multi-user.target besser', '@reboot is not a schedule – a unit with WantedBy=multi-user.target fits better'),
+        error: msg('timers_rebootNotScheduleUnitWantedby'),
       }
     const cal = CRON_SPECIAL[special[1]!.toLowerCase()]
-    return cal ? { calendar: cal, command: special[2] || undefined } : { error: tr(`${special[1]} kennt cron nicht`, `cron does not know ${special[1]}`) }
+    return cal ? { calendar: cal, command: special[2] || undefined } : { error: msg('timers_cronDoesNotKnow', { value: special[1] }) }
   }
   const parts = l.split(/\s+/)
   if (parts.length < 5)
     return {
-      error: tr('Cron braucht fünf Felder: Minute Stunde Tag Monat Wochentag', 'Cron needs five fields: minute hour day month weekday'),
+      error: msg('timers_cronNeedsFiveFieldsMinute'),
     }
   const [mi, h, dom, mon, dow] = parts as [string, string, string, string, string]
   const command = l.match(/^(?:\S+\s+){4}\S+\s+([\s\S]+)$/)?.[1]?.trim() || undefined
   try {
     const days = dow === '*' || dow === '?' ? '' : cronDays(dow)
     const calendar = `${days ? days + ' ' : ''}*-${cronField(mon, 1, 12, MONTHS)}-${dom === '?' ? '*' : cronField(dom, 1, 31)} ${cronField(h, 0, 23)}:${cronField(mi, 0, 59)}:00`
-    const warning =
-      days && dom !== '*' && dom !== '?' ? tr('Cron startet, wenn Tag ODER Wochentag passt – systemd verlangt beides. Bitte prüfen.', 'Cron runs when the day OR the weekday matches – systemd requires both. Please check.') : undefined
+    const warning = days && dom !== '*' && dom !== '?' ? msg('timers_cronRunsWhenDayWeekday') : undefined
     return { calendar, command, warning }
   } catch (e) {
     return { error: (e as Error).message }

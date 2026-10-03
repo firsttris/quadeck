@@ -1,6 +1,6 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { api, ApiError } from '~/lib/api'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import type { JobInfo, JobSpec, JobState } from '~/shared/packages'
 import { Glyph } from './Glyph'
 import { Modal } from './Modal'
@@ -26,13 +26,13 @@ export const useJobs = () => useContext(JobCtx)
 /** Job status labels (getters: the language is read on use). Components can also use t.shell.jobs.status. */
 export const STATUS_LABEL: Record<JobInfo['status'], string> = {
   get running() {
-    return tr('läuft', 'running')
+    return msg('ssh_access_running')
   },
   get ok() {
-    return tr('erfolgreich', 'succeeded')
+    return msg('shell_jobs_status_ok')
   },
   get failed() {
-    return tr('fehlgeschlagen', 'failed')
+    return msg('notifications_failed')
   },
 }
 export const statusTone = (s: JobInfo['status']) => (s === 'ok' ? 'ok' : s === 'failed' ? 'bad' : 'warn')
@@ -81,7 +81,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
     (job: JobInfo) => {
       setRunning((r) => (r?.id === job.id ? null : r))
       setFinished((n) => n + 1)
-      say(`${job.title}: ${pickMsg({ "running": m.shell_jobs_status_running, "ok": m.shell_jobs_status_ok, "failed": m.shell_jobs_status_failed }, job.status)}`, job.status === 'ok' ? undefined : 'bad')
+      say(`${job.title}: ${pickMsg({ running: m.shell_jobs_status_running, ok: m.shell_jobs_status_ok, failed: m.shell_jobs_status_failed }, job.status)}`, job.status === 'ok' ? undefined : 'bad')
     },
     [say],
   )
@@ -174,7 +174,7 @@ export function JobDialog({ id, onClose, onEnd }: { id: string | null; onClose: 
   return (
     <Modal open={!!id} onClose={onClose} title={job?.title ?? 'Job'} wide>
       <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted">
-        {job && <Pill tone={statusTone(job.status)}>{pickMsg({ "running": m.shell_jobs_status_running, "ok": m.shell_jobs_status_ok, "failed": m.shell_jobs_status_failed }, job.status)}</Pill>}
+        {job && <Pill tone={statusTone(job.status)}>{pickMsg({ running: m.shell_jobs_status_running, ok: m.shell_jobs_status_ok, failed: m.shell_jobs_status_failed }, job.status)}</Pill>}
         {job?.status === 'running' && <span>{m.shell_jobs_background()}</span>}
         {job?.exitCode !== undefined && job.status === 'failed' && <span>{m.shell_jobs_exitCode({ code: job.exitCode })}</span>}
       </div>

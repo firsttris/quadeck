@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { HttpError } from '~/server/auth'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
 import { hubReady } from '~/server/hub'
@@ -21,7 +21,7 @@ export const Route = createFileRoute('/api/shares/')({
         if (b.service) {
           assertWritable()
           const { kind, action } = b.service
-          if ((kind !== 'smb' && kind !== 'nfs') || !['start', 'stop', 'restart', 'enable'].includes(action as string)) throw new HttpError(400, tr('Ungültige Dienst-Aktion', 'Invalid service action'))
+          if ((kind !== 'smb' && kind !== 'nfs') || !['start', 'stop', 'restart', 'enable'].includes(action as string)) throw new HttpError(400, msg('api_shares_invalidServiceAction'))
           const st = await p.shareService(unlockToken(session.id), kind, action as 'start')
           return Response.json(st)
         }

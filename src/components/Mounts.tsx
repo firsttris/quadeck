@@ -25,13 +25,13 @@ import { Pill } from './Status'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
 import { ApiError, api } from '~/lib/api'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
 
 const FAT_LIKE = ['vfat', 'exfat', 'ntfs3', 'ntfs', 'ntfs-3g']
 
 function deviceLabel(d: BlockDevice) {
-  return [d.label && tr(`„${d.label}“`, `“${d.label}”`), d.model, diskSize(d.size)].filter(Boolean).join(' · ')
+  return [d.label && msg('ui_Mounts_text', { label: d.label }), d.model, diskSize(d.size)].filter(Boolean).join(' · ')
 }
 
 /**
@@ -100,7 +100,7 @@ export function MountsView() {
   return (
     <>
       <p className="m-0 text-[13px] text-muted">
-        {m.disks_mounts_introBefore({ path: (state?.path ?? '/etc/fstab') })}
+        {m.disks_mounts_introBefore({ path: state?.path ?? '/etc/fstab' })}
         <span className="font-mono">findmnt --verify</span>
         {m.disks_mounts_introAfter()}
       </p>

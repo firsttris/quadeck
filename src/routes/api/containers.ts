@@ -1,4 +1,4 @@
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { createFileRoute } from '@tanstack/react-router'
 import { HttpError } from '~/server/auth'
 import { authed, readJson } from '~/server/http'
@@ -11,7 +11,7 @@ export const Route = createFileRoute('/api/containers')({
     handlers: {
       POST: authed(async ({ request }, session) => {
         const body = await readJson<{ name?: unknown; action?: unknown }>(request)
-        if (typeof body.name !== 'string' || !UNIT_ACTIONS.includes(body.action as UnitAction)) throw new HttpError(400, tr('name und action (start|stop|restart) erforderlich', 'name and action (start|stop|restart) required'))
+        if (typeof body.name !== 'string' || !UNIT_ACTIONS.includes(body.action as UnitAction)) throw new HttpError(400, msg('api_containers_nameActionStartStopRestart'))
         const hub = await hubReady()
         const via = await hub.containerAction(body.action as UnitAction, body.name, unlockToken(session.id))
         return Response.json({ ok: true, via })

@@ -7,7 +7,7 @@ import { existsSync, readFileSync, renameSync, rmSync, statSync, writeFileSync }
 import { release } from 'node:os'
 import { statfs } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { HttpError } from '../auth'
 import { run } from '../exec'
 import {
@@ -55,19 +55,16 @@ const isQuadeckEntry = (content: string | undefined) => !!content && (content.st
 
 /** Checks shared by the real machine and the demo. */
 export function entryForFlavor(state: BootState, pkg: string, read: (p: string) => string | undefined, exists: (p: string) => boolean) {
-  if (!isFlavor(pkg)) throw new HttpError(400, tr('Unbekannter Kernel', 'Unknown kernel'))
-  if (state.loader !== 'systemd-boot' || !state.canCreateEntries)
-    throw new HttpError(409, tr('Boot-Einträge legt hier das System selbst an (kernel-install/UKI) – oder es ist kein systemd-boot', 'Boot entries are created by the system itself here (kernel-install/UKI) – or it is not systemd-boot'))
+  if (!isFlavor(pkg)) throw new HttpError(400, msg('boot_unknownKernel'))
+  if (state.loader !== 'systemd-boot' || !state.canCreateEntries) throw new HttpError(409, msg('boot_bootEntriesCreatedBySystem'))
   const k = state.kernels?.find((x) => x.pkg === pkg)
-  if (!k?.installed) throw new HttpError(409, tr(`${pkg} ist nicht installiert`, `${pkg} is not installed`))
-  if (k.entries.length) throw new HttpError(409, tr(`${pkg} hat schon einen Eintrag`, `${pkg} already has an entry`))
+  if (!k?.installed) throw new HttpError(409, msg('boot_notInstalled2', { pkg }))
+  if (k.entries.length) throw new HttpError(409, msg('boot_alreadyHasEntry', { pkg }))
   const def = state.entries.find((e) => e.isDefault && e.type === 'type1' && e.path)
   const template = def?.path ? read(def.path) : undefined
-  if (!def?.path || !template) throw new HttpError(409, tr('Kein Standard-Eintrag als Vorlage lesbar', 'No readable default entry to use as a template'))
+  if (!def?.path || !template) throw new HttpError(409, msg('boot_noReadableDefaultEntryUse'))
   const boot = state.boot?.path ?? dirname(dirname(dirname(def.path)))
-  for (const f of [`/vmlinuz-${pkg}`, `/initramfs-${pkg}.img`])
-    if (!exists(join(boot, f)))
-      throw new HttpError(409, tr(`${boot}${f} fehlt – erst die Installation abwarten (mkinitcpio legt das initramfs an)`, `${boot}${f} is missing – wait for the installation first (mkinitcpio creates the initramfs)`))
+  for (const f of [`/vmlinuz-${pkg}`, `/initramfs-${pkg}.img`]) if (!exists(join(boot, f))) throw new HttpError(409, msg('boot_missingWaitInstallationFirstMkinitcpio', { boot, f }))
   const dir = dirname(def.path)
   let path = join(dir, kernelEntryId(pkg as KernelFlavor))
   if (exists(path)) path = join(dir, `quadeck-${pkg}.conf`)
@@ -75,12 +72,12 @@ export function entryForFlavor(state: BootState, pkg: string, read: (p: string) 
 }
 
 export function removableEntry(state: BootState, id: string, read: (p: string) => string | undefined) {
-  if (!ENTRY_ID.test(id)) throw new HttpError(400, tr('Ungültiger Eintrag', 'Invalid entry'))
+  if (!ENTRY_ID.test(id)) throw new HttpError(400, msg('boot_invalidEntry'))
   const e = state.entries.find((x) => x.id === id)
-  if (!e) throw new HttpError(404, tr(`Eintrag ${id} gibt es nicht`, `Entry ${id} does not exist`))
-  if (e.type !== 'type1' || !e.path || !e.path.endsWith('.conf') || !/\/loader\/entries\/[^/]+$/.test(e.path)) throw new HttpError(409, tr('Nur Einträge unter loader/entries', 'Only entries under loader/entries'))
-  if (e.isDefault || e.isSelected) throw new HttpError(409, tr('Standard-Eintrag und der laufende Eintrag bleiben', 'The default entry and the running entry stay'))
-  if (!e.missing.length && !isQuadeckEntry(read(e.path))) throw new HttpError(409, tr('Nur Einträge mit fehlenden Dateien oder solche, die Quadeck angelegt hat', 'Only entries with missing files or ones Quadeck created'))
+  if (!e) throw new HttpError(404, msg('boot_entryDoesNotExist', { id }))
+  if (e.type !== 'type1' || !e.path || !e.path.endsWith('.conf') || !/\/loader\/entries\/[^/]+$/.test(e.path)) throw new HttpError(409, msg('boot_onlyEntriesUnderLoaderEntries'))
+  if (e.isDefault || e.isSelected) throw new HttpError(409, msg('boot_defaultEntryRunningEntryStay'))
+  if (!e.missing.length && !isQuadeckEntry(read(e.path))) throw new HttpError(409, msg('boot_onlyEntriesMissingFilesOnes'))
   return e.path
 }
 
@@ -105,12 +102,12 @@ const read = (p: string) => {
 }
 
 export function assertEntry(id: string, entries: BootEntry[]) {
-  if (!ENTRY_ID.test(id)) throw new HttpError(400, tr('Ungültiger Eintrag', 'Invalid entry'))
-  if (!entries.some((e) => e.id === id)) throw new HttpError(404, tr(`Eintrag ${id} gibt es nicht`, `Entry ${id} does not exist`))
+  if (!ENTRY_ID.test(id)) throw new HttpError(400, msg('boot_invalidEntry'))
+  if (!entries.some((e) => e.id === id)) throw new HttpError(404, msg('boot_entryDoesNotExist', { id }))
 }
 
 export function assertTimeout(v: string) {
-  if (!TIMEOUT_VALUE.test(v) || (/^\d+$/.test(v) && Number(v) > 600)) throw new HttpError(400, tr('Timeout: Sekunden (0–600), menu-hidden oder menu-force', 'Timeout: seconds (0–600), menu-hidden or menu-force'))
+  if (!TIMEOUT_VALUE.test(v) || (/^\d+$/.test(v) && Number(v) > 600)) throw new HttpError(400, msg('boot_timeoutSeconds0600Menu'))
 }
 
 export class SystemBoot implements BootBackend {
@@ -195,7 +192,7 @@ export class SystemBoot implements BootBackend {
 
   private async systemdBoot() {
     const s = await this.bootState()
-    if (s.loader !== 'systemd-boot') throw new HttpError(409, tr('Kein systemd-boot – Quadeck ändert hier nur systemd-boot', 'No systemd-boot – Quadeck only changes systemd-boot here'))
+    if (s.loader !== 'systemd-boot') throw new HttpError(409, msg('boot_noSystemdBootQuadeckOnly'))
     return s
   }
 

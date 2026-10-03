@@ -1,7 +1,7 @@
 // Number/size/time formatting for the UI, in the viewer's language.
 
 import { describeCalendar } from '~/shared/timers'
-import { localeOf, tr } from '~/shared/i18n'
+import { localeOf, msg } from '~/shared/i18n'
 
 const nf = (digits: number) => new Intl.NumberFormat(localeOf(), { maximumFractionDigits: digits, minimumFractionDigits: digits })
 
@@ -60,29 +60,29 @@ export function relative(ts: number | undefined, now = Date.now()): string {
   if (!ts) return '–'
   const diff = ts - now
   const abs = Math.abs(diff) / 1000
-  if (abs < 60) return tr('gerade', 'just now')
+  if (abs < 60) return msg('format_justNow')
   const fmt = span(abs)
-  return diff < 0 ? tr(`vor ${fmt}`, `${fmt} ago`) : tr(`in ${fmt}`, `in ${fmt}`)
+  return diff < 0 ? msg('format_ago', { fmt }) : msg('format_text', { fmt })
 }
 
 /** Short age without preposition, as in the units table ("23 d"). */
 export function age(ts: number | undefined, now = Date.now()): string {
   if (!ts) return '–'
   const abs = Math.abs(ts - now) / 1000
-  return abs < 60 ? tr('gerade', 'just now') : span(abs)
+  return abs < 60 ? msg('format_justNow') : span(abs)
 }
 
 export function clock(ts: number): string {
   const d = new Date(ts)
   const p = (n: number) => String(n).padStart(2, '0')
-  const mon = tr('Jan Feb Mär Apr Mai Jun Jul Aug Sep Okt Nov Dez', 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec').split(' ')[d.getMonth()]
+  const mon = msg('format_janFebMarAprMay').split(' ')[d.getMonth()]
   return `${mon} ${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 
 export function weekdayTime(ts: number | undefined): string {
   if (!ts) return '–'
   const d = new Date(ts)
-  const day = tr('So Mo Di Mi Do Fr Sa', 'Sun Mon Tue Wed Thu Fri Sat').split(' ')[d.getDay()]
+  const day = msg('ui_Timers_sunMonTueWedThu').split(' ')[d.getDay()]
   return `${day} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 

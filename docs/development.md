@@ -117,17 +117,26 @@ generated notes. `quadeck update` and `install.sh` pick the newest release from 
   `exportfs`, `sshd -t`, `systemd-analyze verify`, the Quadlet generator), keeps a backup or a
   history, and is rolled back when the tool refuses.
 - Every feature has a `Fixture*` backend so it can be seen and tested without the real host.
-- UI texts exist in German and English; code comments and documentation are English.
-  - Components take their texts from `useT()` (`src/i18n`): one namespace file per area
-    (`src/i18n/units.ts` …) with `de` defining the shape and `en: typeof de` – tsc reports a
-    missing translation. Interpolations are functions (`removed: (n: string) => …`).
-  - Code outside of components (`src/shared`, `src/server`, `src/lib`) takes its texts from
-    the same namespace files through `msg(ns, (m) => m.errors.exists(name))` from
-    `src/shared/i18n.ts` – all texts live in `src/i18n`. (Older code still calls
-    `tr('Deutsch', 'English')` directly; it is being moved over.) In a request it answers in the
-    viewer's language (cookie `qd_lang`, else `Accept-Language`); in the root helper and in
-    background work it returns both, marked, and JSON responses, the event stream and
-    notifications pick the language at the end. Never call `msg()`/`tr()` at module top level.
+- UI texts exist in German and English ([Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs));
+  code comments and documentation are English.
+  - All texts live in `messages/de.json` and `messages/en.json` (inlang message format).
+    `bun run i18n` compiles them to typed functions in `src/paraglide` (git-ignored; the Vite
+    plugin, `typecheck` and `test` do it too). Keys are `area_part_name`, placeholders `{name}`;
+    plurals use `plural` variants, yes/no variants a selector on an input passed as `'true'`/`'false'`,
+    numbers can be formatted per language (`local x = value: number …`).
+  - Components call the messages directly: `m.units_title()`, `m.proxy_errors_exists({ a, line })`
+    (`import { m } from '~/paraglide/messages'`). A key chosen at runtime goes through
+    `pickMsg({ ok: m.x_ok, failed: m.x_failed }, status)`, text around React elements through
+    `rich(m.key, { file: <code>…</code> })`.
+  - Code outside of components (`src/shared`, `src/server`, `src/lib`) uses
+    `msg('proxy_errors_exists', { a, line })` from `src/shared/i18n.ts` – typed by the same
+    generated functions. In a request it answers in the viewer's language (cookie `qd_lang`, else
+    `Accept-Language`); in the root helper and in background work it returns the key and its
+    inputs (marked), and JSON responses, the event stream and notifications render it in the
+    right language at the end – inputs can be messages themselves. Never call `msg()` at module
+    top level.
+  - `tests/i18n.test.ts` checks that both files have the same keys and placeholders, nothing is
+    empty, every message is used and every key used exists.
   - `e2e/zz-i18n.spec.ts` walks every page in English and fails on German leftovers.
   - Only the UI is bilingual. Everything Quadeck writes for the system is English: comments and
     headers in files it writes (drop-ins, timers, boot entries, exports, sudoers), Git messages of

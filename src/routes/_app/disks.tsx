@@ -12,7 +12,7 @@ import { useToast } from '~/components/Toast'
 import { useGuardedApi } from '~/components/Unlock'
 import { api } from '~/lib/api'
 import { diskSize, num, relative } from '~/lib/format'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { assessSmart, attributeLevel, describeNote, describeReason, hintText, smartHints, type SmartAssessment, type SmartBaseline, type SmartDisk, type SmartLevel, type SmartReport } from '~/shared/smart'
 import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
@@ -26,10 +26,9 @@ export const Route = createFileRoute('/_app/disks')({
   beforeLoad: ({ search }) => {
     if (search.tab === 'files') throw redirect({ to: '/files', search: { path: search.path } })
   },
-  head: () => ({ meta: [{ title: tr('Festplatten · Quadeck', 'Disks · Quadeck') }] }),
+  head: () => ({ meta: [{ title: msg('page__app_disks_disksQuadeck') }] }),
   component: DisksPage,
 })
-
 
 const LEVEL_TONE: Record<SmartLevel, Tone> = { ok: 'ok', warning: 'warn', critical: 'bad' }
 
@@ -163,7 +162,11 @@ function DiskCard({ disk: d, a, onDetail, onReport }: { disk: SmartDisk; a: Smar
   const attr = (id: number) => d.attributes.find((x) => x.id === id)
   const realloc = attr(5)
   const pending = attr(197)
-  const pill = !d.supported ? { tone: 'idle' as Tone, label: m.disks_card_noSmart() } : d.standby ? { tone: 'idle' as Tone, label: m.disks_card_asleep() } : { tone: LEVEL_TONE[a.level], label: pickMsg({ "ok": m.disks_level_ok, "warning": m.disks_level_warning, "critical": m.disks_level_critical }, a.level) }
+  const pill = !d.supported
+    ? { tone: 'idle' as Tone, label: m.disks_card_noSmart() }
+    : d.standby
+      ? { tone: 'idle' as Tone, label: m.disks_card_asleep() }
+      : { tone: LEVEL_TONE[a.level], label: pickMsg({ ok: m.disks_level_ok, warning: m.disks_level_warning, critical: m.disks_level_critical }, a.level) }
   const test = async (type: 'short' | 'long') => {
     try {
       const r = await guarded<SmartReport>('/api/disks/smart', { body: { selftest: { disk: d.name, type } } })
@@ -220,10 +223,10 @@ function DiskCard({ disk: d, a, onDetail, onReport }: { disk: SmartDisk; a: Smar
           ))}
         </ul>
       )}
-      {(!d.supported || d.standby) && <p className="m-0 text-[12px] text-muted">{d.standby ? m.disks_card_standbyText() : m.disks_card_unsupportedText({ msg: (d.message ?? m.disks_card_noSmartCap()) })}</p>}
+      {(!d.supported || d.standby) && <p className="m-0 text-[12px] text-muted">{d.standby ? m.disks_card_standbyText() : m.disks_card_unsupportedText({ msg: d.message ?? m.disks_card_noSmartCap() })}</p>}
       {d.supported && !d.standby && !readonly && (
         <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3 text-[12px] text-muted">
-          <span className="grow">{d.selfTests[0] ? m.disks_card_lastTest({ type: (d.selfTests[0].type), status: (d.selfTests[0].status) }) : m.disks_card_noTest()}</span>
+          <span className="grow">{d.selfTests[0] ? m.disks_card_lastTest({ type: d.selfTests[0].type, status: d.selfTests[0].status }) : m.disks_card_noTest()}</span>
           <button type="button" className="btn sm" disabled={d.testRunning !== undefined} onClick={() => test('short')}>
             {m.disks_card_shortTest()}
           </button>

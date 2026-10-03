@@ -9,14 +9,14 @@ import { Dot, Pill } from '~/components/Status'
 import { useToast } from '~/components/Toast'
 import { useGuardedApi } from '~/components/Unlock'
 import { relative } from '~/lib/format'
-import { localeOf, tr } from '~/shared/i18n'
+import { localeOf, msg } from '~/shared/i18n'
 import type { SshState } from '~/shared/ssh'
 import { USER_NAME, changeProblem, describeChange, fullNameProblem, nameProblem, passwordProblem, type Account, type UserChange, type UsersState } from '~/shared/users'
 import { m } from '~/paraglide/messages'
 
 export const Route = createFileRoute('/_app/users')({
   validateSearch: (s: Record<string, unknown>): { user?: string } => ({ user: typeof s.user === 'string' && USER_NAME.test(s.user) ? s.user : undefined }),
-  head: () => ({ meta: [{ title: tr('Benutzer · Quadeck', 'Users · Quadeck') }] }),
+  head: () => ({ meta: [{ title: msg('page__app_users_usersQuadeck') }] }),
   component: UsersPage,
 })
 

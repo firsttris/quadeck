@@ -4,7 +4,7 @@ import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
 import { privileged } from '~/server/privileged'
 import { unlockToken } from '~/server/unlock-sessions'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 
 // Unit editor.
 // GET ?unit=x → files · ?unit&path&history → versions · ?unit&path&revision=id → content.
@@ -41,7 +41,7 @@ export const Route = createFileRoute('/api/systemd/')({
           await p.setUnitEnabled(token, str(b.enable.unit), b.enable.enabled === true)
           return Response.json({ ok: true })
         }
-        throw new HttpError(400, tr('Unbekannte Anfrage', 'Unknown request'))
+        throw new HttpError(400, msg('common_errors_unknownRequest'))
       }),
     },
   },

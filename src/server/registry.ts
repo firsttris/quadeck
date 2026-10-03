@@ -7,7 +7,7 @@
 //   4. labels quadeck.* in the Quadlet file
 //   5. overrides from the UI (SQLite)
 
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import type { Container, Health, IconRef, Service, ServiceGroup } from '~/shared/types'
 import { colorFor, knownApp, matchIcon, slugCandidates, slugify, type IconIndex } from './icons'
 import type { ServiceCandidate } from './providers/types'
@@ -34,6 +34,8 @@ export interface ManualService {
 export interface HttpHealth {
   health: Health
   note?: string
+  /** Why it is unreachable, without the "unreachable:" prefix. */
+  reason?: string
 }
 
 export interface MergeInput {
@@ -137,9 +139,9 @@ function resolveIcon(explicit: string | undefined, candidates: string[], index: 
 }
 
 function containerHealth(c: Container): HttpHealth | undefined {
-  if (c.state !== 'running') return { health: 'bad', note: c.state === 'exited' ? tr('Container gestoppt', 'Container stopped') : `Container ${c.state}` }
-  if (c.health === 'unhealthy') return { health: 'bad', note: tr('Healthcheck schlägt fehl', 'Healthcheck failing') }
-  if (c.health === 'starting') return { health: 'warn', note: tr('Healthcheck startet', 'Healthcheck starting') }
+  if (c.state !== 'running') return { health: 'bad', note: c.state === 'exited' ? msg('registry_containerStopped') : `Container ${c.state}` }
+  if (c.health === 'unhealthy') return { health: 'bad', note: msg('registry_healthcheckFailing') }
+  if (c.health === 'starting') return { health: 'warn', note: msg('registry_healthcheckStarting') }
   if (c.health === 'healthy') return { health: 'ok', note: 'healthy' }
   return undefined
 }
@@ -262,7 +264,7 @@ export function mergeServices(input: MergeInput): ServiceGroup[] {
     .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b, 'de'))
     .map(([name, items]) => {
       const sources = new Set(items.map((i) => i.source))
-      const note = sources.size === 1 && sources.has('manual') ? tr('manuell angelegt', 'added manually') : sources.has('manual') ? tr('erkannt und manuell', 'detected and manual') : tr('aus Caddy und Quadlets', 'from Caddy and Quadlets')
+      const note = sources.size === 1 && sources.has('manual') ? msg('registry_addedManually') : sources.has('manual') ? msg('registry_detectedManual') : msg('registry_fromCaddyQuadlets')
       return { name, note, items: items.sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || a.name.localeCompare(b.name, 'de')) }
     })
 }

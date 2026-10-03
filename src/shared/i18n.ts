@@ -24,7 +24,7 @@ export const isLang = (v: unknown): v is Lang => v === 'de' || v === 'en'
 let clientLang: Lang = 'de'
 // On globalThis: main.ts and the bundled server routes each have their own copy of this module.
 const g = globalThis as unknown as { __quadeckLang?: () => Lang | undefined }
-/** undefined = no viewer known: keep both languages. */
+/** undefined = no viewer known: messages stay language-neutral (key and inputs). */
 const resolver = (): Lang | undefined => (g.__quadeckLang ? g.__quadeckLang() : clientLang)
 
 /** Server/helper: where the viewer's language comes from (undefined = unknown, keep both). */
@@ -46,23 +46,6 @@ export function currentLang(): Lang {
 
 /** Intl locale for a language (24 h clock in English, too). */
 export const localeOf = (lang: Lang = currentLang()) => (lang === 'en' ? 'en-GB' : 'de-DE')
-
-/** A text in both languages; see above. */
-export function tr(de: string, en: string): string {
-  const lang = resolver()
-  if (lang) return lang === 'en' ? en : de
-  return `\u0002${de}\u001f${en}\u0003`
-}
-
-/**
- * A text from a namespace file (src/i18n/<ns>.ts) in code outside of
- * components – server, root helper, src/shared. Same rules as tr(): the
- * viewer's language inside a request, both languages where nobody is asking.
- *   msg(proxy, (m) => m.errors.exists(address, line))
- */
-export function legacyMsg<T>(ns: { de: T; en: T }, pick: (m: T) => string): string {
-  return tr(pick(ns.de), pick(ns.en))
-}
 
 export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 

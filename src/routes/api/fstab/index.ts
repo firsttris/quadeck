@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { HttpError } from '~/server/auth'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { parseFstabChange } from '~/server/fstab/parse'
 import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
@@ -30,7 +30,7 @@ export const Route = createFileRoute('/api/fstab/')({
         let state
         if (b.apply) state = await p.applyFstab(token, parseFstabChange(b.apply), b.confirm === true)
         else if (b.mount && typeof b.mount.target === 'string') state = await p.mountAction(token, b.mount.target, b.mount.action === 'unmount' ? 'unmount' : 'mount')
-        else throw new HttpError(400, tr('Unbekannte Anfrage', 'Unknown request'))
+        else throw new HttpError(400, msg('common_errors_unknownRequest'))
         void (await hubReady()).refreshDisks()
         return Response.json(state)
       }),

@@ -10,7 +10,7 @@ import { HttpError } from '../auth'
 import { run } from '../exec'
 import { parseShow, quadletOf } from '../collectors/systemd'
 import { validContent } from '../quadlets/backend'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import type { Diagnostic, Revision } from '~/shared/quadlets'
 import { NEW_UNIT, PROTECTED_UNIT, UNIT_DIR, assertUnit, lintUnit, originOf, writablePath, type UnitDetail, type UnitFilePart, type UnitValidateResult, type UnitWriteResult } from '~/shared/unit-files'
 import { LEGACY_MANAGED_HEADER, MANAGED_HEADER } from '~/shared/timers'
@@ -39,7 +39,7 @@ export function validUnit(unit: string) {
 }
 
 function notProtected(unit: string) {
-  if (PROTECTED_UNIT.test(unit)) throw new HttpError(403, tr(`${unit} gehört zu Quadeck selbst und wird hier nicht geändert`, `${unit} belongs to Quadeck itself and is not changed here`))
+  if (PROTECTED_UNIT.test(unit)) throw new HttpError(403, msg('systemd_belongsQuadeckItselfNotChanged', { unit }))
 }
 
 /**
@@ -60,7 +60,7 @@ export function verifyDiagnostics(output: string, unit: string, tmp: string, edi
       if (at[1] === edited) {
         line = Number(at[2])
         message = at[3]!
-      } else if (at[1]!.startsWith(tmp + '/')) message = tr(`Hauptdatei, Zeile ${at[2]}`, `Main file, line ${at[2]}`) + `: ${at[3]}`
+      } else if (at[1]!.startsWith(tmp + '/')) message = msg('systemd_mainFileLine', { value: at[2] }) + `: ${at[3]}`
       else message = `${at[1]}:${at[2]}: ${at[3]}`
     } else if (l.startsWith(`${unit}: `) || l.startsWith(`Unit ${unit} `)) message = l.replace(`${unit}: `, '')
     else continue
@@ -83,8 +83,8 @@ export function verifyDiagnostics(output: string, unit: string, tmp: string, edi
 export async function verifyUnitFile(unit: string, path: string, kind: 'fragment' | 'dropin', content: string, fragment: string | undefined): Promise<UnitValidateResult> {
   const local = lintUnit(content, kind)
   if (local.some((d) => d.severity === 'error')) return { ok: false, diagnostics: local }
-  if (unit.includes('@')) return { ok: true, diagnostics: local, skipped: tr('Vorlagen-Units prüft systemd nur als Instanz – nur Syntax geprüft', 'systemd only checks template units as an instance – syntax checked only') }
-  if (!Bun.which('systemd-analyze')) return { ok: true, diagnostics: local, skipped: tr('systemd-analyze fehlt – nur Syntax geprüft', 'systemd-analyze missing – syntax checked only') }
+  if (unit.includes('@')) return { ok: true, diagnostics: local, skipped: msg('systemd_systemdOnlyChecksTemplateUnits') }
+  if (!Bun.which('systemd-analyze')) return { ok: true, diagnostics: local, skipped: msg('systemd_systemdAnalyzeMissingSyntaxChecked') }
   const tmp = mkdtempSync(join(tmpdir(), 'quadeck-verify-'))
   try {
     writeFileSync(join(tmp, unit), kind === 'fragment' ? content : (fragment ?? ''))
@@ -121,14 +121,14 @@ export class UnitHistory {
     return files
       .map((f) => f.match(/^(\d+)-(\d+)\.(original|saved|deleted)$/))
       .filter((m): m is RegExpMatchArray => !!m)
-      .map((m) => ({ id: `${m[1]}-${m[2]}`, date: Number(m[1]), message: m[3] === 'original' ? tr('Ursprünglicher Stand', 'Original state') : m[3] === 'saved' ? tr('Gespeichert', 'Saved') : tr('Vor dem Löschen', 'Before deletion') }))
+      .map((m) => ({ id: `${m[1]}-${m[2]}`, date: Number(m[1]), message: m[3] === 'original' ? msg('common_history_original') : m[3] === 'saved' ? msg('notifications_saved') : msg('systemd_beforeDeletion') }))
       .sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true }))
   }
 
   read(path: string, id: string): string {
-    if (!/^\d+-\d+$/.test(id)) throw new HttpError(400, tr('Ungültige Version', 'Invalid version'))
+    if (!/^\d+-\d+$/.test(id)) throw new HttpError(400, msg('systemd_invalidVersion'))
     const f = readdirSync(this.folder(path)).find((x) => x.startsWith(`${id}.`))
-    if (!f) throw new HttpError(404, tr('Version nicht gefunden', 'Version not found'))
+    if (!f) throw new HttpError(404, msg('common_errors_versionNotFound'))
     return readFileSync(join(this.folder(path), f), 'utf8')
   }
 
@@ -185,7 +185,7 @@ export class SystemUnitEditor implements UnitEditorBackend {
     validUnit(unit)
     const p = await this.props(unit)
     const fragmentPath = p.FragmentPath || undefined
-    if (p.LoadState === 'not-found' && !fragmentPath) throw new HttpError(404, tr(`${unit} gibt es nicht`, `${unit} does not exist`))
+    if (p.LoadState === 'not-found' && !fragmentPath) throw new HttpError(404, msg('systemd_doesNotExist', { unit }))
     const protectedUnit = PROTECTED_UNIT.test(unit)
     const parts: UnitFilePart[] = []
     if (fragmentPath) {
@@ -206,11 +206,7 @@ export class SystemUnitEditor implements UnitEditorBackend {
       unitFileState: p.UnitFileState || undefined,
       parts,
       overridePath: protectedUnit || origin === 'transient' || parts.some((x) => x.path === override) ? undefined : override,
-      readonly: protectedUnit
-        ? tr('Gehört zu Quadeck selbst – Änderungen hier könnten Quadeck aussperren', 'Belongs to Quadeck itself – changes here could lock Quadeck out')
-        : origin === 'transient'
-          ? tr('Temporäre Unit (systemd-run) – verschwindet nach dem Ende', 'Transient unit (systemd-run) – disappears when it ends')
-          : undefined,
+      readonly: protectedUnit ? msg('systemd_belongsQuadeckItselfChangesHere') : origin === 'transient' ? msg('systemd_transientUnitSystemdRunDisappears') : undefined,
       quadlet: quadletOf(p.SourcePath)?.file,
       managedTimer: isManagedTimer(parts[0]?.content),
       template: unit.includes('@') && !!fragmentPath && basename(fragmentPath) !== unit,
@@ -222,8 +218,8 @@ export class SystemUnitEditor implements UnitEditorBackend {
     validUnit(unit)
     notProtected(unit)
     const kind = writablePath(unit, path, this.dir)
-    if (!kind) throw new HttpError(403, tr(`${path} liegt nicht in ${this.dir} – Paketdateien bitte per Override ändern`, `${path} is not in ${this.dir} – change package files with an override`))
-    if (lstatSync(path, { throwIfNoEntry: false })?.isSymbolicLink()) throw new HttpError(409, tr(`${path} ist ein Symlink und wird nicht überschrieben`, `${path} is a symlink and will not be overwritten`))
+    if (!kind) throw new HttpError(403, msg('systemd_notChangePackageFilesOverride', { path, dir: this.dir }))
+    if (lstatSync(path, { throwIfNoEntry: false })?.isSymbolicLink()) throw new HttpError(409, msg('systemd_symlinkWillNotOverwritten', { path }))
     return kind
   }
 
@@ -242,7 +238,7 @@ export class SystemUnitEditor implements UnitEditorBackend {
 
   async unitFileRevision(unit: string, path: string, id: string) {
     validUnit(unit)
-    if (!writablePath(unit, path, this.dir)) throw new HttpError(404, tr('Kein Verlauf', 'No history'))
+    if (!writablePath(unit, path, this.dir)) throw new HttpError(404, msg('systemd_noHistory'))
     return this.history.read(path, id)
   }
 
@@ -255,15 +251,14 @@ export class SystemUnitEditor implements UnitEditorBackend {
     const state = (await run(['systemctl', 'is-active', '--', unit])).stdout.trim()
     if (state !== 'active' && state !== 'activating' && state !== 'reloading') return { restarted: false }
     const r = await run(['systemctl', 'restart', '--', unit], { timeoutMs: 120_000 })
-    if (r.code !== 0)
-      return { restarted: false, warning: tr(`Gespeichert, aber ${unit} startet nicht neu: ${(r.stderr || r.stdout).trim()} – siehe Journal`, `Saved, but ${unit} does not restart: ${(r.stderr || r.stdout).trim()} – see the journal`) }
+    if (r.code !== 0) return { restarted: false, warning: msg('systemd_savedButDoesNotRestart', { unit, value: (r.stderr || r.stdout).trim() }) }
     return { restarted: true }
   }
 
   async writeUnitFile(unit: string, path: string, content: string, restart: boolean) {
     const check = await this.validateUnitFile(unit, path, content)
     const err = check.diagnostics.find((d) => d.severity === 'error')
-    if (err) throw new HttpError(422, `${err.line ? tr(`Zeile ${err.line}: `, `Line ${err.line}: `) : ''}${err.message}`)
+    if (err) throw new HttpError(422, `${err.line ? msg('fstab_line', { line: err.line }) : ''}${err.message}`)
     const before = read(path)
     atomicWrite(path, content)
     this.history.saved(path, before, content)
@@ -274,7 +269,7 @@ export class SystemUnitEditor implements UnitEditorBackend {
   async deleteUnitFile(unit: string, path: string) {
     const kind = await this.target(unit, path)
     const before = read(path)
-    if (before === undefined) throw new HttpError(404, tr(`${path} gibt es nicht`, `${path} does not exist`))
+    if (before === undefined) throw new HttpError(404, msg('systemd_doesNotExist2', { path }))
     if (kind === 'fragment') await run(['systemctl', 'disable', '--now', '--', unit], { timeoutMs: 120_000 })
     this.history.add(path, before, 'deleted')
     rmSync(path, { force: true })
@@ -290,14 +285,14 @@ export class SystemUnitEditor implements UnitEditorBackend {
   }
 
   async createUnit(unit: string, content: string, enable: boolean) {
-    if (!NEW_UNIT.test(unit)) throw new HttpError(400, tr('Name: Buchstaben, Ziffern, - _ . und eine Endung wie .service', 'Name: letters, digits, - _ . and a suffix like .service'))
+    if (!NEW_UNIT.test(unit)) throw new HttpError(400, msg('systemd_nameLettersDigitsSuffixLike'))
     notProtected(unit)
     const path = `${this.dir}/${unit}`
     const p = await this.props(unit)
-    if (existsSync(path) || (p.LoadState && p.LoadState !== 'not-found')) throw new HttpError(409, tr(`${unit} gibt es schon`, `${unit} already exists`))
+    if (existsSync(path) || (p.LoadState && p.LoadState !== 'not-found')) throw new HttpError(409, msg('systemd_alreadyExists', { unit }))
     const check = await verifyUnitFile(unit, path, 'fragment', content, undefined)
     const err = check.diagnostics.find((d) => d.severity === 'error')
-    if (err) throw new HttpError(422, `${err.line ? tr(`Zeile ${err.line}: `, `Line ${err.line}: `) : ''}${err.message}`)
+    if (err) throw new HttpError(422, `${err.line ? msg('fstab_line', { line: err.line }) : ''}${err.message}`)
     atomicWrite(path, content)
     this.history.saved(path, undefined, content)
     await this.reload()
@@ -305,16 +300,14 @@ export class SystemUnitEditor implements UnitEditorBackend {
     let r = await run(['systemctl', 'enable', '--now', '--', unit], { timeoutMs: 120_000 })
     // Without [Install] there is nothing to enable: just start it.
     if (r.code !== 0 && /no installation config|not meant to be enabled/i.test(r.stderr)) r = await run(['systemctl', 'start', '--', unit], { timeoutMs: 120_000 })
-    return r.code === 0
-      ? { restarted: true }
-      : { restarted: false, warning: tr(`Angelegt, aber Start fehlgeschlagen: ${(r.stderr || r.stdout).trim()} – siehe Journal`, `Created, but the start failed: ${(r.stderr || r.stdout).trim()} – see the journal`) }
+    return r.code === 0 ? { restarted: true } : { restarted: false, warning: msg('systemd_createdButStartFailedSee', { value: (r.stderr || r.stdout).trim() }) }
   }
 
   async setUnitEnabled(unit: string, enabled: boolean) {
     validUnit(unit)
     notProtected(unit)
     const r = await run(['systemctl', enabled ? 'enable' : 'disable', '--', unit], { timeoutMs: 60_000 })
-    if (r.code !== 0) throw new HttpError(422, (r.stderr || r.stdout).trim() || tr(`systemctl ${enabled ? 'enable' : 'disable'} fehlgeschlagen`, `systemctl ${enabled ? 'enable' : 'disable'} failed`))
+    if (r.code !== 0) throw new HttpError(422, (r.stderr || r.stdout).trim() || msg('systemd_systemctlFailed', { action: enabled ? 'enable' : 'disable' }))
   }
 }
 
@@ -389,7 +382,7 @@ export class FixtureUnitEditor implements UnitEditorBackend {
     validUnit(unit)
     const u = this.units.get(unit)
     const { frag, dropins } = this.pathsOf(unit)
-    if (!u || !frag) throw new HttpError(404, tr(`${unit} gibt es nicht`, `${unit} does not exist`))
+    if (!u || !frag) throw new HttpError(404, msg('systemd_doesNotExist', { unit }))
     const protectedUnit = PROTECTED_UNIT.test(unit)
     const parts: UnitFilePart[] = [frag, ...dropins].map((p, i) => ({
       path: p,
@@ -418,7 +411,7 @@ export class FixtureUnitEditor implements UnitEditorBackend {
     validUnit(unit)
     notProtected(unit)
     const kind = writablePath(unit, path)
-    if (!kind) throw new HttpError(403, tr(`${path} liegt nicht in ${UNIT_DIR} – Paketdateien bitte per Override ändern`, `${path} is not in ${UNIT_DIR} – change package files with an override`))
+    if (!kind) throw new HttpError(403, msg('systemd_notChangePackageFilesOverride2', { path, UNIT_DIR }))
     return kind
   }
 
@@ -436,7 +429,7 @@ export class FixtureUnitEditor implements UnitEditorBackend {
   async unitFileRevision(unit: string, path: string, id: string) {
     validUnit(unit)
     const h = this.history.get(path)?.find((x) => x.rev.id === id)
-    if (!h) throw new HttpError(404, tr('Version nicht gefunden', 'Version not found'))
+    if (!h) throw new HttpError(404, msg('common_errors_versionNotFound'))
     return h.content
   }
 
@@ -449,20 +442,20 @@ export class FixtureUnitEditor implements UnitEditorBackend {
   async writeUnitFile(unit: string, path: string, content: string, restart: boolean) {
     const check = await this.validateUnitFile(unit, path, content)
     const err = check.diagnostics.find((d) => d.severity === 'error')
-    if (err) throw new HttpError(422, `${err.line ? tr(`Zeile ${err.line}: `, `Line ${err.line}: `) : ''}${err.message}`)
+    if (err) throw new HttpError(422, `${err.line ? msg('fstab_line', { line: err.line }) : ''}${err.message}`)
     const before = this.files.get(path)
-    if (before !== undefined && !this.history.get(path)?.length) this.record(path, before, tr('Ursprünglicher Stand', 'Original state'))
+    if (before !== undefined && !this.history.get(path)?.length) this.record(path, before, msg('common_history_original'))
     const text = content.endsWith('\n') ? content : content + '\n'
     this.files.set(path, text)
-    this.record(path, text, tr('Gespeichert', 'Saved'))
+    this.record(path, text, msg('notifications_saved'))
     return { restarted: restart && this.units.get(unit)?.active === 'active' }
   }
 
   async deleteUnitFile(unit: string, path: string) {
     const kind = this.target(unit, path)
     const before = this.files.get(path)
-    if (before === undefined) throw new HttpError(404, tr(`${path} gibt es nicht`, `${path} does not exist`))
-    this.record(path, before, tr('Vor dem Löschen', 'Before deletion'))
+    if (before === undefined) throw new HttpError(404, msg('systemd_doesNotExist2', { path }))
+    this.record(path, before, msg('systemd_beforeDeletion'))
     this.files.delete(path)
     if (kind === 'fragment') {
       this.units.delete(unit)
@@ -471,17 +464,17 @@ export class FixtureUnitEditor implements UnitEditorBackend {
   }
 
   async createUnit(unit: string, content: string, enable: boolean) {
-    if (!NEW_UNIT.test(unit)) throw new HttpError(400, tr('Name: Buchstaben, Ziffern, - _ . und eine Endung wie .service', 'Name: letters, digits, - _ . and a suffix like .service'))
+    if (!NEW_UNIT.test(unit)) throw new HttpError(400, msg('systemd_nameLettersDigitsSuffixLike'))
     notProtected(unit)
-    if (this.units.has(unit)) throw new HttpError(409, tr(`${unit} gibt es schon`, `${unit} already exists`))
+    if (this.units.has(unit)) throw new HttpError(409, msg('systemd_alreadyExists', { unit }))
     const path = `${UNIT_DIR}/${unit}`
     const check = await verifyUnitFile(unit, path, 'fragment', content, undefined)
     const err = check.diagnostics.find((d) => d.severity === 'error')
-    if (err) throw new HttpError(422, `${err.line ? tr(`Zeile ${err.line}: `, `Line ${err.line}: `) : ''}${err.message}`)
+    if (err) throw new HttpError(422, `${err.line ? msg('fstab_line', { line: err.line }) : ''}${err.message}`)
     const description = content.match(/^Description=(.*)$/m)?.[1]?.trim() || unit
     this.units.set(unit, { description, active: enable ? 'active' : 'inactive', unitFileState: enable ? 'enabled' : 'disabled' })
     this.files.set(path, content.endsWith('\n') ? content : content + '\n')
-    this.record(path, this.files.get(path)!, tr('Gespeichert', 'Saved'))
+    this.record(path, this.files.get(path)!, msg('notifications_saved'))
     return { restarted: enable }
   }
 
@@ -489,7 +482,7 @@ export class FixtureUnitEditor implements UnitEditorBackend {
     validUnit(unit)
     notProtected(unit)
     const u = this.units.get(unit)
-    if (!u) throw new HttpError(404, tr(`${unit} gibt es nicht`, `${unit} does not exist`))
+    if (!u) throw new HttpError(404, msg('systemd_doesNotExist', { unit }))
     u.unitFileState = enabled ? 'enabled' : 'disabled'
   }
 }

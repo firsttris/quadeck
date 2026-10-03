@@ -6,13 +6,13 @@ import { Pill, type Tone } from '~/components/Status'
 import { useToast } from '~/components/Toast'
 import { api } from '~/lib/api'
 import { relative } from '~/lib/format'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { channelKinds, rules as ruleList, smtpPresets, channelErrors, channelTarget, type Channel, type ChannelKind, type NotifySettings, type NotifyState, type SentNotice, type Severity } from '~/shared/notify'
 import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
 
 export const Route = createFileRoute('/_app/notifications')({
-  head: () => ({ meta: [{ title: tr('Benachrichtigungen · Quadeck', 'Notifications · Quadeck') }] }),
+  head: () => ({ meta: [{ title: msg('page__app_notifications_notificationsQuadeck') }] }),
   component: NotificationsPage,
 })
 
@@ -81,7 +81,12 @@ function NotificationsPage() {
             <section className="panel flex flex-col gap-3 p-[18px]" aria-label={m.notifications_channels_title()}>
               <div className="flex items-center gap-2">
                 <h2 className="h2 grow">{m.notifications_channels_title()}</h2>
-                <button type="button" className="btn primary sm" disabled={s.channels.length >= 10} onClick={() => setEditing({ id: '', kind: 'ntfy', name: m.notifications_defaults_ntfy(), enabled: true, url: 'https://ntfy.sh', topic: '' })}>
+                <button
+                  type="button"
+                  className="btn primary sm"
+                  disabled={s.channels.length >= 10}
+                  onClick={() => setEditing({ id: '', kind: 'ntfy', name: m.notifications_defaults_ntfy(), enabled: true, url: 'https://ntfy.sh', topic: '' })}
+                >
                   {m.notifications_channels_add()}
                 </button>
               </div>
@@ -143,7 +148,14 @@ function NotificationsPage() {
               {state.log.slice(0, 15).map((n, i) => (
                 <div key={i} data-testid="sent" className="flex flex-col gap-1 border-t border-line pt-2 text-[13px] first-of-type:border-0">
                   <div className="flex items-center gap-2">
-                    <Pill tone={TONE[n.severity]}>{n.test ? m.notifications_severity_test() : pickMsg({ "critical": m.notifications_severity_critical, "warning": m.notifications_severity_warning, "ok": m.notifications_severity_ok, "info": m.notifications_severity_info, "test": m.notifications_severity_test }, n.severity)}</Pill>
+                    <Pill tone={TONE[n.severity]}>
+                      {n.test
+                        ? m.notifications_severity_test()
+                        : pickMsg(
+                            { critical: m.notifications_severity_critical, warning: m.notifications_severity_warning, ok: m.notifications_severity_ok, info: m.notifications_severity_info, test: m.notifications_severity_test },
+                            n.severity,
+                          )}
+                    </Pill>
                     <span className="min-w-0 grow truncate font-medium">{n.title}</span>
                     <span className="shrink-0 font-mono text-[11px] text-subtle" suppressHydrationWarning>
                       {relative(n.ts)}
@@ -176,7 +188,7 @@ function NotificationsPage() {
       )}
       <ConfirmDialog
         open={!!removing}
-        title={m.notifications_channels_removeTitle({ name: (`${removing?.name}`) })}
+        title={m.notifications_channels_removeTitle({ name: `${removing?.name}` })}
         danger
         confirm={m.notifications_channels_remove()}
         body={<p className="m-0">{m.notifications_channels_removeBody()}</p>}
@@ -292,7 +304,7 @@ function EmailFields({ c, set }: { c: Channel; set: (p: Partial<Channel>) => voi
         <select className="field" value={c.security ?? 'starttls'} onChange={(e) => set({ security: e.target.value as Channel['security'] })}>
           {(['tls', 'starttls', 'none'] as const).map((s) => (
             <option key={s} value={s}>
-              {pickMsg({ "tls": m.notifications_security_tls, "starttls": m.notifications_security_starttls, "none": m.notifications_security_none }, s)}
+              {pickMsg({ tls: m.notifications_security_tls, starttls: m.notifications_security_starttls, none: m.notifications_security_none }, s)}
             </option>
           ))}
         </select>

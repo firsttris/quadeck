@@ -7,7 +7,7 @@
 // - CSRF: every unsafe request must be same-origin, and every authenticated
 //   write must echo the session's CSRF token in X-CSRF-Token.
 
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { and, eq, gt, lt } from 'drizzle-orm'
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
@@ -46,7 +46,7 @@ export function hasPassword() {
 export const MIN_PASSWORD_LENGTH = 10
 
 export async function setPassword(password: string) {
-  if (password.length < MIN_PASSWORD_LENGTH) throw new Error(tr(`Passwort muss mindestens ${MIN_PASSWORD_LENGTH} Zeichen haben`, `Password must have at least ${MIN_PASSWORD_LENGTH} characters`))
+  if (password.length < MIN_PASSWORD_LENGTH) throw new Error(msg('auth_passwordMustHaveAtLeast', { MIN_PASSWORD_LENGTH }))
   setSetting(PASSWORD_KEY, await Bun.password.hash(password, { algorithm: 'argon2id' }))
   // A new password ends all existing sessions.
   db().delete(schema.sessions).run()
@@ -183,11 +183,11 @@ export class HttpError extends Error {
 /** Throws HttpError unless the request carries a valid session (and CSRF token for writes). */
 export function requireSession(request: Request): Session {
   const session = getSession(request)
-  if (!session) throw new HttpError(401, tr('Nicht angemeldet', 'Not logged in'))
+  if (!session) throw new HttpError(401, msg('auth_notLogged'))
   if (!SAFE_METHODS.has(request.method)) {
-    if (!isSameOrigin(request)) throw new HttpError(403, tr('Fremde Herkunft', 'Foreign origin'))
+    if (!isSameOrigin(request)) throw new HttpError(403, msg('auth_foreignOrigin'))
     const sent = request.headers.get('x-csrf-token') ?? ''
-    if (!timingSafeEqualStr(sent, session.csrf)) throw new HttpError(403, tr('CSRF-Token fehlt oder ist ungültig', 'CSRF token missing or invalid'))
+    if (!timingSafeEqualStr(sent, session.csrf)) throw new HttpError(403, msg('auth_csrfTokenMissingInvalid'))
   }
   return session
 }
@@ -251,8 +251,8 @@ export function recordLoginSuccess(key: string) {
 export function beginAttempt(request: Request): (success: boolean) => void {
   const key = clientKey(request)
   const wait = loginBlockedFor(key)
-  if (wait) throw new HttpError(429, tr(`Zu viele Fehlversuche. Bitte ${wait} s warten.`, `Too many failed attempts. Please wait ${wait} s.`))
-  if (verifying >= MAX_VERIFYING) throw new HttpError(429, tr('Zu viele gleichzeitige Anmeldeversuche. Bitte gleich erneut versuchen.', 'Too many simultaneous login attempts. Please try again shortly.'))
+  if (wait) throw new HttpError(429, msg('auth_tooManyFailedAttemptsPlease', { wait }))
+  if (verifying >= MAX_VERIFYING) throw new HttpError(429, msg('auth_tooManySimultaneousLoginAttempts'))
   verifying++
   const before = failures.get(key)
   const snapshot = before ? { ...before } : undefined

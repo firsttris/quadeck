@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { HttpError } from '~/server/auth'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
 import { privileged } from '~/server/privileged'
@@ -24,7 +24,7 @@ export const Route = createFileRoute('/api/files/')({
         const token = unlockToken(session.id)
         if (typeof b.mkdir === 'string') await p.makeDir(token, b.mkdir)
         else if (b.rename && typeof b.rename.path === 'string' && typeof b.rename.name === 'string') await p.renamePath(token, b.rename.path, b.rename.name)
-        else throw new HttpError(400, tr('mkdir oder rename erwartet', 'mkdir or rename expected'))
+        else throw new HttpError(400, msg('api_files_mkdirRenameExpected'))
         return Response.json({ ok: true })
       }),
     },

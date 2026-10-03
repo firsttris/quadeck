@@ -11,7 +11,7 @@ import { Pill, type Tone } from './Status'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
 import { relative } from '~/lib/format'
-import { tr } from '~/shared/i18n'
+import { currentLang, msg } from '~/shared/i18n'
 import {
   DAYS,
   dayLabel,
@@ -39,9 +39,10 @@ const two = (n: number) => String(n).padStart(2, '0')
 /** "Mo 05.10. 03:00" / "Mon 05 Oct 03:00" */
 export function runLabel(ts: number) {
   const d = new Date(ts)
-  const day = tr('So Mo Di Mi Do Fr Sa', 'Sun Mon Tue Wed Thu Fri Sat').split(' ')[d.getDay()]
+  const day = msg('ui_Timers_sunMonTueWedThu').split(' ')[d.getDay()]
   const time = `${two(d.getHours())}:${two(d.getMinutes())}`
-  return tr(`${day} ${two(d.getDate())}.${two(d.getMonth() + 1)}. ${time}`, `${day} ${two(d.getDate())} ${'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec'.split(' ')[d.getMonth()]} ${time}`)
+  const date = currentLang() === 'en' ? `${two(d.getDate())} ${new Intl.DateTimeFormat('en-GB', { month: 'short' }).format(d)}` : `${two(d.getDate())}.${two(d.getMonth() + 1)}.`
+  return `${day} ${date} ${time}`
 }
 
 // Texts come from Paraglide (m.timers_*).
@@ -50,7 +51,7 @@ function lastRun(t: TimerEntry): { tone: Tone; label: string } {
   if (t.serviceActive === 'failed' || (t.result && t.result !== 'success'))
     return {
       tone: 'bad',
-      label: t.result === 'exit-code' ? m.timers_last_failedExit({ status: (t.exitStatus ?? '?') }) : m.timers_last_failed({ result: (t.result ?? 'failed') }),
+      label: t.result === 'exit-code' ? m.timers_last_failedExit({ status: t.exitStatus ?? '?' }) : m.timers_last_failed({ result: t.result ?? 'failed' }),
     }
   if (!t.last) return { tone: 'idle', label: m.timers_last_never() }
   return { tone: 'ok', label: m.timers_last_ok() }
@@ -58,14 +59,14 @@ function lastRun(t: TimerEntry): { tone: Tone; label: string } {
 
 const monotonicLabel = (k: string): string =>
   ({
-    Boot: tr('nach Boot', 'after boot'),
-    Startup: tr('nach Start', 'after start'),
-    UnitActive: tr('alle', 'every'),
-    UnitInactive: tr('nach Ende +', 'after end +'),
-    Active: tr('nach Aktivierung', 'after activation'),
+    Boot: msg('ui_Timers_afterBoot'),
+    Startup: msg('ui_Timers_afterStart'),
+    UnitActive: msg('timers_field_every'),
+    UnitInactive: msg('ui_Timers_afterEnd'),
+    Active: msg('ui_Timers_afterActivation'),
   })[k] ?? k
 
-const schedules = (t: TimerEntry) => [...t.calendars.map(describeCalendar), ...t.monotonic.map((m) => m.replace(/^On(\w+?)Sec=/, (_, k: string) => `${monotonicLabel(k)} `))]
+const schedules = (t: TimerEntry) => [...t.calendars.map(describeCalendar), ...t.monotonic.map((line) => line.replace(/^On(\w+?)Sec=/, (_, k: string) => `${monotonicLabel(k)} `))]
 
 export function TimersView() {
   const navigate = useNavigate()
@@ -108,7 +109,7 @@ export function TimersView() {
       })
       if (r) {
         setState(r)
-        say(action === 'run' ? m.timers_list_started({ name: (t.service ?? t.name) }) : action === 'enable' ? m.timers_list_enabled({ name: t.name }) : m.timers_list_disabled({ name: t.name }))
+        say(action === 'run' ? m.timers_list_started({ name: t.service ?? t.name }) : action === 'enable' ? m.timers_list_enabled({ name: t.name }) : m.timers_list_disabled({ name: t.name }))
       }
     } catch (e) {
       say((e as Error).message, 'bad')
@@ -334,7 +335,10 @@ export function ScheduleField({ value, onChange, readonly }: { value: string; on
       <div role="group" aria-label={m.timers_field_kindGroup()} className="flex flex-wrap gap-1.5">
         {KINDS.map((k) => (
           <button key={k} type="button" className={`seg ${sched.kind === k ? 'on' : ''}`} aria-pressed={sched.kind === k} onClick={() => set(defaults(k, sched))}>
-            {pickMsg({ "minutes": m.timers_field_kinds_minutes, "hours": m.timers_field_kinds_hours, "daily": m.timers_field_kinds_daily, "weekly": m.timers_field_kinds_weekly, "monthly": m.timers_field_kinds_monthly, "custom": m.timers_field_kinds_custom }, k)}
+            {pickMsg(
+              { minutes: m.timers_field_kinds_minutes, hours: m.timers_field_kinds_hours, daily: m.timers_field_kinds_daily, weekly: m.timers_field_kinds_weekly, monthly: m.timers_field_kinds_monthly, custom: m.timers_field_kinds_custom },
+              k,
+            )}
           </button>
         ))}
       </div>
@@ -487,18 +491,18 @@ const templates = (): { label: string; spec: Partial<TimerSpec> }[] => [
   {
     label: m.timers_templates_script_label(),
     spec: {
-      name: tr('mein-skript', 'my-script'),
+      name: msg('ui_Timers_myScript'),
       description: m.timers_templates_script_description(),
-      command: tr('/usr/local/bin/mein-skript.sh', '/usr/local/bin/my-script.sh'),
+      command: msg('ui_Timers_usrLocalBinMyScript'),
       calendar: '*-*-* 03:00:00',
     },
   },
   {
     label: m.timers_templates_rsync_label(),
     spec: {
-      name: tr('backup-daten', 'backup-data'),
+      name: msg('ui_Timers_backupData'),
       description: m.timers_templates_rsync_description(),
-      command: tr('rsync -a --delete /srv/daten/ /mnt/backup/daten/', 'rsync -a --delete /srv/data/ /mnt/backup/data/'),
+      command: msg('ui_Timers_rsyncDeleteSrvDataMnt'),
       calendar: '*-*-* 02:30:00',
       lowPriority: true,
     },
@@ -622,7 +626,7 @@ function TimerEditor({ initial, previous, enabled: initialEnabled, existing, onC
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
               {m.timers_editor_name()}
-              <input className="field font-mono" value={spec.name} onChange={(e) => set('name', e.target.value.trim())} placeholder={tr('backup-fotos', 'backup-photos')} autoFocus={!previous} />
+              <input className="field font-mono" value={spec.name} onChange={(e) => set('name', e.target.value.trim())} placeholder={msg('ui_Timers_backupPhotos')} autoFocus={!previous} />
               {taken && <span className="font-normal text-[#ff8a80]">{m.timers_editor_taken({ name: spec.name })}</span>}
             </label>
             <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">

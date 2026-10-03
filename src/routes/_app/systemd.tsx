@@ -8,7 +8,7 @@ import { Pill, unitTone } from '~/components/Status'
 import { useToast } from '~/components/Toast'
 import { useGuardedApi } from '~/components/Unlock'
 import { api } from '~/lib/api'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { getValues, parseIni } from '~/shared/ini'
 import type { Revision } from '~/shared/quadlets'
 import { EDITABLE_UNIT, NEW_UNIT, UNIT_DIR, UNIT_TEMPLATES, formSections, lintUnit, overrideTemplate, type UnitDetail, type UnitFilePart, type UnitValidateResult, type UnitWriteResult } from '~/shared/unit-files'
@@ -20,7 +20,7 @@ export const Route = createFileRoute('/_app/systemd')({
     unit: typeof s.unit === 'string' && EDITABLE_UNIT.test(s.unit) ? s.unit : undefined,
     new: s.new === true || s.new === 'true' || s.new === 1 ? true : undefined,
   }),
-  head: () => ({ meta: [{ title: tr('Unit bearbeiten · Quadeck', 'Edit unit · Quadeck') }] }),
+  head: () => ({ meta: [{ title: msg('page__app_systemd_editUnitQuadeck') }] }),
   component: SystemdPage,
 })
 
@@ -149,7 +149,9 @@ function UnitView({ unit }: { unit: string }) {
                   <span className="font-mono text-[12px] break-all">{p.path}</span>
                   <span className="flex flex-wrap gap-1.5">
                     <span className="chip">{p.kind === 'fragment' ? m.systemd_unit_fragment() : m.systemd_unit_override()}</span>
-                    <span className={p.origin === 'etc' ? 'chip q' : 'chip'}>{pickMsg({ "etc": m.systemd_origin_etc, "vendor": m.systemd_origin_vendor, "runtime": m.systemd_origin_runtime, "generated": m.systemd_origin_generated, "transient": m.systemd_origin_transient }, p.origin)}</span>
+                    <span className={p.origin === 'etc' ? 'chip q' : 'chip'}>
+                      {pickMsg({ etc: m.systemd_origin_etc, vendor: m.systemd_origin_vendor, runtime: m.systemd_origin_runtime, generated: m.systemd_origin_generated, transient: m.systemd_origin_transient }, p.origin)}
+                    </span>
                     {!p.editable && <span className="chip">{m.systemd_unit_readonly()}</span>}
                   </span>
                 </button>
@@ -165,7 +167,7 @@ function UnitView({ unit }: { unit: string }) {
                   {m.systemd_unit_addOverride()}
                 </button>
               )}
-              <p className="m-0 px-1 text-[11px] leading-[1.5] text-subtle">{m.systemd_unit_overridesNote({ dir: (`${UNIT_DIR}/${unit}.d`) })}</p>
+              <p className="m-0 px-1 text-[11px] leading-[1.5] text-subtle">{m.systemd_unit_overridesNote({ dir: `${UNIT_DIR}/${unit}.d` })}</p>
             </section>
             {sel && (
               <PartEditor
@@ -518,7 +520,7 @@ function NewUnit() {
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
             {m.systemd_create_name()}
-            <input className="field w-[280px] font-mono" value={name} placeholder={tr('mein-dienst.service', 'my-service.service')} onChange={(e) => setName(e.target.value.trim())} autoFocus />
+            <input className="field w-[280px] font-mono" value={name} placeholder={msg('page__app_systemd_myServiceService')} onChange={(e) => setName(e.target.value.trim())} autoFocus />
           </label>
           {name && !validName && <span className="pb-2 text-[12px] text-[#ff8a80]">{m.systemd_create_invalidName()}</span>}
         </div>

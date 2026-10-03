@@ -2,7 +2,7 @@ import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useState } from 'react'
 import { AuthCard, useHydrated } from '~/components/AuthCard'
 import { api } from '~/lib/api'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
 
 export const Route = createFileRoute('/setup')({
@@ -10,7 +10,7 @@ export const Route = createFileRoute('/setup')({
   beforeLoad: ({ context }) => {
     if (context.auth.state !== 'setup') throw redirect({ to: '/login' })
   },
-  head: () => ({ meta: [{ title: tr('Einrichten · Quadeck', 'Setup · Quadeck') }] }),
+  head: () => ({ meta: [{ title: msg('page_setup_setupQuadeck') }] }),
   component: Setup,
 })
 

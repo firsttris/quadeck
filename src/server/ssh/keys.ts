@@ -1,7 +1,7 @@
 // authorized_keys, sshd -T, journal lines: pure functions (unit-tested).
 
 import { createHash } from 'node:crypto'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { KEY_TYPES, type RootLogin, type SshKey, type SshLogin, type SshSettings } from '~/shared/ssh'
 
 /** Length-prefixed fields of an SSH wire-format blob. */
@@ -40,22 +40,22 @@ export const fingerprint = (blob: Buffer) => 'SHA256:' + createHash('sha256').up
  */
 export function parseKeyLine(line: string): { key: SshKey; blob: string } | { error: string } {
   const t = line.trim()
-  if (!t || t.startsWith('#')) return { error: tr('leer', 'empty') }
+  if (!t || t.startsWith('#')) return { error: msg('ssh_empty') }
   // eslint-disable-next-line no-control-regex
-  if (/[\x00-\x08\x0a-\x1f\x7f]/.test(t)) return { error: tr('Steuerzeichen im Schlüssel', 'Control characters in the key') }
+  if (/[\x00-\x08\x0a-\x1f\x7f]/.test(t)) return { error: msg('ssh_controlCharactersKey') }
   const tokens = t.match(/(?:[^\s"]+|"[^"]*")+/g) ?? []
   const idx = tokens.findIndex((x) => (KEY_TYPES as readonly string[]).includes(x) || x === 'ssh-dss')
-  if (idx < 0) return { error: tr('Kein bekannter Schlüsseltyp (erwartet z. B. „ssh-ed25519 AAAA… name@gerät“)', 'No known key type (expected e.g. “ssh-ed25519 AAAA… name@device”)') }
+  if (idx < 0) return { error: msg('ssh_noKnownKeyTypeExpected') }
   const type = tokens[idx]!
   const b64 = tokens[idx + 1] ?? ''
-  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(b64)) return { error: tr('Schlüsseldaten fehlen oder sind kein Base64', 'Key data missing or not Base64') }
+  if (!/^[A-Za-z0-9+/]+={0,2}$/.test(b64)) return { error: msg('ssh_keyDataMissingNotBase64') }
   const blob = Buffer.from(b64, 'base64')
   const inner = fields(blob)[0]?.toString('latin1')
-  if (inner !== type) return { error: tr(`Schlüsseldaten passen nicht zum Typ ${type}`, `Key data does not match the type ${type}`) }
+  if (inner !== type) return { error: msg('ssh_keyDataDoesNotMatch', { type }) }
   const bits = keyBits(type, blob)
   let weak: string | undefined
-  if (type === 'ssh-dss') weak = tr('DSA wird von aktuellem OpenSSH nicht mehr akzeptiert', 'DSA is no longer accepted by current OpenSSH')
-  else if (type === 'ssh-rsa' && bits !== undefined && bits < 3072) weak = tr(`RSA mit ${bits} Bit – heute zu kurz, besser ed25519`, `RSA with ${bits} bits – too short today, better ed25519`)
+  if (type === 'ssh-dss') weak = msg('ssh_dsaNoLongerAcceptedBy')
+  else if (type === 'ssh-rsa' && bits !== undefined && bits < 3072) weak = msg('ssh_rsaBitsTooShortToday', { bits })
   return {
     key: {
       type,
@@ -92,9 +92,9 @@ export function removeKey(text: string, fp: string): string {
 export function addKey(text: string, line: string): string {
   const r = parseKeyLine(line)
   if (!('key' in r)) throw new Error(r.error)
-  if (r.key.options) throw new Error(tr('Schlüssel mit Optionen (from=, command= …) bitte von Hand eintragen', 'Please add keys with options (from=, command= …) by hand'))
+  if (r.key.options) throw new Error(msg('ssh_pleaseAddKeysOptionsFrom'))
   if (r.key.type === 'ssh-dss') throw new Error(r.key.weak!)
-  if (parseAuthorizedKeys(text).some((k) => k.fingerprint === r.key.fingerprint)) throw new Error(tr('Dieser Schlüssel ist schon eingetragen', 'This key is already added'))
+  if (parseAuthorizedKeys(text).some((k) => k.fingerprint === r.key.fingerprint)) throw new Error(msg('ssh_keyAlreadyAdded'))
   const clean = [r.key.type, r.blob, r.key.comment].filter(Boolean).join(' ')
   const body = text.replace(/\s*$/, '')
   return `${body}${body ? '\n' : ''}${clean}\n`

@@ -1,5 +1,5 @@
 import { containerState } from '~/components/Status'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import type { Container, Unit } from '~/shared/types'
 
 export const FILTER_KEYS = ['all', 'container', 'service', 'timer', 'socket', 'failed'] as const
@@ -7,12 +7,12 @@ export type Filter = (typeof FILTER_KEYS)[number]
 
 /** Filter chips with their labels in the current language. */
 export const filters = (): [Filter, string][] => [
-  ['all', tr('Alle', 'All')],
-  ['container', tr('Container', 'Containers')],
-  ['service', tr('Services', 'Services')],
-  ['timer', tr('Timer', 'Timers')],
-  ['socket', tr('Sockets', 'Sockets')],
-  ['failed', tr('Fehlgeschlagen', 'Failed')],
+  ['all', msg('system_packages_filters_all')],
+  ['container', msg('unitrows_containers')],
+  ['service', msg('overview_cards_services')],
+  ['timer', msg('unitrows_timers')],
+  ['socket', msg('unitrows_sockets')],
+  ['failed', msg('unitrows_failed')],
 ]
 
 /**

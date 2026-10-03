@@ -2,7 +2,7 @@
 // knowing before the next kernel update, and the running kernel command line
 // explained. Pure functions, shared by the page and the root helper.
 
-import { tr } from './i18n'
+import { msg, type MsgKey } from './i18n'
 
 export type BootLoader = 'systemd-boot' | 'grub' | 'unknown'
 
@@ -177,18 +177,18 @@ export function decodeEfiString(buf: Uint8Array): string {
 }
 
 export const timeoutChoices = (): { value: string; label: string }[] => [
-  { value: 'menu-hidden', label: tr('Menü ausblenden (beim Start eine Taste drücken, um es zu sehen)', 'Hide the menu (press a key at boot to see it)') },
-  { value: '1', label: tr('1 Sekunde', '1 second') },
-  { value: '3', label: tr('3 Sekunden', '3 seconds') },
-  { value: '5', label: tr('5 Sekunden', '5 seconds') },
-  { value: '10', label: tr('10 Sekunden', '10 seconds') },
-  { value: 'menu-force', label: tr('Immer warten, bis jemand auswählt', 'Always wait until someone picks one') },
+  { value: 'menu-hidden', label: msg('boot_hideMenuPressKeyAt') },
+  { value: '1', label: msg('boot_1Second') },
+  { value: '3', label: msg('boot_3Seconds') },
+  { value: '5', label: msg('boot_5Seconds') },
+  { value: '10', label: msg('boot_10Seconds') },
+  { value: 'menu-force', label: msg('boot_alwaysWaitUntilSomeonePicks') },
 ]
 
 export function describeTimeout(t: BootState['timeout']): string {
-  if (t === undefined) return tr('Standard (Menü ausgeblendet)', 'Default (menu hidden)')
-  if (t === 'menu-force') return tr('wartet auf eine Auswahl', 'waits for a choice')
-  if (t === 'menu-hidden' || t === 0) return tr('Menü ausgeblendet', 'menu hidden')
+  if (t === undefined) return msg('boot_defaultMenuHidden')
+  if (t === 'menu-force') return msg('boot_waitsChoice')
+  if (t === 'menu-hidden' || t === 0) return msg('boot_menuHidden')
   return `${t} s`
 }
 
@@ -201,58 +201,41 @@ export function bootWarnings(s: Omit<BootState, 'warnings'>): BootWarning[] {
     if (e.missing.length)
       out.push({
         level: e.isDefault ? 'critical' : 'warning',
-        text: tr(
-          `„${e.title}“ zeigt auf fehlende Dateien (${e.missing.join(', ')}) – mit diesem Eintrag startet der Server nicht${e.isDefault ? '. Es ist der Standard-Eintrag!' : ' (z. B. nach dem Entfernen eines Kernels – Eintrag entfernen)'}`,
-          `“${e.title}” points to missing files (${e.missing.join(', ')}) – the server will not boot with this entry${e.isDefault ? '. It is the default entry!' : ' (e.g. after removing a kernel – remove the entry)'}`,
-        ),
+        text: msg('boot_warn_missingFiles', { title: e.title, files: e.missing.join(', '), isDefault: String(!!e.isDefault) }),
       })
-  for (const k of s.kernels ?? [])
-    if (k.installed && !k.entries.length && s.canCreateEntries)
-      out.push({ level: 'warning', text: tr(`${k.pkg} ist installiert, hat aber keinen Boot-Eintrag – „Boot-Eintrag anlegen“`, `${k.pkg} is installed but has no boot entry – “Create boot entry”`) })
+  for (const k of s.kernels ?? []) if (k.installed && !k.entries.length && s.canCreateEntries) out.push({ level: 'warning', text: msg('boot_installedButHasNoBoot', { pkg: k.pkg }) })
   if (s.boot) {
     const biggest = Math.max(0, ...s.entries.map((e) => e.size ?? 0))
     if (biggest && s.boot.free < biggest)
       out.push({
         level: 'critical',
-        text: tr(
-          `Auf ${s.boot.path} sind nur noch ${mib(s.boot.free)} frei – ein Kernel mit initramfs braucht ${mib(biggest)}. Das nächste Kernel-Update kann scheitern und den Server unbootbar machen: alte Kernel oder Fallback-Images entfernen.`,
-          `Only ${mib(s.boot.free, true)} left on ${s.boot.path} – a kernel with initramfs needs ${mib(biggest, true)}. The next kernel update can fail and leave the server unbootable: remove old kernels or fallback images.`,
-        ),
+        text: msg('boot_onlyLeftKernelInitramfsNeeds', { path: s.boot.path, free: mib(s.boot.free), needed: mib(biggest) }),
       })
     else if (s.boot.size && s.boot.free / s.boot.size < 0.15)
       out.push({
         level: 'warning',
-        text: tr(
-          `${s.boot.path} ist zu ${Math.round(100 - (s.boot.free / s.boot.size) * 100)} % voll (${mib(s.boot.free)} frei).`,
-          `${s.boot.path} is ${Math.round(100 - (s.boot.free / s.boot.size) * 100)} % full (${mib(s.boot.free, true)} free).`,
-        ),
+        text: msg('boot_fullFree', { path: s.boot.path, value: Math.round(100 - (s.boot.free / s.boot.size) * 100), free: mib(s.boot.free) }),
       })
   }
   if (s.espVersion && s.packageVersion && versionOlder(s.espVersion, s.packageVersion))
     out.push({
       level: 'warning',
-      text: tr(
-        `systemd-boot auf der ESP (${s.espVersion}) ist älter als das installierte systemd (${s.packageVersion}) – „Bootloader aktualisieren“ (bootctl update).`,
-        `systemd-boot on the ESP (${s.espVersion}) is older than the installed systemd (${s.packageVersion}) – “Update boot loader” (bootctl update).`,
-      ),
+      text: msg('boot_systemdBootEspOlderThan', { espVersion: s.espVersion, packageVersion: s.packageVersion }),
     })
   const kernels = new Set(s.entries.filter((e) => e.type !== 'auto' && e.linux).map((e) => e.linux))
   const ukis = s.entries.filter((e) => e.type === 'type2').length
   if (kernels.size + ukis === 1)
     out.push({
       level: 'info',
-      text: tr(
-        `Nur ein Kernel installiert. Ein zweiter (z. B. linux-lts) ist ein Rettungsweg, falls ein Kernel-Update Probleme macht – dann „einmalig mit linux-lts starten“.${s.kernels ? ' Unten unter „Kernel“ installieren.' : ''}`,
-        `Only one kernel installed. A second one (e.g. linux-lts) is a way out if a kernel update causes trouble – then “boot linux-lts once”.${s.kernels ? ' Install it below under “Kernel”.' : ''}`,
-      ),
+      text: msg('boot_warn_oneKernel', { canInstall: String(!!s.kernels) }),
     })
-  if (!s.entries.some((e) => e.isDefault))
-    out.push({ level: 'warning', text: tr('Kein Standard-Eintrag erkannt – systemd-boot nimmt dann den ersten in der Liste.', 'No default entry found – systemd-boot then takes the first one in the list.') })
+  if (!s.entries.some((e) => e.isDefault)) out.push({ level: 'warning', text: msg('boot_noDefaultEntryFoundSystemd') })
   return out
 }
 
 // Both languages are built at once (the helper has no viewer), so no localeOf() here.
-const mib = (b: number, en = false) => (b >= 1024 ** 3 ? `${en ? (b / 1024 ** 3).toFixed(1) : (b / 1024 ** 3).toFixed(1).replace('.', ',')} GiB` : `${Math.round(b / 1024 ** 2)} MiB`)
+/** Size in the viewer's number format (rendered with the message, also later on the server). */
+const mib = (b: number) => (b >= 1024 ** 3 ? msg('common_gib', { value: b / 1024 ** 3 }) : msg('common_mib', { value: Math.round(b / 1024 ** 2) }))
 
 // ---------- kernel command line ----------
 
@@ -277,82 +260,68 @@ export function parseCmdline(cmdline: string): CmdlineParam[] {
 }
 
 const params = (): Record<string, string | ((v?: string) => string)> => ({
-  root: tr('Partition mit dem System (/)', 'Partition with the system (/)'),
-  rootflags: tr('Optionen für das Einhängen von / (z. B. das btrfs-Subvolume)', 'Options for mounting / (e.g. the btrfs subvolume)'),
-  rootfstype: tr('Dateisystem von /', 'File system of /'),
-  rw: tr('System gleich beschreibbar einhängen', 'Mount the system writable right away'),
-  ro: tr('System erst nur lesend einhängen (fsck prüft vorher)', 'Mount the system read-only first (fsck checks it before)'),
-  resume: tr('Partition für den Ruhezustand (Hibernate)', 'Partition for hibernation'),
-  cryptdevice: tr('Verschlüsselte Partition, die beim Start geöffnet wird', 'Encrypted partition that is unlocked at boot'),
-  'rd.luks.uuid': tr('Verschlüsselte Partition, die beim Start geöffnet wird', 'Encrypted partition that is unlocked at boot'),
-  'rd.luks.name': tr('Verschlüsselte Partition, die beim Start geöffnet wird', 'Encrypted partition that is unlocked at boot'),
-  initrd: tr('initramfs, das mitgeladen wird', 'initramfs loaded along with the kernel'),
-  quiet: tr('Weniger Meldungen beim Start', 'Fewer messages at boot'),
-  splash: tr('Grafischer Startbildschirm', 'Graphical boot screen'),
-  loglevel: (v) => tr(`Nur Kernel-Meldungen bis Stufe ${v ?? '?'} anzeigen`, `Only show kernel messages up to level ${v ?? '?'}`),
-  nowatchdog: tr('Hardware-Watchdog aus – etwas schneller, aber kein automatischer Neustart bei Hängern', 'Hardware watchdog off – a bit faster, but no automatic restart on hangs'),
-  nmi_watchdog: tr('NMI-Watchdog (0 = aus)', 'NMI watchdog (0 = off)'),
-  mitigations: (v) =>
-    v === 'off'
-      ? tr('Schutz gegen CPU-Lücken (Spectre & Co.) ausgeschaltet – schneller, aber unsicherer', 'Protection against CPU vulnerabilities (Spectre & co.) turned off – faster, but less secure')
-      : tr('Schutz gegen CPU-Lücken (Spectre & Co.)', 'Protection against CPU vulnerabilities (Spectre & co.)'),
-  'i915.enable_guc': tr('Intel-GPU: GuC/HuC laden – nötig für Hardware-Transcoding (QuickSync) bei Jellyfin, Plex, Immich', 'Intel GPU: load GuC/HuC – needed for hardware transcoding (QuickSync) in Jellyfin, Plex, Immich'),
-  'i915.enable_fbc': tr('Intel-GPU: Bildspeicher-Komprimierung (Strom sparen)', 'Intel GPU: framebuffer compression (saves power)'),
-  'xe.force_probe': tr('Intel-GPU (Arc/Xe): neuen xe-Treiber erzwingen', 'Intel GPU (Arc/Xe): force the new xe driver'),
-  'i915.force_probe': tr('Intel-GPU: Treiber für noch nicht offiziell unterstützte Karten erzwingen', 'Intel GPU: force the driver for cards not yet officially supported'),
-  'amdgpu.ppfeaturemask': tr('AMD-GPU: Energie- und Übertaktungsfunktionen', 'AMD GPU: power and overclocking features'),
-  'nvidia-drm.modeset': tr('NVIDIA: Kernel-Modesetting (für Wayland und manche Container nötig)', 'NVIDIA: kernel mode setting (needed for Wayland and some containers)'),
-  'nvidia_drm.modeset': tr('NVIDIA: Kernel-Modesetting (für Wayland und manche Container nötig)', 'NVIDIA: kernel mode setting (needed for Wayland and some containers)'),
-  'usbcore.autosuspend': (v) =>
-    v === '-1'
-      ? tr('USB-Stromsparen aus – hilft gegen USB-Platten, die sich abmelden', 'USB power saving off – helps against USB disks that drop off')
-      : tr('USB-Geräte nach so vielen Sekunden Ruhe schlafen legen', 'Suspend USB devices after this many idle seconds'),
-  'nvme_core.default_ps_max_latency_us': (v) =>
-    v === '0'
-      ? tr('NVMe-Stromsparmodi aus – hilft gegen SSDs, die unter Last verschwinden', 'NVMe power saving states off – helps against SSDs that vanish under load')
-      : tr('NVMe: tiefste erlaubte Stromsparstufe', 'NVMe: deepest allowed power saving state'),
-  pcie_aspm: (v) =>
-    v === 'off'
-      ? tr('PCIe-Stromsparen aus', 'PCIe power saving off')
-      : v === 'force'
-        ? tr('PCIe-Stromsparen erzwingen (auch wo das BIOS es nicht meldet)', 'Force PCIe power saving (even where the BIOS does not report it)')
-        : tr('PCIe-Stromsparen', 'PCIe power saving'),
-  'pcie_aspm.policy': tr('PCIe-Stromsparstufe (powersupersave spart am meisten)', 'PCIe power saving level (powersupersave saves the most)'),
-  intel_iommu: (v) => (v === 'on' ? tr('IOMMU an – Geräte an VMs durchreichen (VFIO)', 'IOMMU on – pass devices through to VMs (VFIO)') : tr('Intel-IOMMU', 'Intel IOMMU')),
-  amd_iommu: tr('AMD-IOMMU – Geräte an VMs durchreichen', 'AMD IOMMU – pass devices through to VMs'),
-  iommu: (v) => (v === 'pt' ? tr('IOMMU nur für durchgereichte Geräte (schneller)', 'IOMMU only for passed-through devices (faster)') : tr('IOMMU-Modus', 'IOMMU mode')),
-  'vfio-pci.ids': tr('Diese PCI-Geräte für VMs reservieren', 'Reserve these PCI devices for VMs'),
-  consoleblank: (v) => tr(`Bildschirm der Konsole nach ${v ?? '?'} s abschalten`, `Blank the console screen after ${v ?? '?'} s`),
-  console: tr('Wohin Kernel-Meldungen gehen (Bildschirm, serielle Schnittstelle)', 'Where kernel messages go (screen, serial port)'),
-  'zswap.enabled': (v) => (v === '1' ? tr('Komprimierter Zwischenspeicher vor dem Swap an', 'Compressed cache in front of swap on') : tr('Komprimierter Swap-Zwischenspeicher (zswap)', 'Compressed swap cache (zswap)')),
-  'zswap.compressor': tr('Kompression für zswap', 'Compression for zswap'),
-  'systemd.unified_cgroup_hierarchy': tr('cgroups-Version (1 = nur v2, wie Podman sie braucht)', 'cgroups version (1 = v2 only, as Podman needs it)'),
-  'systemd.show_status': tr('Status der Units beim Start anzeigen', 'Show the status of units at boot'),
-  'rd.udev.log_level': tr('Meldungen von udev im initramfs', 'Messages of udev in the initramfs'),
-  'rd.systemd.show_status': tr('Status der Units im initramfs anzeigen', 'Show the status of units in the initramfs'),
-  'udev.log_level': tr('Meldungen von udev', 'Messages of udev'),
+  root: msg('boot_partitionSystem'),
+  rootflags: msg('boot_optionsMountingEGBtrfs'),
+  rootfstype: msg('boot_fileSystem'),
+  rw: msg('boot_mountSystemWritableRightAway'),
+  ro: msg('boot_mountSystemReadOnlyFirst'),
+  resume: msg('boot_partitionHibernation'),
+  cryptdevice: msg('boot_encryptedPartitionUnlockedAtBoot'),
+  'rd.luks.uuid': msg('boot_encryptedPartitionUnlockedAtBoot'),
+  'rd.luks.name': msg('boot_encryptedPartitionUnlockedAtBoot'),
+  initrd: msg('boot_initramfsLoadedAlongKernel'),
+  quiet: msg('boot_fewerMessagesAtBoot'),
+  splash: msg('boot_graphicalBootScreen'),
+  loglevel: (v) => msg('boot_onlyShowKernelMessagesUp', { value: v ?? '?' }),
+  nowatchdog: msg('boot_hardwareWatchdogOffBitFaster'),
+  nmi_watchdog: msg('boot_nmiWatchdog0Off'),
+  mitigations: (v) => (v === 'off' ? msg('boot_protectionAgainstCpuVulnerabilitiesSpectre') : msg('boot_protectionAgainstCpuVulnerabilitiesSpectre2')),
+  'i915.enable_guc': msg('boot_intelGpuLoadGucHuc'),
+  'i915.enable_fbc': msg('boot_intelGpuFramebufferCompressionSaves'),
+  'xe.force_probe': msg('boot_intelGpuArcXeForce'),
+  'i915.force_probe': msg('boot_intelGpuForceDriverCards'),
+  'amdgpu.ppfeaturemask': msg('boot_amdGpuPowerOverclockingFeatures'),
+  'nvidia-drm.modeset': msg('boot_nvidiaKernelModeSettingNeeded'),
+  'nvidia_drm.modeset': msg('boot_nvidiaKernelModeSettingNeeded'),
+  'usbcore.autosuspend': (v) => (v === '-1' ? msg('boot_usbPowerSavingOffHelps') : msg('boot_suspendUsbDevicesAfterMany')),
+  'nvme_core.default_ps_max_latency_us': (v) => (v === '0' ? msg('boot_nvmePowerSavingStatesOff') : msg('boot_nvmeDeepestAllowedPowerSaving')),
+  pcie_aspm: (v) => (v === 'off' ? msg('boot_pciePowerSavingOff') : v === 'force' ? msg('boot_forcePciePowerSavingEven') : msg('boot_pciePowerSaving')),
+  'pcie_aspm.policy': msg('boot_pciePowerSavingLevelPowersupersave'),
+  intel_iommu: (v) => (v === 'on' ? msg('boot_iommuPassDevicesThroughVms') : msg('boot_intelIommu')),
+  amd_iommu: msg('boot_amdIommuPassDevicesThrough'),
+  iommu: (v) => (v === 'pt' ? msg('boot_iommuOnlyPassedThroughDevices') : msg('boot_iommuMode')),
+  'vfio-pci.ids': msg('boot_reserveThesePciDevicesVms'),
+  consoleblank: (v) => msg('boot_blankConsoleScreenAfterS', { value: v ?? '?' }),
+  console: msg('boot_whereKernelMessagesGoScreen'),
+  'zswap.enabled': (v) => (v === '1' ? msg('boot_compressedCacheFrontSwap') : msg('boot_compressedSwapCacheZswap')),
+  'zswap.compressor': msg('boot_compressionZswap'),
+  'systemd.unified_cgroup_hierarchy': msg('boot_cgroupsVersion1V2Only'),
+  'systemd.show_status': msg('boot_showStatusUnitsAtBoot'),
+  'rd.udev.log_level': msg('boot_messagesUdevInitramfs'),
+  'rd.systemd.show_status': msg('boot_showStatusUnitsInitramfs'),
+  'udev.log_level': msg('boot_messagesUdev'),
   ipv6: 'IPv6',
-  'ipv6.disable': (v) => (v === '1' ? tr('IPv6 ganz aus', 'IPv6 off entirely') : 'IPv6'),
-  transparent_hugepage: tr('Große Speicherseiten (Hugepages) automatisch nutzen', 'Use huge pages automatically'),
-  hugepages: tr('Feste Anzahl großer Speicherseiten reservieren', 'Reserve a fixed number of huge pages'),
-  amd_pstate: tr('AMD-CPU: Taktsteuerung über CPPC (active spart meist mehr)', 'AMD CPU: frequency scaling via CPPC (active usually saves more)'),
-  intel_pstate: tr('Intel-CPU: Taktsteuerung', 'Intel CPU: frequency scaling'),
-  acpi_osi: tr('Betriebssystem, das dem BIOS gemeldet wird (Workaround für Firmware-Fehler)', 'Operating system reported to the BIOS (workaround for firmware bugs)'),
-  acpi_enforce_resources: tr('ACPI-Ressourcen (lax: Sensoren mancher Mainboards lesbar)', 'ACPI resources (lax: sensors of some mainboards become readable)'),
-  'libata.force': tr('Einstellungen für SATA-Ports erzwingen (z. B. Geschwindigkeit)', 'Force settings for SATA ports (e.g. speed)'),
-  'random.trust_cpu': tr('Zufallszahlen der CPU für den Start vertrauen', 'Trust the CPU’s random numbers at boot'),
-  apparmor: tr('AppArmor (Sicherheitsmodul)', 'AppArmor (security module)'),
-  lsm: tr('Aktive Sicherheitsmodule', 'Active security modules'),
+  'ipv6.disable': (v) => (v === '1' ? msg('boot_ipv6OffEntirely') : 'IPv6'),
+  transparent_hugepage: msg('boot_useHugePagesAutomatically'),
+  hugepages: msg('boot_reserveFixedNumberHugePages'),
+  amd_pstate: msg('boot_amdCpuFrequencyScalingVia'),
+  intel_pstate: msg('boot_intelCpuFrequencyScaling'),
+  acpi_osi: msg('boot_operatingSystemReportedBiosWorkaround'),
+  acpi_enforce_resources: msg('boot_acpiResourcesLaxSensorsSome'),
+  'libata.force': msg('boot_forceSettingsSataPortsE'),
+  'random.trust_cpu': msg('boot_trustCpuSRandomNumbers'),
+  apparmor: msg('boot_apparmorSecurityModule'),
+  lsm: msg('boot_activeSecurityModules'),
   selinux: 'SELinux',
-  audit: tr('Audit-Protokoll des Kernels', 'Audit log of the kernel'),
-  module_blacklist: tr('Diese Kernel-Module nie laden', 'Never load these kernel modules'),
-  'modprobe.blacklist': tr('Diese Kernel-Module nie laden', 'Never load these kernel modules'),
-  fbcon: tr('Konsole auf dem Bildschirm', 'Console on the screen'),
-  nomodeset: tr('Kein Grafik-Modesetting – nur zur Fehlersuche, schaltet Hardware-Beschleunigung ab', 'No graphics mode setting – only for troubleshooting, turns off hardware acceleration'),
-  init: tr('Programm, das als erstes startet (sonst systemd)', 'Program that starts first (otherwise systemd)'),
-  panic: (v) => tr(`Bei einem Kernel-Absturz nach ${v ?? '?'} s neu starten`, `Reboot ${v ?? '?'} s after a kernel panic`),
-  'kvm.ignore_msrs': tr('KVM: unbekannte CPU-Register ignorieren (Windows-VMs)', 'KVM: ignore unknown CPU registers (Windows VMs)'),
-  split_lock_detect: tr('Erkennung von Split-Locks (off: manche Spiele, VMs schneller)', 'Split lock detection (off: some games, VMs faster)'),
+  audit: msg('boot_auditLogKernel'),
+  module_blacklist: msg('boot_neverLoadTheseKernelModules'),
+  'modprobe.blacklist': msg('boot_neverLoadTheseKernelModules'),
+  fbcon: msg('boot_consoleScreen'),
+  nomodeset: msg('boot_noGraphicsModeSettingOnly'),
+  init: msg('boot_programStartsFirstOtherwiseSystemd'),
+  panic: (v) => msg('boot_rebootSAfterKernelPanic', { value: v ?? '?' }),
+  'kvm.ignore_msrs': msg('boot_kvmIgnoreUnknownCpuRegisters'),
+  split_lock_detect: msg('boot_splitLockDetectionOffSome'),
 })
 
 export function explainParam(name: string, value?: string): string | undefined {
@@ -364,26 +333,22 @@ export function explainParam(name: string, value?: string): string | undefined {
 
 export type KernelFlavor = 'linux' | 'linux-lts' | 'linux-zen' | 'linux-hardened'
 
-const flavor = (pkg: KernelFlavor, label: [string, string], text: [string, string]) => ({
+const flavor = (pkg: KernelFlavor, label: MsgKey, text: MsgKey) => ({
   pkg,
   get label() {
-    return tr(...label)
+    return msg(label)
   },
   get text() {
-    return tr(...text)
+    return msg(text)
   },
 })
 
 /** `label` and `text` are getters: read in the viewer's language. */
 export const KERNEL_FLAVORS: { pkg: KernelFlavor; readonly label: string; readonly text: string }[] = [
-  flavor('linux', ['Aktuell', 'Current'], ['Neueste stabile Version – der Standard-Kernel von Arch.', 'Latest stable version – the default kernel of Arch.']),
-  flavor(
-    'linux-lts',
-    ['LTS', 'LTS'],
-    ['Langzeit-Kernel, ändert sich selten – der klassische Rückweg, wenn ein Update von linux Probleme macht.', 'Long-term kernel, rarely changes – the classic way back when an update of linux causes trouble.'],
-  ),
-  flavor('linux-zen', ['Zen', 'Zen'], ['Auf kurze Reaktionszeiten getrimmt – eher für Desktop und Spiele.', 'Tuned for short response times – more for desktops and gaming.']),
-  flavor('linux-hardened', ['Hardened', 'Hardened'], ['Mit zusätzlicher Absicherung; manche Programme laufen damit nicht.', 'With extra hardening; some programs do not run with it.']),
+  flavor('linux', 'boot_flavor_linux_label', 'boot_flavor_linux_text'),
+  flavor('linux-lts', 'boot_flavor_linuxlts_label', 'boot_flavor_linuxlts_text'),
+  flavor('linux-zen', 'boot_flavor_linuxzen_label', 'boot_flavor_linuxzen_text'),
+  flavor('linux-hardened', 'boot_flavor_linuxhardened_label', 'boot_flavor_linuxhardened_text'),
 ]
 
 export const isFlavor = (v: unknown): v is KernelFlavor => KERNEL_FLAVORS.some((k) => k.pkg === v)
@@ -427,9 +392,9 @@ export function kernelInfos(installed: Map<string, string>, release: string, ent
 
 /** Why a flavour may not be removed, or undefined. */
 export function kernelRemoveProblem(k: KernelInfo, all: KernelInfo[]): string | undefined {
-  if (k.running) return tr('Läuft gerade – erst mit einem anderen Kernel starten', 'Running right now – boot another kernel first')
-  if (k.isDefault) return tr('Ist der Standard-Eintrag – erst einen anderen Kernel als Standard setzen', 'Is the default entry – make another kernel the default first')
-  if (!all.some((x) => x.installed && x.pkg !== k.pkg)) return tr('Der letzte installierte Kernel', 'The last installed kernel')
+  if (k.running) return msg('boot_runningRightNowBootAnother')
+  if (k.isDefault) return msg('boot_defaultEntryMakeAnotherKernel')
+  if (!all.some((x) => x.installed && x.pkg !== k.pkg)) return msg('boot_lastInstalledKernel')
   return undefined
 }
 

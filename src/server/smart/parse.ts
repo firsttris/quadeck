@@ -1,6 +1,6 @@
 // smartctl --json output → SmartDisk (unit-tested with captured output).
 
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import type { SmartAttribute, SmartDisk, SmartSelfTest, SmartStatus } from '~/shared/smart'
 
 /** smartctl exit status bits (man smartctl, "RETURN VALUES"). */
@@ -125,7 +125,7 @@ export function parseSmartctl(name: string, text: string): SmartDisk {
     attributes,
     selfTests,
     testRunning: testRunning !== undefined && testRunning > 0 ? testRunning : undefined,
-    message: !supported ? (messages.find((m) => !/^Warning/i.test(m)) ?? tr('kein SMART', 'no SMART')) : standby ? tr('schläft – wird nicht geweckt', 'asleep – not woken up') : undefined,
+    message: !supported ? (messages.find((m) => !/^Warning/i.test(m)) ?? msg('disks_card_noSmart')) : standby ? msg('smart_asleepNotWokenUp') : undefined,
   }
 }
 

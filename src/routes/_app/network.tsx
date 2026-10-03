@@ -4,7 +4,7 @@ import { PageHeader } from '~/components/PageHeader'
 import { ReverseProxy } from '~/components/ReverseProxy'
 import { Pill, type Tone } from '~/components/Status'
 import { bytes } from '~/lib/format'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { knownPorts, type IfaceKind, type ListeningPort, type NetInterface, type NetworkState } from '~/shared/network'
 import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
@@ -13,7 +13,7 @@ type Tab = 'interfaces' | 'ports' | 'firewall' | 'proxy'
 
 export const Route = createFileRoute('/_app/network')({
   validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({ tab: s.tab === 'ports' || s.tab === 'firewall' || s.tab === 'proxy' ? s.tab : undefined }),
-  head: () => ({ meta: [{ title: tr('Netzwerk · Quadeck', 'Network · Quadeck') }] }),
+  head: () => ({ meta: [{ title: msg('page__app_network_networkQuadeck') }] }),
   component: NetworkPage,
 })
 
@@ -171,7 +171,12 @@ function Iface({ iface: i, gateway }: { iface: NetInterface; gateway?: string })
     <div className="panel flex flex-col gap-2 p-[16px]" data-testid="iface">
       <div className="flex items-center gap-2">
         <span className="font-mono text-[14px] font-semibold">{i.name}</span>
-        <span className="chip">{pickMsg({ "ethernet": m.network_kind_ethernet, "wifi": m.network_kind_wifi, "bridge": m.network_kind_bridge, "container": m.network_kind_container, "vpn": m.network_kind_vpn, "loopback": m.network_kind_loopback, "virtual": m.network_kind_virtual }, i.kind)}</span>
+        <span className="chip">
+          {pickMsg(
+            { ethernet: m.network_kind_ethernet, wifi: m.network_kind_wifi, bridge: m.network_kind_bridge, container: m.network_kind_container, vpn: m.network_kind_vpn, loopback: m.network_kind_loopback, virtual: m.network_kind_virtual },
+            i.kind,
+          )}
+        </span>
         <span className="grow" />
         <Pill tone={tone}>{up ? m.network_ifaces_connected() : i.state === 'DOWN' ? m.network_ifaces_disconnected() : i.state.toLowerCase()}</Pill>
       </div>
@@ -215,7 +220,13 @@ const FW_TONE: Record<NonNullable<ListeningPort['firewall']>, Tone> = { open: 'o
 function PortRow({ p }: { p: ListeningPort }) {
   const known = knownPorts()[`${p.port}/${p.proto}`]
   const where = p.scope === 'all' ? m.network_ports_all() : p.scope === 'local' ? m.network_ports_local() : m.network_ports_only({ addrs: p.addresses.join(', ') })
-  const fw = p.firewall ? { tone: FW_TONE[p.firewall], label: pickMsg({ "open": m.network_fw_open_label, "blocked": m.network_fw_blocked_label, "podman": m.network_fw_podman_label, "unknown": m.network_fw_unknown_label }, p.firewall), title: pickMsg({ "open": m.network_fw_open_title, "blocked": m.network_fw_blocked_title, "podman": m.network_fw_podman_title, "unknown": m.network_fw_unknown_title }, p.firewall) } : undefined
+  const fw = p.firewall
+    ? {
+        tone: FW_TONE[p.firewall],
+        label: pickMsg({ open: m.network_fw_open_label, blocked: m.network_fw_blocked_label, podman: m.network_fw_podman_label, unknown: m.network_fw_unknown_label }, p.firewall),
+        title: pickMsg({ open: m.network_fw_open_title, blocked: m.network_fw_blocked_title, podman: m.network_fw_podman_title, unknown: m.network_fw_unknown_title }, p.firewall),
+      }
+    : undefined
   return (
     <tr data-testid="port-row">
       <td className="whitespace-nowrap">
@@ -281,7 +292,7 @@ function Firewall({ s }: { s: NetworkState }) {
           {blocked.length > 0 && (
             <p className="m-0 text-[#e3b341]">
               {m.network_firewall_listening({ n: blocked.length })}
-              {m.network_firewall_blocked({ ports: (blocked.map((p) => `${p.port}/${p.proto}`).join(', ')) })}{' '}
+              {m.network_firewall_blocked({ ports: blocked.map((p) => `${p.port}/${p.proto}`).join(', ') })}{' '}
               <span className="font-mono">{f.kind === 'ufw' ? `ufw allow ${blocked[0]!.port}/${blocked[0]!.proto}` : `firewall-cmd --permanent --add-port=${blocked[0]!.port}/${blocked[0]!.proto} && firewall-cmd --reload`}</span>).
             </p>
           )}

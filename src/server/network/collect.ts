@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { hostname, networkInterfaces } from 'node:os'
 import { join } from 'node:path'
 import { run } from '../exec'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { firewallVerdict, scopeOf, type FirewallInfo, type IfaceKind, type ListeningPort, type NetInterface, type NetRoute, type NetworkState } from '~/shared/network'
 
 export interface NetworkAdmin {
@@ -206,7 +206,7 @@ async function firewall(): Promise<FirewallInfo> {
         active: true,
         ports: u.ports,
         services: u.services,
-        note: u.services.length ? tr('App-Profile (z. B. OpenSSH) lassen sich hier nicht in Ports auflösen.', 'App profiles (e.g. OpenSSH) cannot be resolved to ports here.') : undefined,
+        note: u.services.length ? msg('network_appProfilesEGOpenssh') : undefined,
       }
   }
   if (Bun.which('nft')) {
@@ -218,7 +218,7 @@ async function firewall(): Promise<FirewallInfo> {
         active: true,
         ports: [],
         services: [],
-        note: tr('Eigene nftables-Regeln: welche Ports offen sind, kann Quadeck nicht sicher sagen.', 'Custom nftables rules: Quadeck cannot reliably tell which ports are open.'),
+        note: msg('network_customNftablesRulesQuadeckCannot'),
       }
   }
   return { kind: 'none', active: false, ports: [], services: [] }
@@ -232,7 +232,7 @@ export class SystemNetwork implements NetworkAdmin {
     if (addr.code === 0) interfaces = parseIpAddr(addr.stdout)
     else {
       interfaces = fallbackInterfaces()
-      if (addr.code === 127) errors.push(tr('iproute2 (ip) fehlt – Angaben eingeschränkt', 'iproute2 (ip) missing – limited information'))
+      if (addr.code === 127) errors.push(msg('network_iproute2IpMissingLimitedInformation'))
     }
     const routes = [...parseRoutes((await run(['ip', '-j', 'route', 'show'])).stdout, 'inet'), ...parseRoutes((await run(['ip', '-6', '-j', 'route', 'show', 'default'])).stdout, 'inet6')]
 
@@ -246,7 +246,7 @@ export class SystemNetwork implements NetworkAdmin {
     let ports: ListeningPort[] = []
     const ss = await run(['ss', '-H', '-tulpn'])
     if (ss.code === 0) ports = parseSs(ss.stdout)
-    else errors.push(ss.code === 127 ? tr('ss (iproute2) fehlt – keine Ports', 'ss (iproute2) missing – no ports') : `ss: ${ss.stderr.trim()}`)
+    else errors.push(ss.code === 127 ? msg('network_ssIproute2MissingNoPorts') : `ss: ${ss.stderr.trim()}`)
     for (const p of ports) {
       if (!p.pid) continue
       const owner = cgroupOwner(read(`/proc/${p.pid}/cgroup`) ?? '')

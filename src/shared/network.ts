@@ -1,7 +1,7 @@
 // Network overview (read only): interfaces, routes, DNS, listening ports and
 // the firewall's view on them.
 
-import { tr } from './i18n'
+import { msg } from './i18n'
 
 export type IfaceKind = 'ethernet' | 'wifi' | 'bridge' | 'container' | 'vpn' | 'loopback' | 'virtual'
 
@@ -116,7 +116,7 @@ export const knownPorts = (): Record<string, string> => ({
   '139/tcp': 'SMB (NetBIOS)',
   '445/tcp': 'SMB',
   '2049/tcp': 'NFS',
-  '631/tcp': tr('Drucker (CUPS)', 'Printer (CUPS)'),
+  '631/tcp': msg('network_printerCups'),
   '5353/udp': 'mDNS/Avahi',
   '9090/tcp': 'Cockpit',
   '5355/udp': 'LLMNR',

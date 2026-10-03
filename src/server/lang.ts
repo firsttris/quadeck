@@ -7,12 +7,12 @@ import { currentLang, langOfRequest, localize, localizeDeep, setLangResolver, ty
 const g = globalThis as unknown as { __quadeckLangStore?: AsyncLocalStorage<Lang> }
 const store = (g.__quadeckLangStore ??= new AsyncLocalStorage<Lang>())
 
-/** Web process: tr() answers in the language of the current request; outside of one it keeps both. */
+/** Web process: msg() answers in the language of the current request; outside of one it keeps key and inputs. */
 export function installRequestLang() {
   setLangResolver(() => store.getStore())
 }
 
-/** Root helper and jobs: no viewer, every text keeps both languages. */
+/** Root helper and jobs: no viewer, every message stays language-neutral (key and inputs). */
 export function installNoLang() {
   setLangResolver(() => undefined)
 }
@@ -31,7 +31,7 @@ export function outsideRequest<T>(fn: () => T): T {
 /**
  * Objects that keep or broadcast what they produce (hub, notifier, privileged
  * backends): every method runs without the caller's language, so stored texts
- * keep both languages and each viewer gets theirs at the response.
+ * stay language-neutral and each viewer gets their language at the response.
  */
 export function bilingual<T extends object>(obj: T): T {
   return new Proxy(obj, {
@@ -42,7 +42,7 @@ export function bilingual<T extends object>(obj: T): T {
   })
 }
 
-/** JSON responses: texts from the helper or the background carry both languages – pick the viewer's. */
+/** JSON responses: messages from the helper or the background are rendered in the viewer's language. */
 export async function localizeResponse(res: Response, lang: Lang = currentLang()): Promise<Response> {
   if (!(res.headers.get('content-type') ?? '').includes('application/json')) return res
   const text = await res.text()
