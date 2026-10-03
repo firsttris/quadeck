@@ -173,6 +173,7 @@
   "overview_storage_usedOf": "{used} von {total}",
   "overview_storage_empty": "Keine eingehängten Dateisysteme gefunden.",
   "overview_storage_used": "{what} belegt",
+  "overview_storage_tempSmart": "Aus SMART, alle 30 Minuten gelesen: der Kernel hat für diese Platte keinen Sensor (für SATA das Modul drivetemp laden)",
   "overview_storage_smartOk": "SMART gesund",
   "overview_storage_smartWarning": "SMART: Warnung",
   "overview_storage_smartCritical": "SMART: kritisch",

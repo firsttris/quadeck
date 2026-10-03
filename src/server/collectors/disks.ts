@@ -103,3 +103,9 @@ export async function collectDisks(): Promise<Disk[]> {
   }
   return disks
 }
+
+/** The kernel sensor wins; SMART fills in when there is none and the reading is at most 2 hours old. */
+export function withSmartTemp(d: Disk, smart: { tempC: number; at: number } | undefined, now = Date.now()): Disk {
+  if (d.tempC !== undefined || !smart || now - smart.at > 2 * 3600_000) return d
+  return { ...d, tempC: smart.tempC, tempFromSmart: true }
+}

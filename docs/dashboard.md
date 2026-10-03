@@ -102,6 +102,12 @@ restarts the unit through systemd after a confirmation; **Show journal** opens i
 Every mounted data file system with usage, and for every disk the SMART verdict as a dot (green,
 yellow, red; grey for disks without SMART). The dot links to the [disks page](disks.md).
 
+The disk temperature comes from the kernel (`nvme` sensors, `drivetemp` for SATA). When the kernel
+has no sensor for a disk, the value from the last SMART read is shown instead (every 30 minutes;
+the tooltip says so). For live values on SATA disks load the module:
+`sudo modprobe drivetemp` and, to keep it after a reboot,
+`echo drivetemp | sudo tee /etc/modules-load.d/drivetemp.conf`.
+
 ## Timers card
 
 The next six active timers with their schedule in plain words and the time until the next run; a

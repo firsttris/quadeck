@@ -297,7 +297,9 @@ function Storage({ disks, smart }: { disks: Disk[]; smart: Snapshot['smart'] }) 
               {smartOf(d.dev) ? <Dot tone={SMART_TONE[smartOf(d.dev)!.level]} label={smartLabel[smartOf(d.dev)!.level]} /> : <span className="w-2" />}
               <span className="w-[64px] truncate font-mono text-[13px]">{d.dev}</span>
               <span className="min-w-0 grow truncate text-[12px] text-muted">{[d.mount, diskSize(d.size), d.fstype].filter(Boolean).join(' · ')}</span>
-              <span className="text-[12px] text-subtle">{d.tempC !== undefined ? `${Math.round(d.tempC)} °C` : ''}</span>
+              <span className="text-[12px] text-subtle" title={d.tempFromSmart ? m.overview_storage_tempSmart() : undefined}>
+                {d.tempC !== undefined ? `${Math.round(d.tempC)} °C` : ''}
+              </span>
               <span className="chip">{d.role}</span>
             </div>
             <div className="bar" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(p * 100)} aria-label={m.overview_storage_used({ what: d.mount })}>

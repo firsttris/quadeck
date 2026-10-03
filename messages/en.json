@@ -173,6 +173,7 @@
   "overview_storage_usedOf": "{used} of {total}",
   "overview_storage_empty": "No mounted file systems found.",
   "overview_storage_used": "{what} used",
+  "overview_storage_tempSmart": "From SMART, read every 30 minutes: the kernel has no sensor for this disk (for SATA, load the drivetemp module)",
   "overview_storage_smartOk": "SMART healthy",
   "overview_storage_smartWarning": "SMART: warning",
   "overview_storage_smartCritical": "SMART: critical",
