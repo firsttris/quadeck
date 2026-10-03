@@ -162,7 +162,7 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
                   <dt className="text-muted">systemd-boot</dt>
                   <dd className="m-0 font-mono">
                     {state.runningVersion ?? '–'}
-                    {state.espVersion && state.espVersion !== state.runningVersion ? m.boot_onEsp({ v: state.espVersion }) : ''}
+                    {state.espVersion && state.espVersion !== state.runningVersion ? m.boot_onEsp({ path: state.espVersion }) : ''}
                   </dd>
                   {state.firmware && (
                     <>

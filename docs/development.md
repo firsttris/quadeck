@@ -121,7 +121,9 @@ generated notes. `quadeck update` and `install.sh` pick the newest release from 
   code comments and documentation are English.
   - All texts live in `messages/de.json` and `messages/en.json` (inlang message format).
     `bun run i18n` compiles them to typed functions in `src/paraglide` (git-ignored; the Vite
-    plugin, `typecheck` and `test` do it too). Keys are `area_part_name`, placeholders `{name}`;
+    plugin, `typecheck` and `test` do it too). Keys are `area_group_name` in lowerCamelCase
+    segments (`fstab_error_deviceMissing`, `proxy_confirm_save`), placeholders say what goes in
+    (`{path}`, `{reason}`, `{count}`);
     plurals use `plural` variants, yes/no variants a selector on an input passed as `'true'`/`'false'`,
     numbers can be formatted per language (`local x = value: number …`).
   - Components call the messages directly: `m.units_title()`, `m.proxy_errors_exists({ a, line })`

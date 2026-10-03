@@ -129,7 +129,7 @@ function HardwarePage() {
                   [m.hardware_cores(), m.hardware_coresLong({ cores: hw.cpu.cores, threads: hw.cpu.threads, sockets: hw.cpu.sockets, multi: String(hw.cpu.sockets > 1) })],
                   [m.hardware_clock(), hw.cpu.maxMHz ? m.hardware_upTo({ ghz: num(hw.cpu.maxMHz / 1000, 1) }) : undefined],
                   [m.hardware_l3(), hw.cpu.cache?.replace(/\s*\(.*\)/, '')],
-                  [m.hardware_virtualization(), hw.cpu.virtualization ? m.hardware_vmPossible({ v: hw.cpu.virtualization }) : m.hardware_vmUnavailable()],
+                  [m.hardware_virtualization(), hw.cpu.virtualization ? m.hardware_vmPossible({ virtualization: hw.cpu.virtualization }) : m.hardware_vmUnavailable()],
                 ]}
               />
             </Card>

@@ -184,7 +184,7 @@ export function PodmanSettingsView() {
       <section className="panel flex flex-col gap-3 p-[18px]" aria-label={m.podman_updates_aria()}>
         <div className="flex flex-wrap items-center gap-2">
           <h2 className="h2 grow">{m.podman_updates_title()}</h2>
-          {s.version && <span className="text-[12px] text-muted">{m.podman_updates_version({ v: s.version })}</span>}
+          {s.version && <span className="text-[12px] text-muted">{m.podman_updates_version({ version: s.version })}</span>}
         </div>
         <p className="m-0 text-[13px] text-muted">
           <span className="font-mono">podman-auto-update.timer</span>

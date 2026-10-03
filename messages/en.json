@@ -30,8 +30,13 @@
   "common_http": "HTTP {status}",
   "common_items": [
     {
-      "declarations": ["input n", "local nPlural = n: plural"],
-      "selectors": ["nPlural"],
+      "declarations": [
+        "input n",
+        "local nPlural = n: plural"
+      ],
+      "selectors": [
+        "nPlural"
+      ],
       "match": {
         "nPlural=one": "{n} entry",
         "nPlural=other": "{n} entries"
@@ -213,8 +218,13 @@
   "overview_metrics_gpuTitle": "GPU · {name}",
   "overview_metrics_cpuTempTitle": [
     {
-      "declarations": ["input sensor", "input hasSensor"],
-      "selectors": ["hasSensor"],
+      "declarations": [
+        "input sensor",
+        "input hasSensor"
+      ],
+      "selectors": [
+        "hasSensor"
+      ],
       "match": {
         "hasSensor=true": "CPU temperature · {sensor}",
         "hasSensor=*": "CPU temperature"
@@ -281,8 +291,13 @@
   "units_start": "Start",
   "journal_subtitle": [
     {
-      "declarations": ["input unit", "input hasUnit"],
-      "selectors": ["hasUnit"],
+      "declarations": [
+        "input unit",
+        "input hasUnit"
+      ],
+      "selectors": [
+        "hasUnit"
+      ],
       "match": {
         "hasUnit=true": "journalctl -u {unit}, streamed live",
         "hasUnit=*": "journalctl, streamed live"
@@ -375,8 +390,13 @@
   "timers_templates_ping_description": "Send a heartbeat",
   "timers_editor_saved": [
     {
-      "declarations": ["input name", "input enabled"],
-      "selectors": ["enabled"],
+      "declarations": [
+        "input name",
+        "input enabled"
+      ],
+      "selectors": [
+        "enabled"
+      ],
       "match": {
         "enabled=true": "{name}.timer saved and enabled",
         "enabled=*": "{name}.timer saved"
@@ -456,8 +476,14 @@
   "quadlets_editor_fileLabel": "Quadlet file",
   "quadlets_editor_saved": [
     {
-      "declarations": ["input name", "input unit", "input restarted"],
-      "selectors": ["restarted"],
+      "declarations": [
+        "input name",
+        "input unit",
+        "input restarted"
+      ],
+      "selectors": [
+        "restarted"
+      ],
       "match": {
         "restarted=true": "{name} saved · {unit} restarted",
         "restarted=*": "{name} saved · daemon-reload"
@@ -475,8 +501,12 @@
   "quadlets_editor_checked": "Checked: the Quadlet generator produces {unit}.",
   "quadlets_editor_generatedUnit": [
     {
-      "declarations": ["input shown"],
-      "selectors": ["shown"],
+      "declarations": [
+        "input shown"
+      ],
+      "selectors": [
+        "shown"
+      ],
       "match": {
         "shown=true": "Hide generated unit",
         "shown=*": "Show generated unit"
@@ -491,8 +521,12 @@
   "quadlets_editor_saveTitle": "Save {name}?",
   "quadlets_editor_thenBefore": [
     {
-      "declarations": ["input isNew"],
-      "selectors": ["isNew"],
+      "declarations": [
+        "input isNew"
+      ],
+      "selectors": [
+        "isNew"
+      ],
       "match": {
         "isNew=true": "Then start",
         "isNew=*": "Then restart"
@@ -501,8 +535,12 @@
   ],
   "quadlets_editor_thenAfter": [
     {
-      "declarations": ["input isNew"],
-      "selectors": ["isNew"],
+      "declarations": [
+        "input isNew"
+      ],
+      "selectors": [
+        "isNew"
+      ],
       "match": {
         "isNew=true": "",
         "isNew=*": ""
@@ -552,8 +590,14 @@
   "systemd_form_otherEntries": "Other entries stay unchanged (edit them in the text view):",
   "systemd_editor_saved": [
     {
-      "declarations": ["input path", "input unit", "input restarted"],
-      "selectors": ["restarted"],
+      "declarations": [
+        "input path",
+        "input unit",
+        "input restarted"
+      ],
+      "selectors": [
+        "restarted"
+      ],
       "match": {
         "restarted=true": "{path} saved · daemon-reload · {unit} restarted",
         "restarted=*": "{path} saved · daemon-reload"
@@ -581,8 +625,13 @@
   "systemd_create_defaultName": "my-service",
   "systemd_create_created": [
     {
-      "declarations": ["input unit", "input started"],
-      "selectors": ["started"],
+      "declarations": [
+        "input unit",
+        "input started"
+      ],
+      "selectors": [
+        "started"
+      ],
       "match": {
         "started=true": "{unit} created and started",
         "started=*": "{unit} created"
@@ -627,7 +676,7 @@
   "podman_updates_loading": "Loading …",
   "podman_updates_aria": "Automatic updates",
   "podman_updates_title": "Automatic image updates",
-  "podman_updates_version": "Podman {v}",
+  "podman_updates_version": "Podman {version}",
   "podman_updates_introMiddle": " pulls new images for containers with ",
   "podman_updates_introAfter": " and restarts them (with rollback).",
   "podman_updates_next": " Next run {when}.",
@@ -911,8 +960,14 @@
   "system_page_title": "System",
   "system_page_subtitle": [
     {
-      "declarations": ["input manager", "input aur", "input hasAur"],
-      "selectors": ["hasAur"],
+      "declarations": [
+        "input manager",
+        "input aur",
+        "input hasAur"
+      ],
+      "selectors": [
+        "hasAur"
+      ],
       "match": {
         "hasAur=true": "Packages via {manager} · AUR via {aur} · container images via podman auto-update",
         "hasAur=*": "Packages via {manager} · container images via podman auto-update"
@@ -939,8 +994,13 @@
   "system_updates_readFirst": "read before updating – sometimes manual steps are needed",
   "system_updates_systemPackages": [
     {
-      "declarations": ["input label", "input hasLabel"],
-      "selectors": ["hasLabel"],
+      "declarations": [
+        "input label",
+        "input hasLabel"
+      ],
+      "selectors": [
+        "hasLabel"
+      ],
       "match": {
         "hasLabel=true": "System packages · {label}",
         "hasLabel=*": "System packages"
@@ -959,8 +1019,13 @@
   "system_updates_images": "Container images",
   "system_updates_imageUpdates": [
     {
-      "declarations": ["input n", "local nPlural = n: plural"],
-      "selectors": ["nPlural"],
+      "declarations": [
+        "input n",
+        "local nPlural = n: plural"
+      ],
+      "selectors": [
+        "nPlural"
+      ],
       "match": {
         "nPlural=one": "{n} update",
         "nPlural=other": "{n} updates"
@@ -992,7 +1057,9 @@
         "input user",
         "local nPlural = n: plural"
       ],
-      "selectors": ["nPlural"],
+      "selectors": [
+        "nPlural"
+      ],
       "match": {
         "nPlural=one": "{helper} builds {n} package as {user}. PKGBUILDs are not shown – only update packages you trust.",
         "nPlural=other": "{helper} builds {n} packages as {user}. PKGBUILDs are not shown – only update packages you trust."
@@ -1043,8 +1110,13 @@
   "system_packages_previewing": "Calculating preview …",
   "system_packages_removesN": [
     {
-      "declarations": ["input n", "local nPlural = n: plural"],
-      "selectors": ["nPlural"],
+      "declarations": [
+        "input n",
+        "local nPlural = n: plural"
+      ],
+      "selectors": [
+        "nPlural"
+      ],
       "match": {
         "nPlural=one": "{n} package will be removed – the selected ones and dependencies nothing else needs:",
         "nPlural=other": "{n} packages will be removed – the selected ones and dependencies nothing else needs:"
@@ -1083,8 +1155,13 @@
   "boot_recommended": "Recommended: {reason}",
   "boot_rebootText": [
     {
-      "declarations": ["input entry", "input hasEntry"],
-      "selectors": ["hasEntry"],
+      "declarations": [
+        "input entry",
+        "input hasEntry"
+      ],
+      "selectors": [
+        "hasEntry"
+      ],
       "match": {
         "hasEntry=true": "Containers and services are shut down cleanly and start again afterwards with “{entry}”.",
         "hasEntry=*": "Containers and services are shut down cleanly and start again afterwards."
@@ -1098,7 +1175,7 @@
   "boot_rebootDots": "Reboot …",
   "boot_uefiDots": "Into the UEFI settings …",
   "boot_bootloader": "Boot loader",
-  "boot_onEsp": " (on the ESP: {v})",
+  "boot_onEsp": " (on the ESP: {path})",
   "boot_firmware": "Firmware",
   "boot_freeOf": "{free} free of {size}",
   "boot_menu": "Menu",
@@ -1173,8 +1250,14 @@
   "hardware_gpus": "{n} GPUs",
   "hardware_biosFrom": [
     {
-      "declarations": ["input version", "input date", "input hasDate"],
-      "selectors": ["hasDate"],
+      "declarations": [
+        "input version",
+        "input date",
+        "input hasDate"
+      ],
+      "selectors": [
+        "hasDate"
+      ],
       "match": {
         "hasDate=true": "BIOS {version} from {date}",
         "hasDate=*": "BIOS {version}"
@@ -1191,7 +1274,9 @@
         "input sockets",
         "input multi"
       ],
-      "selectors": ["multi"],
+      "selectors": [
+        "multi"
+      ],
       "match": {
         "multi=true": "{cores} cores, {threads} threads, {sockets} sockets",
         "multi=*": "{cores} cores, {threads} threads"
@@ -1202,7 +1287,7 @@
   "hardware_upTo": "up to {ghz} GHz",
   "hardware_l3": "L3 cache",
   "hardware_virtualization": "Virtualization",
-  "hardware_vmPossible": "{v} – virtual machines possible",
+  "hardware_vmPossible": "{virtualization} – virtual machines possible",
   "hardware_vmUnavailable": "not available or turned off in the BIOS",
   "hardware_slots": "Slots",
   "hardware_free": "free",
@@ -1298,8 +1383,13 @@
   "network_firewall_zone": "Zone",
   "network_firewall_listening": [
     {
-      "declarations": ["input n", "local nPlural = n: plural"],
-      "selectors": ["nPlural"],
+      "declarations": [
+        "input n",
+        "local nPlural = n: plural"
+      ],
+      "selectors": [
+        "nPlural"
+      ],
       "match": {
         "nPlural=one": "One port is listening",
         "nPlural=other": "{n} ports are listening"
@@ -1335,8 +1425,13 @@
   "proxy_table_global": "global options",
   "proxy_table_snippets": [
     {
-      "declarations": ["input n", "local nPlural = n: plural"],
-      "selectors": ["nPlural"],
+      "declarations": [
+        "input n",
+        "local nPlural = n: plural"
+      ],
+      "selectors": [
+        "nPlural"
+      ],
       "match": {
         "nPlural=one": "1 snippet",
         "nPlural=other": "{n} snippets"
@@ -1345,8 +1440,13 @@
   ],
   "proxy_table_imports": [
     {
-      "declarations": ["input n", "local nPlural = n: plural"],
-      "selectors": ["nPlural"],
+      "declarations": [
+        "input n",
+        "local nPlural = n: plural"
+      ],
+      "selectors": [
+        "nPlural"
+      ],
       "match": {
         "nPlural=one": "1 import",
         "nPlural=other": "{n} imports"
@@ -1426,8 +1526,12 @@
   "ssh_access_port": "Port",
   "ssh_access_keyLogin": [
     {
-      "declarations": ["input on"],
-      "selectors": ["on"],
+      "declarations": [
+        "input on"
+      ],
+      "selectors": [
+        "on"
+      ],
       "match": {
         "on=true": " · key login on",
         "on=*": " · key login off"
@@ -1576,8 +1680,12 @@
   "users_create_repeat": "Repeat",
   "users_create_noPassword": [
     {
-      "declarations": ["input admin"],
-      "selectors": ["admin"],
+      "declarations": [
+        "input admin"
+      ],
+      "selectors": [
+        "admin"
+      ],
       "match": {
         "admin=true": "The account gets no password. You add the public key afterwards in the details – as administrator it still needs a password for sudo and to unlock Quadeck.",
         "admin=*": "The account gets no password. You add the public key afterwards in the details."
@@ -1598,8 +1706,13 @@
   "notifications_channels_enabledLabel": "{name} active",
   "notifications_channels_toggled": [
     {
-      "declarations": ["input name", "input on"],
-      "selectors": ["on"],
+      "declarations": [
+        "input name",
+        "input on"
+      ],
+      "selectors": [
+        "on"
+      ],
       "match": {
         "on=true": "{name} active",
         "on=*": "{name} paused"
@@ -1622,8 +1735,12 @@
   "notifications_active_none": "Nothing open.",
   "notifications_active_footer": [
     {
-      "declarations": ["input recovery"],
-      "selectors": ["recovery"],
+      "declarations": [
+        "input recovery"
+      ],
+      "selectors": [
+        "recovery"
+      ],
       "match": {
         "recovery=true": "Each problem is reported once; when it is resolved, an all-clear follows.",
         "recovery=*": "Each problem is reported once; when it is resolved, no further message follows."
@@ -2674,8 +2791,14 @@
   "users_describe_withoutPassword": ", without password – login only with an SSH key",
   "users_describe_update": [
     {
-      "declarations": ["input name", "input group", "input admin"],
-      "selectors": ["admin"],
+      "declarations": [
+        "input name",
+        "input group",
+        "input admin"
+      ],
+      "selectors": [
+        "admin"
+      ],
       "match": {
         "admin=true": "Saves name, shell and groups of {name} (administrator via {group}). New groups apply from the next login.",
         "admin=*": "Saves name, shell and groups of {name}. New groups apply from the next login."
@@ -2684,8 +2807,13 @@
   ],
   "users_describe_delete": [
     {
-      "declarations": ["input name", "input removeHome"],
-      "selectors": ["removeHome"],
+      "declarations": [
+        "input name",
+        "input removeHome"
+      ],
+      "selectors": [
+        "removeHome"
+      ],
       "match": {
         "removeHome=true": "Deletes {name} along with the home directory and mail spool – the files will be gone.",
         "removeHome=*": "Deletes {name}; the home directory is kept."
@@ -2694,8 +2822,13 @@
   ],
   "notify_alert_smart": [
     {
-      "declarations": ["input name", "input critical"],
-      "selectors": ["critical"],
+      "declarations": [
+        "input name",
+        "input critical"
+      ],
+      "selectors": [
+        "critical"
+      ],
       "match": {
         "critical=true": "Disk {name}: SMART critical",
         "critical=*": "Disk {name}: SMART warning"
@@ -2705,8 +2838,14 @@
   "notify_summary_runningAgain": "{name} is running again",
   "boot_warn_missingFiles": [
     {
-      "declarations": ["input title", "input files", "input isDefault"],
-      "selectors": ["isDefault"],
+      "declarations": [
+        "input title",
+        "input files",
+        "input isDefault"
+      ],
+      "selectors": [
+        "isDefault"
+      ],
       "match": {
         "isDefault=true": "“{title}” points to missing files ({files}) – the server will not boot with this entry. It is the default entry!",
         "isDefault=*": "“{title}” points to missing files ({files}) – the server will not boot with this entry (e.g. after removing a kernel – remove the entry)"
@@ -2715,8 +2854,12 @@
   ],
   "boot_warn_oneKernel": [
     {
-      "declarations": ["input canInstall"],
-      "selectors": ["canInstall"],
+      "declarations": [
+        "input canInstall"
+      ],
+      "selectors": [
+        "canInstall"
+      ],
       "match": {
         "canInstall=true": "Only one kernel installed. A second one (e.g. linux-lts) is a way out if a kernel update causes trouble – then “boot linux-lts once”. Install it below under “Kernel”.",
         "canInstall=*": "Only one kernel installed. A second one (e.g. linux-lts) is a way out if a kernel update causes trouble – then “boot linux-lts once”."
@@ -2725,8 +2868,14 @@
   ],
   "timers_describe_everyHours": [
     {
-      "declarations": ["input every", "input minute", "input hasMinute"],
-      "selectors": ["hasMinute"],
+      "declarations": [
+        "input every",
+        "input minute",
+        "input hasMinute"
+      ],
+      "selectors": [
+        "hasMinute"
+      ],
       "match": {
         "hasMinute=true": "every {every} hours at :{minute}",
         "hasMinute=*": "every {every} hours"
@@ -2736,8 +2885,13 @@
   "ssh_error_noInclude": "{file} does not include sshd_config.d/*.conf – add “Include /etc/ssh/sshd_config.d/*.conf” at the top",
   "ssh_error_overridden": [
     {
-      "declarations": ["input password", "input root"],
-      "selectors": ["password"],
+      "declarations": [
+        "input password",
+        "input root"
+      ],
+      "selectors": [
+        "password"
+      ],
       "match": {
         "password=true": "Saved, but sshd uses different values (password login on, root {root}) – another file in sshd_config.d or sshd_config sets them first.",
         "password=*": "Saved, but sshd uses different values (password login off, root {root}) – another file in sshd_config.d or sshd_config sets them first."
@@ -2752,8 +2906,12 @@
   "shares_note_onlyUsers": "only {users}",
   "quadlets_history_autoUpdate": [
     {
-      "declarations": ["input enabled"],
-      "selectors": ["enabled"],
+      "declarations": [
+        "input enabled"
+      ],
+      "selectors": [
+        "enabled"
+      ],
       "match": {
         "enabled=true": "Auto-update for all containers on",
         "enabled=*": "Auto-update for all containers off"
@@ -2765,8 +2923,14 @@
   "fstab_label_noFileSystem": "no file system",
   "fstab_error_driverMissing": [
     {
-      "declarations": ["input fsType", "input package", "input hasPackage"],
-      "selectors": ["hasPackage"],
+      "declarations": [
+        "input fsType",
+        "input package",
+        "input hasPackage"
+      ],
+      "selectors": [
+        "hasPackage"
+      ],
       "match": {
         "hasPackage=true": "Driver for {fsType} is missing – install package {package}",
         "hasPackage=*": "Driver for {fsType} is missing"
