@@ -29,6 +29,7 @@ opens the journal.
   [systemd editor](systemd.md) for everything else.
 - **Start at boot** enables or disables the unit (`systemctl enable/disable`); only shown
   for units that have an install section.
+- **Delete Quadlet …** removes a Quadlet container for good, see [Deleting](#deleting).
 - **+ New unit** creates a plain systemd unit from a template.
 
 The timer view uses the same pattern: **Run now** plus a menu for changing the schedule,
@@ -107,8 +108,23 @@ starts the units.
 
 ### Deleting
 
-**Delete** stops the unit, deletes the file and commits the deletion to the history, so the file
-can be restored from there.
+**Delete** in the editor, or **Delete Quadlet …** in the unit's row menu, stops the unit, deletes
+the file, commits the deletion to the history (the file can be restored from there) and reloads
+systemd, so the generated service is gone and does not come back at the next boot. Stopping alone
+is **Stop …** in the row menu; a Quadlet unit then starts again at the next boot if its file has
+an `[Install]` section.
+
+For a `.container` the dialog offers two more boxes, both off by default:
+
+- **Also remove the image**: `podman rmi` after the container is gone. Not offered when another
+  Quadlet uses the same image; if Podman still refuses (another container outside the Quadlets
+  uses it), the file is deleted anyway and a warning names the image.
+- **Also delete the volumes**: the named volumes of `Volume=` lines, with `podman volume rm`. A
+  volume from a `.volume` file is removed together with that file. Volumes another Quadlet mounts
+  too are listed as kept. The data is gone afterwards; the history only keeps the files.
+
+Folders on the host (`Volume=/srv/app:/config`) are never deleted; the dialog lists them so you
+know what is left. `.network` files and other Quadlets the container referred to stay as well.
 
 ## Podman settings
 

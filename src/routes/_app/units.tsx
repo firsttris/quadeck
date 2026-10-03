@@ -1,6 +1,8 @@
+import { useState } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useActions } from '~/components/Actions'
 import { PageHeader } from '~/components/PageHeader'
+import { RemoveQuadletDialog } from '~/components/QuadletEditor'
 import { RowMenu, type MenuItem } from '~/components/RowMenu'
 import { useToast } from '~/components/Toast'
 import { useGuardedApi } from '~/components/Unlock'
@@ -129,6 +131,7 @@ function UnitRow({ row, run, busy, readonly }: { row: Row; run: ReturnType<typeo
   const navigate = useNavigate()
   const guarded = useGuardedApi()
   const say = useToast()
+  const [removing, setRemoving] = useState(false)
   const { unit: u, container: c } = row
   const name = u?.name ?? c!.name
   const st = status(row)
@@ -161,6 +164,7 @@ function UnitRow({ row, run, busy, readonly }: { row: Row; run: ReturnType<typeo
       : [
           ...(active ? [{ label: m.units_stopDots(), onSelect: () => run('stop', target), danger: true, disabled: busy === name, separator: true }] : []),
           ...(bootable ? [{ label: m.units_startAtBoot(), checked: u!.unitFileState === 'enabled', onSelect: () => void setBoot(u!.unitFileState !== 'enabled'), separator: true }] : []),
+          ...(u?.quadlet ? [{ label: m.units_deleteQuadlet(), onSelect: () => setRemoving(true), danger: true, separator: !active || !!bootable }] : []),
         ]),
   ]
   return (
@@ -213,6 +217,7 @@ function UnitRow({ row, run, busy, readonly }: { row: Row; run: ReturnType<typeo
             </button>
           )}
           {items.length > 0 && <RowMenu label={m.common_actionsFor({ name })} items={items} />}
+          {u?.quadlet && <RemoveQuadletDialog open={removing} name={u.quadlet.file} onClose={() => setRemoving(false)} onRemoved={() => {}} />}
         </div>
       </td>
     </tr>

@@ -2,7 +2,7 @@ import { msg } from '~/shared/i18n'
 import { existsSync } from 'node:fs'
 import type { JobSpec } from '~/shared/packages'
 import type { MaintenanceBackend } from '../packages/maintenance'
-import type { PodmanAdminBackend } from '../quadlets/backend'
+import type { PodmanAdminBackend, RemoveAlso } from '../quadlets/backend'
 import type { PodmanConfigName } from '~/shared/quadlets'
 import type { SharesBackend } from '../shares/backend'
 import type { SshBackend } from '../ssh/backend'
@@ -164,6 +164,9 @@ export class LocalPrivileged implements Privileged {
   readQuadlet(name: string) {
     return this.admin.readQuadlet(name)
   }
+  removalPlan(name: string) {
+    return this.admin.removalPlan(name)
+  }
   validateQuadlet(name: string, content: string) {
     return this.admin.validateQuadlet(name, content)
   }
@@ -180,9 +183,9 @@ export class LocalPrivileged implements Privileged {
     this.gate.check(token)
     return this.admin.writeQuadlet(name, content, restart)
   }
-  async deleteQuadlet(token: string | undefined, name: string) {
+  async deleteQuadlet(token: string | undefined, name: string, also?: RemoveAlso) {
     this.gate.check(token)
-    return this.admin.deleteQuadlet(name)
+    return this.admin.deleteQuadlet(name, also)
   }
   async setAutoUpdateTimer(token: string | undefined, enabled: boolean, calendar: string) {
     this.gate.check(token)
