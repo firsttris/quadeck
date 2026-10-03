@@ -251,8 +251,8 @@ function PortRow({ p }: { p: ListeningPort }) {
       </td>
       <td>
         {fw ? (
-          <span title={m.network_fw_open_title()}>
-            <Pill tone={fw.tone}>{m.network_fw_open_label()}</Pill>
+          <span title={fw.title}>
+            <Pill tone={fw.tone}>{fw.label}</Pill>
           </span>
         ) : (
           <span className="text-muted">–</span>
