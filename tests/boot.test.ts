@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { FixtureBoot, assertTimeout } from '~/server/boot/backend'
 import {
+  hiddenAutoEntry,
   ENTRY_FILE,
   applyEntryForm,
   bootFileKinds,
@@ -261,7 +262,7 @@ describe('kernel flavours', () => {
     s = await b.removeBootEntry('arch-lts.conf')
     expect(s.entries.some((e) => e.id === 'arch-lts.conf')).toBe(false)
     s = await b.removeBootEntry('arch-fallback.conf')
-    expect(s.entries.map((e) => e.id)).toEqual(['arch.conf', 'auto-reboot-to-firmware-setup'])
+    expect(s.entries.map((e) => e.id)).toEqual(['arch.conf', 'auto-windows', 'auto-reboot-to-firmware-setup'])
   })
 })
 
@@ -337,7 +338,7 @@ describe('editing entries', () => {
     // the old default can go now; its text stays in the history
     s = await b.removeBootEntry('arch-fallback.conf')
     await expect(b.removeBootEntry('arch-tuned.conf')).rejects.toThrow(/Standard-Eintrag/)
-    expect(s.entries.map((e) => e.id)).toEqual(['arch.conf', 'arch-tuned.conf', 'auto-reboot-to-firmware-setup'])
+    expect(s.entries.map((e) => e.id)).toEqual(['arch.conf', 'arch-tuned.conf', 'auto-windows', 'auto-reboot-to-firmware-setup'])
   })
 })
 
@@ -382,5 +383,16 @@ describe('entry form', () => {
   it('demo: lists the files of the installed kernels', async () => {
     const b = new FixtureBoot('fixtures/demo')
     expect(await b.bootFiles()).toEqual(['/amd-ucode.img', '/initramfs-linux-fallback.img', '/initramfs-linux.img', '/intel-ucode.img', '/vmlinuz-linux'])
+  })
+})
+
+describe('hiddenAutoEntry', () => {
+  it('hides reboot and power off, the firmware entry only next to its own button', () => {
+    expect(hiddenAutoEntry({ id: 'auto-reboot', type: 'auto' }, false)).toBe(true)
+    expect(hiddenAutoEntry({ id: 'auto-poweroff', type: 'auto' }, false)).toBe(true)
+    expect(hiddenAutoEntry({ id: 'auto-reboot-to-firmware-setup', type: 'auto' }, true)).toBe(true)
+    expect(hiddenAutoEntry({ id: 'auto-reboot-to-firmware-setup', type: 'auto' }, false)).toBe(false)
+    expect(hiddenAutoEntry({ id: 'auto-windows', type: 'auto' }, true)).toBe(false)
+    expect(hiddenAutoEntry({ id: 'auto-reboot', type: 'type1' }, true)).toBe(false)
   })
 })

@@ -63,6 +63,15 @@ export interface BootState {
   error?: string
 }
 
+/**
+ * Entries systemd-boot adds itself that are no system to boot: reboot and power off, and reboot
+ * into the firmware when the page has its own button for that. Windows, macOS, the EFI shell stay.
+ */
+export function hiddenAutoEntry(e: Pick<BootEntry, 'id' | 'type'>, firmwareButton: boolean): boolean {
+  if (e.type !== 'auto') return false
+  return e.id === 'auto-reboot' || e.id === 'auto-poweroff' || (firmwareButton && e.id === 'auto-reboot-to-firmware-setup')
+}
+
 /** Entry ids bootctl accepts (file names of entries, auto-* ids). */
 export const ENTRY_ID = /^[A-Za-z0-9@_.+~-]{1,200}$/
 

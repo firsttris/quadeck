@@ -27,6 +27,11 @@ test('boot: entries, warnings, timeout, default, kernel parameters, one-time reb
   await expect(page.getByTestId('boot-entry')).toHaveCount(3)
   await expect(page.getByTestId('boot-entry').first()).toContainText('Standard')
   await expect(page.getByTestId('boot-entry').first()).toContainText('läuft gerade')
+  // Reboot into the firmware has its own button; Windows is a system and can be booted.
+  await expect(page.getByTestId('boot-entry').filter({ hasText: 'Reboot Into Firmware Interface' })).toHaveCount(0)
+  const windows = page.getByTestId('boot-entry').filter({ hasText: 'Windows Boot Manager' })
+  await expect(windows.getByRole('button', { name: 'Als Standard' })).toBeVisible()
+  await expect(windows.getByRole('button', { name: /Windows Boot Manager/ })).toBeVisible()
   await expect(page.getByTestId('kernel-param').filter({ hasText: 'i915.enable_guc' })).toContainText('QuickSync')
 
   await page.getByLabel('Wartezeit im Bootmenü').selectOption('menu-hidden')
