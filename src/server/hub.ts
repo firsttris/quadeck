@@ -10,6 +10,7 @@ import type { Container, Disk, GpuMetrics, HiddenService, Share, Snapshot, Sourc
 import { collectDisks, diskRole, withSmartTemp } from './collectors/disks'
 import { GpuCollector } from './collectors/gpu'
 import { speedCheck, speedTick, seedSpeedHistory } from './speedtest'
+import { staleClients } from '~/shared/backup'
 import { demoSystemSample, metricRows, pruneHistory, SAMPLE_EVERY_MS, seedFixtureHistory, seedSmartHistory, smartBaselines } from './metrics'
 import { assessSmart } from '~/shared/smart'
 import { smartSamples } from '~/shared/smart-metrics'
@@ -298,15 +299,19 @@ export class Hub {
 
   async collectBackup() {
     try {
-      const st = await this.priv.backupState()
-      if (!st.plan) {
+      const [st, target] = await Promise.all([this.priv.backupState(), this.priv.targetState()])
+      const stale = target.config ? staleClients(target.clients) : []
+      if (!st.plan && !stale.length) {
         this.backup = undefined
         return
       }
       const backups = st.runs.filter((r) => r.kind === 'backup')
       const last = backups[0]
       // Without any run yet, the clock starts when the plan was first seen.
-      this.backup = { since: this.backup?.since ?? Date.now(), lastAt: last?.endedAt, lastStatus: last?.status, lastMessage: last?.message, lastOkAt: backups.find((r) => r.status !== 'failed')?.endedAt }
+      const since = (this.backup?.server && this.backup.since) || Date.now()
+      this.backup = st.plan
+        ? { server: true, since, lastAt: last?.endedAt, lastStatus: last?.status, lastMessage: last?.message, lastOkAt: backups.find((r) => r.status !== 'failed')?.endedAt, stale }
+        : { server: false, since, stale }
     } catch {
       // helper not reachable: keep the last state
     }

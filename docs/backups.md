@@ -105,7 +105,49 @@ restic restore latest --target /tmp/restore --include /srv/immich/upload
   (credentials), the generated exclude file, the run records and restic's cache. Set
   `QUADECK_BACKUP_DIR` to move it.
 
+## Backup target for clients
+
+The **Clients** tab turns the server into the backup target for the other computers at home: one
+[restic rest-server](https://github.com/restic/rest-server) for all of them, each with its own
+repository and its own access.
+
+**Set up backup target …** asks for:
+
+- **Data folder**: one folder per client below it. The parent folder must exist.
+- **Port**: the rest-server is published on it.
+- **Address for the clients**: what the computers use, e.g. `http://nas.lan:8000`. For HTTPS, add a
+  domain in the [reverse proxy](network.md#reverse-proxy) pointing at `localhost:<port>` and enter
+  it here.
+- **Append only**: optional. Clients can add snapshots but not delete them, so an infected computer
+  cannot destroy its backups. Clients then cannot remove old snapshots either.
+
+It writes `quadeck-rest-server.container` (image `restic/rest-server`, `--private-repos`) through the
+Quadlet editor's checks and history, and starts it.
+
+**+ Add client** creates the access:
+
+- The user goes to `.htpasswd` in the data folder as a bcrypt hash; the rest-server picks up
+  changes by itself.
+- `--private-repos` keeps every user inside its own folder.
+- The access password is shown **once**, with the repository address and the commands for the
+  client.
+- On the client, `restic init` asks for the **repository password**. It encrypts the backups and
+  stays on the client: the server cannot read them, and without that password nobody can.
+
+Per client the table shows the last backup, the size, the number of snapshots and when to warn.
+The server reads the time without any password: every backup writes a new file into the
+repository's `snapshots/` folder. **Measure sizes** runs `du` on the repositories. The row menu has:
+
+- **Edit …**: change after how many days without a backup the client is reported.
+- **Renew access**: a new access password; the old one stops working.
+- **Disable**: removes the access but keeps the repository. **Enable** brings the same access back.
+- **Delete …**: removes the access; optionally deletes the client's backups too.
+
+**Switch off** deletes the Quadlet and stops the rest-server. The repositories and the list of
+clients stay, so setting it up again brings everything back.
+
 ## Notifications
 
-The rule **Backup failed or too old** (on by default) reports when the last backup failed, or when
-none has succeeded for a number of days (2 by default). See [Notifications](notifications.md).
+The rule **Backup failed or too old** (on by default) reports when the last server backup failed,
+when none has succeeded for a number of days (2 by default), and when a client with a warning
+setting has not backed up for that many days. See [Notifications](notifications.md).

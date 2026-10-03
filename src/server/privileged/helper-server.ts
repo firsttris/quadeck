@@ -14,7 +14,7 @@ import { DISK_NAME } from '../smart/backend'
 import { parseSave, parseTimerAction } from '../timers/backend'
 import { parseFstabChange } from '../fstab/parse'
 import { parseCaddyChange } from '~/shared/caddy'
-import { parseBackupPlan, parseSecrets } from '~/shared/backup'
+import { parseBackupPlan, parseClientChange, parseSecrets, parseTargetConfig, parseWarnDays } from '~/shared/backup'
 import { parseBootEntryChange } from '~/shared/boot'
 import { parseUserChange } from '../users/parse'
 import { UNIT_ACTIONS, type Privileged, type UnitAction } from './actions'
@@ -172,6 +172,17 @@ export const HELPER_ROUTES: Record<string, Handler> = {
     return { ok: true }
   },
   '/backup/dump': (b, p) => p.backupDump(str(b.token), str(b.snapshot) ?? '', str(b.path) ?? ''),
+  '/backup/target/state': (b, p) => p.targetState(b.refresh === true),
+  '/backup/target/setup': (b, p) => {
+    const { config, error } = parseTargetConfig(b.config)
+    if (!config) throw new HttpError(400, error!)
+    return p.setupTarget(str(b.token), config)
+  },
+  '/backup/target/remove': (b, p) => p.removeTarget(str(b.token)),
+  '/backup/client/add': (b, p) => p.addBackupClient(str(b.token), str(b.name) ?? '', parseWarnDays(b.warnDays) ?? undefined),
+  '/backup/client/update': (b, p) => p.updateBackupClient(str(b.token), str(b.name) ?? '', parseClientChange(b.change)),
+  '/backup/client/renew': (b, p) => p.renewBackupClient(str(b.token), str(b.name) ?? ''),
+  '/backup/client/remove': (b, p) => p.removeBackupClient(str(b.token), str(b.name) ?? '', b.deleteData === true),
   '/caddy/path': (b, p) => p.setCaddyPath(str(b.token), b.path === null ? null : (str(b.path) ?? '')),
   '/users/apply': (b, p) => p.applyUser(str(b.token), parseUserChange(b.change)),
   '/boot/default': (b, p) => p.setBootDefault(str(b.token), str(b.id) ?? ''),

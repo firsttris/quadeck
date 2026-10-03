@@ -84,7 +84,7 @@ function useNav(): { title?: string; items: NavItem[] }[] {
         { to: '/disks', label: m.shell_nav_disks(), glyph: 'disk', badge: smart },
         { to: '/files', label: m.shell_nav_files(), glyph: 'file', badge: 0 },
         { to: '/shares', label: m.shell_nav_shares(), glyph: 'folder', badge: 0 },
-        { to: '/backups', label: 'Backups', glyph: 'shield', badge: snapshot.backup?.lastStatus === 'failed' ? 1 : 0 },
+        { to: '/backups', label: 'Backups', glyph: 'shield', badge: (snapshot.backup?.lastStatus === 'failed' ? 1 : 0) + (snapshot.backup?.stale?.length ?? 0) },
       ],
     },
     {

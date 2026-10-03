@@ -24,7 +24,7 @@ import type { UsersAdmin } from '../users/backend'
 import type { HardwareAdmin } from '../hardware/collect'
 import type { CaddyAdmin } from '../caddy/backend'
 import type { BackupAdmin } from '../backup/backend'
-import type { BackupPlan, BackupState } from '~/shared/backup'
+import type { BackupPlan, BackupState, TargetConfig, TargetState } from '~/shared/backup'
 import type { CaddyChange, CaddyResult, CaddyState } from '~/shared/caddy'
 import type { UserChange, UsersState } from '~/shared/users'
 import type { ConfigAction, ConfigFileInfo } from '~/shared/configfiles'
@@ -100,6 +100,13 @@ export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAd
   startBackup(token: string | undefined, kind: 'backup' | 'check'): Promise<void>
   /** A file (or a folder as zip) from a snapshot, streamed. */
   backupDump(token: string | undefined, snapshot: string, path: string): Promise<Response>
+  /** Backup target for clients: the rest-server Quadlet plus its data folder. */
+  setupTarget(token: string | undefined, config: TargetConfig): Promise<TargetState>
+  removeTarget(token: string | undefined): Promise<TargetState>
+  addBackupClient(token: string | undefined, name: string, warnDays: number | undefined): Promise<{ password: string }>
+  updateBackupClient(token: string | undefined, name: string, change: { warnDays?: number | null; disabled?: boolean }): Promise<TargetState>
+  renewBackupClient(token: string | undefined, name: string): Promise<{ password: string }>
+  removeBackupClient(token: string | undefined, name: string, deleteData: boolean): Promise<TargetState>
 }
 
 const UNIT_NAME = /^[A-Za-z0-9:_.\\@-]{1,240}\.(service|timer|socket)$/

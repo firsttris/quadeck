@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, wri
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { SystemBackup, parseEnvFile } from '~/server/backup/backend'
+import { SystemBackup, accessPassword, clientRepoStatus, parseEnvFile } from '~/server/backup/backend'
 import { run } from '~/server/exec'
 import { parseJobSpec } from '~/server/packages/job'
 import {
@@ -22,7 +22,14 @@ import {
   retentionEstimate,
   suggestBackup,
   type BackupPlan,
+  clientRepo,
+  parseClientChange,
+  parseTargetConfig,
+  parseWarnDays,
+  staleClients,
+  targetQuadlet,
 } from '~/shared/backup'
+import { lintQuadlet } from '~/shared/ini'
 
 const plan = (over: Partial<BackupPlan> = {}): BackupPlan => ({
   repo: { kind: 'local', location: '/mnt/backup/restic' },
@@ -356,5 +363,132 @@ describe.skipIf(!hasRestic)('SystemBackup with restic', () => {
     expect(existsSync(join(unitDir, 'quadeck-backup.timer'))).toBe(false)
     expect((await b.backupState()).plan).toBeUndefined()
     expect(readFileSync(join(dir, 'password'), 'utf8').trim()).toBe(pw)
+  }, 60_000)
+})
+
+describe('backup target for clients', () => {
+  const cfg = { dataDir: '/srv/backups', port: 8000, appendOnly: true, url: 'http://nas.lan:8000' }
+  it('checks the target and writes a Quadlet the linter accepts', () => {
+    expect(parseTargetConfig({ ...cfg, dataDir: '/srv/backups/', url: 'http://nas.lan:8000/' })).toEqual({ config: cfg })
+    for (const bad of [{ dataDir: 'backups' }, { dataDir: '/' }, { port: 0 }, { port: 70000 }, { url: 'nas.lan:8000' }, { url: 'http://u:p@nas/' }, { url: 'http://nas lan' }]) expect(parseTargetConfig({ ...cfg, ...bad }).error).toBeTruthy()
+    const q = targetQuadlet(cfg)
+    expect(q).toContain('Image=docker.io/restic/rest-server:latest')
+    expect(q).toContain('Volume=/srv/backups:/data:Z')
+    expect(q).toContain('Environment=OPTIONS="--private-repos --append-only"')
+    expect(q).toContain('PublishPort=8000:8000')
+    expect(targetQuadlet({ ...cfg, appendOnly: false })).toContain('Environment=OPTIONS="--private-repos"\n')
+    expect(lintQuadlet(q, 'container').filter((d) => d.severity === 'error')).toEqual([])
+    expect(clientRepo(cfg, 'laptop')).toBe('rest:http://nas.lan:8000/laptop/')
+  })
+
+  it('warn days and changes from the browser', () => {
+    expect([parseWarnDays(3), parseWarnDays('7'), parseWarnDays(0), parseWarnDays(61), parseWarnDays(null), parseWarnDays(2.5)]).toEqual([3, 7, null, null, null, null])
+    expect(parseClientChange({ warnDays: null, disabled: true, name: 'x' })).toEqual({ warnDays: null, disabled: true })
+    expect(parseClientChange({})).toEqual({})
+  })
+
+  it('overdue clients: by their last backup, or since they were added', () => {
+    const now = Date.parse('2026-10-10T12:00:00Z')
+    const d = (n: number) => now - n * 86_400_000
+    expect(
+      staleClients(
+        [
+          { name: 'ok', created: d(100), warnDays: 3, lastAt: d(1) },
+          { name: 'late', created: d(100), warnDays: 3, lastAt: d(9) },
+          { name: 'new', created: d(1), warnDays: 3 },
+          { name: 'never', created: d(5), warnDays: 3 },
+          { name: 'off', created: d(100), warnDays: 3, lastAt: d(9), disabled: true },
+          { name: 'quiet', created: d(100), lastAt: d(90) },
+        ],
+        now,
+      ),
+    ).toEqual([
+      { name: 'late', days: 9, never: false },
+      { name: 'never', days: 5, never: true },
+    ])
+  })
+
+  it('access passwords are long and from a safe alphabet', () => {
+    const p = accessPassword()
+    expect(p).toMatch(/^[A-Za-z2-9]{28}$/)
+    expect(accessPassword()).not.toBe(p)
+  })
+})
+
+describe('SystemBackup: clients', () => {
+  const setup = () => {
+    const root = mkdtempSync(join(tmpdir(), 'qd-target-'))
+    const b = new SystemBackup({ dir: join(root, 'state'), unitDir: root, exec: run, log: () => {} })
+    return { root, b, dataDir: join(root, 'backups') }
+  }
+  const htpasswd = (dataDir: string) => readFileSync(join(dataDir, '.htpasswd'), 'utf8')
+
+  it('access in .htpasswd: add, disable, enable, renew, remove', async () => {
+    const { b, dataDir } = setup()
+    await expect(b.addClient('laptop', 3)).rejects.toMatchObject({ status: 409 }) // no target yet
+    const q = await b.saveTarget({ dataDir, port: 8000, appendOnly: false, url: 'http://nas:8000' })
+    expect(q).toContain(`Volume=${dataDir}:/data:Z`)
+    expect(statSync(dataDir).isDirectory()).toBe(true)
+    const { password } = await b.addClient('laptop', 3)
+    await expect(b.addClient('laptop', 3)).rejects.toMatchObject({ status: 409 })
+    await expect(b.addClient('Bad Name', 3)).rejects.toMatchObject({ status: 400 })
+    await expect(b.addClient('../etc', 3)).rejects.toMatchObject({ status: 400 })
+    const line = htpasswd(dataDir).trim()
+    expect(line).toMatch(/^laptop:\$2[aby]\$10\$/)
+    expect(await Bun.password.verify(password, line.slice('laptop:'.length))).toBe(true)
+    expect(statSync(join(dataDir, '.htpasswd')).mode & 0o777).toBe(0o600)
+
+    await b.addClient('pc', undefined)
+    await b.updateClient('laptop', { disabled: true })
+    expect(htpasswd(dataDir)).not.toContain('laptop:')
+    expect(htpasswd(dataDir)).toContain('pc:')
+    await b.updateClient('laptop', { disabled: false })
+    expect(htpasswd(dataDir)).toContain(line) // the same access comes back
+
+    const renewed = await b.renewClient('laptop')
+    const hash = htpasswd(dataDir).split('\n').find((l) => l.startsWith('laptop:'))!.slice(7)
+    expect(await Bun.password.verify(renewed.password, hash)).toBe(true)
+    expect(await Bun.password.verify(password, hash)).toBe(false)
+
+    mkdirSync(join(dataDir, 'pc/snapshots'), { recursive: true })
+    let st = await b.removeClient('pc', false)
+    expect(existsSync(join(dataDir, 'pc'))).toBe(true)
+    expect(st.clients.map((c) => c.name)).toEqual(['laptop'])
+    await b.addClient('pc', undefined)
+    st = await b.removeClient('pc', true)
+    expect(existsSync(join(dataDir, 'pc'))).toBe(false)
+    expect(htpasswd(dataDir)).not.toContain('pc:')
+
+    // Switched off: the clients stay for the next setup.
+    await b.clearTarget()
+    expect((await b.targetState()).config).toBeUndefined()
+    expect((await b.targetState()).clients.map((c) => c.name)).toEqual(['laptop'])
+  })
+
+  it('refuses a data folder whose disk is not there or inside the server repository', async () => {
+    const { root, b } = setup()
+    await expect(b.saveTarget({ dataDir: join(root, 'nope/backups'), port: 8000, appendOnly: false, url: 'http://nas:8000' })).rejects.toMatchObject({ status: 422 })
+    expect(existsSync(join(root, 'nope'))).toBe(false)
+  })
+
+  it.skipIf(!hasRestic)('reads the last backup of a client from its repository without the password', async () => {
+    const { root, b, dataDir } = setup()
+    await b.saveTarget({ dataDir, port: 8000, appendOnly: false, url: 'http://nas:8000' })
+    await b.addClient('laptop', 3)
+    expect(clientRepoStatus(join(dataDir, 'laptop'))).toEqual({ snapshots: 0 })
+    // What a client does through the rest-server, done locally into the same folder.
+    mkdirSync(join(root, 'home'))
+    writeFileSync(join(root, 'home/doc.txt'), 'hello')
+    writeFileSync(join(root, 'pw'), 'client-secret\n')
+    const env = { RESTIC_REPOSITORY: join(dataDir, 'laptop'), RESTIC_PASSWORD_FILE: join(root, 'pw'), RESTIC_CACHE_DIR: join(root, 'cache') }
+    expect((await run(['restic', 'init'], { env })).code).toBe(0)
+    const before = Date.now()
+    expect((await run(['restic', 'backup', join(root, 'home')], { env })).code).toBe(0)
+    const st = await b.targetState(true)
+    const c = st.clients.find((x) => x.name === 'laptop')!
+    expect(c.snapshots).toBe(1)
+    expect(c.lastAt).toBeGreaterThanOrEqual(before - 1000)
+    expect(c.size).toBeGreaterThan(0)
+    expect(st.disk?.free).toBeGreaterThan(0)
   }, 60_000)
 })

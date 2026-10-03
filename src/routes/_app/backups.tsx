@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useActions } from '~/components/Actions'
 import { BackupBrowser } from '~/components/BackupBrowser'
 import { BackupSetup } from '~/components/BackupSetup'
+import { BackupClients } from '~/components/BackupClients'
 import { InstallHint } from '~/components/InstallHint'
 import { ConfirmDialog, Modal } from '~/components/Modal'
 import { PageHeader } from '~/components/PageHeader'
@@ -17,7 +18,8 @@ import { retentionEstimate, type BackupPlan, type BackupRun, type BackupState } 
 import { m } from '~/paraglide/messages'
 
 export const Route = createFileRoute('/_app/backups')({
-  validateSearch: (s: Record<string, unknown>): { snapshot?: string; dir?: string } => ({
+  validateSearch: (s: Record<string, unknown>): { tab?: 'clients'; snapshot?: string; dir?: string } => ({
+    ...(s.tab === 'clients' ? { tab: 'clients' as const } : {}),
     ...(typeof s.snapshot === 'string' ? { snapshot: s.snapshot } : {}),
     ...(typeof s.dir === 'string' ? { dir: s.dir } : {}),
   }),
@@ -64,20 +66,30 @@ function BackupsPage() {
 
   return (
     <>
-      <PageHeader title="Backups" subtitle={m.backup_subtitle()} />
+      <PageHeader title="Backups" subtitle={m.backup_subtitle()}>
+        <div role="tablist" aria-label={m.backup_tabs()} className="flex gap-1.5">
+          <button type="button" role="tab" aria-selected={!search.tab} className={`seg ${!search.tab ? 'on' : ''}`} onClick={() => void navigate({ to: '/backups', search: {} })}>
+            {m.backup_tab_server()}
+          </button>
+          <button type="button" role="tab" aria-selected={search.tab === 'clients'} className={`seg ${search.tab === 'clients' ? 'on' : ''}`} onClick={() => void navigate({ to: '/backups', search: { tab: 'clients' } })}>
+            {m.backup_tab_clients()}
+          </button>
+        </div>
+      </PageHeader>
+      {search.tab === 'clients' && <BackupClients />}
       {error && (
         <p role="alert" className="m-0 text-[13px] text-[#e3b341]">
           {error}
         </p>
       )}
-      {!state && !error && <p className="m-0 text-muted">{m.backup_loading()}</p>}
-      {state && !state.installed && (
+      {!search.tab && !state && !error && <p className="m-0 text-muted">{m.backup_loading()}</p>}
+      {!search.tab && state && !state.installed && (
         <section className="panel" aria-label={m.backup_install_label()}>
           <InstallHint feature="restic" what={m.backup_install_what()} onInstalled={() => void load()} />
         </section>
       )}
-      {state?.installed && !state.plan && <Empty onSetup={() => setSetup(true)} />}
-      {state?.plan && <Overview state={state} onState={setState} onEdit={() => setSetup(true)} onRefresh={() => load(true)} />}
+      {!search.tab && state?.installed && !state.plan && <Empty onSetup={() => setSetup(true)} />}
+      {!search.tab && state?.plan && <Overview state={state} onState={setState} onEdit={() => setSetup(true)} onRefresh={() => load(true)} />}
       {state?.installed && setup && (
         <BackupSetup
           state={state}

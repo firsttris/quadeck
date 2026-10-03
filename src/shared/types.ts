@@ -175,7 +175,17 @@ export interface Snapshot {
   /** The last automatic internet check: a confirmed problem (measured twice) for the notification. */
   speed?: { alert?: 'slow' | 'down'; down?: number; expected?: number; detail?: string; at: number }
   /** Server backups, when set up: the last run and the last successful one. */
-  backup?: { lastAt?: number; lastStatus?: 'ok' | 'warning' | 'failed'; lastMessage?: string; lastOkAt?: number; since: number }
+  backup?: {
+    /** The server backup is set up (the fields below describe it). */
+    server: boolean
+    lastAt?: number
+    lastStatus?: 'ok' | 'warning' | 'failed'
+    lastMessage?: string
+    lastOkAt?: number
+    since: number
+    /** Clients of the backup target that are overdue. */
+    stale?: { name: string; days: number; never: boolean }[]
+  }
 }
 
 export interface JournalEntry {

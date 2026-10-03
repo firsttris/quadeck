@@ -486,3 +486,97 @@ export function backupAlert(state: Pick<BackupState, 'plan' | 'runs'>, days: num
   const age = (now - since) / 86_400_000
   return age >= days ? msg('backup_alert_old', { days: Math.floor(age) }) : undefined
 }
+
+// ---------- backup target for clients (restic rest-server) ----------
+
+export const TARGET_QUADLET = 'quadeck-rest-server.container'
+export const TARGET_UNIT = 'quadeck-rest-server.service'
+export const CLIENT_NAME = /^[a-z0-9][a-z0-9-]{0,62}$/
+
+export interface TargetConfig {
+  /** Where the repositories live, one folder per client. */
+  dataDir: string
+  port: number
+  /** Clients may add snapshots but not delete them (ransomware on a client cannot wipe its backups). */
+  appendOnly: boolean
+  /** How the clients reach it, e.g. http://nas.lan:8000 (shown in the instructions). */
+  url: string
+}
+
+export interface BackupClient {
+  name: string
+  created: number
+  /** Warn when the client has not backed up for this many days. */
+  warnDays?: number
+  /** Access removed from .htpasswd; the repository stays. */
+  disabled?: boolean
+  /** Newest file in the repository's snapshots/ folder: the last backup, readable without the password. */
+  lastAt?: number
+  snapshots?: number
+  size?: number
+}
+
+export interface TargetState {
+  config?: TargetConfig
+  clients: BackupClient[]
+  /** Free space where the repositories live. */
+  disk?: { free: number; size: number }
+}
+
+export function parseTargetConfig(v: unknown): { config?: TargetConfig; error?: string } {
+  const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>
+  const dataDir = typeof o.dataDir === 'string' ? o.dataDir.trim().replace(/\/+$/, '') : ''
+  const pp = absPathProblem(dataDir)
+  if (pp) return { error: pp }
+  const port = Number(o.port)
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return { error: msg('backup_error_port') }
+  const url = typeof o.url === 'string' ? o.url.trim().replace(/\/+$/, '') : ''
+  if (!/^https?:\/\/[A-Za-z0-9.-]+(:\d{1,5})?(\/[A-Za-z0-9._~\/-]*)?$/.test(url)) return { error: msg('backup_error_url') }
+  return { config: { dataDir, port, appendOnly: o.appendOnly === true, url } }
+}
+
+/** The Quadlet for the rest-server: one container for all clients, a folder per client. */
+export function targetQuadlet(c: TargetConfig): string {
+  const options = ['--private-repos', ...(c.appendOnly ? ['--append-only'] : [])].join(' ')
+  return `# Backup target for clients, set up on Quadeck's Backups page
+[Unit]
+Description=restic rest-server (backup target for clients)
+
+[Container]
+Image=docker.io/restic/rest-server:latest
+ContainerName=quadeck-rest-server
+Volume=${c.dataDir}:/data:Z
+Environment=OPTIONS="${options}"
+PublishPort=${c.port}:8000
+AutoUpdate=registry
+
+[Service]
+Restart=always
+
+[Install]
+WantedBy=multi-user.target default.target
+`
+}
+
+/** restic's repository address for a client. */
+export const clientRepo = (c: TargetConfig, name: string) => `rest:${c.url}/${name}/`
+
+/** Clients that have not backed up for longer than they should. */
+export function staleClients(clients: Pick<BackupClient, 'name' | 'warnDays' | 'disabled' | 'lastAt' | 'created'>[], now = Date.now()): { name: string; days: number; never: boolean }[] {
+  return clients
+    .filter((c) => c.warnDays && !c.disabled)
+    .map((c) => ({ name: c.name, days: Math.floor((now - (c.lastAt ?? c.created)) / 86_400_000), never: c.lastAt === undefined, warn: c.warnDays! }))
+    .filter((c) => c.days >= c.warn)
+    .map(({ name, days, never }) => ({ name, days, never }))
+}
+
+/** Days after which a missing client backup is reported: 1–60, null for never. */
+export function parseWarnDays(v: unknown): number | null {
+  const n = Number(v)
+  return v === null || v === undefined || v === '' || !Number.isInteger(n) || n < 1 || n > 60 ? null : n
+}
+
+export function parseClientChange(v: unknown): { warnDays?: number | null; disabled?: boolean } {
+  const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>
+  return { ...('warnDays' in o ? { warnDays: parseWarnDays(o.warnDays) } : {}), ...(typeof o.disabled === 'boolean' ? { disabled: o.disabled } : {}) }
+}
