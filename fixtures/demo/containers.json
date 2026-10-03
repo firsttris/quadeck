@@ -7,7 +7,7 @@
   "health": "healthy",
   "status": "Up 2 days (healthy)",
   "labels": {
-   "quadeck.group": "Medien und Downloads",
+   "quadeck.group": "Media & Downloads",
    "PODMAN_SYSTEMD_UNIT": "jellyfin.service"
   },
   "ports": [
@@ -96,7 +96,7 @@
   "health": "healthy",
   "status": "Up 2 days (healthy)",
   "labels": {
-   "quadeck.group": "Medien und Downloads",
+   "quadeck.group": "Media & Downloads",
    "quadeck.name": "Immich",
    "PODMAN_SYSTEMD_UNIT": "immich.service"
   },
@@ -355,7 +355,7 @@
   "health": null,
   "status": "Up 2 days",
   "labels": {
-   "quadeck.group": "Medien und Downloads",
+   "quadeck.group": "Media & Downloads",
    "PODMAN_SYSTEMD_UNIT": "namarr.service"
   },
   "ports": [
@@ -444,7 +444,7 @@
   "health": null,
   "status": "Up 2 days",
   "labels": {
-   "quadeck.group": "Medien und Downloads",
+   "quadeck.group": "Media & Downloads",
    "PODMAN_SYSTEMD_UNIT": "downloader.service"
   },
   "ports": [],
@@ -527,7 +527,7 @@
   "health": null,
   "status": "Exited (137) 12 minutes ago",
   "labels": {
-   "quadeck.group": "Medien und Downloads",
+   "quadeck.group": "Media & Downloads",
    "PODMAN_SYSTEMD_UNIT": "qbittorrent.service"
   },
   "ports": [

@@ -12,7 +12,7 @@ Volume=/mnt/storage/media:/media:ro
 AddDevice=/dev/dri
 # Hardware-Transcoding über die iGPU
 Environment=TZ=Europe/Berlin
-Label=quadeck.group=Medien
+Label=quadeck.group=Media & Downloads
 
 [Service]
 Restart=always

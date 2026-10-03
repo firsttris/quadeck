@@ -136,6 +136,7 @@ Put them in `/etc/quadeck/quadeck.env`, one `KEY=value` per line, then
 | `QUADECK_QUADLET_DIR` | `/etc/containers/systemd` | Quadlet files |
 | `QUADECK_UNIT_DIR` | `/etc/systemd/system` | where own units, timers and overrides are written |
 | `QUADECK_UNIT_HISTORY` | `/var/lib/quadeck-helper/unit-history` | earlier versions of edited unit files |
+| `QUADECK_BOOT_HISTORY` | `/var/lib/quadeck-helper/boot-history` | earlier versions of edited boot entries |
 | `QUADECK_FILE_ROOTS` | `/mnt,/srv,/media,/home,/data` + data mounts | areas the file explorer may show, comma-separated |
 | `QUADECK_JOB_LAUNCHER` | `systemd-run` when available | `spawn`: run jobs as child processes instead of transient units |
 | `QUADECK_HELPER_GROUP` | `quadeck` | group that may open the socket |

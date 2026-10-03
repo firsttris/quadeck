@@ -108,6 +108,13 @@ The release workflow checks that the tag matches `package.json`, runs typecheck 
 writes `SHA256SUMS` and publishes everything together with `install.sh` as a GitHub release with
 generated notes. `quadeck update` and `install.sh` pick the newest release from there.
 
+## Screenshots
+
+The pictures in `docs/` come from the demo data, in English, through `scripts/screenshots.mjs`.
+Build, start the demo with a fresh data directory, then run the script (the commands are at its
+top). It sets the password, restarts the two failed demo units for a healthy overview, and writes
+`docs/screenshot-*.png`.
+
 ## Conventions
 
 - Strict TypeScript, no `any`; shared logic goes to `src/shared` so the UI and the server use the
