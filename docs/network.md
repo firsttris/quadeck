@@ -113,3 +113,19 @@ A change made elsewhere in the meantime is noticed (hash of the file) instead of
 New domains appear as tiles on the overview right away. Writing needs the
 [unlock](security.md#unlock); `QUADECK_CADDY_ADMIN` (default `http://localhost:2019`) is the admin
 API address.
+
+## Speed test
+
+The tab **Speed test** measures two things, each with a live gauge (logarithmic up to 10 Gbit/s),
+the steps ping → download → upload and a curve while it runs:
+
+- **This device ↔ server** – how fast the Wi-Fi or LAN between the browser and the server is. The
+  browser downloads random test data from the server for six seconds over four connections, then
+  uploads for six seconds; ping and jitter come from ten small requests before. Through a reverse
+  proxy this includes the proxy.
+- **Server ↔ internet** – the server's own connection, measured by the web app against Cloudflare
+  (`speed.cloudflare.com`: `__down` and `__up`), the same way. The result names the Cloudflare
+  location that answered (e.g. FRA). No root and nothing to install; only one test runs at a time.
+
+Every result shows Mbit/s and MB/s (Mbit/s ÷ 8): connections are sold in Mbit/s, file sizes are in
+bytes. The last 50 results are kept in a history.

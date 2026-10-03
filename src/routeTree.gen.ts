@@ -62,6 +62,7 @@ import { Route as ApiQuadletsRevisionRouteImport } from './routes/api/quadlets/r
 import { Route as ApiQuadletsValidateRouteImport } from './routes/api/quadlets/validate'
 import { Route as ApiServicesOverrideRouteImport } from './routes/api/services/override'
 import { Route as ApiSharesIndexRouteImport } from './routes/api/shares/index'
+import { Route as ApiSpeedtestIndexRouteImport } from './routes/api/speedtest/index'
 import { Route as ApiSshIndexRouteImport } from './routes/api/ssh/index'
 import { Route as ApiSystemConfigRouteImport } from './routes/api/system/config'
 import { Route as ApiSystemImagesRouteImport } from './routes/api/system/images'
@@ -338,6 +339,11 @@ const ApiSharesIndexRoute = ApiSharesIndexRouteImport.update({
   path: '/api/shares/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSpeedtestIndexRoute = ApiSpeedtestIndexRouteImport.update({
+  id: '/api/speedtest/',
+  path: '/api/speedtest/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSshIndexRoute = ApiSshIndexRouteImport.update({
   id: '/api/ssh/',
   path: '/api/ssh/',
@@ -452,6 +458,7 @@ export interface FileRoutesByFullPath {
   '/api/notifications/': typeof ApiNotificationsIndexRoute
   '/api/quadlets/': typeof ApiQuadletsIndexRoute
   '/api/shares/': typeof ApiSharesIndexRoute
+  '/api/speedtest/': typeof ApiSpeedtestIndexRoute
   '/api/ssh/': typeof ApiSshIndexRoute
   '/api/systemd/': typeof ApiSystemdIndexRoute
   '/api/timers/': typeof ApiTimersIndexRoute
@@ -517,6 +524,7 @@ export interface FileRoutesByTo {
   '/api/notifications': typeof ApiNotificationsIndexRoute
   '/api/quadlets': typeof ApiQuadletsIndexRoute
   '/api/shares': typeof ApiSharesIndexRoute
+  '/api/speedtest': typeof ApiSpeedtestIndexRoute
   '/api/ssh': typeof ApiSshIndexRoute
   '/api/systemd': typeof ApiSystemdIndexRoute
   '/api/timers': typeof ApiTimersIndexRoute
@@ -584,6 +592,7 @@ export interface FileRoutesById {
   '/api/notifications/': typeof ApiNotificationsIndexRoute
   '/api/quadlets/': typeof ApiQuadletsIndexRoute
   '/api/shares/': typeof ApiSharesIndexRoute
+  '/api/speedtest/': typeof ApiSpeedtestIndexRoute
   '/api/ssh/': typeof ApiSshIndexRoute
   '/api/systemd/': typeof ApiSystemdIndexRoute
   '/api/timers/': typeof ApiTimersIndexRoute
@@ -651,6 +660,7 @@ export interface FileRouteTypes {
     | '/api/notifications/'
     | '/api/quadlets/'
     | '/api/shares/'
+    | '/api/speedtest/'
     | '/api/ssh/'
     | '/api/systemd/'
     | '/api/timers/'
@@ -716,6 +726,7 @@ export interface FileRouteTypes {
     | '/api/notifications'
     | '/api/quadlets'
     | '/api/shares'
+    | '/api/speedtest'
     | '/api/ssh'
     | '/api/systemd'
     | '/api/timers'
@@ -782,6 +793,7 @@ export interface FileRouteTypes {
     | '/api/notifications/'
     | '/api/quadlets/'
     | '/api/shares/'
+    | '/api/speedtest/'
     | '/api/ssh/'
     | '/api/systemd/'
     | '/api/timers/'
@@ -835,6 +847,7 @@ export interface RootRouteChildren {
   ApiNotificationsIndexRoute: typeof ApiNotificationsIndexRoute
   ApiQuadletsIndexRoute: typeof ApiQuadletsIndexRoute
   ApiSharesIndexRoute: typeof ApiSharesIndexRoute
+  ApiSpeedtestIndexRoute: typeof ApiSpeedtestIndexRoute
   ApiSshIndexRoute: typeof ApiSshIndexRoute
   ApiSystemdIndexRoute: typeof ApiSystemdIndexRoute
   ApiTimersIndexRoute: typeof ApiTimersIndexRoute
@@ -1216,6 +1229,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSharesIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/speedtest/': {
+      id: '/api/speedtest/'
+      path: '/api/speedtest'
+      fullPath: '/api/speedtest/'
+      preLoaderRoute: typeof ApiSpeedtestIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/ssh/': {
       id: '/api/ssh/'
       path: '/api/ssh'
@@ -1377,6 +1397,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiNotificationsIndexRoute: ApiNotificationsIndexRoute,
   ApiQuadletsIndexRoute: ApiQuadletsIndexRoute,
   ApiSharesIndexRoute: ApiSharesIndexRoute,
+  ApiSpeedtestIndexRoute: ApiSpeedtestIndexRoute,
   ApiSshIndexRoute: ApiSshIndexRoute,
   ApiSystemdIndexRoute: ApiSystemdIndexRoute,
   ApiTimersIndexRoute: ApiTimersIndexRoute,

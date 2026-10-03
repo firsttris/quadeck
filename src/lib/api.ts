@@ -27,3 +27,6 @@ export async function api<T = { ok: true }>(path: string, init: { method?: strin
   if (!res.ok) throw new ApiError(res.status, data.error ?? `HTTP ${res.status}`)
   return data as T
 }
+
+/** For requests that do not go through api() (raw bodies). */
+export const csrfHeaders = (): Record<string, string> => ({ 'x-csrf-token': csrfToken })
