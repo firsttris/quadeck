@@ -74,6 +74,7 @@ import { Route as ApiSystemUpdatesRouteImport } from './routes/api/system/update
 import { Route as ApiSystemdIndexRouteImport } from './routes/api/systemd/index'
 import { Route as ApiTimersIndexRouteImport } from './routes/api/timers/index'
 import { Route as ApiUsersIndexRouteImport } from './routes/api/users/index'
+import { Route as ApiBackupScriptTokenRouteImport } from './routes/api/backup/script/$token'
 import { Route as ApiSystemPackagesIndexRouteImport } from './routes/api/system/packages/index'
 import { Route as ApiSystemPackagesNameRouteImport } from './routes/api/system/packages/$name'
 
@@ -401,6 +402,11 @@ const ApiUsersIndexRoute = ApiUsersIndexRouteImport.update({
   path: '/api/users/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiBackupScriptTokenRoute = ApiBackupScriptTokenRouteImport.update({
+  id: '/api/backup/script/$token',
+  path: '/api/backup/script/$token',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSystemPackagesIndexRoute = ApiSystemPackagesIndexRouteImport.update({
   id: '/api/system/packages/',
   path: '/api/system/packages/',
@@ -477,6 +483,7 @@ export interface FileRoutesByFullPath {
   '/api/systemd/': typeof ApiSystemdIndexRoute
   '/api/timers/': typeof ApiTimersIndexRoute
   '/api/users/': typeof ApiUsersIndexRoute
+  '/api/backup/script/$token': typeof ApiBackupScriptTokenRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages/': typeof ApiSystemPackagesIndexRoute
 }
@@ -545,6 +552,7 @@ export interface FileRoutesByTo {
   '/api/systemd': typeof ApiSystemdIndexRoute
   '/api/timers': typeof ApiTimersIndexRoute
   '/api/users': typeof ApiUsersIndexRoute
+  '/api/backup/script/$token': typeof ApiBackupScriptTokenRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages': typeof ApiSystemPackagesIndexRoute
 }
@@ -615,6 +623,7 @@ export interface FileRoutesById {
   '/api/systemd/': typeof ApiSystemdIndexRoute
   '/api/timers/': typeof ApiTimersIndexRoute
   '/api/users/': typeof ApiUsersIndexRoute
+  '/api/backup/script/$token': typeof ApiBackupScriptTokenRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages/': typeof ApiSystemPackagesIndexRoute
 }
@@ -685,6 +694,7 @@ export interface FileRouteTypes {
     | '/api/systemd/'
     | '/api/timers/'
     | '/api/users/'
+    | '/api/backup/script/$token'
     | '/api/system/packages/$name'
     | '/api/system/packages/'
   fileRoutesByTo: FileRoutesByTo
@@ -753,6 +763,7 @@ export interface FileRouteTypes {
     | '/api/systemd'
     | '/api/timers'
     | '/api/users'
+    | '/api/backup/script/$token'
     | '/api/system/packages/$name'
     | '/api/system/packages'
   id:
@@ -822,6 +833,7 @@ export interface FileRouteTypes {
     | '/api/systemd/'
     | '/api/timers/'
     | '/api/users/'
+    | '/api/backup/script/$token'
     | '/api/system/packages/$name'
     | '/api/system/packages/'
   fileRoutesById: FileRoutesById
@@ -877,6 +889,7 @@ export interface RootRouteChildren {
   ApiSystemdIndexRoute: typeof ApiSystemdIndexRoute
   ApiTimersIndexRoute: typeof ApiTimersIndexRoute
   ApiUsersIndexRoute: typeof ApiUsersIndexRoute
+  ApiBackupScriptTokenRoute: typeof ApiBackupScriptTokenRoute
   ApiSystemPackagesNameRoute: typeof ApiSystemPackagesNameRoute
   ApiSystemPackagesIndexRoute: typeof ApiSystemPackagesIndexRoute
 }
@@ -1338,6 +1351,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiUsersIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/backup/script/$token': {
+      id: '/api/backup/script/$token'
+      path: '/api/backup/script/$token'
+      fullPath: '/api/backup/script/$token'
+      preLoaderRoute: typeof ApiBackupScriptTokenRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/system/packages/': {
       id: '/api/system/packages/'
       path: '/api/system/packages'
@@ -1444,6 +1464,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSystemdIndexRoute: ApiSystemdIndexRoute,
   ApiTimersIndexRoute: ApiTimersIndexRoute,
   ApiUsersIndexRoute: ApiUsersIndexRoute,
+  ApiBackupScriptTokenRoute: ApiBackupScriptTokenRoute,
   ApiSystemPackagesNameRoute: ApiSystemPackagesNameRoute,
   ApiSystemPackagesIndexRoute: ApiSystemPackagesIndexRoute,
 }

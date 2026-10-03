@@ -2,6 +2,8 @@ import { useCallback, useEffect, useState } from 'react'
 import { api } from '~/lib/api'
 import { bytes, relative } from '~/lib/format'
 import { useLive } from '~/lib/live'
+import { CLIENT_PRESETS, clientCalendar, defaultClientPlan, type ClientPlan, type ClientPreset } from '~/shared/backup-client'
+import { pickMsg } from '~/i18n'
 import { CLIENT_NAME, TARGET_UNIT, clientRepo, staleClients, type BackupClient, type TargetConfig, type TargetState } from '~/shared/backup'
 import { useActions } from './Actions'
 import { ConfirmDialog, Modal } from './Modal'
@@ -144,6 +146,7 @@ export function BackupClients() {
                     <th>{m.backup_browse_size()}</th>
                     <th>{m.backup_snapshots()}</th>
                     <th>{m.backup_clients_warn()}</th>
+                    <th>{m.backup_clients_settings()}</th>
                     <th />
                   </tr>
                 </thead>
@@ -164,6 +167,9 @@ export function BackupClients() {
                         <td>{c.size !== undefined ? bytes(c.size) : '–'}</td>
                         <td>{c.snapshots ?? 0}</td>
                         <td className="text-subtle">{c.warnDays ? m.backup_clients_warnDays({ n: c.warnDays }) : '–'}</td>
+                        <td>
+                          <SettingsChip client={c} />
+                        </td>
                         <td className="text-right">
                           {!readonly && (
                             <RowMenu
@@ -222,23 +228,24 @@ export function BackupClients() {
             const r = await call<{ password: string }>({ client: { add: { name, warnDays } } })
             if (!r) return
             setAdd(false)
-            setAccess({ name, password: r.password })
-            void load()
+            await load()
+            // Next: what to back up, then the script for the computer.
+            setEdit({ name, created: Date.now() })
           }}
         />
       )}
       {access && cfg && <AccessDialog config={cfg} name={access.name} password={access.password} onClose={() => setAccess(null)} />}
       {edit && (
-        <EditClient
-          client={edit}
+        <ClientDialog
+          client={state.clients.find((c) => c.name === edit.name) ?? edit}
           onClose={() => setEdit(null)}
-          onSave={async (warnDays) => {
-            const s = await call<TargetState>({ client: { update: { name: edit.name, change: { warnDays } } } }, m.backup_clients_saved())
-            if (s) {
-              setState(s)
-              setEdit(null)
-            }
+          onSave={async (plan, warnDays) => {
+            const a = await call<TargetState>({ client: { plan: { name: edit.name, plan } } })
+            const b = a && (await call<TargetState>({ client: { update: { name: edit.name, change: { warnDays } } } }, m.backup_clients_saved()))
+            if (b) setState(b)
+            return !!b
           }}
+          onLink={() => call<{ token: string; expires: number }>({ client: { link: { name: edit.name, origin: window.location.origin } } })}
         />
       )}
       {remove && (
@@ -367,24 +374,6 @@ function WarnInput({ warn, days, onChange }: { warn: boolean; days: number; onCh
   )
 }
 
-function EditClient({ client, onClose, onSave }: { client: BackupClient; onClose: () => void; onSave: (warnDays: number | null) => Promise<void> }) {
-  const [warn, setWarn] = useState(!!client.warnDays)
-  const [days, setDays] = useState(client.warnDays ?? 3)
-  return (
-    <Modal open title={client.name} onClose={onClose}>
-      <WarnInput warn={warn} days={days} onChange={(w, d) => (setWarn(w), setDays(d))} />
-      <div className="flex justify-end gap-2">
-        <button type="button" className="btn" onClick={onClose}>
-          {m.common_cancel()}
-        </button>
-        <button type="button" className="btn primary" onClick={() => void onSave(warn ? days : null)}>
-          {m.common_save()}
-        </button>
-      </div>
-    </Modal>
-  )
-}
-
 function RemoveClient({ client, dataDir, onClose, onRemove }: { client: BackupClient; dataDir?: string; onClose: () => void; onRemove: (deleteData: boolean) => Promise<void> }) {
   const [data, setData] = useState(false)
   return (
@@ -432,6 +421,204 @@ function AccessDialog({ config, name, password, onClose }: { config: TargetConfi
       <div className="flex justify-end">
         <button type="button" className="btn primary" onClick={onClose}>
           {m.common_close()}
+        </button>
+      </div>
+    </Modal>
+  )
+}
+
+function SettingsChip({ client: c }: { client: BackupClient }) {
+  if (!c.applied) return <span className="chip text-[#e3b341]">{m.backup_clients_notSetUp()}</span>
+  if ((c.version ?? 0) > c.applied.version) return <span className="chip text-[#e3b341]">{m.backup_clients_pending()}</span>
+  return (
+    <span className="chip q" suppressHydrationWarning>
+      {m.backup_clients_applied({ when: relative(c.applied.at) })}
+    </span>
+  )
+}
+
+const presetLabel = (p: ClientPreset) =>
+  pickMsg(
+    {
+      caches: m.backup_cpreset_caches,
+      trash: m.backup_cpreset_trash,
+      dev: m.backup_cpreset_dev,
+      temp: m.backup_cpreset_temp,
+      downloads: m.backup_cpreset_downloads,
+      vms: m.backup_cpreset_vms,
+      games: m.backup_cpreset_games,
+      nobackup: m.backup_cpreset_nobackup,
+    },
+    p,
+  )
+
+/** What a client backs up and when, and the one-time command that carries it there. */
+function ClientDialog({
+  client,
+  onClose,
+  onSave,
+  onLink,
+}: {
+  client: BackupClient
+  onClose: () => void
+  onSave: (plan: ClientPlan, warnDays: number | null) => Promise<boolean>
+  onLink: () => Promise<{ token: string; expires: number } | undefined>
+}) {
+  const [plan, setPlan] = useState<ClientPlan>(client.plan ? structuredClone(client.plan) : defaultClientPlan())
+  const [patterns, setPatterns] = useState((client.plan?.exclude.patterns ?? []).join('\n'))
+  const [folder, setFolder] = useState('')
+  const [warn, setWarn] = useState(client.warnDays !== undefined ? true : !client.plan)
+  const [days, setDays] = useState(client.warnDays ?? 3)
+  const [link, setLink] = useState<{ token: string; expires: number } | null>(null)
+  const [busy, setBusy] = useState(false)
+  const full: ClientPlan = { ...plan, exclude: { ...plan.exclude, patterns: patterns.split('\n').map((l) => l.trim()).filter(Boolean) } }
+  const saved = JSON.stringify(full) === JSON.stringify(client.plan) && (warn ? days : undefined) === client.warnDays
+  const set = (p: Partial<ClientPlan>) => setPlan({ ...plan, ...p })
+  const url = link ? `${window.location.origin}/api/backup/script/${link.token}` : ''
+
+  const save = async () => {
+    setBusy(true)
+    const ok = await onSave(full, warn ? days : null)
+    setBusy(false)
+    return ok
+  }
+  const makeLink = async () => {
+    if (!saved && !(await save())) return
+    const l = await onLink()
+    if (l) setLink(l)
+  }
+
+  return (
+    <Modal open wide title={client.name} onClose={onClose}>
+      <section className="flex flex-col gap-2.5" aria-label={m.backup_client_what()}>
+        <h3 className="label-caps m-0 font-normal">{m.backup_client_what()}</h3>
+        <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
+          {plan.folders.map((f) => (
+            <li key={f} className="flex items-center gap-2 rounded-lg border border-edge bg-[#0e1319] px-2.5 py-1.5 text-[13px]">
+              <span className="grow font-mono">{f}</span>
+              <button type="button" className="btn sm" aria-label={m.backup_client_removeFolder({ folder: f })} onClick={() => set({ folders: plan.folders.filter((x) => x !== f) })}>
+                {m.backup_client_remove()}
+              </button>
+            </li>
+          ))}
+        </ul>
+        <div className="flex gap-2">
+          <input className="field font-mono" value={folder} placeholder="~/Musik" aria-label={m.backup_setup_addFolder()} onChange={(e) => setFolder(e.target.value)} />
+          <button
+            type="button"
+            className="btn"
+            disabled={!folder.trim()}
+            onClick={() => {
+              const v = folder.trim().replace(/\/+$/, '')
+              if (v && !plan.folders.includes(v)) set({ folders: [...plan.folders, v] })
+              setFolder('')
+            }}
+          >
+            {m.backup_setup_add()}
+          </button>
+        </div>
+        <p className="m-0 text-[12px] text-muted">{m.backup_client_home()}</p>
+      </section>
+
+      <section className="flex flex-col gap-2.5" aria-label={m.backup_setup_excludes()}>
+        <h3 className="label-caps m-0 font-normal">{m.backup_setup_excludes()}</h3>
+        <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
+          {CLIENT_PRESETS.map((p) => (
+            <label key={p} className="flex items-center gap-2.5 text-[13px]">
+              <input type="checkbox" checked={plan.exclude.presets.includes(p)} onChange={(e) => set({ exclude: { ...plan.exclude, presets: e.target.checked ? [...plan.exclude.presets, p] : plan.exclude.presets.filter((x) => x !== p) } })} />
+              {presetLabel(p)}
+            </label>
+          ))}
+        </div>
+        <label className="flex flex-col gap-1.5 text-[13px]">
+          {m.backup_setup_patterns()}
+          <textarea className="field resize-y font-mono text-[13px]" rows={3} value={patterns} placeholder={'~/Videos/Aufnahmen\n*.mkv\n**/build'} onChange={(e) => setPatterns(e.target.value)} />
+        </label>
+        <p className="m-0 text-[12px] text-muted">{m.backup_setup_patternsHelp()}</p>
+        <label className="flex flex-wrap items-center gap-2 text-[13px]">
+          <input type="checkbox" checked={!!plan.exclude.maxSizeGB} onChange={(e) => set({ exclude: { ...plan.exclude, maxSizeGB: e.target.checked ? 2 : undefined } })} />
+          {m.backup_setup_maxSizeBefore()}
+          <input className="field !w-[64px] !py-1" type="number" min={1} aria-label={m.backup_setup_maxSizeLabel()} disabled={!plan.exclude.maxSizeGB} value={plan.exclude.maxSizeGB ?? 2} onChange={(e) => set({ exclude: { ...plan.exclude, maxSizeGB: Math.max(1, Number(e.target.value) || 1) } })} />
+          {m.backup_setup_maxSizeAfter()}
+        </label>
+      </section>
+
+      <section className="flex flex-col gap-2.5" aria-label={m.backup_setup_when()}>
+        <h3 className="label-caps m-0 font-normal">{m.backup_setup_when()}</h3>
+        <div className="grid grid-cols-2 gap-3">
+          <label className="flex flex-col gap-1.5 text-[13px]">
+            {m.backup_setup_every()}
+            <select className="field" value={plan.schedule.every} onChange={(e) => set({ schedule: { ...plan.schedule, every: e.target.value as ClientPlan['schedule']['every'] } })}>
+              <option value="hourly">{m.backup_client_hourly()}</option>
+              <option value="6h">{m.backup_setup_6h()}</option>
+              <option value="daily">{m.backup_setup_daily()}</option>
+              <option value="weekly">{m.backup_setup_weekly()}</option>
+            </select>
+          </label>
+          <label className="flex flex-col gap-1.5 text-[13px]">
+            {m.backup_setup_time()}
+            <input className="field" type="time" value={plan.schedule.time} onChange={(e) => set({ schedule: { ...plan.schedule, time: e.target.value } })} />
+          </label>
+        </div>
+        <div className="grid grid-cols-3 gap-3">
+          {(['daily', 'weekly', 'monthly'] as const).map((k) => (
+            <label key={k} className="flex flex-col gap-1.5 text-[13px]">
+              {pickMsg({ daily: m.backup_setup_keepDaily, weekly: m.backup_setup_keepWeekly, monthly: m.backup_setup_keepMonthly }, k)}
+              <input className="field" type="number" min={0} max={1000} value={plan.keep[k]} onChange={(e) => set({ keep: { ...plan.keep, [k]: Math.max(0, Math.min(1000, Math.round(Number(e.target.value) || 0))) } })} />
+            </label>
+          ))}
+        </div>
+        <p className="m-0 text-[12px] text-muted">{m.backup_client_persistent({ calendar: clientCalendar(plan.schedule) })}</p>
+        <WarnInput warn={warn} days={days} onChange={(w, d) => (setWarn(w), setDays(d))} />
+        <label className="flex items-center gap-2.5 text-[13px]">
+          <input type="checkbox" checked={plan.active} onChange={(e) => set({ active: e.target.checked })} />
+          {m.backup_client_active()}
+        </label>
+      </section>
+
+      <section className="flex flex-col gap-2.5 rounded-[12px] border border-[rgba(124,196,184,.35)] bg-[rgba(124,196,184,.06)] p-4" aria-label={m.backup_client_run()}>
+        <div className="flex flex-wrap items-center gap-2.5">
+          <h3 className="m-0 grow text-[14px] font-semibold">{m.backup_client_run()}</h3>
+          <SettingsChip client={client} />
+        </div>
+        <p className="m-0 text-[13px] text-[#c9d1d9]">{m.backup_client_runText()}</p>
+        {link ? (
+          <>
+            <code className="block rounded-lg border border-edge bg-[#070a0e] px-3 py-2 font-mono text-[12.5px] break-all select-all" data-testid="client-command">
+              curl -fsSL {url} | sh
+            </code>
+            <div className="flex flex-wrap items-center gap-2 text-[12px] text-muted">
+              <button type="button" className="btn sm" onClick={() => void navigator.clipboard?.writeText(`curl -fsSL ${url} | sh`)}>
+                {m.backup_client_copy()}
+              </button>
+              <span suppressHydrationWarning>{m.backup_client_valid({ when: relative(link.expires) })}</span>
+            </div>
+            <details className="text-[13px]">
+              <summary className="cursor-pointer text-subtle">{m.backup_client_review()}</summary>
+              <code className="mt-2 block rounded-lg border border-edge bg-[#070a0e] px-3 py-2 font-mono text-[12.5px] break-all whitespace-pre-wrap select-all">
+                {`curl -fsSL ${url} -o quadeck-backup-setup.sh\nless quadeck-backup-setup.sh\nsh quadeck-backup-setup.sh`}
+              </code>
+            </details>
+          </>
+        ) : (
+          <button type="button" className="btn primary self-start" disabled={busy || !full.folders.length} onClick={() => void makeLink()}>
+            {saved ? m.backup_client_makeLink() : m.backup_client_saveAndLink()}
+          </button>
+        )}
+        <details className="text-[13px]">
+          <summary className="cursor-pointer text-subtle">{m.backup_client_after()}</summary>
+          <pre className="mt-2 mb-0 overflow-x-auto rounded-lg border border-edge bg-[#070a0e] px-3 py-2 font-mono text-[12.5px] leading-relaxed">
+            {['quadeck-backup now        # back up right now', 'quadeck-backup check      # dry run: what would be backed up', 'quadeck-backup status     # last backups, next run', 'quadeck-backup mount      # backups as folders under ~/Backup', 'quadeck-backup restore ~/Dokumente/x', 'quadeck-backup uninstall  # remove the timer'].join('\n')}
+          </pre>
+        </details>
+      </section>
+
+      <div className="flex justify-end gap-2 border-t border-line pt-4">
+        <button type="button" className="btn" onClick={onClose}>
+          {m.common_close()}
+        </button>
+        <button type="button" className="btn primary" disabled={busy || saved || !full.folders.length} onClick={() => void save()}>
+          {m.common_save()}
         </button>
       </div>
     </Modal>

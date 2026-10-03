@@ -25,6 +25,7 @@ import type { HardwareAdmin } from '../hardware/collect'
 import type { CaddyAdmin } from '../caddy/backend'
 import type { BackupAdmin } from '../backup/backend'
 import type { BackupPlan, BackupState, TargetConfig, TargetState } from '~/shared/backup'
+import type { ClientPlan } from '~/shared/backup-client'
 import type { CaddyChange, CaddyResult, CaddyState } from '~/shared/caddy'
 import type { UserChange, UsersState } from '~/shared/users'
 import type { ConfigAction, ConfigFileInfo } from '~/shared/configfiles'
@@ -107,6 +108,10 @@ export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAd
   updateBackupClient(token: string | undefined, name: string, change: { warnDays?: number | null; disabled?: boolean }): Promise<TargetState>
   renewBackupClient(token: string | undefined, name: string): Promise<{ password: string }>
   removeBackupClient(token: string | undefined, name: string, deleteData: boolean): Promise<TargetState>
+  setBackupClientPlan(token: string | undefined, name: string, plan: ClientPlan): Promise<TargetState>
+  backupClientLink(token: string | undefined, name: string, quadeckUrl: string): Promise<{ token: string; expires: number }>
+  /** No unlock: the one-time link is the authorisation (it is used up here). */
+  redeemBackupClientLink(linkToken: string): Promise<string | undefined>
 }
 
 const UNIT_NAME = /^[A-Za-z0-9:_.\\@-]{1,240}\.(service|timer|socket)$/

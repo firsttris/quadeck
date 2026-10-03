@@ -20,6 +20,7 @@ import type { HardwareAdmin } from '../hardware/collect'
 import type { CaddyBackend } from '../caddy/backend'
 import type { BackupBackend } from '../backup/backend'
 import { TARGET_QUADLET, type BackupPlan, type TargetConfig } from '~/shared/backup'
+import type { ClientPlan } from '~/shared/backup-client'
 import type { CaddyChange } from '~/shared/caddy'
 import type { UserChange } from '~/shared/users'
 import type { ConfigAction } from '~/shared/configfiles'
@@ -508,5 +509,16 @@ export class LocalPrivileged implements Privileged {
   async removeBackupClient(token: string | undefined, name: string, deleteData: boolean) {
     this.gate.check(token)
     return this.backup.removeClient(name, deleteData)
+  }
+  async setBackupClientPlan(token: string | undefined, name: string, plan: ClientPlan) {
+    this.gate.check(token)
+    return this.backup.setClientPlan(name, plan)
+  }
+  async backupClientLink(token: string | undefined, name: string, quadeckUrl: string) {
+    this.gate.check(token)
+    return this.backup.clientLink(name, quadeckUrl)
+  }
+  redeemBackupClientLink(linkToken: string) {
+    return this.backup.redeemClientLink(linkToken)
   }
 }
