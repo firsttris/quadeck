@@ -7,7 +7,7 @@ saving and a history, and treats timers as what they are: the cron replacement.
 
 ## Unit editor
 
-**Edit** on a non-Quadlet unit in the units list opens `/systemd?unit=<name>`. The page
+**Edit unit** on a non-Quadlet unit in the units list opens `/systemd?unit=<name>`. The page
 shows every file that makes up the unit, as `systemctl cat` would:
 
 - the **main file** (fragment), with its origin: *from package* (vendor, `/usr/lib/systemd/system`),
@@ -74,7 +74,7 @@ only when the unit has no `[Install]` section).
 
 Timers replace cron on a systemd host: a `.timer` starts a `.service` on a schedule, the output
 goes to the journal, `Persistent=true` catches up on runs that were missed while the server was
-off, and you can see when a timer last ran and when it runs next. **Units → Timer** is Quadeck's
+off, and you can see when a timer last ran and when it runs next. **Units → Timers** is Quadeck's
 schedule editor.
 
 <img src="screenshot-timers.png" alt="Timers: schedule, next and last run, result and command per timer" width="900">
@@ -104,10 +104,10 @@ the timer, **Journal** opens the service's journal, a click on the name shows th
   translated to `OnCalendar=` (ranges, steps, names, `@daily` and friends included); the command
   is taken over. When both a day of month and a weekday are set, a hint explains that cron means
   *or* and systemd means *and*. `@reboot` is refused with a pointer to a plain unit.
-- **User**, **working directory**, and the options *catch up on missed runs* (`Persistent=true`),
-  *wait for network* (`network-online.target`), *low priority* (`Nice=10`, idle I/O) and *random
-  delay* (`RandomizedDelaySec`).
-- **Templates**: run a script, rsync backup, Podman image cleanup, SnapRAID sync and scrub,
+- **As user**, **Working directory**, and the options *Catch up on missed runs* (`Persistent=true`),
+  *Wait for network* (`network-online.target`), *Low priority* (`Nice=10`, idle I/O) and *Start
+  randomly up to … minutes later* (`RandomizedDelaySec`).
+- **Template**: run a script, rsync backup, Podman image cleanup, SnapRAID sync and scrub,
   healthcheck ping.
 - The **Unit files** tab shows the two files that will be written.
 
@@ -119,7 +119,7 @@ that timer from then on.
 
 ### Other timers
 
-Timers from packages or written by hand keep their files. **Schedule** changes only the schedule,
+Timers from packages or written by hand keep their files. **Change schedule …** changes only the schedule,
 as a drop-in `<timer>.d/50-quadeck.conf` that resets `OnCalendar=` and sets the new one; monotonic
 triggers (`OnBootSec=` and friends) stay. **Restore default** removes the drop-in. Only
 timers Quadeck created can be deleted here.

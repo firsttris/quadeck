@@ -31,7 +31,7 @@ spec sheet of the machine, read only. It is also in the command palette (Ctrl+K 
 ## Warnings
 
 - An NVMe drive, storage controller or network card running with fewer lanes than it supports
-  (`x1 statt x2`) or an NVMe drive on an older PCIe generation – usually a slot with fewer lanes
+  (runs at x1 instead of x2) or an NVMe drive on an older PCIe generation – usually a slot with fewer lanes
   or lanes shared with another slot (see the mainboard manual). GPUs are left out: they lower
   their link speed when idle.
 - A SATA link slower than disk and port allow.

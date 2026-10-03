@@ -571,7 +571,7 @@
   "systemd_unit_quadletLink": "Quadlet file",
   "systemd_unit_quadletAfter": "; overrides can be added here as well.",
   "systemd_unit_timerBefore": "Created by Quadeck as a schedule – easier to manage under",
-  "systemd_unit_timerLink": "Units → Timer",
+  "systemd_unit_timerLink": "Units → Timers",
   "systemd_unit_timerAfter": ". Once the files are changed by hand, the Timer page only edits them via drop-in.",
   "systemd_unit_template": "Instance of a template: the main file applies to all instances. An override here only affects this instance.",
   "systemd_unit_files": "Files",
@@ -639,7 +639,7 @@
     }
   ],
   "systemd_create_title": "New unit",
-  "systemd_create_subtitle": "Own unit in {dir} – for schedules use Units → Timer",
+  "systemd_create_subtitle": "Own unit in {dir} – for schedules use Units → Timers",
   "systemd_create_name": "Name",
   "systemd_create_invalidName": "Letters, digits, - _ . and a suffix like .service",
   "systemd_create_template": "Template:",
