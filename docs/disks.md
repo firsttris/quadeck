@@ -154,3 +154,18 @@ Copy, move and delete run as [jobs](updates.md#jobs) with live output (`cp -a --
 interrupt it. Conflicts and paths outside the areas are refused before the job starts, not in a
 failing job. Every change needs the [unlock](security.md#unlock). There is no trash: deleted is
 deleted.
+
+### Text files
+
+A click on a text file opens it in the editor: scripts, patches, notes, configuration (`.sh`,
+`.patch`, `.txt`, `.md`, `.yml`, `.conf`, `.env`, `Dockerfile` …). Files without a known ending
+are checked by their first bytes – no NUL byte and valid UTF-8 means text; anything else (and
+anything over 2 MB) is not opened. Size, owner, mode and the date are shown above the text.
+
+Reading is free; **Next** shows the diff and **Save** needs the unlock. The file is written next to
+the original and renamed over it, so it is never half written; owner, mode and Windows line endings
+(CRLF) stay as they were. If the file changed since it was opened, saving is refused.
+
+Keys and credentials are only shown after unlocking: everything in `.ssh`, `.gnupg`, `.docker`,
+`.aws`, `.kube` and similar folders, `.env` files, `id_*` keys, `*.key`, `*.pem`, `.netrc`,
+`.pgpass` and the like.

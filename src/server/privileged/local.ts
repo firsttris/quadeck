@@ -252,6 +252,13 @@ export class LocalPrivileged implements Privileged {
     this.gate.check(token)
     return this.files.makeDir(path)
   }
+  readTextFile(token: string | undefined, path: string) {
+    return this.files.readTextFile(path, this.gate.unlockedUntil(token) !== null)
+  }
+  async writeTextFile(token: string | undefined, path: string, content: string, expected: string) {
+    this.gate.check(token)
+    return this.files.writeTextFile(path, content, expected)
+  }
   async renamePath(token: string | undefined, path: string, newName: string) {
     this.gate.check(token)
     return this.files.renamePath(path, newName)

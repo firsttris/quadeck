@@ -3,11 +3,12 @@
 // never the system. Symlinks are resolved before the check, so a link
 // cannot lead out. Copy/move/delete run as jobs (`quadeck job`).
 
-import { chownSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, realpathSync, renameSync, statfsSync, statSync, type Stats } from 'node:fs'
+import { chmodSync, chownSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync, renameSync, rmSync, statfsSync, statSync, writeFileSync, type Stats } from 'node:fs'
+import { contentHash } from '~/shared/caddy'
 import { HttpError } from '../auth'
 import { msg } from '~/shared/i18n'
 import type { FsOps } from './transfer'
-import { baseName, joinPath, MAX_ENTRIES, parentOf, validateName, validatePath, type DirListing, type FileEntry, type FileRoot } from '~/shared/files'
+import { baseName, isSensitivePath, joinPath, looksLikeText, MAX_ENTRIES, parentOf, TEXT_MAX, validateName, validatePath, type DirListing, type FileEntry, type FileRoot, type TextFile } from '~/shared/files'
 
 export interface FilesAdmin {
   fileRoots(): Promise<FileRoot[]>
@@ -15,8 +16,35 @@ export interface FilesAdmin {
 }
 
 export interface FilesBackend extends FilesAdmin {
+  /** A file for the text editor. Keys and secrets (isSensitivePath) only with `allowSensitive` (unlocked). */
+  readTextFile(path: string, allowSensitive: boolean): Promise<TextFile>
   makeDir(path: string): Promise<void>
   renamePath(path: string, newName: string): Promise<void>
+  /** Saves an edited text file: same owner, mode and line endings; refused when it changed since `expected`. */
+  writeTextFile(path: string, content: string, expected: string): Promise<TextFile>
+}
+
+/** Checks shared by the real machine and the demo, before a text file is shown. */
+function assertReadable(path: string, real: string, allowSensitive: boolean) {
+  if (!allowSensitive && (isSensitivePath(path) || isSensitivePath(real))) throw new HttpError(423, msg('files_error_sensitive'))
+}
+
+/** Raw bytes → what the editor gets. */
+export function textFileFrom(path: string, raw: Uint8Array | undefined, info: { size: number; mtime: number; owner: string; mode: string }): TextFile {
+  const base = { path, content: '', crlf: false, hash: '', ...info }
+  if (info.size > TEXT_MAX || !raw) return { ...base, refused: 'tooLarge' }
+  if (!looksLikeText(raw.subarray(0, 8192))) return { ...base, refused: 'binary' }
+  const text = new TextDecoder().decode(raw)
+  const crlf = text.includes('\r\n')
+  return { ...base, content: crlf ? text.replace(/\r\n/g, '\n') : text, crlf, hash: contentHash(text) }
+}
+
+/** The text to write: line endings as the file had them. */
+export function textToWrite(current: TextFile, content: string, expected: string): string {
+  if (current.refused) throw new HttpError(409, current.refused === 'binary' ? msg('files_error_notText') : msg('files_error_tooLarge'))
+  if (expected !== current.hash) throw new HttpError(409, msg('files_error_changedMeanwhile'))
+  if (new TextEncoder().encode(content).length > TEXT_MAX) throw new HttpError(413, msg('files_error_tooLarge'))
+  return current.crlf ? content.replace(/\r?\n/g, '\r\n') : content
 }
 
 const DEFAULT_ROOTS = ['/mnt', '/srv', '/media', '/home', '/data']
@@ -149,6 +177,49 @@ export class SystemFiles implements FilesBackend {
     return { path: real, root, entries, truncated: names.length > MAX_ENTRIES }
   }
 
+  private readFile(real: string): TextFile {
+    const st = statSync(real)
+    if (!st.isFile()) throw new HttpError(400, msg('files_error_notAFile', { path: real }))
+    let raw: Uint8Array | undefined
+    if (st.size <= TEXT_MAX) raw = readFileSync(real)
+    else {
+      // Only the start, to say what it is.
+      const fd = openSync(real, 'r')
+      try {
+        raw = new Uint8Array(8192)
+        readSync(fd, raw, 0, 8192, 0)
+      } finally {
+        closeSync(fd)
+      }
+    }
+    const users = idNames('/etc/passwd')
+    return textFileFrom(real, st.size > TEXT_MAX ? undefined : raw, { size: st.size, mtime: st.mtimeMs, owner: users.get(st.uid) ?? String(st.uid), mode: (st.mode & 0o7777).toString(8).padStart(3, '0') })
+  }
+
+  async readTextFile(path: string, allowSensitive: boolean) {
+    const { real } = resolveInRoots(path, this.rootsFn())
+    assertReadable(path, real, allowSensitive)
+    return this.readFile(real)
+  }
+
+  async writeTextFile(path: string, content: string, expected: string) {
+    const { real } = resolveInRoots(path, this.rootsFn())
+    const data = textToWrite(this.readFile(real), content, expected)
+    const st = statSync(real)
+    // Next to the file, then renamed over it: never half written. Owner and mode stay.
+    const tmp = joinPath(parentOf(real), `.${baseName(real)}.quadeck-tmp`)
+    try {
+      writeFileSync(tmp, data, { mode: 0o600 })
+      chownSync(tmp, st.uid, st.gid)
+      chmodSync(tmp, st.mode & 0o7777)
+      renameSync(tmp, real)
+    } catch (e) {
+      rmSync(tmp, { force: true })
+      throw e
+    }
+    return this.readFile(real)
+  }
+
   async makeDir(path: string) {
     const bad = validateName(baseName(path))
     if (bad) throw new HttpError(400, bad)
@@ -180,6 +251,8 @@ export class SystemFiles implements FilesBackend {
 
 interface Node {
   type: 'dir' | 'file'
+  /** Demo text files. */
+  content?: string
   size: number
   mtime: number
   owner: string
@@ -203,7 +276,20 @@ export class FixtureFiles implements FilesBackend {
       }),
     )
     this.tree.set('/mnt/disk2', dir('root', { Fotos: dir('tristan', { '2024': dir('tristan', { 'IMG_0001.jpg': file(4_200_000, 300), 'IMG_0002.jpg': file(3_900_000, 300) }) }), Backup: dir('root') }))
-    this.tree.set('/srv', dir('root', { jellyfin: dir('root', { config: dir('root') }) }))
+    const text = (content: string, days = 5): Node => ({ type: 'file', size: new TextEncoder().encode(content).length, mtime: now - 86_400_000 * days, owner: 'tristan', content })
+    this.tree.set(
+      '/srv',
+      dir('root', {
+        jellyfin: dir('root', { config: dir('root') }),
+        scripts: dir('tristan', {
+          'backup.sh': text('#!/bin/sh\n# Nightly backup of the photos to the second disk\nset -eu\nrsync -a --delete /mnt/disk2/Fotos/ /mnt/disk1/Backup/Fotos/\necho "backup done: $(date)"\n'),
+          'jellyfin-hwaccel.patch': text('--- a/encoding.xml\n+++ b/encoding.xml\n@@ -3,1 +3,1 @@\n-  <HardwareAccelerationType>none</HardwareAccelerationType>\n+  <HardwareAccelerationType>qsv</HardwareAccelerationType>\n'),
+          'NOTES.txt': text('Router: 192.168.1.1\nNAS disks: 2× 12 TB, 2× 14 TB (parity)\nTODO: replace sdb (reallocated sectors)\n', 20),
+          firmware: { type: 'file', size: 4096, mtime: now - 86_400_000 * 40, owner: 'root', content: '\u0000\u0001binary' },
+          '.env': text('RESTIC_PASSWORD=demo-secret\n', 30),
+        }),
+      }),
+    )
   }
 
   private node(path: string): Node | undefined {
@@ -237,6 +323,31 @@ export class FixtureFiles implements FilesBackend {
     if (n.type !== 'dir') throw new HttpError(400, msg('files_error_notFolder', { path }))
     const entries = [...n.children!].map(([name, c]) => ({ name, type: c.type, size: c.size, mtime: c.mtime, mode: c.type === 'dir' ? '775' : '664', owner: c.owner, group: c.owner === 'root' ? 'root' : 'users' }))
     return { path, root, entries, truncated: false }
+  }
+
+  private fixtureText(path: string): TextFile {
+    this.rootOf(path)
+    const n = this.node(path)
+    if (!n) throw new HttpError(404, msg('files_error_notFound', { path }))
+    if (n.type !== 'file') throw new HttpError(400, msg('files_error_notAFile', { path }))
+    // Demo files without content (videos, archives) are binary.
+    const raw = n.content !== undefined ? new TextEncoder().encode(n.content) : new Uint8Array([0, 1, 2])
+    return textFileFrom(path, n.content !== undefined || n.size <= TEXT_MAX ? raw : undefined, { size: n.size, mtime: n.mtime, owner: n.owner, mode: '664' })
+  }
+
+  async readTextFile(path: string, allowSensitive: boolean) {
+    this.rootOf(path)
+    assertReadable(path, path, allowSensitive)
+    return this.fixtureText(path)
+  }
+
+  async writeTextFile(path: string, content: string, expected: string) {
+    const data = textToWrite(this.fixtureText(path), content, expected)
+    const n = this.node(path)!
+    n.content = data
+    n.size = new TextEncoder().encode(data).length
+    n.mtime = Date.now()
+    return this.fixtureText(path)
   }
 
   async makeDir(path: string) {
