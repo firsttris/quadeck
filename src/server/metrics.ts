@@ -3,7 +3,7 @@
 
 import { and, asc, eq, gte, lt, sql } from 'drizzle-orm'
 import { CRC_WINDOW_DAYS, type SmartBaseline } from '~/shared/smart'
-import { HISTORY_RANGES, METRICS, type HistoryRange, type MetricHistory, type MetricName } from '~/shared/types'
+import { HISTORY_RANGES, METRICS, type HistoryRange, type MetricHistory, type MetricName, type SystemMetrics } from '~/shared/types'
 export { metricRows } from '~/shared/metrics'
 import type { DB } from './db'
 import { schema } from './db'
@@ -97,6 +97,23 @@ export function seedFixtureHistory(d: DB, now = Date.now()) {
   d.transaction((tx) => {
     for (let i = 0; i < rows.length; i += 500) tx.insert(t).values(rows.slice(i, i + 500)).run()
   })
+}
+
+/** Demo: the live values that continue the seeded curves (instead of the machine Quadeck runs on). */
+export function demoSystemSample(now = Date.now()): SystemMetrics {
+  const hour = new Date(now).getHours() + new Date(now).getMinutes() / 60
+  const day = Math.max(0, Math.sin(((hour - 6) / 24) * 2 * Math.PI))
+  const cpu = Math.min(1, 0.12 + 0.18 * day + Math.random() * 0.06)
+  const memTotal = 32 * 1024 ** 3
+  return {
+    ts: now,
+    cpu,
+    load: [cpu * 8, cpu * 7, cpu * 6],
+    memTotal,
+    memUsed: Math.round(memTotal * (0.42 + 0.08 * day + Math.random() * 0.02)),
+    temp: { celsius: Math.round(38 + cpu * 30 + Math.random() * 2), sensor: 'k10temp' },
+    net: { rx: (0.6 + 4 * day) * 1e6 * (0.7 + Math.random() * 0.6), tx: (0.3 + 6 * day) * 1e6 * (0.7 + Math.random() * 0.6), iface: 'enp3s0', speedMbps: 2500 },
+  }
 }
 
 /** Oldest CRC count of the last days per disk – what today's count is compared with. */

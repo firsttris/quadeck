@@ -29,7 +29,7 @@ test.describe.serial('Timer', () => {
     await expect(rows.filter({ hasText: 'restic-backup.timer' })).toContainText('täglich 03:30')
     await expect(rows.filter({ hasText: 'restic-backup.timer' })).toContainText('restic backup')
     await expect(rows.filter({ hasText: 'backup-offsite.timer' })).toContainText('Fehler (Exit 1)')
-    await expect(rows.filter({ hasText: 'podman-aufraeumen.timer' })).toContainText('Quadeck')
+    await expect(rows.filter({ hasText: 'podman-cleanup.timer' })).toContainText('Quadeck')
   })
 
   test('create a timer with the builder, see next runs and the unit files', async ({ page }) => {

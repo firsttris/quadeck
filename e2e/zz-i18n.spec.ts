@@ -37,9 +37,9 @@ const DATA: RegExp[] = [
   // Fan names the admin gave in the sensor config
   /^(CPU-Lüfter|Gehäuse vorne|Gehäuse hinten|Temperatur 1)$/,
   // Share names, app group label and host names of the demo server
-  /\b(Medien|Fotos)\b|^MEDIEN UND DOWNLOADS$|fotos\.home\.example/i,
+  /\b(Medien|Fotos)\b|fotos\.home\.example/i,
   // An SSH key comment, a demo timer description, a demo /etc/passwd line
-  /altes-handy|^Alte Podman-Images entfernen$|^- anna:x:/,
+  /altes-handy|^- anna:x:/,
 ]
 
 async function scan(page: Page, where: string): Promise<string[]> {

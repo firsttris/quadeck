@@ -9,7 +9,7 @@ import { join } from 'node:path'
 import type { Container, Disk, GpuMetrics, HiddenService, Share, Snapshot, SourceStatus, SystemMetrics, Unit } from '~/shared/types'
 import { collectDisks, diskRole } from './collectors/disks'
 import { GpuCollector } from './collectors/gpu'
-import { metricRows, pruneHistory, SAMPLE_EVERY_MS, seedFixtureHistory, seedSmartHistory, smartBaselines } from './metrics'
+import { demoSystemSample, metricRows, pruneHistory, SAMPLE_EVERY_MS, seedFixtureHistory, seedSmartHistory, smartBaselines } from './metrics'
 import { assessSmart } from '~/shared/smart'
 import { smartSamples } from '~/shared/smart-metrics'
 import { collectShares, sharesSummary } from './collectors/shares'
@@ -183,7 +183,7 @@ export class Hub {
 
   private collectSystem() {
     try {
-      this.system = { ...this.systemCollector.sample(), gpus: this.gpus.length ? this.gpus : undefined }
+      this.system = { ...(this.fixtures ? demoSystemSample() : this.systemCollector.sample()), gpus: this.gpus.length ? this.gpus : undefined }
       this.ok('system')
       if (Date.now() - this.lastSampleAt >= SAMPLE_EVERY_MS && this.system.memTotal) {
         this.lastSampleAt = Date.now()

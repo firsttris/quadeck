@@ -358,8 +358,8 @@ const FIXTURE_COMMANDS: Record<string, string> = {
 }
 
 const DEMO_SPEC: TimerSpec = {
-  name: 'podman-aufraeumen',
-  description: 'Alte Podman-Images entfernen',
+  name: 'podman-cleanup',
+  description: 'Remove old Podman images',
   command: 'podman image prune -af --filter until=168h',
   user: '',
   workingDirectory: '',

@@ -240,7 +240,7 @@
  },
  {
   "name": "backup-offsite.service",
-  "description": "Offsite-Backup",
+  "description": "Offsite backup",
   "load": "loaded",
   "active": "failed",
   "sub": "failed",

@@ -75,6 +75,8 @@ Podman's own settings (auto-update timer, `AutoUpdate=registry` for all containe
 
 ## Boot and reboot
 
+<img src="screenshot-boot.png" alt="Boot and reboot: hints, reboot, boot loader, systemd-boot entries and kernels" width="900">
+
 The **Boot und Neustart** tab is about the step after an update: restarting into the new kernel,
 and making sure the server comes back.
 

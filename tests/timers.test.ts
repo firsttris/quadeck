@@ -139,7 +139,7 @@ describe('FixtureTimers', () => {
   it('creates, renames, overrides, runs and deletes', async () => {
     const t = new FixtureTimers('fixtures/demo')
     let s = await t.timersState()
-    expect(s.timers.find((x) => x.name === 'podman-aufraeumen.timer')?.managed).toBeTruthy()
+    expect(s.timers.find((x) => x.name === 'podman-cleanup.timer')?.managed).toBeTruthy()
     s = await t.saveTimer(spec(), undefined, true)
     expect(s.timers.find((x) => x.name === 'backup.timer')).toMatchObject({ enabled: true, command: '/usr/local/bin/backup.sh' })
     await expect(t.saveTimer(spec({ name: 'restic-backup' }), undefined, true)).rejects.toThrow(/gibt es schon/)

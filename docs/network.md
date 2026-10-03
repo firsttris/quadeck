@@ -60,6 +60,8 @@ routing table on request.
 
 ## Reverse proxy
 
+<img src="screenshot-proxy.png" alt="Reverse proxy: the Caddyfile found through caddy.container, domains with their targets" width="900">
+
 The tab **Reverse Proxy** edits the Caddyfile: each site block is a row (domain → target). Simple
 blocks – a domain with nothing but `reverse_proxy <target>` – can be added, changed and deleted in
 a form; everything else (global options, snippets, `import`, headers, auth, matchers) stays exactly
