@@ -14,6 +14,7 @@ import { DISK_NAME } from '../smart/backend'
 import { parseSave, parseTimerAction } from '../timers/backend'
 import { parseFstabChange } from '../fstab/parse'
 import { parseCaddyChange } from '~/shared/caddy'
+import { parseBootEntryChange } from '~/shared/boot'
 import { parseUserChange } from '../users/parse'
 import { UNIT_ACTIONS, type Privileged, type UnitAction } from './actions'
 
@@ -134,6 +135,14 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/boot/entry-preview': (b, p) => p.kernelEntryPreview(str(b.pkg) ?? ''),
   '/boot/entry-create': (b, p) => p.createKernelEntry(str(b.token), str(b.pkg) ?? ''),
   '/boot/entry-remove': (b, p) => p.removeBootEntry(str(b.token), str(b.id) ?? ''),
+  '/boot/entry-file': (b, p) => p.bootEntryFile(str(b.id) ?? ''),
+  '/boot/entry-revision': async (b, p) => ({ data: await p.bootEntryRevision(str(b.id) ?? '', str(b.revision) ?? '') }),
+  '/boot/entry-check': (b, p) => p.checkBootEntry(str(b.content) ?? ''),
+  '/boot/entry-write': async (b, p) => {
+    const change = parseBootEntryChange(b.change)
+    if (!change) throw new HttpError(400, msg('common_errors_unknownRequest'))
+    return p.writeBootEntry(str(b.token), change)
+  },
   '/users/state': (_b, p) => p.usersState(),
   '/hardware': (_b, p) => p.hardware(),
   '/caddy/state': (_b, p) => p.caddyState(),

@@ -1,7 +1,13 @@
 import { describe, expect, it } from 'vitest'
 import { FixtureBoot, assertTimeout } from '~/server/boot/backend'
 import {
+  ENTRY_FILE,
   bootWarnings,
+  checkEntryConf,
+  copyEntryContent,
+  copyEntryName,
+  entryFromConf,
+  parseBootEntryChange,
   decodeEfiString,
   describeTimeout,
   loaderConfValue,
@@ -215,7 +221,84 @@ describe('kernel flavours', () => {
     expect(s.entries.find((e) => e.id === 'arch-lts.conf')!.missing).toEqual(['/vmlinuz-linux-lts', '/initramfs-linux-lts.img'])
     s = await b.removeBootEntry('arch-lts.conf')
     expect(s.entries.some((e) => e.id === 'arch-lts.conf')).toBe(false)
-    await expect(b.removeBootEntry('arch-fallback.conf')).rejects.toThrow(/fehlenden Dateien oder solche, die Quadeck angelegt hat/)
+    s = await b.removeBootEntry('arch-fallback.conf')
+    expect(s.entries.map((e) => e.id)).toEqual(['arch.conf', 'auto-reboot-to-firmware-setup'])
+  })
+})
+
+describe('editing entries', () => {
+  const ARCH = 'title   Arch Linux\nlinux   /vmlinuz-linux\ninitrd  /intel-ucode.img\ninitrd  /initramfs-linux.img\noptions root=UUID=0a1b rw quiet\n'
+  const exists = (f: string) => ['/vmlinuz-linux', '/intel-ucode.img', '/initramfs-linux.img'].includes(f)
+
+  it('checks kernel, files, root= and typos', () => {
+    expect(checkEntryConf(ARCH, { exists, needsRoot: true })).toEqual([])
+    const p = checkEntryConf('# comment\ntitel Arch\nlinux   /vmlinuz-linux-lts\ninitrd  initramfs.img\ninitrd\noptions rw quiet\n', { exists, needsRoot: true })
+    expect(p.map((x) => [x.level, x.line, x.text])).toEqual([
+      ['warning', 2, expect.stringMatching(/titel kennt systemd-boot nicht/)],
+      ['error', 3, expect.stringMatching(/\/vmlinuz-linux-lts gibt es auf der Boot-Partition nicht/)],
+      ['error', 4, expect.stringMatching(/Pfade beginnen mit \//)],
+      ['error', 5, 'initrd ohne Wert'],
+      ['error', 6, expect.stringMatching(/root=/)],
+      ['warning', undefined, expect.stringMatching(/Kein title/)],
+    ])
+    expect(checkEntryConf('title x\n', {}).map((x) => x.text)).toEqual([expect.stringMatching(/Kein Kernel/)])
+    // without root= on this machine (e.g. systemd-gpt-auto-generator) it is no error
+    expect(checkEntryConf('title x\nlinux /vmlinuz-linux\n', { exists })).toEqual([])
+    expect(checkEntryConf('title x\nefi /EFI/memtest.efi\ntitle y\n', {}).map((x) => x.text)).toEqual([expect.stringMatching(/title steht mehrfach/)])
+  })
+
+  it('names and fills copies', () => {
+    expect(copyEntryName('arch.conf', ['arch.conf'])).toBe('arch-copy.conf')
+    expect(copyEntryName('arch-copy.conf', ['arch.conf', 'arch-copy.conf'])).toBe('arch-copy-2.conf')
+    expect(copyEntryContent(ARCH, 'arch.conf')).toMatch(/^title   Arch Linux \(copy\)\nlinux/)
+    expect(copyEntryContent('linux /x\n', 'arch.conf')).toBe('title   arch (copy)\nlinux /x\n')
+    expect(entryFromConf(ARCH)).toEqual({ title: 'Arch Linux', version: undefined, linux: '/vmlinuz-linux', initrd: ['/intel-ucode.img', '/initramfs-linux.img'], options: 'root=UUID=0a1b rw quiet' })
+    expect(ENTRY_FILE.test('arch-test.conf')).toBe(true)
+    for (const bad of ['../arch.conf', 'arch', '.conf', 'a b.conf', 'x/y.conf']) expect(ENTRY_FILE.test(bad)).toBe(false)
+    expect(parseBootEntryChange({ kind: 'rename', id: 'a.conf', name: 'b.conf' })).toEqual({ kind: 'rename', id: 'a.conf', name: 'b.conf' })
+    expect(parseBootEntryChange({ kind: 'drop', id: 'a.conf' })).toBeUndefined()
+  })
+
+  it('demo: copy the default, test it once, make it the default, keep every version', async () => {
+    const b = new FixtureBoot('fixtures/demo')
+    const def = await b.bootEntryFile('arch.conf')
+    expect(def).toMatchObject({ path: '/boot/loader/entries/arch.conf', locked: 'default', history: [] })
+    await expect(b.writeBootEntry({ kind: 'edit', id: 'arch.conf', content: def.content })).rejects.toThrow(/Kopie/)
+
+    const copy = copyEntryContent(def.content, 'arch.conf').replace(' quiet', ' loglevel=3')
+    await expect(b.writeBootEntry({ kind: 'create', name: 'arch.conf', content: copy })).rejects.toThrow(/gibt es schon/)
+    await expect(b.writeBootEntry({ kind: 'create', name: '../x.conf', content: copy })).rejects.toThrow(/Dateiname/)
+    await expect(b.writeBootEntry({ kind: 'create', name: 'bad.conf', content: copy.replace('/initramfs-linux.img', '/initramfs-nope.img') })).rejects.toThrow(/Zeile 4: \/initramfs-nope.img gibt es/)
+    expect(await b.checkBootEntry(copy.replace(/root=\S+ /, ''))).toEqual([expect.objectContaining({ level: 'error', line: 5 })])
+
+    let s = await b.writeBootEntry({ kind: 'create', name: 'arch-test.conf', content: copy })
+    expect(s.entries.find((e) => e.id === 'arch-test.conf')).toMatchObject({ title: 'Arch Linux (copy)', path: '/boot/loader/entries/arch-test.conf', type: 'type1', isDefault: false, missing: [] })
+    expect(s.entries.at(-1)!.type).toBe('auto')
+
+    // edit in place, with the history and the hash of what was read
+    const f = await b.bootEntryFile('arch-test.conf')
+    expect(f.locked).toBeUndefined()
+    await b.writeBootEntry({ kind: 'edit', id: 'arch-test.conf', content: f.content.replace('loglevel=3', 'loglevel=4'), expected: f.hash })
+    await expect(b.writeBootEntry({ kind: 'edit', id: 'arch-test.conf', content: f.content, expected: f.hash })).rejects.toThrow(/inzwischen geändert/)
+    const g = await b.bootEntryFile('arch-test.conf')
+    expect(g.history.map((r) => r.message)).toEqual(['Gespeichert', 'Gespeichert'])
+    expect(await b.bootEntryRevision('arch-test.conf', g.history[1]!.id)).toBe(copy)
+
+    // renaming keeps the one-time boot and the default pointing at it
+    await b.reboot({ entry: 'arch-test.conf' })
+    s = await b.writeBootEntry({ kind: 'rename', id: 'arch-test.conf', name: 'arch-new.conf' })
+    expect(s.oneshot).toBe('arch-new.conf')
+    expect(s.entries.find((e) => e.id === 'arch-new.conf')).toMatchObject({ isOneshot: true, path: '/boot/loader/entries/arch-new.conf' })
+    await expect(b.removeBootEntry('arch-new.conf')).rejects.toThrow(/nächsten Start vorgemerkt/)
+    await b.cancelOneshot()
+    s = await b.setBootDefault('arch-new.conf')
+    s = await b.writeBootEntry({ kind: 'rename', id: 'arch-new.conf', name: 'arch-tuned.conf' })
+    expect(s.entries.find((e) => e.isDefault)!.id).toBe('arch-tuned.conf')
+
+    // the old default can go now; its text stays in the history
+    s = await b.removeBootEntry('arch-fallback.conf')
+    await expect(b.removeBootEntry('arch-tuned.conf')).rejects.toThrow(/Standard-Eintrag/)
+    expect(s.entries.map((e) => e.id)).toEqual(['arch.conf', 'arch-tuned.conf', 'auto-reboot-to-firmware-setup'])
   })
 })
 

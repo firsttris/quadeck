@@ -25,7 +25,7 @@ import type { CaddyAdmin } from '../caddy/backend'
 import type { CaddyChange, CaddyResult, CaddyState } from '~/shared/caddy'
 import type { UserChange, UsersState } from '~/shared/users'
 import type { ConfigAction, ConfigFileInfo } from '~/shared/configfiles'
-import type { BootState } from '~/shared/boot'
+import type { BootEntryChange, BootState } from '~/shared/boot'
 import type { FstabChange, FstabState } from '~/shared/fstab'
 import type { UnitWriteResult } from '~/shared/unit-files'
 import type { TimerAction, TimerSpec, TimersState } from '~/shared/timers'
@@ -81,6 +81,7 @@ export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAd
   reboot(token: string | undefined, opts: { entry?: string; firmware?: boolean }): Promise<{ at: number }>
   createKernelEntry(token: string | undefined, pkg: string): Promise<BootState>
   removeBootEntry(token: string | undefined, id: string): Promise<BootState>
+  writeBootEntry(token: string | undefined, change: BootEntryChange): Promise<BootState>
   applyUser(token: string | undefined, change: UserChange): Promise<UsersState>
   applyConfigFile(token: string | undefined, path: string, action: ConfigAction, content?: string): Promise<{ done: string; after?: ConfigFileInfo['after']; warning?: string }>
   applyCaddy(token: string | undefined, change: CaddyChange, expected: string | undefined): Promise<CaddyResult>

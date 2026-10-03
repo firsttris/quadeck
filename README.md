@@ -61,7 +61,8 @@ on it. That is Quadeck.
 - **Updates**: pacman (with AUR), apt, dnf, zypper, apk and rpm-ostree; reboot hints, Arch news,
   leftover `.pacnew` files; installed packages with safe removal; container image updates through
   `podman auto-update`. Jobs run as transient systemd units with live output and survive a restart
-  of Quadeck itself; reboot, also once into another systemd-boot entry, with warnings about a full
+  of Quadeck itself; reboot, also once into another systemd-boot entry; boot entries edited,
+  copied, renamed and deleted with checks, a test boot of a copy and a history; warnings about a full
   `/boot`, missing kernel files and an outdated boot loader, and the kernel parameters explained;
   on Arch a second kernel (`linux-lts` & co.) installed with its boot entry, to switch back and forth
 - **Disks**: SMART health with a verdict and advice per disk (replace it, check the cable, cool it),

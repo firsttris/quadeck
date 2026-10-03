@@ -1,10 +1,26 @@
 import { useCallback, useEffect, useState } from 'react'
 import { diskSize } from '~/lib/format'
-import { KERNEL_FLAVORS, describeTimeout, timeoutChoices, kernelRemoveProblem, parseCmdline, type BootEntry, type BootState, type KernelFlavor } from '~/shared/boot'
+import {
+  KERNEL_FLAVORS,
+  copyEntryContent,
+  copyEntryName,
+  describeTimeout,
+  isEditableEntry,
+  newEntryContent,
+  timeoutChoices,
+  kernelRemoveProblem,
+  parseCmdline,
+  type BootEntry,
+  type BootEntryFile,
+  type BootState,
+  type KernelFlavor,
+} from '~/shared/boot'
 import { useActions } from './Actions'
 import { Glyph } from './Glyph'
 import { useJobs } from './Jobs'
+import { BootEntryEditor, RenameEntry, type EntryEditorInit } from './BootEntryEditor'
 import { ConfirmDialog, Modal } from './Modal'
+import { RowMenu } from './RowMenu'
 import { Pill } from './Status'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
@@ -47,6 +63,10 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
   const [reboot, setReboot] = useState<null | { entry?: BootEntry; firmware?: boolean }>(null)
   const [entryPreview, setEntryPreview] = useState<null | { pkg: KernelFlavor; path: string; content: string }>(null)
   const [removeKernel, setRemoveKernel] = useState<KernelFlavor | null>(null)
+  const [editor, setEditor] = useState<EntryEditorInit | null>(null)
+  const [rename, setRename] = useState<string | null>(null)
+  const [remove, setRemove] = useState<BootEntry | null>(null)
+  const [test, setTest] = useState<BootEntry | null>(null)
   const [waiting, waitForServer] = useComeBack()
 
   const load = useCallback(async () => {
@@ -76,6 +96,39 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
     } finally {
       setBusy('')
     }
+  }
+
+  const entriesDir = () => {
+    const e = state?.entries.find(isEditableEntry)
+    return e?.path ? e.path.replace(/\/[^/]+$/, '') : `${state?.boot?.path ?? '/boot'}/loader/entries`
+  }
+  const taken = () => state?.entries.map((e) => e.id) ?? []
+
+  /** Edit opens a copy for the default and the running entry: test it once before it becomes the default. */
+  const openEntry = async (e: BootEntry, copy: boolean) => {
+    try {
+      const r = await fetch(`/api/boot?entry=${encodeURIComponent(e.id)}`)
+      const f = (await r.json()) as BootEntryFile & { error?: string }
+      if (!r.ok) throw new Error(f.error ?? m.common_http({ status: r.status }))
+      if (copy || f.locked)
+        setEditor({
+          kind: 'create',
+          title: m.boot_editor_copyTitle({ id: e.id }),
+          name: copyEntryName(e.id, taken()),
+          content: copyEntryContent(f.content, e.id),
+          dir: entriesDir(),
+          note: copy ? undefined : m.boot_editor_lockedNote({ id: e.id }),
+        })
+      else setEditor({ kind: 'edit', title: m.boot_editor_editTitle({ id: e.id }), name: e.id, content: f.content, dir: entriesDir(), file: f })
+    } catch (err) {
+      say((err as Error).message, 'bad')
+    }
+  }
+
+  const newEntry = () => {
+    let name = 'new-entry.conf'
+    for (let i = 2; taken().includes(name); i++) name = `new-entry-${i}.conf`
+    setEditor({ kind: 'create', title: m.boot_editor_newTitle(), name, content: newEntryContent(state?.entries.find((e) => e.isDefault)), dir: entriesDir() })
   }
 
   const doReboot = async () => {
@@ -124,7 +177,7 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
               <h2 className="h2">{m.boot_reboot()}</h2>
               {rebootReason && <p className="m-0 text-[13px] text-[#e3b341]">{m.boot_recommended({ reason: rebootReason })}</p>}
               <p className="m-0 text-[13px] text-muted">
-                {m.boot_rebootText({ entry: (def ? `${def.title}${def.version ? ` ${def.version}` : ''}` : undefined) ?? "", hasEntry: String(!!(def ? `${def.title}${def.version ? ` ${def.version}` : ''}` : undefined)) })}
+                {m.boot_rebootText({ entry: (def ? `${def.title}${def.version ? ` ${def.version}` : ''}` : undefined) ?? '', hasEntry: String(!!(def ? `${def.title}${def.version ? ` ${def.version}` : ''}` : undefined)) })}
                 {jobs.running && <span className="text-[#e3b341]">{m.boot_jobRunning({ title: jobs.running.title })}</span>}
               </p>
               {oneshot && (
@@ -218,7 +271,14 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
 
           {sd && (
             <section className="panel relative flex flex-col overflow-x-auto" aria-label={m.boot_entriesLabel()}>
-              <h2 className="h2 px-[18px] pt-4 pb-2">{m.boot_entries()}</h2>
+              <div className="flex items-center justify-between gap-3 px-[18px] pt-4 pb-2">
+                <h2 className="h2">{m.boot_entries()}</h2>
+                {!readonly && state.entries.some(isEditableEntry) && (
+                  <button type="button" className="btn sm" onClick={newEntry}>
+                    {m.boot_editor_newDots()}
+                  </button>
+                )}
+              </div>
               <table className="tbl">
                 <tbody>
                   {state.entries.map((e) => (
@@ -239,18 +299,23 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
                         {!readonly && e.type !== 'auto' && (
                           <div className="inline-flex gap-1.5">
                             {!e.isDefault && (
-                              <button type="button" className="btn sm" disabled={!!busy || e.missing.length > 0} onClick={() => void change('default', { default: e.id }, m.boot_nowDefault({ name: (`${e.title} ${e.version ?? ''}`) }))}>
+                              <button type="button" className="btn sm" disabled={!!busy || e.missing.length > 0} onClick={() => void change('default', { default: e.id }, m.boot_nowDefault({ name: `${e.title} ${e.version ?? ''}` }))}>
                                 {m.boot_makeDefault()}
                               </button>
                             )}
-                            {e.missing.length > 0 && !e.isDefault && !e.isSelected ? (
-                              <button type="button" className="btn sm danger" disabled={!!busy} onClick={() => void change('entry', { removeEntry: e.id }, m.boot_entryRemoved({ title: e.title }))} aria-label={m.boot_removeEntryFor({ title: e.title })}>
-                                {m.boot_removeEntry()}
-                              </button>
-                            ) : (
-                              <button type="button" className="btn sm" disabled={e.missing.length > 0} onClick={() => setReboot({ entry: e })} aria-label={m.boot_bootOnceWith({ name: (`${e.title} ${e.version ?? ''}`) })}>
-                                {m.boot_bootOnce()}
-                              </button>
+                            <button type="button" className="btn sm" disabled={e.missing.length > 0} onClick={() => setReboot({ entry: e })} aria-label={m.boot_bootOnceWith({ name: `${e.title} ${e.version ?? ''}` })}>
+                              {m.boot_bootOnce()}
+                            </button>
+                            {isEditableEntry(e) && (
+                              <RowMenu
+                                label={m.boot_editor_actions({ title: e.title })}
+                                items={[
+                                  { label: e.isDefault || e.isSelected ? m.boot_editor_editCopy() : m.boot_editor_edit(), onSelect: () => void openEntry(e, false) },
+                                  { label: m.boot_editor_copy(), onSelect: () => void openEntry(e, true) },
+                                  { label: m.boot_editor_rename(), onSelect: () => setRename(e.id) },
+                                  { label: m.common_deleteDots(), danger: true, disabled: e.isDefault || e.isSelected || e.isOneshot, separator: true, onSelect: () => setRemove(e) },
+                                ]}
+                              />
                             )}
                           </div>
                         )}
@@ -340,8 +405,12 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
                 {m.boot_paramsFrom()} <span className="font-mono">/proc/cmdline</span>
                 {m.boot_paramsChange()}{' '}
                 {sd
-                  ? rich(m.boot_paramsSd, { options: (<span className="font-mono">options</span>), dir: (<span className="font-mono">{state.boot?.path ?? '/boot'}/loader/entries/</span>), cmdline: (<span className="font-mono">/etc/kernel/cmdline</span>) })
-                  : rich(m.boot_paramsGrub, { file: (<span className="font-mono">/etc/default/grub</span>) })}
+                  ? rich(m.boot_paramsSd, {
+                      options: <span className="font-mono">options</span>,
+                      dir: <span className="font-mono">{state.boot?.path ?? '/boot'}/loader/entries/</span>,
+                      cmdline: <span className="font-mono">/etc/kernel/cmdline</span>,
+                    })
+                  : rich(m.boot_paramsGrub, { file: <span className="font-mono">/etc/default/grub</span> })}
                 {m.boot_paramsAfter()}
               </p>
             </div>
@@ -381,6 +450,69 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
               }}
             >
               {m.common_create()}
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {editor && (
+        <BootEntryEditor
+          init={editor}
+          onClose={() => setEditor(null)}
+          onSaved={(id, s) => {
+            setEditor(null)
+            setState(s)
+            say(m.boot_editor_saved({ id }))
+            const e = s.entries.find((x) => x.id === id)
+            if (e && !e.isDefault && !e.isSelected && !e.missing.length) setTest(e)
+          }}
+        />
+      )}
+
+      {rename && (
+        <RenameEntry
+          id={rename}
+          onClose={() => setRename(null)}
+          onDone={(to, s) => {
+            say(m.boot_editor_renamed({ from: rename, to }))
+            setRename(null)
+            setState(s)
+          }}
+        />
+      )}
+
+      {remove && (
+        <ConfirmDialog
+          open
+          title={m.boot_editor_deleteTitle({ id: remove.id })}
+          body={<p className="m-0 text-[13px]">{m.boot_editor_deleteBody({ path: remove.path ?? remove.id })}</p>}
+          confirm={m.common_delete()}
+          danger
+          onConfirm={() => {
+            const e = remove
+            setRemove(null)
+            void change('entry', { removeEntry: e.id }, m.boot_entryRemoved({ title: e.title }))
+          }}
+          onClose={() => setRemove(null)}
+        />
+      )}
+
+      {test && (
+        <Modal open title={m.boot_editor_testTitle({ id: test.id })} onClose={() => setTest(null)}>
+          <p className="m-0 text-[13px]">{m.boot_editor_testText()}</p>
+          <div className="flex justify-end gap-2">
+            <button type="button" className="btn" onClick={() => setTest(null)}>
+              {m.boot_editor_later()}
+            </button>
+            <button
+              type="button"
+              className="btn primary"
+              onClick={() => {
+                setReboot({ entry: test })
+                setTest(null)
+              }}
+            >
+              {m.boot_bootOnce()}
             </button>
           </div>
         </Modal>
