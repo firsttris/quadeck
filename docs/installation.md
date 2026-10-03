@@ -85,8 +85,8 @@ quadeck help
 directory (the `quadeck` user) when run as root, so root never creates files the web app cannot
 open.
 
-`quadeck job …` exists too; it is started by the helper for update, removal and file jobs and not
-meant to be called by hand.
+`quadeck job …` exists too; it is started by the helper for updates, installs, removals, image updates,
+kernel and file jobs and not meant to be called by hand.
 
 ## Services
 
@@ -117,7 +117,7 @@ Put them in `/etc/quadeck/quadeck.env`, one `KEY=value` per line, then
 | `QUADECK_READONLY` | `false` | no changes to the server at all (units, packages, files, …); dashboard layout and links stay editable |
 | `QUADECK_PODMAN_SOCKET` | `/run/podman/podman.sock` | Podman API |
 | `QUADECK_CADDY_ADMIN` | `http://localhost:2019` | Caddy admin API |
-| `QUADECK_CADDYFILE` | `/etc/caddy/Caddyfile` | fallback when the admin API is not reachable |
+| `QUADECK_CADDYFILE` | `/etc/caddy/Caddyfile` | Caddyfile for service discovery when the admin API is not reachable, and the file the reverse-proxy editor edits (otherwise detected from the Caddy Quadlet or `caddy.service`) |
 | `QUADECK_ICONS_BASE` | jsDelivr CDN of dashboard-icons | where icons are fetched from |
 | `QUADECK_SMB_CONF` | `/etc/samba/smb.conf` | SMB shares |
 | `QUADECK_EXPORTS` | `/etc/exports` | NFS exports (plus `/etc/exports.d/*.exports`) |
@@ -137,6 +137,10 @@ Put them in `/etc/quadeck/quadeck.env`, one `KEY=value` per line, then
 | `QUADECK_UNIT_DIR` | `/etc/systemd/system` | where own units, timers and overrides are written |
 | `QUADECK_UNIT_HISTORY` | `/var/lib/quadeck-helper/unit-history` | earlier versions of edited unit files |
 | `QUADECK_BOOT_HISTORY` | `/var/lib/quadeck-helper/boot-history` | earlier versions of edited boot entries |
+| `QUADECK_CADDY_HISTORY` | `/var/lib/quadeck-helper/caddy-history` | earlier versions of the edited Caddyfile |
+| `QUADECK_CADDY_STATE` | `/var/lib/quadeck-helper/caddy.json` | Caddyfile path picked in the UI |
+| `QUADECK_FSTAB` | `/etc/fstab` | the fstab the mount editor works on |
+| `QUADECK_FSTAB_HISTORY` | `/var/lib/quadeck-helper/fstab-history` | earlier versions of `/etc/fstab` |
 | `QUADECK_FILE_ROOTS` | `/mnt,/srv,/media,/home,/data` + data mounts | areas the file explorer may show, comma-separated |
 | `QUADECK_JOB_LAUNCHER` | `systemd-run` when available | `spawn`: run jobs as child processes instead of transient units |
 | `QUADECK_HELPER_GROUP` | `quadeck` | group that may open the socket |
@@ -192,8 +196,8 @@ userdel quadeck && groupdel quadeck
 
 Quadeck leaves behind what you created with it: timers and units in `/etc/systemd/system`,
 overrides in `*.d/` directories, drop-ins `50-quadeck.conf` for timer schedules,
-`/etc/ssh/sshd_config.d/01-quadeck.conf`, `/etc/exports.d/quadeck.exports` and your Quadlet
-files. They keep working without Quadeck; delete what you no longer want.
+`/etc/ssh/sshd_config.d/01-quadeck.conf`, `/etc/exports.d/quadeck.exports`, your Quadlet
+files, mount entries in `/etc/fstab`, boot entries it created and the edits to your Caddyfile. They keep working without Quadeck; delete what you no longer want.
 
 ## Troubleshooting
 
