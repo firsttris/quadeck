@@ -201,6 +201,13 @@ export class CaddyManager implements CaddyBackend {
         409,
         msg('proxy_errors_changed'),
       )
+    // A new password from the dialog: Caddy only gets (and the file only keeps) its bcrypt hash.
+    const auth = change.kind === 'site' ? change.options?.auth : undefined
+    if (change.kind === 'site' && auth?.password) {
+      if (auth.password.length < 8) throw new HttpError(400, msg('proxy_errors_authShort'))
+      const hash = await Bun.password.hash(auth.password, { algorithm: 'bcrypt', cost: 12 })
+      change = { ...change, options: { ...change.options!, auth: { user: auth.user, hash } } }
+    }
     let after: string
     try {
       after = applyCaddyChange(before, change)

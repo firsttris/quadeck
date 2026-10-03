@@ -40,6 +40,10 @@ const DATA: RegExp[] = [
   /\b(Medien|Fotos)\b|fotos\.home\.example/i,
   // An SSH key comment, a demo timer description, a demo /etc/passwd line
   /altes-handy|^- anna:x:/,
+  // A bcrypt hash in the Caddyfile (random letters)
+  /\$2[aby]\$\d\d\$/,
+  // A bcrypt hash in the Caddyfile (random letters)
+  /\$2[aby]\$\d\d\$/,
 ]
 
 async function scan(page: Page, where: string): Promise<string[]> {

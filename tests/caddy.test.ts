@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { CaddyManager, FixtureCaddyHost, SystemCaddyHost, type CaddyHost } from '~/server/caddy/backend'
-import { applyCaddyChange, caddyFromQuadlet, configFromCommand, contentHash, isCaddyImage, manualPathProblem, parseCaddyfile, parseCaddyChange } from '~/shared/caddy'
+import { applyCaddyChange, NO_OPTIONS, renderSite, siteForm, caddyFromQuadlet, configFromCommand, contentHash, isCaddyImage, manualPathProblem, parseCaddyfile, parseCaddyChange } from '~/shared/caddy'
 
 const FILE = `# My proxy
 {
@@ -48,7 +48,7 @@ describe('Caddyfile parsing', () => {
       ['import', 'import sites/*', undefined],
       ['proxy', 'jellyfin.home.example', 'localhost:8096'],
       ['proxy', 'a.example.com,b.example.com', '10.0.0.2:80 10.0.0.3:80'],
-      ['site', 'ha.home.example', undefined],
+      ['proxy', 'ha.home.example', '192.168.1.30:8123'],
       ['site', 'secret.example.com', undefined],
     ])
     expect(blocks.find((b) => b.addresses[0] === 'ha.home.example')!.line).toBe(20)
@@ -89,11 +89,68 @@ describe('Caddyfile changes', () => {
 
   it('refuses duplicates, custom blocks and bad input', () => {
     expect(() => applyCaddyChange(FILE, { kind: 'site', addresses: ['ha.home.example'], upstreams: ['x:1'] })).toThrow(/gibt es schon \(Zeile 20\)/)
-    expect(() => applyCaddyChange(FILE, { kind: 'site', previous: 'ha.home.example', addresses: ['ha.home.example'], upstreams: ['x:1'] })).toThrow(/im Text bearbeiten/)
+    expect(() => applyCaddyChange(FILE, { kind: 'site', previous: 'secret.example.com', addresses: ['secret.example.com'], upstreams: ['x:1'] })).toThrow(/im Text bearbeiten/)
     expect(() => applyCaddyChange(FILE, { kind: 'site', addresses: ['bad domain'], upstreams: ['x:1'] })).toThrow(/keine gültige Adresse/)
     expect(() => applyCaddyChange(FILE, { kind: 'site', addresses: ['ok.example.com'], upstreams: ['nohost'] })).toThrow(/kein gültiges Ziel/)
     expect(() => applyCaddyChange(FILE, { kind: 'delete', address: 'nope.example.com' })).toThrow(/steht nicht/)
     expect(() => parseCaddyChange({ kind: 'site', addresses: 'x' })).toThrow()
+  })
+})
+
+describe('site options', () => {
+  const HASH = '$2b$12$' + 'a'.repeat(53)
+
+  it('reads the options the dialog knows and keeps the rest', () => {
+    const ha = parseCaddyfile(FILE).blocks.find((b) => b.addresses[0] === 'ha.home.example')!
+    expect(ha.options).toEqual({ ...NO_OPTIONS, proxyExtra: 'header_up X-Real-IP {remote_host}' })
+    const block = `nas.lan {
+	tls internal
+	@outside not remote_ip private_ranges
+	respond @outside 403
+	basic_auth {
+		anna ${HASH}
+	}
+	encode gzip zstd
+	# the UI over HTTPS
+	reverse_proxy https://192.168.1.5:8006 {
+		transport http {
+			tls_insecure_skip_verify
+		}
+	}
+	header Strict-Transport-Security max-age=31536000
+}`
+    expect(siteForm(block)).toEqual({
+      upstreams: ['https://192.168.1.5:8006'],
+      options: { lanOnly: true, compress: true, insecureTls: true, tlsInternal: true, auth: { user: 'anna', hash: HASH }, proxyExtra: '', extra: '# the UI over HTTPS\nheader Strict-Transport-Security max-age=31536000' },
+    })
+    // written back: the same options again
+    const again = renderSite(['nas.lan'], ['https://192.168.1.5:8006'], siteForm(block)!.options)
+    expect(siteForm(again)).toEqual(siteForm(block))
+    expect(again).toContain('\treverse_proxy https://192.168.1.5:8006 {\n\t\ttransport http {\n\t\t\ttls_insecure_skip_verify\n\t\t}\n\t}')
+  })
+
+  it('leaves blocks with matchers or several targets to text editing', () => {
+    expect(siteForm('a.example.com {\n\treverse_proxy /api/* api:1\n\treverse_proxy web:2\n}')).toBeUndefined()
+    expect(siteForm('a.example.com {\n\tfile_server\n}')).toBeUndefined()
+    // only half of the LAN rule: kept as it is
+    expect(siteForm('a.example.com {\n\t@x not remote_ip private_ranges\n\treverse_proxy a:1\n}')!.options).toMatchObject({ lanOnly: false, extra: '@x not remote_ip private_ranges' })
+  })
+
+  it('writes the options into the file, checks them', () => {
+    const out = applyCaddyChange(FILE, { kind: 'site', previous: 'ha.home.example', addresses: ['ha.home.example'], upstreams: ['192.168.1.30:8123'], options: { ...NO_OPTIONS, lanOnly: true, compress: true, proxyExtra: 'header_up X-Real-IP {remote_host}' } })
+    expect(out).toContain('ha.home.example {\n\t@outside not remote_ip private_ranges\n\trespond @outside 403\n\tencode zstd gzip\n\treverse_proxy 192.168.1.30:8123 {\n\t\theader_up X-Real-IP {remote_host}\n\t}\n}')
+    expect(() => applyCaddyChange(FILE, { kind: 'site', addresses: ['x.example.com'], upstreams: ['x:1'], options: { ...NO_OPTIONS, auth: { user: 'a b', password: 'long-enough' } } })).toThrow(/Benutzername/)
+    expect(() => applyCaddyChange(FILE, { kind: 'site', addresses: ['x.example.com'], upstreams: ['x:1'], options: { ...NO_OPTIONS, auth: { user: 'anna', password: 'short' } } })).toThrow(/8 Zeichen/)
+    expect(() => applyCaddyChange(FILE, { kind: 'site', addresses: ['x.example.com'], upstreams: ['x:1'], options: { ...NO_OPTIONS, extra: 'header {' } })).toThrow(/Klammern/)
+    expect(parseCaddyChange({ kind: 'site', addresses: ['a'], upstreams: ['b:1'], options: { lanOnly: true, auth: { user: 'u', password: 'p' } } })).toMatchObject({ options: { lanOnly: true, compress: false, auth: { user: 'u', password: 'p' } } })
+  })
+
+  it('edits one block as text, nothing else', () => {
+    const out = applyCaddyChange(FILE, { kind: 'block', address: 'secret.example.com', text: 'secret.example.com {\n\treverse_proxy localhost:9001\n}' })
+    expect(out).toContain('secret.example.com {\n\treverse_proxy localhost:9001\n}')
+    expect(out.replace(/secret\.example\.com \{[\s\S]*$/, '')).toBe(FILE.replace(/secret\.example\.com \{[\s\S]*$/, ''))
+    expect(() => applyCaddyChange(FILE, { kind: 'block', address: 'secret.example.com', text: 'a.com {\n}\nb.com {\n}' })).toThrow(/Genau ein Eintrag/)
+    expect(() => applyCaddyChange(FILE, { kind: 'block', address: 'secret.example.com', text: 'jellyfin.home.example {\n\treverse_proxy x:1\n}' })).toThrow(/gibt es schon/)
   })
 })
 
@@ -218,10 +275,15 @@ describe('CaddyManager', () => {
     const m = new CaddyManager(new FixtureCaddyHost('fixtures/demo'))
     const s = await m.caddyState()
     expect(s.source).toMatchObject({ how: 'quadlet', path: '/etc/caddy/Caddyfile' })
-    expect(s.blocks.filter((b) => b.kind === 'proxy')).toHaveLength(5)
+    expect(s.blocks.filter((b) => b.kind === 'proxy')).toHaveLength(7)
     await expect(m.applyCaddy({ kind: 'text', content: s.content + '\nbroken.example.com {\n' }, s.hash)).rejects.toThrow(/lehnt die Datei ab/)
     const r = await m.applyCaddy({ kind: 'site', addresses: ['new.home.example'], upstreams: ['localhost:9000'] }, s.hash)
     expect(r.state.history).toHaveLength(2)
+    // A password from the dialog is stored as a bcrypt hash only.
+    const p = await m.applyCaddy({ kind: 'site', addresses: ['priv.home.example'], upstreams: ['localhost:9001'], options: { ...NO_OPTIONS, auth: { user: 'anna', password: 'very-secret-1' } } }, r.state.hash)
+    const block = p.state.blocks.find((b) => b.addresses[0] === 'priv.home.example')!
+    expect(p.state.content).not.toContain('very-secret-1')
+    expect(await Bun.password.verify('very-secret-1', block.options!.auth!.hash!)).toBe(true)
   })
 })
 

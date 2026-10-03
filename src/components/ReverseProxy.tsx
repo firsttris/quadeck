@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import { localeOf } from '~/shared/i18n'
-import { applyCaddyChange, type CaddyBlock, type CaddyChange, type CaddyResult, type CaddyState } from '~/shared/caddy'
+import { applyCaddyChange, NO_OPTIONS, type CaddyBlock, type CaddyChange, type CaddyResult, type CaddyState, type SiteOptions } from '~/shared/caddy'
 import { useLive } from '~/lib/live'
 import { useActions } from './Actions'
 import { Modal } from './Modal'
@@ -27,9 +27,10 @@ export function ReverseProxy() {
   const guarded = useGuardedApi()
   const [state, setState] = useState<CaddyState | null>(null)
   const [error, setError] = useState('')
-  const [site, setSite] = useState<{ previous?: string; addresses: string; upstreams: string } | null>(null)
+  const [site, setSite] = useState<SiteInit | null>(null)
   const [text, setText] = useState<{ content: string; jump: number | null; note?: string } | null>(null)
   const [pick, setPick] = useState<string | null>(null)
+  const [block, setBlock] = useState<{ address: string; text: string; error?: string } | null>(null)
   const [pending, setPending] = useState<Pending | null>(null)
 
   const load = useCallback(async () => {
@@ -117,7 +118,7 @@ export function ReverseProxy() {
           {editable && (
             <div className="flex flex-wrap gap-2">
               {!state.unstructured && (
-                <button type="button" className="btn primary" onClick={() => setSite({ addresses: '', upstreams: '' })}>
+                <button type="button" className="btn primary" onClick={() => setSite({ addresses: '', upstreams: '', options: NO_OPTIONS })}>
                   {m.proxy_actions_add()}
                 </button>
               )}
@@ -162,8 +163,8 @@ export function ReverseProxy() {
                     key={`${b.start}-${b.addresses.join(',')}`}
                     b={b}
                     readonly={!editable}
-                    onEdit={() => setSite({ previous: b.addresses[0], addresses: b.addresses.join(', '), upstreams: (b.upstreams ?? []).join(' ') })}
-                    onText={() => setText({ content: state.content ?? '', jump: b.line })}
+                    onEdit={() => setSite({ previous: b.addresses[0], addresses: b.addresses.join(', '), upstreams: (b.upstreams ?? []).join(' '), options: b.options ?? NO_OPTIONS })}
+                    onText={() => setBlock({ address: b.addresses[0]!, text: b.text })}
                     onDelete={() => propose({ kind: 'delete', address: b.addresses[0]! }, m.proxy_confirm_deleteTitle({ address: b.addresses.join(', ') }))}
                   />
                 ))}
@@ -207,6 +208,25 @@ export function ReverseProxy() {
           </div>
         </Modal>
       )}
+      {block && (
+        <Modal open wide title={m.proxy_block_title({ address: block.address })} onClose={() => setBlock(null)}>
+          <p className="m-0 text-[13px] text-muted">{m.proxy_block_hint()}</p>
+          <TextView text={block.text} onChange={(v) => setBlock({ ...block, text: v, error: undefined })} jump={null} label={m.proxy_block_title({ address: block.address })} height={260} />
+          {block.error && (
+            <p role="alert" className="m-0 text-[13px] text-[#ff8a80]">
+              {block.error}
+            </p>
+          )}
+          <div className="flex justify-end gap-2">
+            <button type="button" className="btn" onClick={() => setBlock(null)}>
+              {m.common_cancel()}
+            </button>
+            <button type="button" className="btn primary" onClick={() => setBlock({ ...block, error: propose({ kind: 'block', address: block.address, text: block.text }, m.proxy_block_title({ address: block.address })) })}>
+              {m.proxy_text_next()}
+            </button>
+          </div>
+        </Modal>
+      )}
       {pick !== null && <PickDialog init={pick} onClose={() => setPick(null)} onPick={(p) => void choosePath(p)} />}
       {pending && state && (
         <ConfirmChange
@@ -217,6 +237,7 @@ export function ReverseProxy() {
             setPending(null)
             setSite(null)
             setText(null)
+            setBlock(null)
             setState(r.state)
             say(r.warning ?? pickMsg({ "api": m.proxy_done_api, "container": m.proxy_done_container, "service": m.proxy_done_service, "none": m.proxy_done_none, "path": m.proxy_done_path, "automatic": m.proxy_done_automatic }, r.reloaded), r.warning ? 'bad' : undefined)
           }}
@@ -262,7 +283,24 @@ function SiteRow({ b, readonly, onEdit, onText, onDelete }: { b: CaddyBlock; rea
           ))}
         </div>
       </td>
-      <td className="font-mono text-[12px]">{b.kind === 'proxy' ? b.upstreams!.join(' ') : <span className="font-sans text-muted">{m.proxy_table_custom({ line: b.line })}</span>}</td>
+      <td className="font-mono text-[12px]">
+        {b.kind === 'proxy' ? (
+          <div className="flex flex-col gap-1">
+            <span>{b.upstreams!.join(' ')}</span>
+            {optionChips(b.options).length > 0 && (
+              <span className="flex flex-wrap gap-1 font-sans" data-testid="site-options">
+                {optionChips(b.options).map((c) => (
+                  <span key={c} className="chip">
+                    {c}
+                  </span>
+                ))}
+              </span>
+            )}
+          </div>
+        ) : (
+          <span className="font-sans text-muted">{m.proxy_table_custom({ line: b.line })}</span>
+        )}
+      </td>
       <td>
         {!readonly && (
           <div className="flex justify-end gap-1.5">
@@ -285,12 +323,47 @@ function SiteRow({ b, readonly, onEdit, onText, onDelete }: { b: CaddyBlock; rea
   )
 }
 
-function SiteDialog({ init, onClose, onNext }: { init: { previous?: string; addresses: string; upstreams: string }; onClose: () => void; onNext: (change: CaddyChange) => string | undefined }) {
+type SiteInit = { previous?: string; addresses: string; upstreams: string; options: SiteOptions }
+
+function optionChips(o: SiteOptions | undefined): string[] {
+  if (!o) return []
+  const chips: unknown[] = [
+    o.lanOnly && m.proxy_table_lanOnly(),
+    o.auth && m.proxy_table_auth(),
+    o.compress && m.proxy_table_compress(),
+    o.insecureTls && m.proxy_table_insecureTls(),
+    o.tlsInternal && m.proxy_table_tlsInternal(),
+    (o.extra.trim() || o.proxyExtra.trim()) && m.proxy_table_extra(),
+  ]
+  return chips.filter((x): x is string => typeof x === 'string' && !!x)
+}
+
+function Option({ checked, onChange, label, help, children }: { checked: boolean; onChange: (v: boolean) => void; label: string; help: string; children?: React.ReactNode }) {
+  return (
+    <div className="flex flex-col gap-1.5">
+      <label className="flex items-start gap-2.5 text-[13px]">
+        <input type="checkbox" className="mt-[3px]" checked={checked} onChange={(e) => onChange(e.target.checked)} />
+        <span className="flex flex-col">
+          <span className="font-medium text-fg">{label}</span>
+          <span className="text-[12px] text-muted">{help}</span>
+        </span>
+      </label>
+      {checked && children}
+    </div>
+  )
+}
+
+/** One entry: domains, targets and the options; lines the dialog does not know stay in "other lines". */
+function SiteDialog({ init, onClose, onNext }: { init: SiteInit; onClose: () => void; onNext: (change: CaddyChange) => string | undefined }) {
   const { snapshot } = useLive()
   const [addresses, setAddresses] = useState(init.addresses)
   const [upstreams, setUpstreams] = useState(init.upstreams)
+  const [o, setO] = useState<SiteOptions>(init.options)
+  const [user, setUser] = useState(init.options.auth?.user ?? '')
+  const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const listId = useId()
+  const set = (patch: Partial<SiteOptions>) => setO((x) => ({ ...x, ...patch }))
   // Containers with a published port: reachable from Caddy as localhost:<port>.
   const suggestions = useMemo(() => {
     const out = new Map<string, string>()
@@ -302,21 +375,24 @@ function SiteDialog({ init, onClose, onNext }: { init: { previous?: string; addr
       .split(sep)
       .map((x) => x.trim())
       .filter(Boolean)
+  const hadAuth = !!init.options.auth?.hash
+  const field = 'flex flex-col gap-1 text-[12px] font-medium text-muted'
   return (
-    <Modal open title={init.previous ? m.proxy_site_editTitle({ address: init.previous }) : m.proxy_site_newTitle()} onClose={onClose}>
+    <Modal open wide title={init.previous ? m.proxy_site_editTitle({ address: init.previous }) : m.proxy_site_newTitle()} onClose={onClose}>
       <form
         className="flex flex-col gap-3"
         onSubmit={(e) => {
           e.preventDefault()
-          setError(onNext({ kind: 'site', previous: init.previous, addresses: split(addresses, /[\s,]+/), upstreams: split(upstreams, /\s+/) }) ?? '')
+          const auth = o.auth ? { user: user.trim(), ...(password ? { password } : hadAuth && user.trim() ? { hash: init.options.auth!.hash } : {}) } : undefined
+          setError(onNext({ kind: 'site', previous: init.previous, addresses: split(addresses, /[\s,]+/), upstreams: split(upstreams, /\s+/), options: { ...o, auth } }) ?? '')
         }}
       >
-        <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
+        <label className={field}>
           {m.proxy_site_domains()}
           <input className="field font-mono" value={addresses} onChange={(e) => setAddresses(e.target.value)} placeholder="app.example.com" autoFocus required />
           <span className="font-normal">{m.proxy_site_domainsHint()}</span>
         </label>
-        <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
+        <label className={field}>
           {m.proxy_site_target()}
           <input className="field font-mono" value={upstreams} onChange={(e) => setUpstreams(e.target.value)} placeholder="localhost:8096" list={listId} required />
           <datalist id={listId}>
@@ -326,6 +402,43 @@ function SiteDialog({ init, onClose, onNext }: { init: { previous?: string; addr
           </datalist>
           <span className="font-normal">{m.proxy_site_targetHint()}</span>
         </label>
+
+        <fieldset className="m-0 flex flex-col gap-3 rounded-[10px] border border-edge p-3">
+          <legend className="px-1 text-[12px] font-medium text-muted">{m.proxy_site_options()}</legend>
+          <Option checked={o.lanOnly} onChange={(v) => set({ lanOnly: v })} label={m.proxy_site_lanOnly()} help={m.proxy_site_lanOnlyHelp()} />
+          <Option checked={!!o.auth} onChange={(v) => set({ auth: v ? (init.options.auth ?? { user: '' }) : undefined })} label={m.proxy_site_auth()} help={m.proxy_site_authHelp()}>
+            <div className="ml-6 grid grid-cols-1 gap-2 sm:grid-cols-2">
+              <label className={field}>
+                {m.proxy_site_authUser()}
+                <input className="field" value={user} onChange={(e) => setUser(e.target.value)} autoComplete="off" />
+              </label>
+              <label className={field}>
+                {m.proxy_site_authPassword()}
+                <input className="field" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" placeholder={hadAuth ? m.proxy_site_authKeep() : ''} />
+              </label>
+            </div>
+          </Option>
+          <Option checked={o.compress} onChange={(v) => set({ compress: v })} label={m.proxy_site_compress()} help={m.proxy_site_compressHelp()} />
+          <Option checked={o.insecureTls} onChange={(v) => set({ insecureTls: v })} label={m.proxy_site_insecureTls()} help={m.proxy_site_insecureTlsHelp()} />
+          <Option checked={o.tlsInternal} onChange={(v) => set({ tlsInternal: v })} label={m.proxy_site_tlsInternal()} help={m.proxy_site_tlsInternalHelp()} />
+        </fieldset>
+
+        <details className="text-[13px]" open={!!(init.options.extra || init.options.proxyExtra)}>
+          <summary className="cursor-pointer text-[12px] font-medium text-muted">{m.proxy_site_more()}</summary>
+          <div className="mt-2 flex flex-col gap-3">
+            <label className={field}>
+              {m.proxy_site_proxyExtra()}
+              <textarea className="field min-h-[60px] font-mono text-[12px]" value={o.proxyExtra} onChange={(e) => set({ proxyExtra: e.target.value })} spellCheck={false} />
+              <span className="font-normal">{m.proxy_site_proxyExtraHelp()}</span>
+            </label>
+            <label className={field}>
+              {m.proxy_site_extra()}
+              <textarea className="field min-h-[60px] font-mono text-[12px]" value={o.extra} onChange={(e) => set({ extra: e.target.value })} spellCheck={false} />
+              <span className="font-normal">{m.proxy_site_extraHelp()}</span>
+            </label>
+          </div>
+        </details>
+
         {error && (
           <p role="alert" className="m-0 text-[13px] text-[#ff8a80]">
             {error}
