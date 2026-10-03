@@ -8,9 +8,10 @@ import { QuadletEditor } from '~/components/QuadletEditor'
 import { Dot, unitTone } from '~/components/Status'
 import { useToast } from '~/components/Toast'
 import { useGuardedApi } from '~/components/Unlock'
+import { useT } from '~/i18n'
 import { api } from '~/lib/api'
 import { useLive } from '~/lib/live'
-import { TEMPLATES } from '~/lib/quadlet-templates'
+import { templates } from '~/lib/quadlet-templates'
 import { QUADLET_NAME, QUADLET_TYPES, type ComposeResult, type QuadletFile, type QuadletType, type Revision } from '~/shared/quadlets'
 
 export const Route = createFileRoute('/_app/quadlets')({
@@ -29,11 +30,12 @@ export const Route = createFileRoute('/_app/quadlets')({
 })
 
 function QuadletsPage() {
+  const t = useT().quadlets
   return (
     <>
-      <PageHeader title="Quadlets" subtitle="Container-Dateien in /etc/containers/systemd">
+      <PageHeader title="Quadlets" subtitle={t.page.subtitle}>
         <Link to="/units" search={{ filter: 'container' }} className="btn sm">
-          ← Units
+          {t.page.backToUnits}
         </Link>
       </PageHeader>
       <Files />
@@ -49,6 +51,7 @@ interface Loaded {
 }
 
 function Files() {
+  const t = useT().quadlets
   const search = Route.useSearch()
   const { file } = search
   const navigate = useNavigate()
@@ -102,26 +105,26 @@ function Files() {
 
   return (
     <div className="grid grid-cols-1 gap-[18px] lg:grid-cols-[300px_minmax(0,1fr)]">
-      <section className="panel flex flex-col self-start" aria-label="Quadlet-Dateien">
+      <section className="panel flex flex-col self-start" aria-label={t.list.aria}>
         <div className="flex flex-wrap items-center gap-2 px-[18px] pt-4 pb-2">
-          <h2 className="h2 grow">Dateien</h2>
+          <h2 className="h2 grow">{t.list.heading}</h2>
           {!readonly && (
             <>
               <button type="button" className="btn sm" onClick={() => setCreating(true)}>
-                <Glyph name="plus" size={13} /> Neu
+                <Glyph name="plus" size={13} /> {t.list.new}
               </button>
               <button type="button" className="btn sm" onClick={() => setImporting(true)}>
-                Compose-Import
+                {t.list.composeImport}
               </button>
             </>
           )}
         </div>
         {error && <p className="m-0 border-t border-line px-[18px] py-2 text-[13px] text-[#e3b341]">{error}</p>}
-        {files?.length === 0 && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">Noch keine Quadlets. „Neu“ oder „Compose-Import“.</p>}
+        {files?.length === 0 && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{t.list.empty}</p>}
         {draft && !files?.some((f) => f.name === draft.name) && (
           <button type="button" onClick={() => open(draft.name)} className={`flex items-center gap-2 border-t border-line px-[18px] py-[9px] text-left ${file === draft.name ? 'bg-[rgba(124,196,184,.10)]' : ''}`}>
             <span className="grow truncate font-mono text-[13px]">{draft.name}</span>
-            <span className="chip">neu</span>
+            <span className="chip">{t.list.newChip}</span>
           </button>
         )}
         {files?.map((f) => {
@@ -135,7 +138,7 @@ function Files() {
               onClick={() => open(f.name)}
               className={`flex items-center gap-2 border-t border-line px-[18px] py-[9px] text-left hover:bg-[rgba(255,255,255,.03)] ${file === f.name ? 'bg-[rgba(124,196,184,.10)]' : ''}`}
             >
-              <Dot tone={u ? unitTone(u) : 'idle'} label={u ? `${f.unit}: ${u.active}` : `${f.unit}: nicht geladen`} />
+              <Dot tone={u ? unitTone(u) : 'idle'} label={u ? `${f.unit}: ${u.active}` : t.list.notLoaded(f.unit)} />
               <span className="grow truncate font-mono text-[13px]">{f.name}</span>
               <span className="chip q">{f.type}</span>
             </button>
@@ -162,7 +165,7 @@ function Files() {
           }}
         />
       ) : (
-        <section className="panel flex items-center justify-center p-10 text-[13px] text-muted">Datei links auswählen.</section>
+        <section className="panel flex items-center justify-center p-10 text-[13px] text-muted">{t.list.pick}</section>
       )}
 
       <NewDialog
@@ -196,16 +199,19 @@ function Files() {
 }
 
 function NewDialog({ open, existing, onClose, onCreate }: { open: boolean; existing: string[]; onClose: () => void; onCreate: (name: string, content: string) => void }) {
+  const tx = useT()
+  const tt = tx.quadlets.newDialog
+  const TEMPLATES = templates()
   const [base, setBase] = useState('')
   const [template, setTemplate] = useState(TEMPLATES[0]!.id)
   const t = TEMPLATES.find((x) => x.id === template)!
   const [type, setType] = useState<QuadletType>(t.type)
-  useEffect(() => setType(t.type), [t])
+  useEffect(() => setType(t.type), [template, t.type])
   const name = `${base.trim()}.${type}`
   const valid = QUADLET_NAME.test(name)
   const taken = existing.includes(name)
   return (
-    <Modal open={open} onClose={onClose} title="Neue Quadlet-Datei">
+    <Modal open={open} onClose={onClose} title={tt.title}>
       <form
         className="flex flex-col gap-3"
         onSubmit={(e) => {
@@ -214,7 +220,7 @@ function NewDialog({ open, existing, onClose, onCreate }: { open: boolean; exist
         }}
       >
         <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-          Vorlage
+          {tt.template}
           <select className="field" value={template} onChange={(e) => setTemplate(e.target.value)}>
             {TEMPLATES.map((x) => (
               <option key={x.id} value={x.id}>
@@ -225,11 +231,11 @@ function NewDialog({ open, existing, onClose, onCreate }: { open: boolean; exist
         </label>
         <div className="grid grid-cols-[1fr_auto] gap-2">
           <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-            Name
-            <input className="field font-mono" value={base} onChange={(e) => setBase(e.target.value)} placeholder="z. B. nextcloud" autoFocus required />
+            {tt.name}
+            <input className="field font-mono" value={base} onChange={(e) => setBase(e.target.value)} placeholder={tt.namePlaceholder} autoFocus required />
           </label>
           <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-            Typ
+            {tt.type}
             <select className="field" value={type} onChange={(e) => setType(e.target.value as QuadletType)}>
               {QUADLET_TYPES.map((x) => (
                 <option key={x} value={x}>
@@ -239,14 +245,14 @@ function NewDialog({ open, existing, onClose, onCreate }: { open: boolean; exist
             </select>
           </label>
         </div>
-        {base && !valid && <p className="m-0 text-[13px] text-[#ff8a80]">Nur Buchstaben, Ziffern, „-“, „_“ und „.“.</p>}
-        {taken && <p className="m-0 text-[13px] text-[#ff8a80]">{name} gibt es schon.</p>}
+        {base && !valid && <p className="m-0 text-[13px] text-[#ff8a80]">{tt.invalidName}</p>}
+        {taken && <p className="m-0 text-[13px] text-[#ff8a80]">{tt.taken(name)}</p>}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn" onClick={onClose}>
-            Abbrechen
+            {tx.common.cancel}
           </button>
           <button type="submit" className="btn primary" disabled={!valid || taken}>
-            Im Editor öffnen
+            {tt.open}
           </button>
         </div>
       </form>
@@ -255,6 +261,8 @@ function NewDialog({ open, existing, onClose, onCreate }: { open: boolean; exist
 }
 
 function ComposeDialog({ open, existing, onClose, onDone }: { open: boolean; existing: string[]; onClose: () => void; onDone: (first?: string) => void }) {
+  const tx = useT()
+  const t = tx.quadlets.compose
   const say = useToast()
   const guarded = useGuardedApi()
   const [yaml, setYaml] = useState('')
@@ -289,7 +297,7 @@ function ComposeDialog({ open, existing, onClose, onDone }: { open: boolean; exi
         const r = await guarded('/api/quadlets/file', { method: 'PUT', body: { name: f.name, content: f.content, restart: start } })
         if (!r) return
       }
-      say(`${files.length} Quadlet-Dateien angelegt`)
+      say(t.created(files.length))
       onDone(files.find((f) => f.name.endsWith('.container'))?.name)
     } catch (e) {
       setError((e as Error).message)
@@ -300,12 +308,12 @@ function ComposeDialog({ open, existing, onClose, onDone }: { open: boolean; exi
   }
 
   return (
-    <Modal open={open} onClose={onClose} title="Aus docker-compose importieren" wide>
+    <Modal open={open} onClose={onClose} title={t.title} wide>
       {!result ? (
         <>
           <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-            Projektname (für das gemeinsame Netzwerk)
-            <input className="field font-mono" value={project} onChange={(e) => setProject(e.target.value)} placeholder="z. B. paperless" />
+            {t.project}
+            <input className="field font-mono" value={project} onChange={(e) => setProject(e.target.value)} placeholder={t.projectPlaceholder} />
           </label>
           <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
             docker-compose.yml
@@ -315,7 +323,7 @@ function ComposeDialog({ open, existing, onClose, onDone }: { open: boolean; exi
       ) : (
         <>
           {result.warnings.length > 0 && (
-            <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[13px] text-[#e3b341]" aria-label="Warnungen">
+            <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[13px] text-[#e3b341]" aria-label={t.warnings}>
               {result.warnings.map((w, i) => (
                 <li key={i}>{w}</li>
               ))}
@@ -326,14 +334,14 @@ function ComposeDialog({ open, existing, onClose, onDone }: { open: boolean; exi
               <div key={f.name} data-testid="compose-file">
                 <div className="mb-1 flex items-center gap-2 font-mono text-[13px]">
                   {f.name}
-                  {existing.includes(f.name) && <span className="chip">wird überschrieben</span>}
+                  {existing.includes(f.name) && <span className="chip">{t.overwritten}</span>}
                 </div>
                 <pre className="joblog !min-h-0">{f.content}</pre>
               </div>
             ))}
           </div>
           <label className="flex items-center gap-2 text-[13px]">
-            <input type="checkbox" checked={start} onChange={(e) => setStart(e.target.checked)} /> Units nach dem Anlegen starten
+            <input type="checkbox" checked={start} onChange={(e) => setStart(e.target.checked)} /> {t.startUnits}
           </label>
         </>
       )}
@@ -344,15 +352,15 @@ function ComposeDialog({ open, existing, onClose, onDone }: { open: boolean; exi
       )}
       <div className="flex justify-end gap-2">
         <button type="button" className="btn" onClick={result ? () => setResult(null) : onClose}>
-          {result ? 'Zurück' : 'Abbrechen'}
+          {result ? tx.common.back : tx.common.cancel}
         </button>
         {!result ? (
           <button type="button" className="btn primary" disabled={!yaml.trim()} onClick={convert}>
-            Umwandeln
+            {t.convert}
           </button>
         ) : (
           <button type="button" className="btn primary" disabled={busy || !result.files.length} onClick={create}>
-            {busy ? 'Lege an …' : `${result.files.length} Dateien anlegen`}
+            {busy ? t.creating : t.createN(result.files.length)}
           </button>
         )}
       </div>

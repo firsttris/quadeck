@@ -6,6 +6,7 @@
 
 import { chmodSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import type { AurInfo, PackageUpdate } from '~/shared/packages'
+import { tr } from '~/shared/i18n'
 import { run } from '../exec'
 import { readAuthFiles, suggestedUser } from '../privileged/crypt'
 import { parseNameVersion } from './parse'
@@ -66,7 +67,7 @@ function passwdEntry(user: string) {
   const line = readFileSync('/etc/passwd', 'utf8')
     .split('\n')
     .find((l) => l.startsWith(user + ':'))
-  if (!line) throw new Error(`Benutzer ${user} existiert nicht`)
+  if (!line) throw new Error(tr(`Benutzer ${user} existiert nicht`, `User ${user} does not exist`))
   const f = line.split(':')
   return { uid: Number(f[2]), home: f[5] || `/home/${user}` }
 }
@@ -76,19 +77,19 @@ function passwdEntry(user: string) {
  * calls this; the sudoers drop-in is removed again in any case.
  */
 export async function runAurUpgrade(helper: 'yay' | 'paru', user: string, exec: (argv: string[], env: Record<string, string>) => Promise<number>, log: (s: string) => void): Promise<number> {
-  if (!USER_NAME.test(user)) throw new Error(`Ungültiger Benutzername: ${user}`)
+  if (!USER_NAME.test(user)) throw new Error(tr(`Ungültiger Benutzername: ${user}`, `Invalid user name: ${user}`))
   const { uid, home } = passwdEntry(user)
-  if (uid === 0) throw new Error('AUR-Helfer laufen nicht als root – QUADECK_AUR_USER auf einen normalen Benutzer setzen')
+  if (uid === 0) throw new Error(tr('AUR-Helfer laufen nicht als root – QUADECK_AUR_USER auf einen normalen Benutzer setzen', 'AUR helpers do not run as root – set QUADECK_AUR_USER to a normal user'))
   const pacman = Bun.which('pacman') ?? '/usr/bin/pacman'
-  if (!Bun.which('sudo')) throw new Error(`${helper} braucht sudo, um pacman aufzurufen – sudo ist nicht installiert`)
-  writeFileSync(SUDOERS_DROPIN, `# Quadeck: nur während eines AUR-Updates vorhanden\n${user} ALL=(root) NOPASSWD: ${pacman}\n`, { mode: 0o440 })
+  if (!Bun.which('sudo')) throw new Error(tr(`${helper} braucht sudo, um pacman aufzurufen – sudo ist nicht installiert`, `${helper} needs sudo to call pacman – sudo is not installed`))
+  writeFileSync(SUDOERS_DROPIN, `# Quadeck: only present during an AUR update\n${user} ALL=(root) NOPASSWD: ${pacman}\n`, { mode: 0o440 })
   chmodSync(SUDOERS_DROPIN, 0o440)
   try {
     if (Bun.which('visudo')) {
       const check = await run(['visudo', '-cqf', SUDOERS_DROPIN])
-      if (check.code !== 0) throw new Error(`sudoers-Prüfung fehlgeschlagen: ${check.stderr.trim()}`)
+      if (check.code !== 0) throw new Error(tr(`sudoers-Prüfung fehlgeschlagen: ${check.stderr.trim()}`, `sudoers check failed: ${check.stderr.trim()}`))
     }
-    log(`AUR-Update mit ${helper} als ${user} (pacman per sudo nur während dieses Jobs ohne Passwort)`)
+    log(tr(`AUR-Update mit ${helper} als ${user} (pacman per sudo nur während dieses Jobs ohne Passwort)`, `AUR update with ${helper} as ${user} (pacman via sudo without a password only during this job)`))
     const flags = helper === 'yay' ? ['--answerdiff', 'None', '--answerclean', 'None', '--answeredit', 'None', '--answerupgrade', 'None', '--removemake', '--cleanafter'] : ['--skipreview', '--removemake', '--cleanafter']
     return await exec(['runuser', '-u', user, '--', helper, '-Sua', '--noconfirm', ...flags], {
       HOME: home,

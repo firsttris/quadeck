@@ -1,14 +1,16 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useState } from 'react'
 import { AuthCard, useHydrated } from '~/components/AuthCard'
+import { useT } from '~/i18n'
 import { api } from '~/lib/api'
+import { tr } from '~/shared/i18n'
 
 export const Route = createFileRoute('/login')({
   beforeLoad: ({ context }) => {
     if (context.auth.state === 'setup') throw redirect({ to: '/setup' })
     if (context.auth.state === 'ok') throw redirect({ to: '/' })
   },
-  head: () => ({ meta: [{ title: 'Anmelden · Quadeck' }] }),
+  head: () => ({ meta: [{ title: tr('Anmelden · Quadeck', 'Log in · Quadeck') }] }),
   component: Login,
 })
 
@@ -16,8 +18,9 @@ function Login() {
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const hydrated = useHydrated()
+  const t = useT().shell.login
   return (
-    <AuthCard title="Anmelden" subtitle="Quadeck verwaltet Dienste mit Root-Rechten. Bitte melde dich an.">
+    <AuthCard title={t.title} subtitle={t.subtitle}>
       <form
         method="post"
         className="flex flex-col gap-3"
@@ -35,7 +38,7 @@ function Login() {
         }}
       >
         <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-          Passwort
+          {t.password}
           <input name="password" type="password" required autoFocus autoComplete="current-password" className="field" />
         </label>
         {error && (
@@ -44,7 +47,7 @@ function Login() {
           </p>
         )}
         <button type="submit" className="btn primary justify-center" disabled={busy || !hydrated}>
-          Anmelden
+          {t.submit}
         </button>
       </form>
     </AuthCard>

@@ -117,4 +117,17 @@ generated notes. `quadeck update` and `install.sh` pick the newest release from 
   `exportfs`, `sshd -t`, `systemd-analyze verify`, the Quadlet generator), keeps a backup or a
   history, and is rolled back when the tool refuses.
 - Every feature has a `Fixture*` backend so it can be seen and tested without the real host.
-- UI texts are German; code comments and documentation are English.
+- UI texts exist in German and English; code comments and documentation are English.
+  - Components take their texts from `useT()` (`src/i18n`): one namespace file per area
+    (`src/i18n/units.ts` …) with `de` defining the shape and `en: typeof de` – tsc reports a
+    missing translation. Interpolations are functions (`removed: (n: string) => …`).
+  - Code outside of components (`src/shared`, `src/server`, `src/lib`) uses
+    `tr('Deutsch', 'English')` from `src/shared/i18n.ts`. In a request it answers in the
+    viewer's language (cookie `qd_lang`, else `Accept-Language`); in the root helper and in
+    background work it returns both, marked, and JSON responses, the event stream and
+    notifications pick the language at the end. Never call `tr()` at module top level.
+  - `e2e/zz-i18n.spec.ts` walks every page in English and fails on German leftovers.
+  - Only the UI is bilingual. Everything Quadeck writes for the system is English: comments and
+    headers in files it writes (drop-ins, timers, boot entries, exports, sudoers), Git messages of
+    the Quadlet history, systemd descriptions, log lines and the CLI. Where Quadeck recognises its
+    own files again, it also accepts the German markers older versions wrote.

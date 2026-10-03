@@ -5,6 +5,7 @@ import { readdirSync, readFileSync, readlinkSync } from 'node:fs'
 import { statfs } from 'node:fs/promises'
 import { basename } from 'node:path'
 import type { Disk } from '~/shared/types'
+import { tr } from '~/shared/i18n'
 import { runOk } from '../exec'
 
 interface LsblkDev {
@@ -52,8 +53,8 @@ export function parseLsblk(json: string): MountedFs[] {
 
 export function diskRole(mount: string): string {
   if (mount === '/' || mount === '/sysroot' || mount === '/var' || mount === '/home') return 'System'
-  if (/parit/i.test(mount)) return 'Parität'
-  return 'Daten'
+  if (/parit/i.test(mount)) return tr('Parität', 'Parity')
+  return tr('Daten', 'Data')
 }
 
 /** Maps whole-disk names (sda, nvme0n1) to their temperature in °C. */
@@ -85,9 +86,7 @@ function readDriveTemps(): Map<string, number> {
 }
 
 export async function collectDisks(): Promise<Disk[]> {
-  const json = await runOk(['lsblk', '-J', '-b', '-o', 'NAME,PATH,TYPE,SIZE,FSTYPE,MOUNTPOINTS,PKNAME']).catch(() =>
-    runOk(['lsblk', '-J', '-b', '-o', 'NAME,PATH,TYPE,SIZE,FSTYPE,MOUNTPOINT,PKNAME']),
-  )
+  const json = await runOk(['lsblk', '-J', '-b', '-o', 'NAME,PATH,TYPE,SIZE,FSTYPE,MOUNTPOINTS,PKNAME']).catch(() => runOk(['lsblk', '-J', '-b', '-o', 'NAME,PATH,TYPE,SIZE,FSTYPE,MOUNTPOINT,PKNAME']))
   const temps = readDriveTemps()
   const disks: Disk[] = []
   for (const fs of parseLsblk(json)) {

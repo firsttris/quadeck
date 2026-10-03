@@ -173,7 +173,7 @@ describe('kernel flavours', () => {
 
   it('writes an entry for another flavour from the default one', async () => {
     const { kernelEntry, kernelEntryId } = await import('~/shared/boot')
-    expect(kernelEntry(ARCH, 'linux-lts')).toBe('# Angelegt von Quadeck\ntitle   Arch Linux (linux-lts)\nlinux   /vmlinuz-linux-lts\ninitrd  /intel-ucode.img\ninitrd  /initramfs-linux-lts.img\noptions root=UUID=0a1b rw rootflags=subvol=@ quiet\n')
+    expect(kernelEntry(ARCH, 'linux-lts')).toBe('# Created by Quadeck\ntitle   Arch Linux (linux-lts)\nlinux   /vmlinuz-linux-lts\ninitrd  /intel-ucode.img\ninitrd  /initramfs-linux-lts.img\noptions root=UUID=0a1b rw rootflags=subvol=@ quiet\n')
     expect(kernelEntryId('linux-lts')).toBe('arch-lts.conf')
     expect(kernelEntryId('linux')).toBe('arch.conf')
   })
@@ -205,7 +205,7 @@ describe('kernel flavours', () => {
     s = await b.bootState()
     expect(s.warnings.map((w) => w.text)).toContainEqual(expect.stringMatching(/linux-lts ist installiert, hat aber keinen Boot-Eintrag/))
     const preview = await b.kernelEntryPreview('linux-lts')
-    expect(preview).toEqual({ path: '/boot/loader/entries/arch-lts.conf', content: expect.stringMatching(/^# Angelegt von Quadeck\ntitle   Arch Linux \(linux-lts\)\nlinux   \/vmlinuz-linux-lts\ninitrd  \/intel-ucode.img\ninitrd  \/initramfs-linux-lts.img\noptions root=UUID=/) })
+    expect(preview).toEqual({ path: '/boot/loader/entries/arch-lts.conf', content: expect.stringMatching(/^# Created by Quadeck\ntitle   Arch Linux \(linux-lts\)\nlinux   \/vmlinuz-linux-lts\ninitrd  \/intel-ucode.img\ninitrd  \/initramfs-linux-lts.img\noptions root=UUID=/) })
     s = await b.createKernelEntry('linux-lts')
     expect(s.kernels!.find((k) => k.pkg === 'linux-lts')!.entries).toEqual(['arch-lts.conf'])
     expect(s.warnings.some((w) => /Nur ein Kernel/.test(w.text))).toBe(false)

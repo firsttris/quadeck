@@ -6,6 +6,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { hostname, networkInterfaces } from 'node:os'
 import { join } from 'node:path'
 import { run } from '../exec'
+import { tr } from '~/shared/i18n'
 import { firewallVerdict, scopeOf, type FirewallInfo, type IfaceKind, type ListeningPort, type NetInterface, type NetRoute, type NetworkState } from '~/shared/network'
 
 export interface NetworkAdmin {
@@ -199,12 +200,26 @@ async function firewall(): Promise<FirewallInfo> {
   }
   if (Bun.which('ufw')) {
     const u = parseUfw((await run(['ufw', 'status'])).stdout)
-    if (u.active) return { kind: 'ufw', active: true, ports: u.ports, services: u.services, note: u.services.length ? 'App-Profile (z. B. OpenSSH) lassen sich hier nicht in Ports auflösen.' : undefined }
+    if (u.active)
+      return {
+        kind: 'ufw',
+        active: true,
+        ports: u.ports,
+        services: u.services,
+        note: u.services.length ? tr('App-Profile (z. B. OpenSSH) lassen sich hier nicht in Ports auflösen.', 'App profiles (e.g. OpenSSH) cannot be resolved to ports here.') : undefined,
+      }
   }
   if (Bun.which('nft')) {
     const r = await run(['nft', 'list', 'ruleset'])
     // An input chain that drops by default means a hand-written firewall.
-    if (/hook input[^\n]*policy drop/.test(r.stdout)) return { kind: 'nftables', active: true, ports: [], services: [], note: 'Eigene nftables-Regeln: welche Ports offen sind, kann Quadeck nicht sicher sagen.' }
+    if (/hook input[^\n]*policy drop/.test(r.stdout))
+      return {
+        kind: 'nftables',
+        active: true,
+        ports: [],
+        services: [],
+        note: tr('Eigene nftables-Regeln: welche Ports offen sind, kann Quadeck nicht sicher sagen.', 'Custom nftables rules: Quadeck cannot reliably tell which ports are open.'),
+      }
   }
   return { kind: 'none', active: false, ports: [], services: [] }
 }
@@ -217,7 +232,7 @@ export class SystemNetwork implements NetworkAdmin {
     if (addr.code === 0) interfaces = parseIpAddr(addr.stdout)
     else {
       interfaces = fallbackInterfaces()
-      if (addr.code === 127) errors.push('iproute2 (ip) fehlt – Angaben eingeschränkt')
+      if (addr.code === 127) errors.push(tr('iproute2 (ip) fehlt – Angaben eingeschränkt', 'iproute2 (ip) missing – limited information'))
     }
     const routes = [...parseRoutes((await run(['ip', '-j', 'route', 'show'])).stdout, 'inet'), ...parseRoutes((await run(['ip', '-6', '-j', 'route', 'show', 'default'])).stdout, 'inet6')]
 
@@ -231,7 +246,7 @@ export class SystemNetwork implements NetworkAdmin {
     let ports: ListeningPort[] = []
     const ss = await run(['ss', '-H', '-tulpn'])
     if (ss.code === 0) ports = parseSs(ss.stdout)
-    else errors.push(ss.code === 127 ? 'ss (iproute2) fehlt – keine Ports' : `ss: ${ss.stderr.trim()}`)
+    else errors.push(ss.code === 127 ? tr('ss (iproute2) fehlt – keine Ports', 'ss (iproute2) missing – no ports') : `ss: ${ss.stderr.trim()}`)
     for (const p of ports) {
       if (!p.pid) continue
       const owner = cgroupOwner(read(`/proc/${p.pid}/cgroup`) ?? '')

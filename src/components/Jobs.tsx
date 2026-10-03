@@ -1,5 +1,7 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useT } from '~/i18n'
 import { api, ApiError } from '~/lib/api'
+import { tr } from '~/shared/i18n'
 import type { JobInfo, JobSpec, JobState } from '~/shared/packages'
 import { Glyph } from './Glyph'
 import { Modal } from './Modal'
@@ -20,12 +22,24 @@ interface Ctx {
 const JobCtx = createContext<Ctx>({ start: async () => null, show: () => {}, running: null, finished: 0 })
 export const useJobs = () => useContext(JobCtx)
 
-export const STATUS_LABEL = { running: 'läuft', ok: 'erfolgreich', failed: 'fehlgeschlagen' } as const
+/** Job status labels (getters: the language is read on use). Components can also use t.shell.jobs.status. */
+export const STATUS_LABEL: Record<JobInfo['status'], string> = {
+  get running() {
+    return tr('läuft', 'running')
+  },
+  get ok() {
+    return tr('erfolgreich', 'succeeded')
+  },
+  get failed() {
+    return tr('fehlgeschlagen', 'failed')
+  },
+}
 export const statusTone = (s: JobInfo['status']) => (s === 'ok' ? 'ok' : s === 'failed' ? 'bad' : 'warn')
 
 export function JobsProvider({ children }: { children: ReactNode }) {
   const unlock = useUnlock()
   const say = useToast()
+  const t = useT().shell.jobs
   const [shown, setShown] = useState<string | null>(null)
   const [running, setRunning] = useState<JobInfo | null>(null)
   const [finished, setFinished] = useState(0)
@@ -67,9 +81,9 @@ export function JobsProvider({ children }: { children: ReactNode }) {
     (job: JobInfo) => {
       setRunning((r) => (r?.id === job.id ? null : r))
       setFinished((n) => n + 1)
-      say(`${job.title}: ${STATUS_LABEL[job.status]}`, job.status === 'ok' ? undefined : 'bad')
+      say(`${job.title}: ${t.status[job.status]}`, job.status === 'ok' ? undefined : 'bad')
     },
-    [say],
+    [say, t],
   )
 
   return (
@@ -112,6 +126,8 @@ function lineClass(l: string) {
 }
 
 export function JobDialog({ id, onClose, onEnd }: { id: string | null; onClose: () => void; onEnd: (j: JobInfo) => void }) {
+  const { shell, common } = useT()
+  const t = shell.jobs
   const [job, setJob] = useState<JobState | null>(null)
   const [lines, setLines] = useState<string[]>([])
   const [error, setError] = useState('')
@@ -160,14 +176,14 @@ export function JobDialog({ id, onClose, onEnd }: { id: string | null; onClose: 
   return (
     <Modal open={!!id} onClose={onClose} title={job?.title ?? 'Job'} wide>
       <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted">
-        {job && <Pill tone={statusTone(job.status)}>{STATUS_LABEL[job.status]}</Pill>}
-        {job?.status === 'running' && <span>Läuft im Hintergrund weiter, auch wenn das Fenster geschlossen wird.</span>}
-        {job?.exitCode !== undefined && job.status === 'failed' && <span>Exit-Code {job.exitCode}</span>}
+        {job && <Pill tone={statusTone(job.status)}>{t.status[job.status]}</Pill>}
+        {job?.status === 'running' && <span>{t.background}</span>}
+        {job?.exitCode !== undefined && job.status === 'failed' && <span>{t.exitCode(job.exitCode)}</span>}
       </div>
       <pre
         ref={pre}
         className="joblog"
-        aria-label="Ausgabe"
+        aria-label={t.output}
         aria-live="polite"
         onScroll={(e) => {
           const el = e.currentTarget
@@ -188,7 +204,7 @@ export function JobDialog({ id, onClose, onEnd }: { id: string | null; onClose: 
       )}
       <div className="flex justify-end">
         <button type="button" className="btn" onClick={onClose} autoFocus>
-          {job?.status === 'running' ? 'Im Hintergrund weiterlaufen lassen' : 'Schließen'}
+          {job?.status === 'running' ? t.keepRunning : common.close}
         </button>
       </div>
     </Modal>
@@ -198,10 +214,11 @@ export function JobDialog({ id, onClose, onEnd }: { id: string | null; onClose: 
 /** Sidebar hint while a job runs. */
 export function JobChip({ compact = false }: { compact?: boolean }) {
   const { running, show } = useJobs()
+  const t = useT().shell.jobs
   if (!running) return null
   if (compact) {
     return (
-      <button type="button" className="grid h-10 w-10 place-items-center rounded-lg text-accent hover:bg-[#161c24]" onClick={() => show(running.id)} aria-label={`${running.title} läuft`} title={running.title}>
+      <button type="button" className="grid h-10 w-10 place-items-center rounded-lg text-accent hover:bg-[#161c24]" onClick={() => show(running.id)} aria-label={t.running(running.title)} title={running.title}>
         <span className="animate-pulse">
           <Glyph name="terminal" size={19} strokeWidth={2} />
         </span>
@@ -212,7 +229,7 @@ export function JobChip({ compact = false }: { compact?: boolean }) {
     <button type="button" className="btn mx-1 justify-start text-[12px]" onClick={() => show(running.id)}>
       <Glyph name="terminal" size={14} />
       <span className="grow truncate text-left">{running.title}</span>
-      <span className="animate-pulse text-accent">läuft</span>
+      <span className="animate-pulse text-accent">{t.runningShort}</span>
     </button>
   )
 }

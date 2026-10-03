@@ -2,6 +2,7 @@
 // "quadeck" group can open, offers a fixed list of operations and enforces
 // the unlock gate itself.
 
+import { tr } from '~/shared/i18n'
 import { chmodSync, chownSync, existsSync, readFileSync, rmSync } from 'node:fs'
 import { HttpError } from '../auth'
 import { PACKAGE_NAME } from '~/shared/packages'
@@ -19,11 +20,11 @@ type Handler = (body: Record<string, unknown>, p: Privileged) => Promise<unknown
 
 const str = (v: unknown) => (typeof v === 'string' ? v : undefined)
 const names = (v: unknown) => {
-  if (!Array.isArray(v) || !v.length || v.length > 200 || !v.every((n) => typeof n === 'string' && PACKAGE_NAME.test(n))) throw new HttpError(400, 'Ungültige Paketnamen')
+  if (!Array.isArray(v) || !v.length || v.length > 200 || !v.every((n) => typeof n === 'string' && PACKAGE_NAME.test(n))) throw new HttpError(400, tr('Ungültige Paketnamen', 'Invalid package names'))
   return v as string[]
 }
 const action = (v: unknown): UnitAction => {
-  if (!UNIT_ACTIONS.includes(v as UnitAction)) throw new HttpError(400, 'action muss start, stop oder restart sein')
+  if (!UNIT_ACTIONS.includes(v as UnitAction)) throw new HttpError(400, tr('action muss start, stop oder restart sein', 'action must be start, stop or restart'))
   return v as UnitAction
 }
 
@@ -60,7 +61,7 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/pkg/config-file': (b, p) => p.configFile(str(b.path) ?? ''),
   '/pkg/config-apply': (b, p) => {
     const a = b.action
-    if (a !== 'replace' && a !== 'keep' && a !== 'merge') throw new HttpError(400, 'action: replace, keep oder merge')
+    if (a !== 'replace' && a !== 'keep' && a !== 'merge') throw new HttpError(400, tr('action: replace, keep oder merge', 'action: replace, keep or merge'))
     return p.applyConfigFile(str(b.token), str(b.path) ?? '', a, str(b.content))
   },
   '/images/updates': (b, p) => p.imageUpdates(b.refresh === true),
@@ -90,20 +91,20 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/shares/preview': (b, p) => p.previewShare(parseShareChange(b.change)),
   '/shares/apply': (b, p) => p.applyShare(str(b.token), parseShareChange(b.change)),
   '/shares/service': (b, p) => {
-    if (b.kind !== 'smb' && b.kind !== 'nfs') throw new HttpError(400, 'kind muss smb oder nfs sein')
-    if (!['start', 'stop', 'restart', 'enable'].includes(str(b.action) ?? '')) throw new HttpError(400, 'Ungültige Aktion')
+    if (b.kind !== 'smb' && b.kind !== 'nfs') throw new HttpError(400, tr('kind muss smb oder nfs sein', 'kind must be smb or nfs'))
+    if (!['start', 'stop', 'restart', 'enable'].includes(str(b.action) ?? '')) throw new HttpError(400, tr('Ungültige Aktion', 'Invalid action'))
     return p.shareService(str(b.token), b.kind, b.action as 'start')
   },
   '/ssh/state': (_b, p) => p.sshState(),
   '/ssh/preview': (b, p) => p.previewSsh(parseSshChange(b.change)),
   '/ssh/apply': (b, p) => p.applySsh(str(b.token), parseSshChange(b.change)),
   '/ssh/service': (b, p) => {
-    if (!['start', 'restart', 'enable'].includes(str(b.action) ?? '')) throw new HttpError(400, 'Ungültige Aktion')
+    if (!['start', 'restart', 'enable'].includes(str(b.action) ?? '')) throw new HttpError(400, tr('Ungültige Aktion', 'Invalid action'))
     return p.sshService(str(b.token), b.action as 'start')
   },
   '/smart/report': (b, p) => p.smartReport(b.refresh === true),
   '/smart/selftest': (b, p) => {
-    if (!DISK_NAME.test(str(b.disk) ?? '') || (b.type !== 'short' && b.type !== 'long')) throw new HttpError(400, 'disk und type (short|long) erforderlich')
+    if (!DISK_NAME.test(str(b.disk) ?? '') || (b.type !== 'short' && b.type !== 'long')) throw new HttpError(400, tr('disk und type (short|long) erforderlich', 'disk and type (short|long) required'))
     return p.smartSelfTest(str(b.token), str(b.disk)!, b.type)
   },
   '/files/roots': async (_b, p) => ({ data: await p.fileRoots() }),
@@ -167,7 +168,7 @@ export const HELPER_ROUTES: Record<string, Handler> = {
 export async function handleHelperRequest(req: Request, p: Privileged, routes = HELPER_ROUTES): Promise<Response> {
   const path = new URL(req.url).pathname
   const route = routes[path]
-  if (!route) return Response.json({ error: 'unbekannt' }, { status: 404 })
+  if (!route) return Response.json({ error: tr('unbekannt', 'unknown') }, { status: 404 })
   try {
     const body = req.method === 'POST' ? ((await req.json().catch(() => ({}))) as Record<string, unknown>) : {}
     return Response.json(await route(body, p))
@@ -196,6 +197,6 @@ export function serveHelper(socket: string, p: Privileged, routes = HELPER_ROUTE
   const gid = groupId(process.env.QUADECK_HELPER_GROUP || 'quadeck')
   if (gid !== undefined && process.getuid?.() === 0) chownSync(socket, 0, gid)
   chmodSync(socket, 0o660)
-  console.log(`[quadeck-helper] lauscht auf ${socket}`)
+  console.log(`[quadeck-helper] listening on ${socket}`)
   return server
 }

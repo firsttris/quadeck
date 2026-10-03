@@ -2,6 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { getSession } from '~/server/auth'
 import { authed } from '~/server/http'
 import { hubReady, type HubEvent } from '~/server/hub'
+import { localizeDeep, requestLang } from '~/server/lang'
 
 const encoder = new TextEncoder()
 
@@ -14,13 +15,15 @@ export const Route = createFileRoute('/api/events')({
       HEAD: authed(() => new Response(null, { status: 204 })),
       GET: authed(async ({ request }) => {
         const hub = await hubReady()
+        // Events come from the hub, outside of this request: localize for this viewer.
+        const lang = requestLang(request)
         let unsubscribe = () => {}
         let ping: ReturnType<typeof setInterval> | undefined
         const stream = new ReadableStream<Uint8Array>({
           start(controller) {
             const send = (e: HubEvent) => {
               try {
-                controller.enqueue(encoder.encode(`event: ${e.type}\ndata: ${JSON.stringify(e.data)}\n\n`))
+                controller.enqueue(encoder.encode(`event: ${e.type}\ndata: ${JSON.stringify(localizeDeep(e.data, lang))}\n\n`))
               } catch {
                 unsubscribe()
               }

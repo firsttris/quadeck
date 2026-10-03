@@ -214,8 +214,7 @@ test.describe.serial('Quadeck', () => {
     await page.reload()
     await page.getByRole('img', { name: 'live verbunden' }).waitFor()
     // Compare with a 1×1 neighbour in the same render (column width depends on the window)
-    const ratio = async (dim: 'width' | 'height') =>
-      (await page.getByTestId('grid-item-ct:jellyfin').boundingBox())![dim] / (await page.getByTestId('grid-item-ct:immich-server').boundingBox())![dim]
+    const ratio = async (dim: 'width' | 'height') => (await page.getByTestId('grid-item-ct:jellyfin').boundingBox())![dim] / (await page.getByTestId('grid-item-ct:immich-server').boundingBox())![dim]
     await expect.poll(() => ratio('width')).toBeGreaterThan(1.8) // the grid animates into place
     await expect.poll(() => ratio('height')).toBeGreaterThan(1.8)
     await expect(page.getByRole('region', { name: 'Nächste Timer' })).toHaveCount(0)
@@ -227,9 +226,7 @@ test.describe.serial('Quadeck', () => {
     await expect(page.getByRole('region', { name: 'Nächste Timer' })).toBeVisible()
     await page.getByRole('button', { name: 'Auf Auto-Layout zurücksetzen' }).click()
     await expect(page.getByRole('status').filter({ hasText: 'Auto-Layout wiederhergestellt' })).toBeVisible()
-    await expect
-      .poll(async () => Math.abs((await page.getByTestId('grid-item-ct:jellyfin').boundingBox())!.width - (await page.getByTestId('grid-item-ct:immich-server').boundingBox())!.width))
-      .toBeLessThan(2)
+    await expect.poll(async () => Math.abs((await page.getByTestId('grid-item-ct:jellyfin').boundingBox())!.width - (await page.getByTestId('grid-item-ct:immich-server').boundingBox())!.width)).toBeLessThan(2)
   })
 
   test('edit a service: rename, hide and restore, back to automatic', async ({ page }) => {
@@ -265,7 +262,7 @@ test.describe.serial('Quadeck', () => {
     await page.keyboard.press('Control+k')
     const input = page.getByRole('combobox', { name: 'Suchen' })
     await input.fill('qbit')
-    await expect(page.getByRole('option').first()).toContainText('qBittorrent')
+    await expect(page.getByRole('listbox').getByRole('option').first()).toContainText('qBittorrent')
     await input.fill('fehlgeschlagene')
     await page.keyboard.press('Enter')
     await expect(page).toHaveURL(/\/units\?filter=failed/)
@@ -303,7 +300,7 @@ test.describe.serial('Quadeck', () => {
     await login(page)
     const res = await page.request.post('/api/units', { data: { name: 'jellyfin.service', action: 'stop' }, headers: { origin: 'http://evil.example' } })
     expect(res.status()).toBe(403)
-    const noCsrf = await page.request.post('/api/units', { data: { name: 'jellyfin.service', action: 'stop' } })
+    const noCsrf = await page.request.post('/api/units', { data: { name: 'jellyfin.service', action: 'stop' }, headers: { 'accept-language': 'de-DE' } })
     expect(noCsrf.status()).toBe(403)
     expect(await noCsrf.json()).toEqual({ error: 'CSRF-Token fehlt oder ist ungültig' })
   })

@@ -9,20 +9,11 @@ import { PodmanSettingsView } from '~/components/PodmanSettings'
 import { BootView } from '~/components/Boot'
 import { ConfigFilesPanel } from '~/components/ConfigFiles'
 import { Pill } from '~/components/Status'
+import { useT } from '~/i18n'
 import { api } from '~/lib/api'
 import { bytes, relative } from '~/lib/format'
-import {
-  REBOOT_PACKAGES,
-  type ImageUpdatesReport,
-  type InstalledPackage,
-  type JobInfo,
-  type NewsItem,
-  type PackageDetail,
-  type PackageOverview,
-  type PackageUpdate,
-  type RemovePreview,
-  type UpdatesReport,
-} from '~/shared/packages'
+import { localeOf } from '~/shared/i18n'
+import { REBOOT_PACKAGES, type ImageUpdatesReport, type InstalledPackage, type JobInfo, type NewsItem, type PackageDetail, type PackageOverview, type PackageUpdate, type RemovePreview, type UpdatesReport } from '~/shared/packages'
 
 type Tab = 'updates' | 'packages' | 'podman' | 'boot'
 
@@ -37,19 +28,20 @@ type Overview = PackageOverview & { news?: { items: NewsItem[]; error?: string }
 /** GET JSON with reload; reloads whenever a job ends. */
 function useData<T>(url: string) {
   const { finished } = useJobs()
+  const t = useT()
   const [data, setData] = useState<T | null>(null)
   const [error, setError] = useState('')
   const load = useCallback(async () => {
     try {
       const r = await fetch(url)
       const d = (await r.json()) as T & { error?: string }
-      if (!r.ok) throw new Error(d.error ?? `HTTP ${r.status}`)
+      if (!r.ok) throw new Error(d.error ?? t.common.http(r.status))
       setData(d)
       setError('')
     } catch (e) {
       setError((e as Error).message)
     }
-  }, [url])
+  }, [url, t])
   useEffect(() => {
     void load()
   }, [load, finished])
@@ -60,36 +52,34 @@ function SystemPage() {
   const { tab = 'updates' } = Route.useSearch()
   const overview = useData<Overview>('/api/system/overview')
   const o = overview.data
+  const t = useT().system.page
   return (
     <>
-      <PageHeader
-        title="System"
-        subtitle={o ? (o.manager ? `Pakete über ${o.label}${o.aur?.helper ? ` · AUR über ${o.aur.helper}` : ''} · Container-Images über podman auto-update` : 'Kein unterstützter Paketmanager gefunden') : 'Updates und installierte Pakete'}
-      />
-      <div role="tablist" aria-label="Bereich" className="flex flex-wrap gap-1.5">
+      <PageHeader title={t.title} subtitle={o ? (o.manager ? t.subtitle(o.label, o.aur?.helper) : t.noManager) : t.defaultSubtitle} />
+      <div role="tablist" aria-label={t.tabs} className="flex flex-wrap gap-1.5">
         <Link to="/system" search={{}} role="tab" aria-selected={tab === 'updates'} className={`seg ${tab === 'updates' ? 'on' : ''}`}>
-          Updates
+          {t.updates}
         </Link>
         <Link to="/system" search={{ tab: 'packages' }} role="tab" aria-selected={tab === 'packages'} className={`seg ${tab === 'packages' ? 'on' : ''}`}>
-          Installiert
+          {t.installed}
         </Link>
         <Link to="/system" search={{ tab: 'podman' }} role="tab" aria-selected={tab === 'podman'} className={`seg ${tab === 'podman' ? 'on' : ''}`}>
-          Podman
+          {t.podman}
         </Link>
         <Link to="/system" search={{ tab: 'boot' }} role="tab" aria-selected={tab === 'boot'} className={`seg ${tab === 'boot' ? 'on' : ''}`}>
-          Boot und Neustart
+          {t.boot}
         </Link>
       </div>
       {overview.error && <p className="m-0 text-[13px] text-[#e3b341]">{overview.error}</p>}
       {o?.rebootRequired && tab !== 'boot' && (
-        <section className="panel alertcard flex flex-wrap items-center gap-3 px-[18px] py-3" aria-label="Neustart nötig">
+        <section className="panel alertcard flex flex-wrap items-center gap-3 px-[18px] py-3" aria-label={t.rebootNeeded}>
           <Glyph name="restart" />
           <div className="grow">
-            <div className="font-medium">Neustart empfohlen</div>
+            <div className="font-medium">{t.rebootRecommended}</div>
             <div className="text-[13px] text-muted">{o.rebootReason}</div>
           </div>
           <Link to="/system" search={{ tab: 'boot' }} className="btn sm">
-            Neu starten …
+            {t.rebootDots}
           </Link>
         </section>
       )}
@@ -103,6 +93,8 @@ function SystemPage() {
 function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null; onOverviewChanged: () => void }) {
   const jobs = useJobs()
   const { readonly } = useActions()
+  const T = useT()
+  const t = T.system.updates
   const updates = useData<UpdatesReport>('/api/system/updates')
   const images = useData<ImageUpdatesReport>('/api/system/images')
   const history = useData<{ jobs: JobInfo[] }>('/api/jobs')
@@ -131,24 +123,24 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
   return (
     <>
       <div className="flex flex-wrap items-center gap-3 text-[13px] text-muted">
-        <span suppressHydrationWarning>{u ? `Zuletzt geprüft ${relative(u.checkedAt)}` : updates.error ? '' : 'Wird geprüft …'}</span>
-        {o?.lastUpgrade && <span suppressHydrationWarning>· letztes Systemupdate {relative(o.lastUpgrade)}</span>}
+        <span suppressHydrationWarning>{u ? t.lastChecked(relative(u.checkedAt)) : updates.error ? '' : t.checking}</span>
+        {o?.lastUpgrade && <span suppressHydrationWarning>{t.lastUpgrade(relative(o.lastUpgrade))}</span>}
         <button type="button" className="btn sm ml-auto" onClick={check} disabled={checking}>
-          <Glyph name="restart" size={14} /> {checking ? 'Prüfe …' : 'Jetzt prüfen'}
+          <Glyph name="restart" size={14} /> {checking ? t.checkingShort : t.checkNow}
         </button>
       </div>
 
       {news.length > 0 && (
-        <section className="panel flex flex-col" aria-label="Arch-News">
+        <section className="panel flex flex-col" aria-label={t.news}>
           <div className="flex items-baseline gap-2 px-[18px] pt-4 pb-2">
-            <h2 className="h2">Arch-News</h2>
-            {unread.length > 0 && <Pill tone="warn">{unread.length} neu seit dem letzten Update</Pill>}
-            <span className="ml-auto text-[12px] text-muted">vor dem Update lesen – manchmal ist Handarbeit nötig</span>
+            <h2 className="h2">{t.news}</h2>
+            {unread.length > 0 && <Pill tone="warn">{t.newSince(unread.length)}</Pill>}
+            <span className="ml-auto text-[12px] text-muted">{t.readFirst}</span>
           </div>
           {news.slice(0, 4).map((n) => (
             <a key={n.link} href={n.link} target="_blank" rel="noreferrer" className="flex items-center gap-3 border-t border-line px-[18px] py-[9px] hover:bg-[rgba(255,255,255,.03)]">
               <span className={`grow text-[13px] ${unread.includes(n) ? 'font-medium text-fg' : 'text-[#c9d1d9]'}`}>{n.title}</span>
-              <span className="font-mono text-[12px] text-subtle">{new Date(n.date).toLocaleDateString('de-DE')}</span>
+              <span className="font-mono text-[12px] text-subtle">{new Date(n.date).toLocaleDateString(localeOf())}</span>
             </a>
           ))}
           {o?.news?.error && <p className="m-0 border-t border-line px-[18px] py-2 text-[12px] text-[#e3b341]">{o.news.error}</p>}
@@ -156,15 +148,15 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
       )}
 
       <UpdateTable
-        title={`Systempakete${o?.label ? ` · ${o.label}` : ''}`}
+        title={t.systemPackages(o?.label)}
         items={u?.repo}
         error={u?.error ?? updates.error}
-        empty="Alles aktuell."
-        note={rebootPkgs.length ? `Danach ist ein Neustart nötig (${rebootPkgs.join(', ')}).` : undefined}
+        empty={t.upToDate}
+        note={rebootPkgs.length ? t.rebootAfter(rebootPkgs.join(', ')) : undefined}
         action={
           canAct && u?.repo.length ? (
             <button type="button" className="btn primary sm" disabled={busy} onClick={() => setConfirm('upgrade')}>
-              <Glyph name="download" size={14} /> Alle aktualisieren ({u.repo.length})
+              <Glyph name="download" size={14} /> {t.updateAllN(u.repo.length)}
             </button>
           ) : undefined
         }
@@ -175,53 +167,47 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
           title="AUR"
           items={u?.aur}
           error={u?.aurError}
-          empty="Keine AUR-Updates."
-          note={
-            !o.aur?.helper
-              ? 'yay oder paru ist nicht installiert – Updates werden angezeigt, aber nicht installiert.'
-              : !o.aur.user
-                ? 'Kein Benutzer für den AUR-Helfer gefunden – QUADECK_AUR_USER setzen.'
-                : `Baut als ${o.aur.user} mit ${o.aur.helper}; pacman läuft dabei per sudo (nur für die Dauer des Jobs ohne Passwort).`
-          }
+          empty={t.noAur}
+          note={!o.aur?.helper ? t.noHelper : !o.aur.user ? t.noAurUser : t.buildsAs(o.aur.user, o.aur.helper)}
           action={
             canAct && u?.aur.length && o.aur?.helper && o.aur.user ? (
               <button type="button" className="btn sm" disabled={busy} onClick={() => setConfirm('aur')}>
-                <Glyph name="download" size={14} /> AUR aktualisieren ({u.aur.length})
+                <Glyph name="download" size={14} /> {t.updateAur(u.aur.length)}
               </button>
             ) : undefined
           }
         />
       )}
 
-      <section className="panel flex flex-col" aria-label="Container-Images">
+      <section className="panel flex flex-col" aria-label={t.images}>
         <div className="flex flex-wrap items-center gap-2 px-[18px] pt-4 pb-2">
-          <h2 className="h2">Container-Images</h2>
-          {pendingImages.length > 0 && <Pill tone="warn">{pendingImages.length} Update{pendingImages.length === 1 ? '' : 's'}</Pill>}
+          <h2 className="h2">{t.images}</h2>
+          {pendingImages.length > 0 && <Pill tone="warn">{t.imageUpdates(pendingImages.length)}</Pill>}
           {canAct && pendingImages.length > 0 && (
             <button type="button" className="btn sm ml-auto" disabled={busy} onClick={() => setConfirm('images')}>
-              <Glyph name="download" size={14} /> Alle aktualisieren
+              <Glyph name="download" size={14} /> {t.updateAll}
             </button>
           )}
         </div>
         {images.data?.error || images.error ? (
           <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-[#e3b341]">{images.data?.error ?? images.error}</p>
         ) : !images.data ? (
-          <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">Wird geprüft …</p>
+          <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{t.checking}</p>
         ) : images.data.items.length === 0 ? (
           <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">
-            Keine Container mit Auto-Update. In der Quadlet-Datei <span className="font-mono">AutoUpdate=registry</span> setzen.
+            {t.noAutoUpdateBefore} <span className="font-mono">AutoUpdate=registry</span> {t.noAutoUpdateAfter}
           </p>
         ) : (
           <div className="overflow-x-auto">
             <table className="tbl">
               <thead>
                 <tr>
-                  <th>Container</th>
-                  <th>Image</th>
-                  <th className="hidden md:table-cell">Unit</th>
-                  <th>Status</th>
+                  <th>{t.container}</th>
+                  <th>{t.image}</th>
+                  <th className="hidden md:table-cell">{t.unit}</th>
+                  <th>{T.common.status}</th>
                   <th>
-                    <span className="sr-only">Aktionen</span>
+                    <span className="sr-only">{T.common.actions}</span>
                   </th>
                 </tr>
               </thead>
@@ -232,12 +218,12 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
                     <td className="max-w-[360px] truncate font-mono text-[12px] text-muted">{i.image}</td>
                     <td className="hidden font-mono text-[12px] md:table-cell">{i.unit}</td>
                     <td>
-                      <Pill tone={i.updated === 'pending' ? 'warn' : i.updated === 'failed' ? 'bad' : 'ok'}>{i.updated === 'pending' ? 'Update verfügbar' : i.updated === 'false' ? 'aktuell' : i.updated}</Pill>
+                      <Pill tone={i.updated === 'pending' ? 'warn' : i.updated === 'failed' ? 'bad' : 'ok'}>{i.updated === 'pending' ? t.updateAvailable : i.updated === 'false' ? t.current : i.updated}</Pill>
                     </td>
                     <td className="text-right">
                       {canAct && i.updated === 'pending' && (
-                        <button type="button" className="btn sm" disabled={busy} onClick={() => void jobs.start({ kind: 'image-update', unit: i.unit })} aria-label={`${i.container} aktualisieren`}>
-                          Aktualisieren
+                        <button type="button" className="btn sm" disabled={busy} onClick={() => void jobs.start({ kind: 'image-update', unit: i.unit })} aria-label={t.updateOne(i.container)}>
+                          {t.update}
                         </button>
                       )}
                     </td>
@@ -247,16 +233,14 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
             </table>
           </div>
         )}
-        <p className="m-0 border-t border-line px-[18px] py-2 text-[12px] text-muted">
-          „Alle aktualisieren“ nutzt podman auto-update mit Rollback: startet ein Container mit dem neuen Image nicht, wird das alte wiederhergestellt. Einzeln: neues Image ziehen und Unit neu starten.
-        </p>
+        <p className="m-0 border-t border-line px-[18px] py-2 text-[12px] text-muted">{t.imagesHint}</p>
       </section>
 
       {o && o.configFiles.length > 0 && <ConfigFilesPanel files={o.configFiles} hint={o.configHint} onChanged={onOverviewChanged} />}
 
       {(history.data?.jobs.length ?? 0) > 0 && (
-        <section className="panel flex flex-col" aria-label="Letzte Jobs">
-          <h2 className="h2 px-[18px] pt-4 pb-2">Letzte Jobs</h2>
+        <section className="panel flex flex-col" aria-label={t.recentJobs}>
+          <h2 className="h2 px-[18px] pt-4 pb-2">{t.recentJobs}</h2>
           {history.data!.jobs.map((j) => (
             <div key={j.id} className="flex items-center gap-3 border-t border-line px-[18px] py-[8px]">
               <Pill tone={statusTone(j.status)}>{STATUS_LABEL[j.status]}</Pill>
@@ -265,7 +249,7 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
                 {relative(j.startedAt)}
               </span>
               <button type="button" className="btn sm" onClick={() => jobs.show(j.id)}>
-                Ausgabe
+                {t.output}
               </button>
             </div>
           ))}
@@ -274,12 +258,13 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
 
       <ConfirmDialog
         open={confirm === 'upgrade'}
-        title="Systemupdate starten?"
-        confirm="Aktualisieren"
+        title={t.upgradeTitle}
+        confirm={t.update}
         body={
           <p className="m-0">
-            {u?.repo.length} Pakete werden mit {o?.label} aktualisiert. {unread.length > 0 && 'Es gibt ungelesene Arch-News – bitte vorher lesen. '}
-            {rebootPkgs.length > 0 && 'Danach ist ein Neustart nötig.'}
+            {t.upgradeBody(u?.repo.length, o?.label)}
+            {unread.length > 0 && t.unreadNews}
+            {rebootPkgs.length > 0 && t.rebootAfterShort}
           </p>
         }
         onConfirm={() => void jobs.start({ kind: 'upgrade' })}
@@ -287,21 +272,17 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
       />
       <ConfirmDialog
         open={confirm === 'aur'}
-        title="AUR-Pakete aktualisieren?"
-        confirm="Aktualisieren"
-        body={
-          <p className="m-0">
-            {o?.aur?.helper} baut {u?.aur.length} Paket{u?.aur.length === 1 ? '' : 'e'} als {o?.aur?.user}. PKGBUILDs werden dabei nicht angezeigt – nur Pakete aktualisieren, denen du vertraust.
-          </p>
-        }
+        title={t.aurTitle}
+        confirm={t.update}
+        body={<p className="m-0">{t.aurBody(o?.aur?.helper, u?.aur.length, o?.aur?.user)}</p>}
         onConfirm={() => void jobs.start({ kind: 'aur-upgrade' })}
         onClose={() => setConfirm(null)}
       />
       <ConfirmDialog
         open={confirm === 'images'}
-        title="Container-Images aktualisieren?"
-        confirm="Aktualisieren"
-        body={<p className="m-0">{pendingImages.map((i) => i.container).join(', ')} werden mit neuem Image neu gestartet (podman auto-update, mit Rollback).</p>}
+        title={t.imagesTitle}
+        confirm={t.update}
+        body={<p className="m-0">{t.imagesBody(pendingImages.map((i) => i.container).join(', '))}</p>}
         onConfirm={() => void jobs.start({ kind: 'images-update' })}
         onClose={() => setConfirm(null)}
       />
@@ -310,6 +291,7 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
 }
 
 function UpdateTable({ title, items, error, empty, note, action }: { title: string; items?: PackageUpdate[]; error?: string; empty: string; note?: string; action?: React.ReactNode }) {
+  const t = useT().system.updates
   return (
     <section className="panel flex flex-col" aria-label={title}>
       <div className="flex flex-wrap items-center gap-2 px-[18px] pt-4 pb-2">
@@ -320,7 +302,7 @@ function UpdateTable({ title, items, error, empty, note, action }: { title: stri
       {error ? (
         <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-[#e3b341]">{error}</p>
       ) : !items ? (
-        <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">Wird geprüft …</p>
+        <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{t.checking}</p>
       ) : items.length === 0 ? (
         <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{empty}</p>
       ) : (
@@ -328,10 +310,10 @@ function UpdateTable({ title, items, error, empty, note, action }: { title: stri
           <table className="tbl">
             <thead>
               <tr>
-                <th>Paket</th>
-                <th>Version</th>
-                <th className="hidden sm:table-cell">Quelle</th>
-                <th className="hidden md:table-cell">Download</th>
+                <th>{t.package}</th>
+                <th>{t.version}</th>
+                <th className="hidden sm:table-cell">{t.source}</th>
+                <th className="hidden md:table-cell">{t.download}</th>
               </tr>
             </thead>
             <tbody>
@@ -339,7 +321,7 @@ function UpdateTable({ title, items, error, empty, note, action }: { title: stri
                 <tr key={x.name} data-testid="update-row">
                   <td className="font-mono text-[13px]">{x.name}</td>
                   <td className="font-mono text-[12px]">
-                    <span className="text-muted">{x.from || 'neu'}</span> <span className="text-subtle">→</span> <span className="text-accent">{x.to}</span>
+                    <span className="text-muted">{x.from || t.new}</span> <span className="text-subtle">→</span> <span className="text-accent">{x.to}</span>
                   </td>
                   <td className="hidden text-[12px] text-muted sm:table-cell">{x.repo ?? '–'}</td>
                   <td className="hidden font-mono text-[12px] text-muted md:table-cell">{x.downloadSize ? bytes(x.downloadSize) : '–'}</td>
@@ -357,13 +339,7 @@ function UpdateTable({ title, items, error, empty, note, action }: { title: stri
 // ---------- Installed packages ----------
 
 type PkgFilter = 'all' | 'explicit' | 'dependency' | 'foreign' | 'orphan'
-const PKG_FILTERS: [PkgFilter, string][] = [
-  ['all', 'Alle'],
-  ['explicit', 'Explizit'],
-  ['dependency', 'Abhängigkeit'],
-  ['foreign', 'Fremd / AUR'],
-  ['orphan', 'Verwaist'],
-]
+const PKG_FILTERS: PkgFilter[] = ['all', 'explicit', 'dependency', 'foreign', 'orphan']
 const PAGE = 200
 
 function pkgMatches(p: InstalledPackage, f: PkgFilter) {
@@ -375,6 +351,8 @@ function pkgMatches(p: InstalledPackage, f: PkgFilter) {
 
 function Packages({ overview: o }: { overview: Overview | null }) {
   const { readonly } = useActions()
+  const T = useT()
+  const t = T.system.packages
   const list = useData<{ packages: InstalledPackage[] }>('/api/system/packages')
   const [query, setQuery] = useState('')
   const [filter, setFilter] = useState<PkgFilter>('all')
@@ -392,7 +370,7 @@ function Packages({ overview: o }: { overview: Overview | null }) {
     const res = (pkgs ?? []).filter((p) => pkgMatches(p, filter) && (!q || p.name.toLowerCase().includes(q) || p.description?.toLowerCase().includes(q)))
     return sort === 'size' ? res.sort((a, b) => (b.size ?? 0) - (a.size ?? 0)) : res.sort((a, b) => a.name.localeCompare(b.name))
   }, [pkgs, query, filter, sort])
-  const counts = useMemo(() => Object.fromEntries(PKG_FILTERS.map(([k]) => [k, (pkgs ?? []).filter((p) => pkgMatches(p, k)).length])), [pkgs])
+  const counts = useMemo(() => Object.fromEntries(PKG_FILTERS.map((k) => [k, (pkgs ?? []).filter((p) => pkgMatches(p, k)).length])), [pkgs])
   const totalSize = shown.reduce((s, p) => s + (p.size ?? 0), 0)
 
   useEffect(() => setLimit(PAGE), [query, filter, sort])
@@ -410,33 +388,33 @@ function Packages({ overview: o }: { overview: Overview | null }) {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <input className="field w-full sm:w-[280px]" type="search" placeholder="Pakete suchen …" aria-label="Pakete suchen" value={query} onChange={(e) => setQuery(e.target.value)} />
-        <div role="group" aria-label="Filter" className="flex flex-wrap gap-1.5">
-          {PKG_FILTERS.filter(([k]) => k === 'all' || counts[k]).map(([k, label]) => (
+        <input className="field w-full sm:w-[280px]" type="search" placeholder={t.searchPlaceholder} aria-label={t.search} value={query} onChange={(e) => setQuery(e.target.value)} />
+        <div role="group" aria-label={t.filter} className="flex flex-wrap gap-1.5">
+          {PKG_FILTERS.filter((k) => k === 'all' || counts[k]).map((k) => (
             <button key={k} type="button" className={`seg ${filter === k ? 'on' : ''}`} aria-pressed={filter === k} onClick={() => setFilter(k)}>
-              {label}
+              {t.filters[k]}
               <span className="opacity-60">{counts[k]}</span>
             </button>
           ))}
         </div>
         <label className="ml-auto flex items-center gap-2 text-[12px] text-muted">
-          Sortieren
+          {t.sort}
           <select className="field !py-1" value={sort} onChange={(e) => setSort(e.target.value as 'name' | 'size')}>
-            <option value="name">Name</option>
-            <option value="size">Größe</option>
+            <option value="name">{T.common.name}</option>
+            <option value="size">{T.common.size}</option>
           </select>
         </label>
       </div>
       {list.error && <p className="m-0 text-[13px] text-[#e3b341]">{list.error}</p>}
       {selected.size > 0 && (
-        <div className="panel flex flex-wrap items-center gap-3 px-[18px] py-2.5 text-[13px]" role="region" aria-label="Auswahl">
-          <span>{selected.size} ausgewählt</span>
+        <div className="panel flex flex-wrap items-center gap-3 px-[18px] py-2.5 text-[13px]" role="region" aria-label={t.selection}>
+          <span>{t.selected(selected.size)}</span>
           <button type="button" className="btn sm" onClick={() => setSelected(new Set())}>
-            Auswahl aufheben
+            {t.clearSelection}
           </button>
           {canRemove && (
             <button type="button" className="btn danger sm ml-auto" onClick={() => setRemoving([...selected])}>
-              <Glyph name="trash" size={14} /> Entfernen …
+              <Glyph name="trash" size={14} /> {t.removeDots}
             </button>
           )}
         </div>
@@ -447,27 +425,27 @@ function Packages({ overview: o }: { overview: Overview | null }) {
             <tr>
               {canRemove && (
                 <th className="w-8">
-                  <span className="sr-only">Auswahl</span>
+                  <span className="sr-only">{t.selection}</span>
                 </th>
               )}
-              <th>Paket</th>
-              <th className="hidden md:table-cell">Version</th>
-              <th className="hidden sm:table-cell">Größe</th>
-              <th className="hidden lg:table-cell">Grund</th>
+              <th>{t.package}</th>
+              <th className="hidden md:table-cell">{t.version}</th>
+              <th className="hidden sm:table-cell">{T.common.size}</th>
+              <th className="hidden lg:table-cell">{t.reason}</th>
             </tr>
           </thead>
           <tbody>
             {!pkgs && !list.error && (
               <tr>
                 <td colSpan={5} className="text-muted">
-                  Wird geladen …
+                  {T.common.loading}
                 </td>
               </tr>
             )}
             {pkgs && shown.length === 0 && (
               <tr>
                 <td colSpan={5} className="text-muted">
-                  Keine Pakete in dieser Auswahl.
+                  {t.noneInSelection}
                 </td>
               </tr>
             )}
@@ -475,7 +453,7 @@ function Packages({ overview: o }: { overview: Overview | null }) {
               <tr key={p.name} data-testid="package-row" className="cursor-pointer" onClick={() => setDetail(p.name)}>
                 {canRemove && (
                   <td onClick={(e) => e.stopPropagation()}>
-                    <input type="checkbox" aria-label={`${p.name} auswählen`} checked={selected.has(p.name)} disabled={prot.has(p.name)} onChange={() => toggle(p.name)} />
+                    <input type="checkbox" aria-label={t.select(p.name)} checked={selected.has(p.name)} disabled={prot.has(p.name)} onChange={() => toggle(p.name)} />
                   </td>
                 )}
                 <td className="max-w-[460px]">
@@ -483,15 +461,15 @@ function Packages({ overview: o }: { overview: Overview | null }) {
                     <button type="button" className="font-mono text-[13px] font-medium hover:underline" onClick={() => setDetail(p.name)}>
                       {p.name}
                     </button>
-                    {p.foreign && <span className="chip q">{o?.manager === 'pacman' ? 'AUR' : 'fremd'}</span>}
-                    {p.orphan && <span className="chip">verwaist</span>}
-                    {prot.has(p.name) && <span className="chip">geschützt</span>}
+                    {p.foreign && <span className="chip q">{o?.manager === 'pacman' ? 'AUR' : t.foreign}</span>}
+                    {p.orphan && <span className="chip">{t.orphan}</span>}
+                    {prot.has(p.name) && <span className="chip">{t.protected}</span>}
                   </div>
                   {p.description && <div className="truncate text-[12px] text-muted">{p.description}</div>}
                 </td>
                 <td className="hidden font-mono text-[12px] md:table-cell">{p.version}</td>
                 <td className="hidden font-mono text-[12px] sm:table-cell">{p.size !== undefined ? bytes(p.size) : '–'}</td>
-                <td className="hidden text-[12px] text-subtle lg:table-cell">{p.reason === 'explicit' ? 'explizit' : p.reason === 'dependency' ? 'Abhängigkeit' : '–'}</td>
+                <td className="hidden text-[12px] text-subtle lg:table-cell">{p.reason === 'explicit' ? t.explicit : p.reason === 'dependency' ? t.filters.dependency : '–'}</td>
               </tr>
             ))}
           </tbody>
@@ -499,16 +477,17 @@ function Packages({ overview: o }: { overview: Overview | null }) {
       </div>
       <div className="flex flex-wrap items-center gap-3 text-[12px] text-muted">
         <span>
-          {shown.length} Pakete{totalSize ? ` · ${bytes(totalSize)}` : ''}
+          {t.count(shown.length)}
+          {totalSize ? ` · ${bytes(totalSize)}` : ''}
         </span>
         {filter === 'orphan' && canRemove && shown.length > 0 && (
           <button type="button" className="btn sm" onClick={() => setRemoving(shown.map((p) => p.name))}>
-            Alle verwaisten entfernen …
+            {t.removeOrphans}
           </button>
         )}
         {shown.length > limit && (
           <button type="button" className="btn sm ml-auto" onClick={() => setLimit((l) => l + PAGE)}>
-            Weitere {Math.min(PAGE, shown.length - limit)} anzeigen
+            {t.showMore(Math.min(PAGE, shown.length - limit))}
           </button>
         )}
       </div>
@@ -550,6 +529,8 @@ function NameList({ title, names, onOpen }: { title: string; names: string[]; on
 }
 
 function PackageDialog({ name, canRemove, onOpen, onRemove, onClose }: { name: string | null; canRemove: boolean; onOpen: (n: string) => void; onRemove: (n: string) => void; onClose: () => void }) {
+  const T = useT()
+  const t = T.system.packages
   const [d, setD] = useState<PackageDetail | null>(null)
   const [error, setError] = useState('')
   useEffect(() => {
@@ -560,14 +541,14 @@ function PackageDialog({ name, canRemove, onOpen, onRemove, onClose }: { name: s
     fetch(`/api/system/packages/${encodeURIComponent(name)}`)
       .then(async (r) => {
         const data = (await r.json()) as PackageDetail & { error?: string }
-        if (!r.ok) throw new Error(data.error ?? `HTTP ${r.status}`)
+        if (!r.ok) throw new Error(data.error ?? T.common.http(r.status))
         if (!stop) setD(data)
       })
       .catch((e: Error) => !stop && setError(e.message))
     return () => {
       stop = true
     }
-  }, [name])
+  }, [name, T])
   return (
     <Modal open={!!name} onClose={onClose} title={name ?? ''} wide>
       {error && (
@@ -575,31 +556,31 @@ function PackageDialog({ name, canRemove, onOpen, onRemove, onClose }: { name: s
           {error}
         </p>
       )}
-      {!d && !error && <p className="m-0 text-muted">Wird geladen …</p>}
+      {!d && !error && <p className="m-0 text-muted">{T.common.loading}</p>}
       {d && (
         <>
           {d.description && <p className="m-0 text-[#c9d1d9]">{d.description}</p>}
           <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[13px]">
-            <dt className="text-muted">Version</dt>
+            <dt className="text-muted">{t.version}</dt>
             <dd className="m-0 font-mono">{d.version}</dd>
             {d.size !== undefined && (
               <>
-                <dt className="text-muted">Größe</dt>
+                <dt className="text-muted">{T.common.size}</dt>
                 <dd className="m-0 font-mono">{bytes(d.size)}</dd>
               </>
             )}
             {d.reason && (
               <>
-                <dt className="text-muted">Installiert</dt>
+                <dt className="text-muted">{t.installed}</dt>
                 <dd className="m-0">
-                  {d.reason === 'explicit' ? 'explizit' : 'als Abhängigkeit'}
-                  {d.installedAt ? ` · ${new Date(d.installedAt).toLocaleDateString('de-DE')}` : ''}
+                  {d.reason === 'explicit' ? t.explicit : t.asDependency}
+                  {d.installedAt ? ` · ${new Date(d.installedAt).toLocaleDateString(localeOf())}` : ''}
                 </dd>
               </>
             )}
             {d.url && (
               <>
-                <dt className="text-muted">Website</dt>
+                <dt className="text-muted">{t.website}</dt>
                 <dd className="m-0 truncate">
                   <a className="text-accent hover:underline" href={/^https?:\/\//.test(d.url) ? d.url : undefined} target="_blank" rel="noreferrer">
                     {d.url}
@@ -608,20 +589,20 @@ function PackageDialog({ name, canRemove, onOpen, onRemove, onClose }: { name: s
               </>
             )}
           </dl>
-          <NameList title="Hängt ab von" names={d.depends} onOpen={onOpen} />
-          <NameList title="Benötigt von" names={d.requiredBy} onOpen={onOpen} />
-          {!!d.optionalFor?.length && <NameList title="Optional für" names={d.optionalFor} onOpen={onOpen} />}
-          {d.protected && <p className="m-0 text-[12px] text-muted">Geschütztes Systempaket – kann hier nicht entfernt werden.</p>}
+          <NameList title={t.dependsOn} names={d.depends} onOpen={onOpen} />
+          <NameList title={t.requiredBy} names={d.requiredBy} onOpen={onOpen} />
+          {!!d.optionalFor?.length && <NameList title={t.optionalFor} names={d.optionalFor} onOpen={onOpen} />}
+          {d.protected && <p className="m-0 text-[12px] text-muted">{t.protectedHint}</p>}
         </>
       )}
       <div className="flex justify-end gap-2">
         {d && canRemove && !d.protected && (
           <button type="button" className="btn danger mr-auto" onClick={() => onRemove(d.name)}>
-            <Glyph name="trash" size={14} /> Entfernen …
+            <Glyph name="trash" size={14} /> {t.removeDots}
           </button>
         )}
         <button type="button" className="btn" onClick={onClose}>
-          Schließen
+          {T.common.close}
         </button>
       </div>
     </Modal>
@@ -630,6 +611,8 @@ function PackageDialog({ name, canRemove, onOpen, onRemove, onClose }: { name: s
 
 function RemoveDialog({ names, onClose, onStarted }: { names: string[] | null; onClose: () => void; onStarted: () => void }) {
   const jobs = useJobs()
+  const T = useT()
+  const t = T.system.packages
   const [preview, setPreview] = useState<RemovePreview | null>(null)
   const [error, setError] = useState('')
   useEffect(() => {
@@ -642,8 +625,8 @@ function RemoveDialog({ names, onClose, onStarted }: { names: string[] | null; o
   }, [names])
   const ok = preview && !preview.error && preview.blocked.length === 0 && preview.packages.length > 0
   return (
-    <Modal open={!!names} onClose={onClose} title={names?.length === 1 ? `${names[0]} entfernen?` : `${names?.length ?? 0} Pakete entfernen?`}>
-      {!preview && !error && <p className="m-0 text-muted">Vorschau wird berechnet …</p>}
+    <Modal open={!!names} onClose={onClose} title={names?.length === 1 ? t.removeOne(names[0]!) : t.removeMany(names?.length ?? 0)}>
+      {!preview && !error && <p className="m-0 text-muted">{t.previewing}</p>}
       {(error || preview?.error) && (
         <pre role="alert" className="joblog !min-h-0 text-[#ff8a80]">
           {error || preview?.error}
@@ -651,10 +634,8 @@ function RemoveDialog({ names, onClose, onStarted }: { names: string[] | null; o
       )}
       {preview && !preview.error && (
         <>
-          <p className="m-0 text-[13px] text-[#c9d1d9]">
-            Entfernt werden {preview.packages.length} Paket{preview.packages.length === 1 ? '' : 'e'} – die gewählten und Abhängigkeiten, die sonst nichts mehr braucht:
-          </p>
-          <ul className="m-0 flex max-h-[240px] list-none flex-col overflow-y-auto rounded-lg border border-edge p-0" aria-label="Wird entfernt">
+          <p className="m-0 text-[13px] text-[#c9d1d9]">{t.removesN(preview.packages.length)}</p>
+          <ul className="m-0 flex max-h-[240px] list-none flex-col overflow-y-auto rounded-lg border border-edge p-0" aria-label={t.toBeRemoved}>
             {preview.packages.map((p) => (
               <li key={p.name} className="flex justify-between gap-3 border-b border-line px-3 py-1.5 font-mono text-[12px] last:border-b-0">
                 <span className={preview.blocked.includes(p.name) ? 'text-[#ff8a80]' : ''}>{p.name}</span>
@@ -664,14 +645,14 @@ function RemoveDialog({ names, onClose, onStarted }: { names: string[] | null; o
           </ul>
           {preview.blocked.length > 0 && (
             <p role="alert" className="m-0 text-[13px] text-[#ff8a80]">
-              Geschützte Pakete wären betroffen ({preview.blocked.join(', ')}) – Entfernen ist gesperrt.
+              {t.blocked(preview.blocked.join(', '))}
             </p>
           )}
         </>
       )}
       <div className="flex justify-end gap-2">
         <button type="button" className="btn" onClick={onClose}>
-          Abbrechen
+          {T.common.cancel}
         </button>
         <button
           type="button"
@@ -685,7 +666,7 @@ function RemoveDialog({ names, onClose, onStarted }: { names: string[] | null; o
             }
           }}
         >
-          {preview ? `${preview.packages.length} entfernen` : 'Entfernen'}
+          {preview ? t.removeN(preview.packages.length) : T.common.remove}
         </button>
       </div>
     </Modal>

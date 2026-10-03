@@ -2,6 +2,7 @@
 // (web app, root helper and the `quadeck job` runner).
 
 import type { KernelFlavor } from './boot'
+import { tr } from './i18n'
 
 export type ManagerId = 'pacman' | 'apt' | 'dnf' | 'zypper' | 'apk' | 'rpm-ostree'
 
@@ -136,8 +137,53 @@ export interface NewsItem {
  * is refused when they are among the packages a removal takes away.
  */
 export const PROTECTED_PACKAGES: Record<ManagerId, string[]> = {
-  pacman: ['base', 'linux', 'linux-lts', 'linux-zen', 'linux-hardened', 'linux-firmware', 'systemd', 'glibc', 'pacman', 'bash', 'coreutils', 'filesystem', 'util-linux', 'shadow', 'pam', 'sudo', 'openssh', 'podman', 'iproute2', 'grub', 'mkinitcpio', 'archlinux-keyring', 'ca-certificates'],
-  apt: ['apt', 'dpkg', 'libc6', 'systemd', 'systemd-sysv', 'bash', 'coreutils', 'base-files', 'base-passwd', 'login', 'passwd', 'util-linux', 'sudo', 'openssh-server', 'podman', 'iproute2', 'grub-common', 'linux-image-generic', 'ca-certificates', 'init'],
+  pacman: [
+    'base',
+    'linux',
+    'linux-lts',
+    'linux-zen',
+    'linux-hardened',
+    'linux-firmware',
+    'systemd',
+    'glibc',
+    'pacman',
+    'bash',
+    'coreutils',
+    'filesystem',
+    'util-linux',
+    'shadow',
+    'pam',
+    'sudo',
+    'openssh',
+    'podman',
+    'iproute2',
+    'grub',
+    'mkinitcpio',
+    'archlinux-keyring',
+    'ca-certificates',
+  ],
+  apt: [
+    'apt',
+    'dpkg',
+    'libc6',
+    'systemd',
+    'systemd-sysv',
+    'bash',
+    'coreutils',
+    'base-files',
+    'base-passwd',
+    'login',
+    'passwd',
+    'util-linux',
+    'sudo',
+    'openssh-server',
+    'podman',
+    'iproute2',
+    'grub-common',
+    'linux-image-generic',
+    'ca-certificates',
+    'init',
+  ],
   dnf: ['dnf', 'dnf5', 'rpm', 'glibc', 'systemd', 'bash', 'coreutils', 'filesystem', 'setup', 'shadow-utils', 'util-linux', 'sudo', 'openssh-server', 'podman', 'iproute', 'kernel', 'kernel-core', 'grub2-common', 'ca-certificates'],
   zypper: ['zypper', 'rpm', 'glibc', 'systemd', 'bash', 'coreutils', 'filesystem', 'shadow', 'util-linux', 'sudo', 'openssh-server', 'podman', 'iproute2', 'kernel-default', 'grub2', 'ca-certificates'],
   apk: ['apk-tools', 'alpine-base', 'busybox', 'musl', 'openrc', 'openssh', 'podman', 'sudo', 'ca-certificates', 'linux-lts'],
@@ -155,21 +201,30 @@ export const REBOOT_PACKAGES = /^(linux(-lts|-zen|-hardened)?|linux-image-.*|ker
  */
 export type Feature = 'smart' | 'samba' | 'nfs' | 'ssh'
 
+/** `label` is a getter: read in the viewer's language. */
 export const FEATURES: Record<Feature, { label: string; packages: Record<ManagerId, string[]>; service?: Record<ManagerId, string> }> = {
   smart: {
-    label: 'smartmontools (SMART-Werte der Platten)',
+    get label() {
+      return tr('smartmontools (SMART-Werte der Platten)', 'smartmontools (SMART values of the disks)')
+    },
     packages: { pacman: ['smartmontools'], apt: ['smartmontools'], dnf: ['smartmontools'], zypper: ['smartmontools'], apk: ['smartmontools'], 'rpm-ostree': ['smartmontools'] },
   },
   samba: {
-    label: 'Samba (SMB-Freigaben)',
+    get label() {
+      return tr('Samba (SMB-Freigaben)', 'Samba (SMB shares)')
+    },
     packages: { pacman: ['samba'], apt: ['samba'], dnf: ['samba'], zypper: ['samba'], apk: ['samba'], 'rpm-ostree': ['samba'] },
   },
   nfs: {
-    label: 'NFS-Server',
+    get label() {
+      return tr('NFS-Server', 'NFS server')
+    },
     packages: { pacman: ['nfs-utils'], apt: ['nfs-kernel-server'], dnf: ['nfs-utils'], zypper: ['nfs-kernel-server'], apk: ['nfs-utils'], 'rpm-ostree': ['nfs-utils'] },
   },
   ssh: {
-    label: 'OpenSSH-Server',
+    get label() {
+      return tr('OpenSSH-Server', 'OpenSSH server')
+    },
     packages: { pacman: ['openssh'], apt: ['openssh-server'], dnf: ['openssh-server'], zypper: ['openssh-server'], apk: ['openssh'], 'rpm-ostree': ['openssh-server'] },
   },
 }

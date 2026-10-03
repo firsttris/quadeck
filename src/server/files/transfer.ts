@@ -3,6 +3,7 @@
 
 import { existsSync, lstatSync, statSync } from 'node:fs'
 import { HttpError } from '../auth'
+import { tr } from '~/shared/i18n'
 import { baseName, joinPath, parentOf } from '~/shared/files'
 import type { JobSpec } from '~/shared/packages'
 import { resolveInRoots } from './backend'
@@ -24,13 +25,13 @@ export function systemFsOps(roots: string[]): FsOps {
       try {
         lstatSync(real)
       } catch {
-        throw new HttpError(404, `${p} existiert nicht`)
+        throw new HttpError(404, tr(`${p} existiert nicht`, `${p} does not exist`))
       }
       return real
     },
     dir: (p) => {
       const { real } = resolveInRoots(p, roots, { allowRoot: true })
-      if (!statSync(real).isDirectory()) throw new HttpError(400, `${p} ist kein Ordner`)
+      if (!statSync(real).isDirectory()) throw new HttpError(400, tr(`${p} ist kein Ordner`, `${p} is not a folder`))
       return real
     },
     exists: (p) => {
@@ -51,11 +52,17 @@ export function prepareFsJob(spec: FsJob, ops: FsOps): { sources: string[]; toDi
   const toDir = ops.dir(spec.toDir)
   const conflicts: string[] = []
   for (const s of sources) {
-    if (toDir === s || toDir.startsWith(s + '/')) throw new HttpError(400, `${baseName(s)} kann nicht in sich selbst ${spec.kind === 'fs-copy' ? 'kopiert' : 'verschoben'} werden`)
-    if (spec.kind === 'fs-move' && parentOf(s) === toDir) throw new HttpError(400, `${baseName(s)} liegt schon in diesem Ordner`)
+    if (toDir === s || toDir.startsWith(s + '/'))
+      throw new HttpError(
+        400,
+        spec.kind === 'fs-copy'
+          ? tr(`${baseName(s)} kann nicht in sich selbst kopiert werden`, `${baseName(s)} cannot be copied into itself`)
+          : tr(`${baseName(s)} kann nicht in sich selbst verschoben werden`, `${baseName(s)} cannot be moved into itself`),
+      )
+    if (spec.kind === 'fs-move' && parentOf(s) === toDir) throw new HttpError(400, tr(`${baseName(s)} liegt schon in diesem Ordner`, `${baseName(s)} is already in this folder`))
     if (ops.exists(joinPath(toDir, baseName(s)))) conflicts.push(baseName(s))
   }
-  if (conflicts.length && !spec.overwrite) throw new HttpError(409, `Gibt es im Ziel schon: ${conflicts.slice(0, 5).join(', ')}${conflicts.length > 5 ? ` +${conflicts.length - 5}` : ''}`)
+  if (conflicts.length && !spec.overwrite) throw new HttpError(409, tr('Gibt es im Ziel schon: ', 'Already exists in the target: ') + `${conflicts.slice(0, 5).join(', ')}${conflicts.length > 5 ? ` +${conflicts.length - 5}` : ''}`)
   return { sources, toDir }
 }
 

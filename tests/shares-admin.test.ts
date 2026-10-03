@@ -76,7 +76,7 @@ describe('exports', () => {
     const changed = setExport(EXP, '/mnt/with space', { path: '/mnt/with space', clients: [{ host: '*', options: ['ro', 'sync'] }] })
     expect(changed).toBe('# NFS exports\n/mnt/storage/downloads  192.168.1.0/24(rw,sync,no_subtree_check)\n"/mnt/with space" *(ro,sync)\n')
     expect(setExport(EXP, '/mnt/storage/downloads', null)).toBe('# NFS exports\n"/mnt/with space" 10.0.0.1(ro) \\\n  10.0.0.2(rw)\n')
-    expect(setExport('', undefined, { path: '/srv/x', clients: [{ host: 'pc', options: [] }] })).toBe('# Von Quadeck verwaltet – Änderungen auch hier von Hand möglich\n/srv/x pc\n')
+    expect(setExport('', undefined, { path: '/srv/x', clients: [{ host: 'pc', options: [] }] })).toBe('# Managed by Quadeck – manual changes here are fine too\n/srv/x pc\n')
     expect(() => setExport(EXP, undefined, { path: '/mnt/storage/downloads', clients: [] })).toThrow('schon exportiert')
     expect(renderExport({ path: '/a', clients: [{ host: 'h', options: ['rw'] }] })).toBe('/a h(rw)')
   })

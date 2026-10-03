@@ -61,4 +61,7 @@ and the unlock countdown in reach.
 | **System** | Server | updates, installed packages, Podman settings, boot and reboot |
 | **Benachrichtigungen** (notifications) | Server | channels and rules |
 
-The UI is in German; the documentation names the German labels where you need to find them.
+The UI is in German and English. It follows the browser's language; the switch at the bottom of
+the sidebar (and on the login page) overrides it and is remembered in a cookie. E-mails and push
+messages use the language last picked there. The documentation names the German labels where you
+need to find them; the English UI uses the English words in brackets.

@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { api } from '~/lib/api'
+import { useT } from '~/i18n'
 import { describeConfigAction, parseConfigPath, type ConfigAction, type ConfigFileInfo } from '~/shared/configfiles'
 import { useActions } from './Actions'
 import { useJobs } from './Jobs'
@@ -15,12 +15,14 @@ import { useGuardedApi } from './Unlock'
  */
 export function ConfigFilesPanel({ files, hint, onChanged }: { files: string[]; hint?: string; onChanged: () => void }) {
   const say = useToast()
+  const t = useT()
+  const c = t.system.config
   const [open, setOpen] = useState<ConfigFileInfo | null>(null)
   const show = async (path: string) => {
     try {
       const r = await fetch(`/api/system/config?path=${encodeURIComponent(path)}`)
       const d = (await r.json()) as ConfigFileInfo & { error?: string }
-      if (!r.ok) throw new Error(d.error ?? `HTTP ${r.status}`)
+      if (!r.ok) throw new Error(d.error ?? t.common.http(r.status))
       setOpen(d)
     } catch (e) {
       say((e as Error).message, 'bad')
@@ -28,23 +30,23 @@ export function ConfigFilesPanel({ files, hint, onChanged }: { files: string[]; 
     }
   }
   return (
-    <section className="panel flex flex-col" aria-label="Konfigurationsdateien">
+    <section className="panel flex flex-col" aria-label={c.label}>
       <div className="flex flex-wrap items-baseline gap-2 px-[18px] pt-4 pb-2">
-        <h2 className="h2">Neue Konfigurationsdateien</h2>
+        <h2 className="h2">{c.title}</h2>
         <Pill tone="warn">{files.length}</Pill>
-        <span className="text-[12px] text-muted">Ein Update hat eine neue Fassung mitgebracht, deine geänderte aber nicht überschrieben.</span>
+        <span className="text-[12px] text-muted">{c.intro}</span>
       </div>
       {files.map((f) => {
         const p = parseConfigPath(f)
         return (
           <button key={f} type="button" data-testid="config-file" onClick={() => void show(f)} className="flex items-center gap-3 border-t border-line px-[18px] py-[7px] text-left hover:bg-[rgba(255,255,255,.03)]">
             <span className="grow truncate font-mono text-[12px]">{f}</span>
-            <span className="chip shrink-0">{p?.kind === 'save' ? 'Sicherung' : 'neue Fassung'}</span>
-            <span className="shrink-0 text-[12px] text-accent">Ansehen …</span>
+            <span className="chip shrink-0">{p?.kind === 'save' ? c.backup : c.newVersion}</span>
+            <span className="shrink-0 text-[12px] text-accent">{c.view}</span>
           </button>
         )
       })}
-      {hint && <p className="m-0 border-t border-line px-[18px] py-2 text-[12px] text-muted">Vergleichen, dann deine behalten, die neue übernehmen oder beides zusammenführen. Auf der Konsole geht dasselbe mit {hint.match(/„[^“]+“/)?.[0] ?? 'diff'}.</p>}
+      {hint && <p className="m-0 border-t border-line px-[18px] py-2 text-[12px] text-muted">{c.hint(hint.match(/„[^“]+“|“[^”]+”/)?.[0] ?? 'diff')}</p>}
       {open && (
         <ConfigDialog
           f={open}
@@ -61,6 +63,8 @@ export function ConfigFilesPanel({ files, hint, onChanged }: { files: string[]; 
 
 function ConfigDialog({ f, onClose, onDone }: { f: ConfigFileInfo; onClose: () => void; onDone: () => void }) {
   const { readonly } = useActions()
+  const t = useT()
+  const c = t.system.config
   const say = useToast()
   const guarded = useGuardedApi()
   const jobs = useJobs()
@@ -100,32 +104,24 @@ function ConfigDialog({ f, onClose, onDone }: { f: ConfigFileInfo; onClose: () =
           {f.replaceRisk}
         </p>
       )}
-      {f.binary && <p className="m-0 text-[13px] text-muted">Keine Textdatei oder zu groß – hier nur löschen oder behalten.</p>}
+      {f.binary && <p className="m-0 text-[13px] text-muted">{c.binary}</p>}
       {!f.binary && f.kind === 'new' && merge === null && (
         <>
-          <p className="m-0 text-[12px] text-muted">
-            {f.liveExists ? (
-              <>
-                Unterschied von deiner Fassung (<span className="text-[#ff8a80]">−</span>) zur neuen aus dem Paket (<span className="text-[#7ee2a8]">+</span>):
-              </>
-            ) : (
-              `${f.live} gibt es nicht – die neue Fassung:`
-            )}
-          </p>
+          <p className="m-0 text-[12px] text-muted">{f.liveExists ? c.diffIntro(<span className="text-[#ff8a80]">−</span>, <span className="text-[#7ee2a8]">+</span>) : c.noLive(f.live)}</p>
           <DiffView before={f.liveContent ?? ''} after={f.content ?? ''} />
         </>
       )}
       {!f.binary && f.kind === 'save' && (
-        <pre className="joblog !min-h-0 max-h-[320px] whitespace-pre-wrap" aria-label="Inhalt">
+        <pre className="joblog !min-h-0 max-h-[320px] whitespace-pre-wrap" aria-label={c.content}>
           {f.content}
         </pre>
       )}
       {merge !== null && (
         <>
-          <p className="m-0 text-[12px] text-muted">Deine Fassung zum Bearbeiten – übernimm, was du aus der neuen brauchst (oben im Unterschied). Gespeichert wird genau dieser Text.</p>
+          <p className="m-0 text-[12px] text-muted">{c.mergeIntro}</p>
           <DiffView before={f.liveContent ?? ''} after={f.content ?? ''} />
-          <textarea className="field h-[260px] font-mono text-[12px]" spellCheck={false} aria-label="Zusammengeführte Fassung" value={merge} onChange={(e) => setMerge(e.target.value)} />
-          {f.check && <p className="m-0 text-[12px] text-muted">Vor dem Speichern prüft {f.check} die Datei.</p>}
+          <textarea className="field h-[260px] font-mono text-[12px]" spellCheck={false} aria-label={c.merged} value={merge} onChange={(e) => setMerge(e.target.value)} />
+          {f.check && <p className="m-0 text-[12px] text-muted">{c.check(f.check)}</p>}
         </>
       )}
       {error && (
@@ -136,41 +132,41 @@ function ConfigDialog({ f, onClose, onDone }: { f: ConfigFileInfo; onClose: () =
       {confirm ? (
         <div className="flex flex-col gap-2 rounded-[10px] border border-edge p-3 text-[13px]">
           <span>{describeConfigAction(f, confirm)}</span>
-          {f.after === 'mkinitcpio' && confirm !== 'keep' && <span className="text-muted">Danach wird das initramfs neu gebaut (mkinitcpio -P) – als Job mit Ausgabe.</span>}
+          {f.after === 'mkinitcpio' && confirm !== 'keep' && <span className="text-muted">{c.mkinitcpio}</span>}
           <div className="flex justify-end gap-2">
             <button type="button" className="btn" onClick={() => setConfirm(null)}>
-              Zurück
+              {t.common.back}
             </button>
             <button type="button" className={confirm === 'keep' ? 'btn danger' : 'btn primary'} disabled={busy} onClick={() => void apply(confirm)}>
-              {busy ? 'Wird angewendet …' : 'Bestätigen'}
+              {busy ? c.applying : t.common.confirm}
             </button>
           </div>
         </div>
       ) : (
         <div className="flex flex-wrap justify-end gap-2">
           <button type="button" className="btn" onClick={merge !== null ? () => setMerge(null) : onClose}>
-            {merge !== null ? 'Zurück' : 'Schließen'}
+            {merge !== null ? t.common.back : t.common.close}
           </button>
           {!readonly && merge === null && (
             <button type="button" className="btn" onClick={() => setConfirm('keep')}>
-              {f.kind === 'save' ? 'Löschen …' : 'Meine behalten …'}
+              {f.kind === 'save' ? t.common.deleteDots : c.keepMine}
             </button>
           )}
           {canChange && merge === null && (
             <>
               <button type="button" className="btn" onClick={() => setMerge(f.liveContent ?? f.content ?? '')}>
-                Zusammenführen …
+                {c.mergeDots}
               </button>
               {!f.replaceRisk && (
                 <button type="button" className="btn primary" onClick={() => setConfirm('replace')}>
-                  Neue Fassung übernehmen …
+                  {c.replaceDots}
                 </button>
               )}
             </>
           )}
           {merge !== null && (
             <button type="button" className="btn primary" onClick={() => setConfirm('merge')}>
-              Speichern …
+              {c.saveDots}
             </button>
           )}
         </div>

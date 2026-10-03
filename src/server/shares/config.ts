@@ -1,6 +1,7 @@
 // Text operations on smb.conf and exports files. Only the edited share
 // changes; comments, [global] and everything Quadeck does not know stay.
 
+import { tr } from '~/shared/i18n'
 import type { NfsClient, NfsExportSpec, SmbShareInfo, SmbShareSpec } from '~/shared/shares'
 
 // ---------- smb.conf ----------
@@ -63,7 +64,13 @@ function renderOwned(spec: SmbShareSpec, indent: string): string[] {
   if (spec.comment) l.push(`${indent}comment = ${spec.comment}`)
   l.push(`${indent}read only = ${spec.readOnly ? 'yes' : 'no'}`)
   l.push(`${indent}guest ok = ${spec.guestOk ? 'yes' : 'no'}`)
-  if (spec.validUsers.trim()) l.push(`${indent}valid users = ${spec.validUsers.trim().split(/[\s,]+/).join(' ')}`)
+  if (spec.validUsers.trim())
+    l.push(
+      `${indent}valid users = ${spec.validUsers
+        .trim()
+        .split(/[\s,]+/)
+        .join(' ')}`,
+    )
   l.push(`${indent}browseable = ${spec.browseable ? 'yes' : 'no'}`)
   return l
 }
@@ -78,8 +85,8 @@ export function setSmbShare(text: string, original: string | undefined, spec: Sm
   const sections = smbSections(text)
   const find = (n: string) => sections.find((s) => s.name.toLowerCase() === n.toLowerCase())
   const sec = original ? find(original) : undefined
-  if (original && !sec) throw new Error(`Freigabe [${original}] nicht gefunden`)
-  if (spec && (!sec || sec.name.toLowerCase() !== spec.name.toLowerCase()) && find(spec.name)) throw new Error(`Eine Freigabe [${spec.name}] gibt es schon`)
+  if (original && !sec) throw new Error(tr(`Freigabe [${original}] nicht gefunden`, `Share [${original}] not found`))
+  if (spec && (!sec || sec.name.toLowerCase() !== spec.name.toLowerCase()) && find(spec.name)) throw new Error(tr(`Eine Freigabe [${spec.name}] gibt es schon`, `A share [${spec.name}] already exists`))
 
   if (!sec) {
     if (!spec) return text
@@ -130,12 +137,16 @@ export function parseExportsFile(text: string): ExportLine[] {
     if (!m) continue
     const path = m[2] ?? m[3]!
     if (!path.startsWith('/')) continue
-    const clients: NfsClient[] = (m[4]!.match(/[^\s(]*(\([^)]*\))?/g) ?? [])
-      .filter(Boolean)
-      .map((c) => {
-        const cm = c.match(/^([^(]*)(?:\(([^)]*)\))?$/)!
-        return { host: cm[1] || '*', options: (cm[2] ?? '').split(',').map((o) => o.trim()).filter(Boolean) }
-      })
+    const clients: NfsClient[] = (m[4]!.match(/[^\s(]*(\([^)]*\))?/g) ?? []).filter(Boolean).map((c) => {
+      const cm = c.match(/^([^(]*)(?:\(([^)]*)\))?$/)!
+      return {
+        host: cm[1] || '*',
+        options: (cm[2] ?? '')
+          .split(',')
+          .map((o) => o.trim())
+          .filter(Boolean),
+      }
+    })
     out.push({ path, clients, line: start })
   }
   return out
@@ -151,8 +162,8 @@ export function setExport(text: string, originalPath: string | undefined, spec: 
   const lines = text.split('\n')
   const entries = parseExportsFile(text)
   const cur = originalPath ? entries.find((e) => e.path === originalPath) : undefined
-  if (originalPath && !cur) throw new Error(`Export ${originalPath} nicht gefunden`)
-  if (spec && spec.path !== originalPath && entries.some((e) => e.path === spec.path)) throw new Error(`${spec.path} ist hier schon exportiert`)
+  if (originalPath && !cur) throw new Error(tr(`Export ${originalPath} nicht gefunden`, `Export ${originalPath} not found`))
+  if (spec && spec.path !== originalPath && entries.some((e) => e.path === spec.path)) throw new Error(tr(`${spec.path} ist hier schon exportiert`, `${spec.path} is already exported here`))
   if (cur) {
     let end = cur.line
     while (lines[end]!.replace(/\r$/, '').endsWith('\\')) end++
@@ -161,7 +172,7 @@ export function setExport(text: string, originalPath: string | undefined, spec: 
   }
   if (!spec) return text
   const body = text.replace(/\s*$/, '')
-  return `${body ? `${body}\n` : '# Von Quadeck verwaltet – Änderungen auch hier von Hand möglich\n'}${renderExport(spec)}\n`
+  return `${body ? `${body}\n` : '# Managed by Quadeck – manual changes here are fine too\n'}${renderExport(spec)}\n`
 }
 
 // ---------- status output ----------

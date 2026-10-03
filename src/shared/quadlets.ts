@@ -1,6 +1,8 @@
 // Quadlet files and Podman settings: types shared by the editor UI, the web
 // app and the root helper.
 
+import { tr } from './i18n'
+
 export const QUADLET_TYPES = ['container', 'pod', 'network', 'volume', 'kube', 'image', 'build'] as const
 export type QuadletType = (typeof QUADLET_TYPES)[number]
 
@@ -8,7 +10,7 @@ export type QuadletType = (typeof QUADLET_TYPES)[number]
 export const QUADLET_NAME = /^(?:[A-Za-z0-9][A-Za-z0-9_.-]{0,63}\/)?[A-Za-z0-9][A-Za-z0-9_.@-]{0,100}\.(container|pod|network|volume|kube|image|build)$/
 
 export function assertQuadletName(name: string) {
-  if (!QUADLET_NAME.test(name) || name.includes('..')) throw new Error(`Ungültiger Quadlet-Dateiname: ${name}`)
+  if (!QUADLET_NAME.test(name) || name.includes('..')) throw new Error(tr(`Ungültiger Quadlet-Dateiname: ${name}`, `Invalid Quadlet file name: ${name}`))
 }
 
 export function quadletType(name: string): QuadletType {
@@ -17,7 +19,10 @@ export function quadletType(name: string): QuadletType {
 
 /** systemd unit Quadlet generates for a file (without ServiceName=). */
 export function quadletUnit(name: string): string {
-  const base = name.split('/').pop()!.replace(/\.[^.]+$/, '')
+  const base = name
+    .split('/')
+    .pop()!
+    .replace(/\.[^.]+$/, '')
   const t = quadletType(name)
   return t === 'container' || t === 'kube' ? `${base}.service` : `${base}-${t}.service`
 }

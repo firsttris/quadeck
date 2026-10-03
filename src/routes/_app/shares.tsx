@@ -9,6 +9,7 @@ import { DiffView } from '~/components/QuadletEditor'
 import { Pill } from '~/components/Status'
 import { useToast } from '~/components/Toast'
 import { useGuardedApi } from '~/components/Unlock'
+import { useT } from '~/i18n'
 import { api } from '~/lib/api'
 import { relative } from '~/lib/format'
 import {
@@ -25,9 +26,10 @@ import {
   type SmbShareInfo,
   type SmbShareSpec,
 } from '~/shared/shares'
+import { tr } from '~/shared/i18n'
 
 export const Route = createFileRoute('/_app/shares')({
-  head: () => ({ meta: [{ title: 'Freigaben · Quadeck' }] }),
+  head: () => ({ meta: [{ title: tr('Freigaben · Quadeck', 'Shares · Quadeck') }] }),
   component: SharesPage,
 })
 
@@ -39,12 +41,14 @@ function SharesPage() {
   const [smbEdit, setSmbEdit] = useState<{ original?: SmbShareInfo } | null>(null)
   const [nfsEdit, setNfsEdit] = useState<{ original?: NfsExportInfo } | null>(null)
   const [pending, setPending] = useState<{ change: ShareChange; title: string; confirm: string; danger?: boolean } | null>(null)
+  const tt = useT()
+  const t = tt.shares.page
 
   const load = useCallback(async () => {
     try {
       const r = await fetch('/api/shares')
       const d = (await r.json()) as SharesState & { error?: string }
-      if (!r.ok) throw new Error(d.error ?? `HTTP ${r.status}`)
+      if (!r.ok) throw new Error(d.error ?? tt.common.http(r.status))
       setState(d)
       setError('')
     } catch (e) {
@@ -53,24 +57,30 @@ function SharesPage() {
   }, [])
   useEffect(() => {
     void load()
-    const t = setInterval(load, 30_000)
-    return () => clearInterval(t)
+    const timer = setInterval(load, 30_000)
+    return () => clearInterval(timer)
   }, [load])
 
   return (
     <>
-      <PageHeader title="Freigaben" subtitle="SMB (Windows, macOS, Android) und NFS (Linux) – anlegen, ändern, Dienste steuern" />
+      <PageHeader title={t.title} subtitle={t.subtitle} />
       {error && <p className="m-0 text-[13px] text-[#e3b341]">{error}</p>}
-      {!state && !error && <p className="m-0 text-muted">Wird geladen …</p>}
+      {!state && !error && <p className="m-0 text-muted">{t.loading}</p>}
       {state && (
         <div className="grid grid-cols-1 gap-[18px] xl:grid-cols-2">
-          <SmbPanel state={state} onState={setState} onReload={load} onEdit={(original) => setSmbEdit({ original })} onDelete={(s) => setPending({ change: { kind: 'smb', original: s.name, spec: null }, title: `SMB-Freigabe „${s.name}“ löschen?`, confirm: 'Löschen', danger: true })} />
+          <SmbPanel
+            state={state}
+            onState={setState}
+            onReload={load}
+            onEdit={(original) => setSmbEdit({ original })}
+            onDelete={(s) => setPending({ change: { kind: 'smb', original: s.name, spec: null }, title: t.deleteSmb(s.name), confirm: tt.common.delete, danger: true })}
+          />
           <NfsPanel
             state={state}
             onState={setState}
             onReload={load}
             onEdit={(original) => setNfsEdit({ original })}
-            onDelete={(e) => setPending({ change: { kind: 'nfs', original: { file: e.file, path: e.path }, spec: null }, title: `NFS-Export ${e.path} löschen?`, confirm: 'Löschen', danger: true })}
+            onDelete={(e) => setPending({ change: { kind: 'nfs', original: { file: e.file, path: e.path }, spec: null }, title: t.deleteNfs(e.path), confirm: tt.common.delete, danger: true })}
           />
         </div>
       )}
@@ -81,7 +91,7 @@ function SharesPage() {
         onNext={(spec) => {
           const o = smbEdit?.original
           setSmbEdit(null)
-          setPending({ change: { kind: 'smb', original: o?.name, spec }, title: o ? `SMB-Freigabe „${spec.name}“ ändern?` : `SMB-Freigabe „${spec.name}“ anlegen?`, confirm: 'Speichern' })
+          setPending({ change: { kind: 'smb', original: o?.name, spec }, title: o ? t.changeSmb(spec.name) : t.createSmb(spec.name), confirm: tt.common.save })
         }}
       />
       <NfsDialog
@@ -91,7 +101,7 @@ function SharesPage() {
         onNext={(spec) => {
           const o = nfsEdit?.original
           setNfsEdit(null)
-          setPending({ change: { kind: 'nfs', original: o ? { file: o.file, path: o.path } : undefined, spec }, title: o ? `NFS-Export ${spec.path} ändern?` : `NFS-Export ${spec.path} anlegen?`, confirm: 'Speichern' })
+          setPending({ change: { kind: 'nfs', original: o ? { file: o.file, path: o.path } : undefined, spec }, title: o ? t.changeNfs(spec.path) : t.createNfs(spec.path), confirm: tt.common.save })
         }}
       />
       <PreviewDialog pending={pending} onClose={() => setPending(null)} onDone={setState} />
@@ -106,6 +116,8 @@ function Services({ kind, services, onState }: { kind: 'smb' | 'nfs'; services: 
   const guarded = useGuardedApi()
   const { readonly } = useActions()
   const [busy, setBusy] = useState(false)
+  const tt = useT()
+  const t = tt.shares.services
   if (!services.length) return null
   const active = services.every((s) => s.active)
   const enabled = services.every((s) => s.enabled)
@@ -115,7 +127,7 @@ function Services({ kind, services, onState }: { kind: 'smb' | 'nfs'; services: 
       const st = await guarded<SharesState>('/api/shares', { body: { service: { kind, action } } })
       if (st) {
         onState(st)
-        say(`${services.map((s) => s.unit).join(', ')}: ${action === 'stop' ? 'gestoppt' : action === 'enable' ? 'aktiviert und gestartet' : action === 'restart' ? 'neu gestartet' : 'gestartet'}`)
+        say(`${services.map((s) => s.unit).join(', ')}: ${t.done[action]}`)
       }
     } catch (e) {
       say((e as Error).message, 'bad')
@@ -127,29 +139,29 @@ function Services({ kind, services, onState }: { kind: 'smb' | 'nfs'; services: 
     <div className="flex flex-wrap items-center gap-2 border-t border-line px-[18px] py-2.5 text-[12px]">
       {services.map((s) => (
         <Pill key={s.unit} tone={s.active ? 'ok' : 'idle'}>
-          {s.unit.replace('.service', '')} {s.active ? 'läuft' : 'gestoppt'}
-          {!s.enabled ? ' · nicht beim Booten' : ''}
+          {s.unit.replace('.service', '')} {s.active ? t.running : t.stopped}
+          {!s.enabled ? t.notAtBoot : ''}
         </Pill>
       ))}
       {!readonly && (
         <span className="ml-auto flex gap-1.5">
           {!enabled && (
             <button type="button" className="btn sm" disabled={busy} onClick={() => act('enable')}>
-              Beim Booten starten
+              {t.enable}
             </button>
           )}
           {active ? (
             <>
               <button type="button" className="btn sm" disabled={busy} onClick={() => act('restart')}>
-                Neu starten
+                {tt.common.restart}
               </button>
               <button type="button" className="btn sm danger" disabled={busy} onClick={() => act('stop')}>
-                Stoppen
+                {tt.common.stop}
               </button>
             </>
           ) : (
             <button type="button" className="btn sm primary" disabled={busy} onClick={() => act('start')}>
-              Starten
+              {tt.common.start}
             </button>
           )}
         </span>
@@ -163,46 +175,48 @@ function Services({ kind, services, onState }: { kind: 'smb' | 'nfs'; services: 
 function SmbPanel({ state, onState, onEdit, onDelete, onReload }: { state: SharesState; onState: (s: SharesState) => void; onEdit: (s?: SmbShareInfo) => void; onDelete: (s: SmbShareInfo) => void; onReload: () => void }) {
   const { readonly } = useActions()
   const smb = state.smb
+  const tt = useT()
+  const t = tt.shares.smb
   return (
-    <section className="panel flex flex-col self-start" aria-label="SMB-Freigaben">
+    <section className="panel flex flex-col self-start" aria-label={t.panel}>
       <div className="flex flex-wrap items-center gap-2 px-[18px] pt-4 pb-2">
         <span className="chip q">SMB</span>
         <h2 className="h2 grow">Samba</h2>
         {!readonly && smb.installed && (
           <button type="button" className="btn sm" onClick={() => onEdit(undefined)}>
-            <Glyph name="plus" size={13} /> Neue Freigabe
+            <Glyph name="plus" size={13} /> {t.newShare}
           </button>
         )}
       </div>
       {!smb.installed && (
         <div className="border-t border-line">
-          <InstallHint feature="samba" what="Samba ist nicht installiert." onInstalled={onReload} />
+          <InstallHint feature="samba" what={t.notInstalled} onInstalled={onReload} />
         </div>
       )}
-      {smb.installed && smb.shares.length === 0 && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">Noch keine Freigaben in {smb.file}.</p>}
+      {smb.installed && smb.shares.length === 0 && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{t.noShares(smb.file)}</p>}
       {smb.shares.map((s) => (
         <div key={s.name} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line px-[18px] py-[10px]" data-testid="smb-share">
           <div className="min-w-0 grow">
             <div className="flex flex-wrap items-center gap-1.5">
               <span className="font-medium">{s.name}</span>
-              <span className="chip">{s.readOnly ? 'lesen' : 'lesen/schreiben'}</span>
-              {s.guestOk && <span className="chip">Gast</span>}
-              {!s.browseable && <span className="chip">versteckt</span>}
-              {s.connections > 0 && <Pill tone="ok">{s.connections} verbunden</Pill>}
+              <span className="chip">{s.readOnly ? t.read : t.readWrite}</span>
+              {s.guestOk && <span className="chip">{t.guest}</span>}
+              {!s.browseable && <span className="chip">{t.hidden}</span>}
+              {s.connections > 0 && <Pill tone="ok">{t.connected(s.connections)}</Pill>}
             </div>
             <div className="truncate font-mono text-[11px] text-muted">
               {s.path}
-              {s.validUsers ? ` · nur ${s.validUsers}` : ''}
+              {s.validUsers ? t.only(s.validUsers) : ''}
               {s.comment ? ` · ${s.comment}` : ''}
             </div>
-            {s.extraKeys.length > 0 && <div className="truncate text-[11px] text-subtle">weitere Optionen bleiben erhalten: {s.extraKeys.join(', ')}</div>}
+            {s.extraKeys.length > 0 && <div className="truncate text-[11px] text-subtle">{t.extraKept(s.extraKeys.join(', '))}</div>}
           </div>
           {!readonly && (
             <span className="flex gap-1.5">
-              <button type="button" className="btn sm" onClick={() => onEdit(s)} aria-label={`${s.name} bearbeiten`}>
-                Bearbeiten
+              <button type="button" className="btn sm" onClick={() => onEdit(s)} aria-label={t.editLabel(s.name)}>
+                {tt.common.edit}
               </button>
-              <button type="button" className="btn sm danger" onClick={() => onDelete(s)} aria-label={`${s.name} löschen`}>
+              <button type="button" className="btn sm danger" onClick={() => onDelete(s)} aria-label={t.deleteLabel(s.name)}>
                 <Glyph name="trash" size={13} />
               </button>
             </span>
@@ -211,11 +225,11 @@ function SmbPanel({ state, onState, onEdit, onDelete, onReload }: { state: Share
       ))}
       {smb.connections.length > 0 && (
         <div className="border-t border-line px-[18px] py-2 text-[12px] text-muted">
-          Verbunden:{' '}
+          {t.connectedLabel}{' '}
           {smb.connections.map((c, i) => (
             <span key={i} className="mr-3 font-mono" suppressHydrationWarning>
               {c.client} → {c.share}
-              {c.since ? ` (seit ${relative(c.since).replace(/^vor /, '')})` : ''}
+              {c.since ? t.since(relative(c.since).replace(/^vor | ago$/g, '')) : ''}
             </span>
           ))}
         </div>
@@ -234,8 +248,10 @@ function SmbDialog({ open, original, onClose, onNext }: { open: boolean; origina
   }, [open, original])
   const errors = validateSmb(s)
   const set = (p: Partial<SmbShareSpec>) => setS((x) => ({ ...x, ...p }))
+  const tt = useT()
+  const t = tt.shares.smbDialog
   return (
-    <Modal open={open} onClose={onClose} title={original ? `SMB-Freigabe „${original.name}“` : 'Neue SMB-Freigabe'}>
+    <Modal open={open} onClose={onClose} title={original ? t.editTitle(original.name) : t.newTitle}>
       <form
         className="flex flex-col gap-3"
         onSubmit={(e) => {
@@ -245,38 +261,40 @@ function SmbDialog({ open, original, onClose, onNext }: { open: boolean; origina
       >
         <div className="grid grid-cols-2 gap-3">
           <label className={label}>
-            Name (im Netzwerk)
-            <input className="field" value={s.name} onChange={(e) => set({ name: e.target.value })} placeholder="Medien" autoFocus required />
+            {t.name}
+            <input className="field" value={s.name} onChange={(e) => set({ name: e.target.value })} placeholder={t.namePlaceholder} autoFocus required />
           </label>
           <label className={label}>
-            Pfad
+            {tt.common.path}
             <input className="field font-mono" value={s.path} onChange={(e) => set({ path: e.target.value })} placeholder="/mnt/storage/media" required />
           </label>
         </div>
         <label className={label}>
-          Beschreibung
-          <input className="field" value={s.comment} onChange={(e) => set({ comment: e.target.value })} placeholder="optional" />
+          {t.comment}
+          <input className="field" value={s.comment} onChange={(e) => set({ comment: e.target.value })} placeholder={t.optional} />
         </label>
         <fieldset className="m-0 flex flex-wrap gap-4 border-0 p-0 text-[13px]">
-          <legend className="mb-1 text-[12px] font-medium text-muted">Zugriff</legend>
+          <legend className="mb-1 text-[12px] font-medium text-muted">{t.access}</legend>
           <label className="flex items-center gap-2">
-            <input type="radio" name="smb-access" checked={s.readOnly} onChange={() => set({ readOnly: true })} /> Nur lesen
+            <input type="radio" name="smb-access" checked={s.readOnly} onChange={() => set({ readOnly: true })} /> {tt.common.readonly}
           </label>
           <label className="flex items-center gap-2">
-            <input type="radio" name="smb-access" checked={!s.readOnly} onChange={() => set({ readOnly: false })} /> Lesen und schreiben
+            <input type="radio" name="smb-access" checked={!s.readOnly} onChange={() => set({ readOnly: false })} /> {t.readWrite}
           </label>
         </fieldset>
         <label className={label}>
-          Erlaubte Benutzer und Gruppen
-          <input className="field font-mono" value={s.validUsers} onChange={(e) => set({ validUsers: e.target.value })} placeholder="leer = alle Samba-Benutzer, z. B. tristan @family" />
-          <span className="font-normal">Samba-Benutzer brauchen ein eigenes Passwort: <span className="font-mono">smbpasswd -a name</span></span>
+          {t.users}
+          <input className="field font-mono" value={s.validUsers} onChange={(e) => set({ validUsers: e.target.value })} placeholder={t.usersPlaceholder} />
+          <span className="font-normal">
+            {t.passwordHint} <span className="font-mono">smbpasswd -a name</span>
+          </span>
         </label>
         <div className="flex flex-wrap gap-4 text-[13px]">
           <label className="flex items-center gap-2">
-            <input type="checkbox" checked={s.guestOk} onChange={(e) => set({ guestOk: e.target.checked })} /> Gäste ohne Passwort
+            <input type="checkbox" checked={s.guestOk} onChange={(e) => set({ guestOk: e.target.checked })} /> {t.guests}
           </label>
           <label className="flex items-center gap-2">
-            <input type="checkbox" checked={s.browseable} onChange={(e) => set({ browseable: e.target.checked })} /> Im Netzwerk sichtbar
+            <input type="checkbox" checked={s.browseable} onChange={(e) => set({ browseable: e.target.checked })} /> {t.visible}
           </label>
         </div>
         {errors.length > 0 && s.name && (
@@ -288,10 +306,10 @@ function SmbDialog({ open, original, onClose, onNext }: { open: boolean; origina
         )}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn" onClick={onClose}>
-            Abbrechen
+            {tt.common.cancel}
           </button>
           <button type="submit" className="btn primary" disabled={errors.length > 0}>
-            Weiter
+            {t.next}
           </button>
         </div>
       </form>
@@ -304,23 +322,25 @@ function SmbDialog({ open, original, onClose, onNext }: { open: boolean; origina
 function NfsPanel({ state, onState, onEdit, onDelete, onReload }: { state: SharesState; onState: (s: SharesState) => void; onEdit: (e?: NfsExportInfo) => void; onDelete: (e: NfsExportInfo) => void; onReload: () => void }) {
   const { readonly } = useActions()
   const nfs = state.nfs
+  const tt = useT()
+  const t = tt.shares.nfs
   return (
-    <section className="panel flex flex-col self-start" aria-label="NFS-Exporte">
+    <section className="panel flex flex-col self-start" aria-label={t.panel}>
       <div className="flex flex-wrap items-center gap-2 px-[18px] pt-4 pb-2">
         <span className="chip">NFS</span>
         <h2 className="h2 grow">NFS</h2>
         {!readonly && nfs.installed && (
           <button type="button" className="btn sm" onClick={() => onEdit(undefined)}>
-            <Glyph name="plus" size={13} /> Neuer Export
+            <Glyph name="plus" size={13} /> {t.newExport}
           </button>
         )}
       </div>
       {!nfs.installed && (
         <div className="border-t border-line">
-          <InstallHint feature="nfs" what="Kein NFS-Server installiert." onInstalled={onReload} />
+          <InstallHint feature="nfs" what={t.notInstalled} onInstalled={onReload} />
         </div>
       )}
-      {nfs.installed && nfs.exports.length === 0 && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">Noch keine Exporte.</p>}
+      {nfs.installed && nfs.exports.length === 0 && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{t.noExports}</p>}
       {nfs.exports.map((e) => (
         <div key={`${e.file}:${e.path}`} className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-line px-[18px] py-[10px]" data-testid="nfs-export">
           <div className="min-w-0 grow">
@@ -333,21 +353,25 @@ function NfsPanel({ state, onState, onEdit, onDelete, onReload }: { state: Share
                 </span>
               ))}
             </div>
-            {!e.managed && <div className="text-[11px] text-subtle">steht in {e.file} – wird dort geändert</div>}
+            {!e.managed && <div className="text-[11px] text-subtle">{t.inFile(e.file)}</div>}
           </div>
           {!readonly && (
             <span className="flex gap-1.5">
-              <button type="button" className="btn sm" onClick={() => onEdit(e)} aria-label={`${e.path} bearbeiten`}>
-                Bearbeiten
+              <button type="button" className="btn sm" onClick={() => onEdit(e)} aria-label={tt.shares.smb.editLabel(e.path)}>
+                {tt.common.edit}
               </button>
-              <button type="button" className="btn sm danger" onClick={() => onDelete(e)} aria-label={`${e.path} löschen`}>
+              <button type="button" className="btn sm danger" onClick={() => onDelete(e)} aria-label={tt.shares.smb.deleteLabel(e.path)}>
                 <Glyph name="trash" size={13} />
               </button>
             </span>
           )}
         </div>
       ))}
-      {nfs.clients.length > 0 && <div className="border-t border-line px-[18px] py-2 text-[12px] text-muted">Verbundene Clients: <span className="font-mono">{nfs.clients.join(', ')}</span></div>}
+      {nfs.clients.length > 0 && (
+        <div className="border-t border-line px-[18px] py-2 text-[12px] text-muted">
+          {t.clientsConnected} <span className="font-mono">{nfs.clients.join(', ')}</span>
+        </div>
+      )}
       <Services kind="nfs" services={nfs.services} onState={onState} />
     </section>
   )
@@ -379,7 +403,16 @@ function toForm(c: NfsClient): ClientForm {
 function fromForm(c: ClientForm): NfsClient {
   return {
     host: c.host.trim(),
-    options: [c.rw ? 'rw' : 'ro', c.sync ? 'sync' : 'async', c.subtree ? 'subtree_check' : 'no_subtree_check', ...(c.squash === 'root_squash' ? [] : [c.squash]), ...c.extra.split(',').map((o) => o.trim()).filter(Boolean)],
+    options: [
+      c.rw ? 'rw' : 'ro',
+      c.sync ? 'sync' : 'async',
+      c.subtree ? 'subtree_check' : 'no_subtree_check',
+      ...(c.squash === 'root_squash' ? [] : [c.squash]),
+      ...c.extra
+        .split(',')
+        .map((o) => o.trim())
+        .filter(Boolean),
+    ],
   }
 }
 
@@ -396,8 +429,10 @@ function NfsDialog({ open, original, onClose, onNext }: { open: boolean; origina
   const spec: NfsExportSpec = { path: path.trim(), clients: clients.map(fromForm) }
   const errors = validateNfs(spec)
   const upd = (i: number, p: Partial<ClientForm>) => setClients((cs) => cs.map((c, j) => (j === i ? { ...c, ...p } : c)))
+  const tt = useT()
+  const t = tt.shares.nfsDialog
   return (
-    <Modal open={open} onClose={onClose} title={original ? `NFS-Export ${original.path}` : 'Neuer NFS-Export'} wide>
+    <Modal open={open} onClose={onClose} title={original ? t.editTitle(original.path) : t.newTitle} wide>
       <form
         className="flex flex-col gap-3"
         onSubmit={(e) => {
@@ -406,7 +441,7 @@ function NfsDialog({ open, original, onClose, onNext }: { open: boolean; origina
         }}
       >
         <label className={label}>
-          Verzeichnis
+          {t.directory}
           <input className="field font-mono" value={path} onChange={(e) => setPath(e.target.value)} placeholder="/mnt/storage/backup" autoFocus required />
         </label>
         <div className="flex flex-col gap-2">
@@ -414,43 +449,43 @@ function NfsDialog({ open, original, onClose, onNext }: { open: boolean; origina
           {clients.map((c, i) => (
             <div key={i} className="flex flex-wrap items-end gap-2 rounded-[10px] border border-edge p-3" data-testid="nfs-client">
               <label className={`${label} min-w-[180px] grow`}>
-                Rechner oder Netz
+                {t.host}
                 <input className="field font-mono" value={c.host} onChange={(e) => upd(i, { host: e.target.value })} placeholder="192.168.1.0/24" aria-label={`Client ${i + 1}`} />
               </label>
               <label className={label}>
-                Zugriff
-                <select className="field" value={c.rw ? 'rw' : 'ro'} onChange={(e) => upd(i, { rw: e.target.value === 'rw' })} aria-label={`Zugriff ${i + 1}`}>
-                  <option value="ro">nur lesen</option>
-                  <option value="rw">lesen und schreiben</option>
+                {tt.shares.smbDialog.access}
+                <select className="field" value={c.rw ? 'rw' : 'ro'} onChange={(e) => upd(i, { rw: e.target.value === 'rw' })} aria-label={t.accessLabel(i + 1)}>
+                  <option value="ro">{t.ro}</option>
+                  <option value="rw">{t.rw}</option>
                 </select>
               </label>
               <label className={label}>
-                root vom Client
+                {t.rootFromClient}
                 <select className="field" value={c.squash} onChange={(e) => upd(i, { squash: e.target.value as Squash })} aria-label={`root ${i + 1}`}>
-                  <option value="root_squash">wird zu nobody (Standard)</option>
-                  <option value="all_squash">alle werden zu nobody</option>
-                  <option value="no_root_squash">bleibt root (unsicher)</option>
+                  <option value="root_squash">{t.rootSquash}</option>
+                  <option value="all_squash">{t.allSquash}</option>
+                  <option value="no_root_squash">{t.noRootSquash}</option>
                 </select>
               </label>
-              <label className="flex items-center gap-1.5 pb-2 text-[13px]" title="sync: erst bestätigen, wenn auf der Platte (sicherer)">
+              <label className="flex items-center gap-1.5 pb-2 text-[13px]" title={t.syncTitle}>
                 <input type="checkbox" checked={c.sync} onChange={(e) => upd(i, { sync: e.target.checked })} /> sync
               </label>
               <label className={`${label} w-[140px]`}>
-                weitere Optionen
+                {t.extra}
                 <input className="field font-mono" value={c.extra} onChange={(e) => upd(i, { extra: e.target.value })} placeholder="crossmnt,fsid=0" />
               </label>
               {clients.length > 1 && (
-                <button type="button" className="btn sm mb-1" onClick={() => setClients((cs) => cs.filter((_, j) => j !== i))} aria-label={`Client ${i + 1} entfernen`}>
+                <button type="button" className="btn sm mb-1" onClick={() => setClients((cs) => cs.filter((_, j) => j !== i))} aria-label={t.removeClient(i + 1)}>
                   <Glyph name="trash" size={13} />
                 </button>
               )}
             </div>
           ))}
           <button type="button" className="btn sm self-start" onClick={() => setClients((cs) => [...cs, { ...newClient, host: '' }])}>
-            <Glyph name="plus" size={13} /> Client hinzufügen
+            <Glyph name="plus" size={13} /> {t.addClient}
           </button>
         </div>
-        <p className="m-0 font-mono text-[12px] text-muted" aria-label="Zeile in exports">
+        <p className="m-0 font-mono text-[12px] text-muted" aria-label={t.exportsLine}>
           {spec.path} {spec.clients.map((c) => `${c.host}(${c.options.join(',')})`).join(' ')}
         </p>
         {errors.length > 0 && (
@@ -462,10 +497,10 @@ function NfsDialog({ open, original, onClose, onNext }: { open: boolean; origina
         )}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn" onClick={onClose}>
-            Abbrechen
+            {tt.common.cancel}
           </button>
           <button type="submit" className="btn primary" disabled={errors.length > 0}>
-            Weiter
+            {t.next}
           </button>
         </div>
       </form>
@@ -481,6 +516,8 @@ function PreviewDialog({ pending, onClose, onDone }: { pending: { change: ShareC
   const [preview, setPreview] = useState<SharePreview | null>(null)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const tt = useT()
+  const t = tt.shares.preview
   useEffect(() => {
     setPreview(null)
     setError('')
@@ -496,7 +533,7 @@ function PreviewDialog({ pending, onClose, onDone }: { pending: { change: ShareC
       const st = await guarded<SharesState>('/api/shares', { body: { change: pending.change } })
       if (!st) return
       onDone(st)
-      say(pending.change.kind === 'smb' ? 'smb.conf gespeichert, Samba lädt neu' : 'Exporte gespeichert, exportfs -ra')
+      say(pending.change.kind === 'smb' ? t.smbSaved : t.nfsSaved)
       onClose()
     } catch (e) {
       setError((e as Error).message)
@@ -506,11 +543,13 @@ function PreviewDialog({ pending, onClose, onDone }: { pending: { change: ShareC
   }
   return (
     <Modal open={!!pending} onClose={onClose} title={pending?.title ?? ''} wide>
-      {!preview && !error && <p className="m-0 text-muted">Vorschau wird erstellt …</p>}
+      {!preview && !error && <p className="m-0 text-muted">{t.creating}</p>}
       {preview && (
         <>
           <p className="m-0 text-[12px] text-muted">
-            Änderung in <span className="font-mono">{preview.file}</span> (vorige Fassung bleibt als <span className="font-mono">.quadeck-bak</span>):
+            {t.changeIn} <span className="font-mono">{preview.file}</span> {t.backupBefore}
+            <span className="font-mono">.quadeck-bak</span>
+            {t.backupAfter}
           </p>
           <DiffView before={preview.before} after={preview.after} />
           {preview.warnings.map((w) => (
@@ -527,10 +566,10 @@ function PreviewDialog({ pending, onClose, onDone }: { pending: { change: ShareC
       )}
       <div className="flex justify-end gap-2">
         <button type="button" className="btn" onClick={onClose}>
-          Abbrechen
+          {tt.common.cancel}
         </button>
         <button type="button" className={pending?.danger ? 'btn danger' : 'btn primary'} disabled={!preview || busy} onClick={apply}>
-          {busy ? 'Speichere …' : pending?.confirm}
+          {busy ? t.saving : pending?.confirm}
         </button>
       </div>
     </Modal>

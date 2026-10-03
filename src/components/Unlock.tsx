@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { useT } from '~/i18n'
 import { api, ApiError } from '~/lib/api'
 import { Glyph } from './Glyph'
 import { Modal } from './Modal'
@@ -88,6 +89,8 @@ export function UnlockProvider({ children }: { children: ReactNode }) {
 }
 
 function UnlockDialog({ open, state, onDone, onCancel }: { open: boolean; state: UnlockState; onDone: (until: number) => void; onCancel: () => void }) {
+  const { shell, common } = useT()
+  const t = shell.unlock
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   useEffect(() => {
@@ -95,7 +98,7 @@ function UnlockDialog({ open, state, onDone, onCancel }: { open: boolean; state:
   }, [open])
   const system = state.mode === 'system'
   return (
-    <Modal open={open} onClose={onCancel} title="Aktionen entsperren">
+    <Modal open={open} onClose={onCancel} title={t.title}>
       <form
         className="flex flex-col gap-3"
         onSubmit={async (e) => {
@@ -114,19 +117,16 @@ function UnlockDialog({ open, state, onDone, onCancel }: { open: boolean; state:
         }}
       >
         <p className="m-0 text-[13px] text-[#c9d1d9]">
-          {system
-            ? 'Starten, Stoppen und andere Eingriffe am Server brauchen das Passwort eines Administrators (root oder Mitglied von wheel/sudo).'
-            : 'Starten, Stoppen und andere Eingriffe am Server brauchen das Quadeck-Passwort.'}{' '}
-          Danach bleiben Aktionen {state.minutes} Minuten freigeschaltet.
+          {system ? t.needSystem : t.needQuadeck} {t.afterwards(state.minutes)}
         </p>
         {system && (
           <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-            Benutzer
+            {t.user}
             <input name="user" required defaultValue={state.suggestedUser} autoComplete="username" className="field font-mono" />
           </label>
         )}
         <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
-          Passwort
+          {t.password}
           <input name="password" type="password" required autoFocus autoComplete="current-password" className="field" />
         </label>
         {error && (
@@ -136,10 +136,10 @@ function UnlockDialog({ open, state, onDone, onCancel }: { open: boolean; state:
         )}
         <div className="flex justify-end gap-2">
           <button type="button" className="btn" onClick={onCancel}>
-            Abbrechen
+            {common.cancel}
           </button>
           <button type="submit" className="btn primary" disabled={busy}>
-            Entsperren
+            {t.submit}
           </button>
         </div>
       </form>
@@ -150,6 +150,7 @@ function UnlockDialog({ open, state, onDone, onCancel }: { open: boolean; state:
 /** Sidebar chip: locked / unlocked with countdown. */
 export function UnlockChip({ compact = false }: { compact?: boolean }) {
   const u = useUnlock()
+  const t = useT().shell.unlock
   const [, tick] = useState(0)
   const open = isOpen(u)
   useEffect(() => {
@@ -163,7 +164,7 @@ export function UnlockChip({ compact = false }: { compact?: boolean }) {
     if (!open) return null
     const left = Math.max(0, Math.round((u.until! - Date.now()) / 1000))
     return (
-      <button type="button" className="flex h-10 items-center gap-1 rounded-lg px-2 text-[12px] text-[#e3b341] tabular-nums hover:bg-[#161c24]" onClick={() => void u.lock()} aria-label="Wieder sperren">
+      <button type="button" className="flex h-10 items-center gap-1 rounded-lg px-2 text-[12px] text-[#e3b341] tabular-nums hover:bg-[#161c24]" onClick={() => void u.lock()} aria-label={t.relock}>
         <Glyph name="unlock" size={17} strokeWidth={2} />
         {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}
       </button>
@@ -171,21 +172,21 @@ export function UnlockChip({ compact = false }: { compact?: boolean }) {
   }
   if (!open) {
     return (
-      <button type="button" className="btn mx-1 justify-start" onClick={() => void u.ensure()} title="Aktionen am Server freischalten">
+      <button type="button" className="btn mx-1 justify-start" onClick={() => void u.ensure()} title={t.unlockTitle}>
         <Glyph name="lock" size={15} strokeWidth={2} />
-        <span className="grow text-left">Gesperrt</span>
-        <span className="text-[12px] text-accent">Entsperren</span>
+        <span className="grow text-left">{t.locked}</span>
+        <span className="text-[12px] text-accent">{t.submit}</span>
       </button>
     )
   }
   const left = Math.max(0, Math.round((u.until! - Date.now()) / 1000))
   return (
-    <button type="button" className="btn mx-1 justify-start border-[rgba(210,153,34,.5)] text-[#e3b341]" onClick={() => void u.lock()} title="Wieder sperren">
+    <button type="button" className="btn mx-1 justify-start border-[rgba(210,153,34,.5)] text-[#e3b341]" onClick={() => void u.lock()} title={t.relock}>
       <Glyph name="unlock" size={15} strokeWidth={2} />
       <span className="grow text-left">
-        Entsperrt · {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}
+        {t.unlocked} · {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}
       </span>
-      <span className="text-[12px]">Sperren</span>
+      <span className="text-[12px]">{t.lock}</span>
     </button>
   )
 }

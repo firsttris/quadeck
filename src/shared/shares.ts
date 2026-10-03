@@ -1,6 +1,8 @@
 // SMB shares and NFS exports: types and validation shared by the form, the
 // web app and the root helper.
 
+import { tr } from './i18n'
+
 export interface SmbShareSpec {
   name: string
   path: string
@@ -20,9 +22,35 @@ export interface SmbShareInfo extends SmbShareSpec {
 
 /** All flag options of exports(5), so exports written by hand stay editable. */
 export const NFS_OPTIONS = [
-  'rw', 'ro', 'sync', 'async', 'no_subtree_check', 'subtree_check', 'root_squash', 'no_root_squash', 'all_squash', 'no_all_squash',
-  'insecure', 'secure', 'crossmnt', 'nohide', 'hide', 'no_wdelay', 'wdelay', 'insecure_locks', 'no_auth_nlm', 'secure_locks', 'auth_nlm',
-  'mountpoint', 'mp', 'nordirplus', 'pnfs', 'no_pnfs', 'security_label', 'acl', 'no_acl',
+  'rw',
+  'ro',
+  'sync',
+  'async',
+  'no_subtree_check',
+  'subtree_check',
+  'root_squash',
+  'no_root_squash',
+  'all_squash',
+  'no_all_squash',
+  'insecure',
+  'secure',
+  'crossmnt',
+  'nohide',
+  'hide',
+  'no_wdelay',
+  'wdelay',
+  'insecure_locks',
+  'no_auth_nlm',
+  'secure_locks',
+  'auth_nlm',
+  'mountpoint',
+  'mp',
+  'nordirplus',
+  'pnfs',
+  'no_pnfs',
+  'security_label',
+  'acl',
+  'no_acl',
 ] as const
 
 export interface NfsClient {
@@ -85,25 +113,25 @@ const FORBIDDEN = ['/etc', '/root', '/boot', '/proc', '/sys', '/dev', '/run', '/
 const CONTROL = /[\x00-\x1f\x7f]/
 
 export function validateSharePath(path: string): string | undefined {
-  if (!path.startsWith('/')) return 'Pfad muss absolut sein (/mnt/…)'
-  if (CONTROL.test(path) || path.includes('"')) return 'Pfad enthält unerlaubte Zeichen'
-  if (path.split('/').includes('..')) return 'Pfad darf kein „..“ enthalten'
+  if (!path.startsWith('/')) return tr('Pfad muss absolut sein (/mnt/…)', 'Path must be absolute (/mnt/…)')
+  if (CONTROL.test(path) || path.includes('"')) return tr('Pfad enthält unerlaubte Zeichen', 'Path contains invalid characters')
+  if (path.split('/').includes('..')) return tr('Pfad darf kein „..“ enthalten', 'Path must not contain “..”')
   const clean = path.replace(/\/+$/, '') || '/'
-  if (clean === '/') return 'Das Wurzelverzeichnis kann nicht freigegeben werden'
+  if (clean === '/') return tr('Das Wurzelverzeichnis kann nicht freigegeben werden', 'The root directory cannot be shared')
   const bad = FORBIDDEN.find((f) => clean === f || clean.startsWith(f + '/'))
-  if (bad) return `${bad} kann nicht freigegeben werden`
+  if (bad) return tr(`${bad} kann nicht freigegeben werden`, `${bad} cannot be shared`)
   return undefined
 }
 
 export function validateSmb(s: SmbShareSpec): string[] {
   const e: string[] = []
-  if (!SMB_NAME.test(s.name)) e.push('Name: Buchstaben, Ziffern, Leerzeichen, „_ . - $“, max. 80 Zeichen')
-  else if (RESERVED_SMB.has(s.name.toLowerCase())) e.push(`„${s.name}“ ist ein reservierter Abschnitt`)
+  if (!SMB_NAME.test(s.name)) e.push(tr('Name: Buchstaben, Ziffern, Leerzeichen, „_ . - $“, max. 80 Zeichen', 'Name: letters, digits, spaces, “_ . - $”, max. 80 characters'))
+  else if (RESERVED_SMB.has(s.name.toLowerCase())) e.push(tr(`„${s.name}“ ist ein reservierter Abschnitt`, `“${s.name}” is a reserved section`))
   const p = validateSharePath(s.path)
   if (p) e.push(p)
-  if (CONTROL.test(s.comment) || s.comment.length > 200) e.push('Kommentar: eine Zeile, max. 200 Zeichen')
+  if (CONTROL.test(s.comment) || s.comment.length > 200) e.push(tr('Kommentar: eine Zeile, max. 200 Zeichen', 'Comment: one line, max. 200 characters'))
   const users = s.validUsers.split(/[\s,]+/).filter(Boolean)
-  if (CONTROL.test(s.validUsers) || users.some((u) => !USER_TOKEN.test(u))) e.push('Benutzer: Namen oder @gruppe, durch Leerzeichen getrennt')
+  if (CONTROL.test(s.validUsers) || users.some((u) => !USER_TOKEN.test(u))) e.push(tr('Benutzer: Namen oder @gruppe, durch Leerzeichen getrennt', 'Users: names or @group, separated by spaces'))
   return e
 }
 
@@ -111,12 +139,12 @@ export function validateNfs(s: NfsExportSpec): string[] {
   const e: string[] = []
   const p = validateSharePath(s.path)
   if (p) e.push(p)
-  if (!s.clients.length) e.push('Mindestens ein Client (z. B. 192.168.1.0/24)')
-  if (s.clients.length > 50) e.push('Zu viele Clients')
+  if (!s.clients.length) e.push(tr('Mindestens ein Client (z. B. 192.168.1.0/24)', 'At least one client (e.g. 192.168.1.0/24)'))
+  if (s.clients.length > 50) e.push(tr('Zu viele Clients', 'Too many clients'))
   for (const c of s.clients) {
-    if (!NFS_HOST.test(c.host)) e.push(`Client „${c.host}“: IP, Netz (192.168.1.0/24), Hostname oder *`)
-    for (const o of c.options) if (!(NFS_OPTIONS as readonly string[]).includes(o) && !NFS_VALUE_OPTION.test(o)) e.push(`Option „${o}“ ist nicht erlaubt`)
-    if (c.options.includes('rw') && c.options.includes('ro')) e.push(`${c.host}: rw und ro gleichzeitig`)
+    if (!NFS_HOST.test(c.host)) e.push(tr(`Client „${c.host}“: IP, Netz (192.168.1.0/24), Hostname oder *`, `Client “${c.host}”: IP, network (192.168.1.0/24), host name or *`))
+    for (const o of c.options) if (!(NFS_OPTIONS as readonly string[]).includes(o) && !NFS_VALUE_OPTION.test(o)) e.push(tr(`Option „${o}“ ist nicht erlaubt`, `Option “${o}” is not allowed`))
+    if (c.options.includes('rw') && c.options.includes('ro')) e.push(tr(`${c.host}: rw und ro gleichzeitig`, `${c.host}: rw and ro at the same time`))
   }
   return e
 }

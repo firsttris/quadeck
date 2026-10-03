@@ -7,6 +7,7 @@ import { existsSync, readFileSync, renameSync, rmSync, statSync, writeFileSync }
 import { release } from 'node:os'
 import { statfs } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
+import { tr } from '~/shared/i18n'
 import { HttpError } from '../auth'
 import { run } from '../exec'
 import {
@@ -47,20 +48,26 @@ export interface BootBackend extends BootAdmin {
   removeBootEntry(id: string): Promise<BootState>
 }
 
-export const QUADECK_ENTRY = '# Angelegt von Quadeck'
+export const QUADECK_ENTRY = '# Created by Quadeck'
+/** Entries written by versions before 0.4. */
+const LEGACY_QUADECK_ENTRY = '# Angelegt von Quadeck'
+const isQuadeckEntry = (content: string | undefined) => !!content && (content.startsWith(QUADECK_ENTRY) || content.startsWith(LEGACY_QUADECK_ENTRY))
 
 /** Checks shared by the real machine and the demo. */
 export function entryForFlavor(state: BootState, pkg: string, read: (p: string) => string | undefined, exists: (p: string) => boolean) {
-  if (!isFlavor(pkg)) throw new HttpError(400, 'Unbekannter Kernel')
-  if (state.loader !== 'systemd-boot' || !state.canCreateEntries) throw new HttpError(409, 'Boot-Einträge legt hier das System selbst an (kernel-install/UKI) – oder es ist kein systemd-boot')
+  if (!isFlavor(pkg)) throw new HttpError(400, tr('Unbekannter Kernel', 'Unknown kernel'))
+  if (state.loader !== 'systemd-boot' || !state.canCreateEntries)
+    throw new HttpError(409, tr('Boot-Einträge legt hier das System selbst an (kernel-install/UKI) – oder es ist kein systemd-boot', 'Boot entries are created by the system itself here (kernel-install/UKI) – or it is not systemd-boot'))
   const k = state.kernels?.find((x) => x.pkg === pkg)
-  if (!k?.installed) throw new HttpError(409, `${pkg} ist nicht installiert`)
-  if (k.entries.length) throw new HttpError(409, `${pkg} hat schon einen Eintrag`)
+  if (!k?.installed) throw new HttpError(409, tr(`${pkg} ist nicht installiert`, `${pkg} is not installed`))
+  if (k.entries.length) throw new HttpError(409, tr(`${pkg} hat schon einen Eintrag`, `${pkg} already has an entry`))
   const def = state.entries.find((e) => e.isDefault && e.type === 'type1' && e.path)
   const template = def?.path ? read(def.path) : undefined
-  if (!def?.path || !template) throw new HttpError(409, 'Kein Standard-Eintrag als Vorlage lesbar')
+  if (!def?.path || !template) throw new HttpError(409, tr('Kein Standard-Eintrag als Vorlage lesbar', 'No readable default entry to use as a template'))
   const boot = state.boot?.path ?? dirname(dirname(dirname(def.path)))
-  for (const f of [`/vmlinuz-${pkg}`, `/initramfs-${pkg}.img`]) if (!exists(join(boot, f))) throw new HttpError(409, `${boot}${f} fehlt – erst die Installation abwarten (mkinitcpio legt das initramfs an)`)
+  for (const f of [`/vmlinuz-${pkg}`, `/initramfs-${pkg}.img`])
+    if (!exists(join(boot, f)))
+      throw new HttpError(409, tr(`${boot}${f} fehlt – erst die Installation abwarten (mkinitcpio legt das initramfs an)`, `${boot}${f} is missing – wait for the installation first (mkinitcpio creates the initramfs)`))
   const dir = dirname(def.path)
   let path = join(dir, kernelEntryId(pkg as KernelFlavor))
   if (exists(path)) path = join(dir, `quadeck-${pkg}.conf`)
@@ -68,12 +75,12 @@ export function entryForFlavor(state: BootState, pkg: string, read: (p: string) 
 }
 
 export function removableEntry(state: BootState, id: string, read: (p: string) => string | undefined) {
-  if (!ENTRY_ID.test(id)) throw new HttpError(400, 'Ungültiger Eintrag')
+  if (!ENTRY_ID.test(id)) throw new HttpError(400, tr('Ungültiger Eintrag', 'Invalid entry'))
   const e = state.entries.find((x) => x.id === id)
-  if (!e) throw new HttpError(404, `Eintrag ${id} gibt es nicht`)
-  if (e.type !== 'type1' || !e.path || !e.path.endsWith('.conf') || !/\/loader\/entries\/[^/]+$/.test(e.path)) throw new HttpError(409, 'Nur Einträge unter loader/entries')
-  if (e.isDefault || e.isSelected) throw new HttpError(409, 'Standard-Eintrag und der laufende Eintrag bleiben')
-  if (!e.missing.length && !read(e.path)?.startsWith(QUADECK_ENTRY)) throw new HttpError(409, 'Nur Einträge mit fehlenden Dateien oder solche, die Quadeck angelegt hat')
+  if (!e) throw new HttpError(404, tr(`Eintrag ${id} gibt es nicht`, `Entry ${id} does not exist`))
+  if (e.type !== 'type1' || !e.path || !e.path.endsWith('.conf') || !/\/loader\/entries\/[^/]+$/.test(e.path)) throw new HttpError(409, tr('Nur Einträge unter loader/entries', 'Only entries under loader/entries'))
+  if (e.isDefault || e.isSelected) throw new HttpError(409, tr('Standard-Eintrag und der laufende Eintrag bleiben', 'The default entry and the running entry stay'))
+  if (!e.missing.length && !isQuadeckEntry(read(e.path))) throw new HttpError(409, tr('Nur Einträge mit fehlenden Dateien oder solche, die Quadeck angelegt hat', 'Only entries with missing files or ones Quadeck created'))
   return e.path
 }
 
@@ -98,12 +105,12 @@ const read = (p: string) => {
 }
 
 export function assertEntry(id: string, entries: BootEntry[]) {
-  if (!ENTRY_ID.test(id)) throw new HttpError(400, 'Ungültiger Eintrag')
-  if (!entries.some((e) => e.id === id)) throw new HttpError(404, `Eintrag ${id} gibt es nicht`)
+  if (!ENTRY_ID.test(id)) throw new HttpError(400, tr('Ungültiger Eintrag', 'Invalid entry'))
+  if (!entries.some((e) => e.id === id)) throw new HttpError(404, tr(`Eintrag ${id} gibt es nicht`, `Entry ${id} does not exist`))
 }
 
 export function assertTimeout(v: string) {
-  if (!TIMEOUT_VALUE.test(v) || (/^\d+$/.test(v) && Number(v) > 600)) throw new HttpError(400, 'Timeout: Sekunden (0–600), menu-hidden oder menu-force')
+  if (!TIMEOUT_VALUE.test(v) || (/^\d+$/.test(v) && Number(v) > 600)) throw new HttpError(400, tr('Timeout: Sekunden (0–600), menu-hidden oder menu-force', 'Timeout: seconds (0–600), menu-hidden or menu-force'))
 }
 
 export class SystemBoot implements BootBackend {
@@ -188,7 +195,7 @@ export class SystemBoot implements BootBackend {
 
   private async systemdBoot() {
     const s = await this.bootState()
-    if (s.loader !== 'systemd-boot') throw new HttpError(409, 'Kein systemd-boot – Quadeck ändert hier nur systemd-boot')
+    if (s.loader !== 'systemd-boot') throw new HttpError(409, tr('Kein systemd-boot – Quadeck ändert hier nur systemd-boot', 'No systemd-boot – Quadeck only changes systemd-boot here'))
     return s
   }
 
@@ -277,7 +284,12 @@ export class FixtureBoot implements BootBackend {
 
   async kernelEntryPreview(pkg: string) {
     const inst = await this.installed()
-    return entryForFlavor(await this.bootState(), pkg, (p) => this.files()[p], (p) => (p.includes('/vmlinuz-') || p.includes('/initramfs-') ? inst.has(p.replace(/^.*\/(vmlinuz|initramfs)-/, '').replace(/\.img$/, '')) : !!this.files()[p]))
+    return entryForFlavor(
+      await this.bootState(),
+      pkg,
+      (p) => this.files()[p],
+      (p) => (p.includes('/vmlinuz-') || p.includes('/initramfs-') ? inst.has(p.replace(/^.*\/(vmlinuz|initramfs)-/, '').replace(/\.img$/, '')) : !!this.files()[p]),
+    )
   }
 
   async createKernelEntry(pkg: string) {
@@ -285,7 +297,24 @@ export class FixtureBoot implements BootBackend {
     this.state.entryFiles = { ...this.files(), [path]: content }
     const version = (await this.installed()).get(pkg)
     const id = path.split('/').pop()!
-    this.state.entries = [...this.state.entries.filter((e) => e.type !== 'auto'), { id, path, title: `Arch Linux (${pkg})`, version: version?.replace(/\.(\w+)-/, '-$1-'), type: 'type1', linux: `/vmlinuz-${pkg}`, initrd: ['/intel-ucode.img', `/initramfs-${pkg}.img`], isDefault: false, isSelected: false, isOneshot: false, missing: [], size: 90_000_000 }, ...this.state.entries.filter((e) => e.type === 'auto')]
+    this.state.entries = [
+      ...this.state.entries.filter((e) => e.type !== 'auto'),
+      {
+        id,
+        path,
+        title: `Arch Linux (${pkg})`,
+        version: version?.replace(/\.(\w+)-/, '-$1-'),
+        type: 'type1',
+        linux: `/vmlinuz-${pkg}`,
+        initrd: ['/intel-ucode.img', `/initramfs-${pkg}.img`],
+        isDefault: false,
+        isSelected: false,
+        isOneshot: false,
+        missing: [],
+        size: 90_000_000,
+      },
+      ...this.state.entries.filter((e) => e.type === 'auto'),
+    ]
     return this.bootState()
   }
 

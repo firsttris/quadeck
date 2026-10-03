@@ -1,8 +1,9 @@
-// German number/size/time formatting for the UI.
+// Number/size/time formatting for the UI, in the viewer's language.
 
 import { describeCalendar } from '~/shared/timers'
+import { localeOf, tr } from '~/shared/i18n'
 
-const nf = (digits: number) => new Intl.NumberFormat('de-DE', { maximumFractionDigits: digits, minimumFractionDigits: digits })
+const nf = (digits: number) => new Intl.NumberFormat(localeOf(), { maximumFractionDigits: digits, minimumFractionDigits: digits })
 
 export function bytes(n: number | undefined, digits = 1): string {
   if (n === undefined || !Number.isFinite(n)) return '–'
@@ -52,34 +53,37 @@ export function duration(sec: number): string {
   return `${m} min`
 }
 
-/** "vor 12 min", "in 3 h" */
+const span = (abs: number) => (abs < 3600 ? `${Math.round(abs / 60)} min` : abs < 86400 ? `${Math.round(abs / 3600)} h` : `${Math.round(abs / 86400)} d`)
+
+/** "vor 12 min", "in 3 h" / "12 min ago", "in 3 h" */
 export function relative(ts: number | undefined, now = Date.now()): string {
   if (!ts) return '–'
   const diff = ts - now
   const abs = Math.abs(diff) / 1000
-  const fmt = abs < 60 ? 'gerade' : abs < 3600 ? `${Math.round(abs / 60)} min` : abs < 86400 ? `${Math.round(abs / 3600)} h` : `${Math.round(abs / 86400)} d`
-  if (fmt === 'gerade') return 'gerade'
-  return diff < 0 ? `vor ${fmt}` : `in ${fmt}`
+  if (abs < 60) return tr('gerade', 'just now')
+  const fmt = span(abs)
+  return diff < 0 ? tr(`vor ${fmt}`, `${fmt} ago`) : tr(`in ${fmt}`, `in ${fmt}`)
 }
 
 /** Short age without preposition, as in the units table ("23 d"). */
 export function age(ts: number | undefined, now = Date.now()): string {
-  const r = relative(ts, now)
-  return r.replace(/^(vor|in) /, '')
+  if (!ts) return '–'
+  const abs = Math.abs(ts - now) / 1000
+  return abs < 60 ? tr('gerade', 'just now') : span(abs)
 }
 
 export function clock(ts: number): string {
   const d = new Date(ts)
   const p = (n: number) => String(n).padStart(2, '0')
-  const mon = ['Jan', 'Feb', 'Mär', 'Apr', 'Mai', 'Jun', 'Jul', 'Aug', 'Sep', 'Okt', 'Nov', 'Dez'][d.getMonth()]
+  const mon = tr('Jan Feb Mär Apr Mai Jun Jul Aug Sep Okt Nov Dez', 'Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec').split(' ')[d.getMonth()]
   return `${mon} ${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 
 export function weekdayTime(ts: number | undefined): string {
   if (!ts) return '–'
   const d = new Date(ts)
-  const days = ['So', 'Mo', 'Di', 'Mi', 'Do', 'Fr', 'Sa']
-  return `${days[d.getDay()]} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  const day = tr('So Mo Di Mi Do Fr Sa', 'Sun Mon Tue Wed Thu Fri Sat').split(' ')[d.getDay()]
+  return `${day} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 /** Friendly OnCalendar= rendering for common expressions. */

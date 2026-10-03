@@ -7,6 +7,7 @@
 //   4. labels quadeck.* in the Quadlet file
 //   5. overrides from the UI (SQLite)
 
+import { tr } from '~/shared/i18n'
 import type { Container, Health, IconRef, Service, ServiceGroup } from '~/shared/types'
 import { colorFor, knownApp, matchIcon, slugCandidates, slugify, type IconIndex } from './icons'
 import type { ServiceCandidate } from './providers/types'
@@ -136,9 +137,9 @@ function resolveIcon(explicit: string | undefined, candidates: string[], index: 
 }
 
 function containerHealth(c: Container): HttpHealth | undefined {
-  if (c.state !== 'running') return { health: 'bad', note: `Container ${c.state === 'exited' ? 'gestoppt' : c.state}` }
-  if (c.health === 'unhealthy') return { health: 'bad', note: 'Healthcheck schlägt fehl' }
-  if (c.health === 'starting') return { health: 'warn', note: 'Healthcheck startet' }
+  if (c.state !== 'running') return { health: 'bad', note: c.state === 'exited' ? tr('Container gestoppt', 'Container stopped') : `Container ${c.state}` }
+  if (c.health === 'unhealthy') return { health: 'bad', note: tr('Healthcheck schlägt fehl', 'Healthcheck failing') }
+  if (c.health === 'starting') return { health: 'warn', note: tr('Healthcheck startet', 'Healthcheck starting') }
   if (c.health === 'healthy') return { health: 'ok', note: 'healthy' }
   return undefined
 }
@@ -148,16 +149,7 @@ export function mergeServices(input: MergeInput): ServiceGroup[] {
   const usedContainers = new Set<string>()
   const keys = new Set<string>()
 
-  const build = (o: {
-    key: string
-    url: string
-    container?: Container
-    source: Service['source']
-    fallbackName: string
-    hostForSlug?: string
-    manual?: ManualService
-    probe?: string
-  }) => {
+  const build = (o: { key: string; url: string; container?: Container; source: Service['source']; fallbackName: string; hostForSlug?: string; manual?: ManualService; probe?: string }) => {
     const c = o.container
     const name = o.manual?.name ?? label(c, 'name') ?? o.fallbackName
     const candidates = slugCandidates({ name: label(c, 'name') ?? o.manual?.name, image: c?.image, unit: c?.unit, container: c?.name, host: o.hostForSlug })
@@ -270,7 +262,7 @@ export function mergeServices(input: MergeInput): ServiceGroup[] {
     .sort(([a], [b]) => rank(a) - rank(b) || a.localeCompare(b, 'de'))
     .map(([name, items]) => {
       const sources = new Set(items.map((i) => i.source))
-      const note = sources.size === 1 && sources.has('manual') ? 'manuell angelegt' : sources.has('manual') ? 'erkannt und manuell' : 'aus Caddy und Quadlets'
+      const note = sources.size === 1 && sources.has('manual') ? tr('manuell angelegt', 'added manually') : sources.has('manual') ? tr('erkannt und manuell', 'detected and manual') : tr('aus Caddy und Quadlets', 'from Caddy and Quadlets')
       return { name, note, items: items.sort((a, b) => Number(!!b.pinned) - Number(!!a.pinned) || a.name.localeCompare(b.name, 'de')) }
     })
 }

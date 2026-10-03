@@ -39,18 +39,18 @@ export async function selfUpdate(current: string, force = false) {
   if (!res.ok) throw new Error(`GitHub: HTTP ${res.status}`)
   const rel = (await res.json()) as { tag_name: string; assets: { name: string; browser_download_url: string }[] }
   if (!force && !newer(rel.tag_name, current)) {
-    console.log(`Quadeck ${current} ist aktuell.`)
+    console.log(`Quadeck ${current} is up to date.`)
     return
   }
   const name = assetName()
   const bin = rel.assets.find((a) => a.name === name)
   const sums = rel.assets.find((a) => a.name === 'SHA256SUMS')
-  if (!bin || !sums) throw new Error(`Release ${rel.tag_name} enthält kein ${name} oder SHA256SUMS`)
-  console.log(`Lade ${rel.tag_name} (${name}) …`)
+  if (!bin || !sums) throw new Error(`Release ${rel.tag_name} has no ${name} or SHA256SUMS`)
+  console.log(`Downloading ${rel.tag_name} (${name}) …`)
   const data = new Uint8Array(await (await fetch(bin.browser_download_url)).arrayBuffer())
   const expected = (await (await fetch(sums.browser_download_url)).text()).split('\n').find((l) => l.trim().endsWith(` ${name}`) || l.trim().endsWith(`*${name}`))?.split(/\s+/)[0]
   const actual = new Bun.CryptoHasher('sha256').update(data).digest('hex')
-  if (!expected || expected !== actual) throw new Error('Prüfsumme stimmt nicht – Update abgebrochen')
+  if (!expected || expected !== actual) throw new Error('Checksum mismatch – update aborted')
 
   const target = process.execPath
   const tmp = join(dirname(target), `.quadeck-update-${process.pid}`)
@@ -59,12 +59,12 @@ export async function selfUpdate(current: string, force = false) {
   const check = await run([tmp, 'version'])
   if (check.code !== 0) {
     rmSync(tmp, { force: true })
-    throw new Error(`Neues Binary startet nicht: ${check.stderr}`)
+    throw new Error(`New binary does not start: ${check.stderr}`)
   }
   renameSync(tmp, target) // atomic on the same filesystem
-  console.log(`Installiert: ${target} → ${check.stdout.trim()}`)
+  console.log(`Installed: ${target} → ${check.stdout.trim()}`)
   const restart = await run(['systemctl', 'try-restart', 'quadeck-helper.service', 'quadeck.service'])
-  console.log(restart.code === 0 ? 'Quadeck neu gestartet.' : 'Bitte quadeck-helper.service und quadeck.service neu starten.')
+  console.log(restart.code === 0 ? 'Quadeck restarted.' : 'Please restart quadeck-helper.service and quadeck.service.')
   const helper = await run(['systemctl', 'cat', 'quadeck-helper.service'])
-  if (helper.code !== 0) console.log('Hinweis: Diese Installation läuft noch komplett als root. Für den getrennten Root-Helfer install.sh erneut ausführen.')
+  if (helper.code !== 0) console.log('Note: this installation still runs entirely as root. Run install.sh again for the separate root helper.')
 }

@@ -1,6 +1,8 @@
 // Accounts of the server: types, parsers for passwd/shadow/group, the checks
 // for every change and the lock-out guard. Shared by the page and the helper.
 
+import { tr } from './i18n'
+
 export interface Account {
   name: string
   uid: number
@@ -64,25 +66,25 @@ export const USER_NAME = /^[a-z_][a-z0-9_-]{0,31}$/
 export const MIN_PASSWORD = 8
 
 /** Groups worth offering, with what membership gives. */
-export const KNOWN_GROUPS: Record<string, string> = {
-  wheel: 'Administrator: sudo und Quadeck entsperren',
-  sudo: 'Administrator: sudo und Quadeck entsperren',
-  video: 'Grafikkarte nutzen (Hardware-Transcoding)',
-  render: 'GPU-Rechenzugriff (Hardware-Transcoding, KI)',
-  audio: 'Soundkarte',
-  storage: 'Wechseldatenträger einhängen',
-  'systemd-journal': 'Journal aller Dienste lesen',
-  docker: 'Docker ohne sudo – faktisch root-Rechte',
-  libvirt: 'Virtuelle Maschinen verwalten',
-  kvm: 'KVM-Virtualisierung',
-  input: 'Eingabegeräte',
-  lp: 'Drucker',
-  uucp: 'Serielle Geräte (z. B. Zigbee-Sticks)',
-  dialout: 'Serielle Geräte (z. B. Zigbee-Sticks)',
-  plugdev: 'Wechselgeräte',
-  users: 'Allgemeine Benutzergruppe',
-  sambashare: 'Eigene Samba-Freigaben anlegen',
-}
+export const knownGroups = (): Record<string, string> => ({
+  wheel: tr('Administrator: sudo und Quadeck entsperren', 'Administrator: sudo and unlocking Quadeck'),
+  sudo: tr('Administrator: sudo und Quadeck entsperren', 'Administrator: sudo and unlocking Quadeck'),
+  video: tr('Grafikkarte nutzen (Hardware-Transcoding)', 'Use the graphics card (hardware transcoding)'),
+  render: tr('GPU-Rechenzugriff (Hardware-Transcoding, KI)', 'GPU compute access (hardware transcoding, AI)'),
+  audio: tr('Soundkarte', 'Sound card'),
+  storage: tr('Wechseldatenträger einhängen', 'Mount removable media'),
+  'systemd-journal': tr('Journal aller Dienste lesen', 'Read the journal of all services'),
+  docker: tr('Docker ohne sudo – faktisch root-Rechte', 'Docker without sudo – effectively root'),
+  libvirt: tr('Virtuelle Maschinen verwalten', 'Manage virtual machines'),
+  kvm: tr('KVM-Virtualisierung', 'KVM virtualization'),
+  input: tr('Eingabegeräte', 'Input devices'),
+  lp: tr('Drucker', 'Printers'),
+  uucp: tr('Serielle Geräte (z. B. Zigbee-Sticks)', 'Serial devices (e.g. Zigbee sticks)'),
+  dialout: tr('Serielle Geräte (z. B. Zigbee-Sticks)', 'Serial devices (e.g. Zigbee sticks)'),
+  plugdev: tr('Wechselgeräte', 'Removable devices'),
+  users: tr('Allgemeine Benutzergruppe', 'General users group'),
+  sambashare: tr('Eigene Samba-Freigaben anlegen', 'Create own Samba shares'),
+})
 
 // ---------- parsers ----------
 
@@ -149,18 +151,18 @@ export function parseLast(text: string): LoginRecord[] {
 // ---------- checks ----------
 
 export function nameProblem(name: string): string | undefined {
-  if (!USER_NAME.test(name)) return 'Name: Kleinbuchstaben, Ziffern, - und _ (beginnt mit einem Buchstaben), höchstens 32 Zeichen'
+  if (!USER_NAME.test(name)) return tr('Name: Kleinbuchstaben, Ziffern, - und _ (beginnt mit einem Buchstaben), höchstens 32 Zeichen', 'Name: lowercase letters, digits, - and _ (starting with a letter), at most 32 characters')
   return undefined
 }
 
 export function passwordProblem(pw: string): string | undefined {
-  if (pw.length < MIN_PASSWORD) return `Passwort: mindestens ${MIN_PASSWORD} Zeichen`
-  if (pw.length > 512 || /[\r\n\x00]/.test(pw)) return 'Passwort enthält ungültige Zeichen'
+  if (pw.length < MIN_PASSWORD) return tr(`Passwort: mindestens ${MIN_PASSWORD} Zeichen`, `Password: at least ${MIN_PASSWORD} characters`)
+  if (pw.length > 512 || /[\r\n\x00]/.test(pw)) return tr('Passwort enthält ungültige Zeichen', 'Password contains invalid characters')
   return undefined
 }
 
 export function fullNameProblem(n: string): string | undefined {
-  if (n.length > 100 || /[:,\r\n\x00-\x1f]/.test(n)) return 'Voller Name: ohne Doppelpunkt, Komma und Zeilenumbruch'
+  if (n.length > 100 || /[:,\r\n\x00-\x1f]/.test(n)) return tr('Voller Name: ohne Doppelpunkt, Komma und Zeilenumbruch', 'Full name: no colon, comma or line break')
   return undefined
 }
 
@@ -198,14 +200,14 @@ export function changeProblem(state: Pick<UsersState, 'accounts' | 'shells' | 'g
   if (c.kind === 'create') {
     const n = nameProblem(c.name)
     if (n) return n
-    if (acc) return `${c.name} gibt es schon`
-  } else if (!acc) return `${c.name} gibt es nicht`
+    if (acc) return tr(`${c.name} gibt es schon`, `${c.name} already exists`)
+  } else if (!acc) return tr(`${c.name} gibt es nicht`, `${c.name} does not exist`)
   if (c.kind === 'create' || c.kind === 'update') {
     const f = fullNameProblem(c.fullName)
     if (f) return f
-    if (!state.shells.includes(c.shell)) return `Shell ${c.shell} steht nicht in /etc/shells`
+    if (!state.shells.includes(c.shell)) return tr(`Shell ${c.shell} steht nicht in /etc/shells`, `Shell ${c.shell} is not listed in /etc/shells`)
     const unknown = c.groups.find((g) => !state.groups.some((x) => x.name === g))
-    if (unknown) return `Gruppe ${unknown} gibt es nicht`
+    if (unknown) return tr(`Gruppe ${unknown} gibt es nicht`, `Group ${unknown} does not exist`)
   }
   if ((c.kind === 'create' && c.password !== undefined) || c.kind === 'password' || c.kind === 'samba-password') {
     const p = passwordProblem(c.password!)
@@ -215,7 +217,11 @@ export function changeProblem(state: Pick<UsersState, 'accounts' | 'shells' | 'g
   if (c.kind === 'samba-password') return undefined
   const before = adminsWithPassword(state.accounts)
   const after = adminsWithPassword(afterChange(state.accounts, c))
-  if (before.length && !after.length) return 'Danach könnte sich niemand mehr als Administrator anmelden – Quadeck ließe sich nicht mehr entsperren und sudo ginge nicht mehr. Zuerst einem anderen Administrator ein Passwort geben.'
+  if (before.length && !after.length)
+    return tr(
+      'Danach könnte sich niemand mehr als Administrator anmelden – Quadeck ließe sich nicht mehr entsperren und sudo ginge nicht mehr. Zuerst einem anderen Administrator ein Passwort geben.',
+      'Afterwards nobody could log in as administrator anymore – Quadeck could not be unlocked and sudo would no longer work. Give another administrator a password first.',
+    )
   return undefined
 }
 
@@ -223,18 +229,30 @@ export function changeProblem(state: Pick<UsersState, 'accounts' | 'shells' | 'g
 export function describeChange(c: UserChange, adminGroup: string): string {
   switch (c.kind) {
     case 'create':
-      return `Legt ${c.name} mit Home-Verzeichnis /home/${c.name} an${c.admin ? `, als Administrator (Gruppe ${adminGroup})` : ''}${c.password ? ', mit Passwort' : ', ohne Passwort – Anmeldung nur mit SSH-Schlüssel'}.`
+      return tr(
+        `Legt ${c.name} mit Home-Verzeichnis /home/${c.name} an${c.admin ? `, als Administrator (Gruppe ${adminGroup})` : ''}${c.password ? ', mit Passwort' : ', ohne Passwort – Anmeldung nur mit SSH-Schlüssel'}.`,
+        `Creates ${c.name} with home directory /home/${c.name}${c.admin ? `, as administrator (group ${adminGroup})` : ''}${c.password ? ', with password' : ', without password – login only with an SSH key'}.`,
+      )
     case 'update':
-      return `Speichert Namen, Shell und Gruppen von ${c.name}${c.admin ? ` (Administrator über ${adminGroup})` : ''}. Neue Gruppen gelten ab der nächsten Anmeldung.`
+      return tr(
+        `Speichert Namen, Shell und Gruppen von ${c.name}${c.admin ? ` (Administrator über ${adminGroup})` : ''}. Neue Gruppen gelten ab der nächsten Anmeldung.`,
+        `Saves name, shell and groups of ${c.name}${c.admin ? ` (administrator via ${adminGroup})` : ''}. New groups apply from the next login.`,
+      )
     case 'password':
-      return `Setzt ein neues Passwort für ${c.name}. Laufende Sitzungen bleiben angemeldet.`
+      return tr(`Setzt ein neues Passwort für ${c.name}. Laufende Sitzungen bleiben angemeldet.`, `Sets a new password for ${c.name}. Running sessions stay logged in.`)
     case 'lock':
-      return `Sperrt ${c.name}: keine Anmeldung mehr, auch nicht mit SSH-Schlüssel. Laufende Sitzungen und Dienste des Kontos laufen weiter.`
+      return tr(
+        `Sperrt ${c.name}: keine Anmeldung mehr, auch nicht mit SSH-Schlüssel. Laufende Sitzungen und Dienste des Kontos laufen weiter.`,
+        `Locks ${c.name}: no more logins, not even with an SSH key. Running sessions and services of the account keep running.`,
+      )
     case 'unlock':
-      return `Entsperrt ${c.name}.`
+      return tr(`Entsperrt ${c.name}.`, `Unlocks ${c.name}.`)
     case 'samba-password':
-      return `Setzt das Samba-Passwort von ${c.name} (für Freigaben im Netzwerk, getrennt vom Login-Passwort).`
+      return tr(`Setzt das Samba-Passwort von ${c.name} (für Freigaben im Netzwerk, getrennt vom Login-Passwort).`, `Sets the Samba password of ${c.name} (for network shares, separate from the login password).`)
     case 'delete':
-      return `Löscht ${c.name}${c.removeHome ? ' samt Home-Verzeichnis und Mail-Spool – die Dateien sind danach weg' : '; das Home-Verzeichnis bleibt erhalten'}.`
+      return tr(
+        `Löscht ${c.name}${c.removeHome ? ' samt Home-Verzeichnis und Mail-Spool – die Dateien sind danach weg' : '; das Home-Verzeichnis bleibt erhalten'}.`,
+        `Deletes ${c.name}${c.removeHome ? ' along with the home directory and mail spool – the files will be gone' : '; the home directory is kept'}.`,
+      )
   }
 }

@@ -89,7 +89,8 @@ on it. That is Quadeck.
 - **Secure by default**: login from the first start, CSRF protection, hardened systemd units, a
   read-only mode and an unlock that expires after 15 minutes
 
-The UI is in German.
+The UI is in German and English: it follows the browser language, and the language can be
+switched in the sidebar (or on the login page).
 
 ## 🚀 Quick start
 

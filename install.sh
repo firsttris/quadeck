@@ -10,13 +10,13 @@ VERSION="${QUADECK_VERSION:-latest}"
 
 die() { echo "quadeck: $*" >&2; exit 1; }
 
-[ "$(id -u)" -eq 0 ] || die "bitte als root ausführen (sudo)"
-command -v curl >/dev/null || die "curl wird benötigt"
+[ "$(id -u)" -eq 0 ] || die "please run as root (sudo)"
+command -v curl >/dev/null || die "curl is required"
 
 case "$(uname -m)" in
   x86_64 | amd64) arch=x64 ;;
   aarch64 | arm64) arch=arm64 ;;
-  *) die "nicht unterstützte Architektur: $(uname -m)" ;;
+  *) die "unsupported architecture: $(uname -m)" ;;
 esac
 
 if [ -f /etc/alpine-release ] || ls /lib/ld-musl-* >/dev/null 2>&1; then
@@ -35,18 +35,18 @@ fi
 
 tmp=$(mktemp -d)
 trap 'rm -rf "$tmp"' EXIT
-echo "Lade $asset …"
+echo "Downloading $asset …"
 curl -fsSL -o "$tmp/$asset" "$base/$asset"
 curl -fsSL -o "$tmp/SHA256SUMS" "$base/SHA256SUMS"
-(cd "$tmp" && grep " $asset\$" SHA256SUMS | sha256sum -c -) || die "Prüfsumme stimmt nicht"
+(cd "$tmp" && grep " $asset\$" SHA256SUMS | sha256sum -c -) || die "checksum mismatch"
 
 mkdir -p "$BIN_DIR"
 install -m 0755 "$tmp/$asset" "$BIN_DIR/quadeck"
-echo "Installiert: $BIN_DIR/quadeck ($("$BIN_DIR/quadeck" version))"
+echo "Installed: $BIN_DIR/quadeck ($("$BIN_DIR/quadeck" version))"
 
 if ! command -v systemctl >/dev/null || [ ! -d /run/systemd/system ]; then
-  echo "Kein systemd gefunden: Quadeck läuft, der systemd-Teil bleibt ausgeblendet."
-  echo "Starten mit: QUADECK_DATA_DIR=/var/lib/quadeck $BIN_DIR/quadeck serve"
+  echo "No systemd found: Quadeck works, the systemd parts stay hidden."
+  echo "Start it with: QUADECK_DATA_DIR=/var/lib/quadeck $BIN_DIR/quadeck serve"
   exit 0
 fi
 
@@ -67,7 +67,7 @@ systemctl enable quadeck-helper.service quadeck.service
 systemctl restart quadeck-helper.service quadeck.service
 
 if ! systemctl is-enabled --quiet podman.socket 2>/dev/null; then
-  echo "Hinweis: podman.socket ist nicht aktiv. Für die Container-Ansicht:"
+  echo "Note: podman.socket is not active. For the container view:"
   echo "  systemctl enable --now podman.socket"
 fi
 
@@ -80,6 +80,7 @@ sleep 1
 token=$(QUADECK_DATA_DIR=/var/lib/quadeck "$BIN_DIR/quadeck" setup-token 2>/dev/null || true)
 echo
 case "$token" in
-  "" | Passwort*) echo "Quadeck läuft: http://${host:-<host>}:$port" ;;
-  *) echo "Quadeck läuft. Ersteinrichtung: http://${host:-<host>}:$port/setup?token=$token" ;;
+  # "Passwort …" is what versions before 0.4 print when a password is set
+  "" | Password* | Passwort*) echo "Quadeck is running: http://${host:-<host>}:$port" ;;
+  *) echo "Quadeck is running. First setup: http://${host:-<host>}:$port/setup?token=$token" ;;
 esac

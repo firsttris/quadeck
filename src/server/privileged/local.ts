@@ -1,3 +1,4 @@
+import { tr } from '~/shared/i18n'
 import { existsSync } from 'node:fs'
 import type { JobSpec } from '~/shared/packages'
 import type { MaintenanceBackend } from '../packages/maintenance'
@@ -86,7 +87,7 @@ export class LocalPrivileged implements Privileged {
   }
 
   private podman(path: string, init: RequestInit = {}) {
-    if (!existsSync(this.podmanSocket)) throw new HttpError(503, `Podman-Socket ${this.podmanSocket} fehlt – systemctl enable --now podman.socket`)
+    if (!existsSync(this.podmanSocket)) throw new HttpError(503, tr(`Podman-Socket ${this.podmanSocket} fehlt – systemctl enable --now podman.socket`, `Podman socket ${this.podmanSocket} missing – systemctl enable --now podman.socket`))
     return fetch(`http://podman${path}`, { ...init, unix: this.podmanSocket, signal: AbortSignal.timeout(15_000) } as RequestInit)
   }
 
@@ -109,7 +110,7 @@ export class LocalPrivileged implements Privileged {
       throw new HttpError(400, (e as Error).message)
     }
     const res = await this.podman(`/containers/${id}/${action}`, { method: 'POST' })
-    if (!res.ok && res.status !== 304) throw new Error(`Podman: ${action} fehlgeschlagen (HTTP ${res.status}) ${await res.text()}`)
+    if (!res.ok && res.status !== 304) throw new Error(tr(`Podman: ${action} fehlgeschlagen (HTTP ${res.status}) ${await res.text()}`, `Podman: ${action} failed (HTTP ${res.status}) ${await res.text()}`))
   }
 
   // ---------- packages & images ----------

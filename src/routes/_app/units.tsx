@@ -10,11 +10,12 @@ import { containerState, Pill, unitState, unitTone, type Tone } from '~/componen
 import { age, bytes, num } from '~/lib/format'
 import { useLive } from '~/lib/live'
 import { failureReason } from '~/shared/units'
-import { buildRows, FILTERS, failed, matches, type Filter, type Row } from '~/lib/unit-rows'
+import { buildRows, FILTER_KEYS, failed, filters, matches, type Filter, type Row } from '~/lib/unit-rows'
+import { useT } from '~/i18n'
 
 export const Route = createFileRoute('/_app/units')({
   validateSearch: (s: Record<string, unknown>): { filter?: Filter } => ({
-    filter: FILTERS.some(([k]) => k === s.filter) ? (s.filter as Filter) : undefined,
+    filter: FILTER_KEYS.some((k) => k === s.filter) ? (s.filter as Filter) : undefined,
   }),
   head: () => ({ meta: [{ title: 'Units · Quadeck' }] }),
   component: Units,
@@ -42,6 +43,7 @@ function status(r: Row): { tone: Tone; label: string } {
 }
 
 function Units() {
+  const t = useT()
   const { snapshot } = useLive()
   const rows = buildRows(snapshot.units, snapshot.containers)
   const hasContainers = rows.some((r) => matches(r, 'container'))
@@ -50,34 +52,42 @@ function Units() {
   const shown = rows.filter((r) => matches(r, filter))
   // Failed first, then containers, then by name.
   shown.sort((a, b) => Number(!!failed(b)) - Number(!!failed(a)) || Number(!!b.container) - Number(!!a.container) || (a.unit?.name ?? a.container!.name).localeCompare(b.unit?.name ?? b.container!.name))
-  const counts = Object.fromEntries(FILTERS.map(([k]) => [k, rows.filter((r) => matches(r, k)).length]))
+  const counts = Object.fromEntries(FILTER_KEYS.map((k) => [k, rows.filter((r) => matches(r, k)).length]))
   return (
     <>
-      <PageHeader title="Units" subtitle="Container, Quadlets und System-Units – gesteuert über systemd">
+      <PageHeader title="Units" subtitle={t.units.subtitle}>
         {!readonly && (
           <>
             <Link to="/systemd" search={{ new: true }} className="btn sm">
-              + Neue Unit
+              {t.units.newUnit}
             </Link>
             <Link to="/quadlets" search={{ new: true }} className="btn sm">
-              + Neuer Container
+              {t.units.newContainer}
             </Link>
           </>
         )}
         <Link to="/quadlets" className="btn sm">
-          Quadlet-Dateien
+          {t.units.quadletFiles}
         </Link>
       </PageHeader>
-      <div role="group" aria-label="Filter" className="flex flex-wrap gap-1.5">
-        {FILTERS.map(([k, label]) => (
+      <div role="group" aria-label={t.units.filter} className="flex flex-wrap gap-1.5">
+        {filters().map(([k, label]) => (
           <Link key={k} to="/units" search={{ filter: k }} className={`seg ${filter === k ? 'on' : ''}`} aria-current={filter === k ? 'true' : undefined}>
             {label}
             <span className="opacity-60">{counts[k]}</span>
           </Link>
         ))}
       </div>
-      {snapshot.sources.systemd.error && <p className="m-0 text-[13px] text-[#e3b341]">systemd nicht erreichbar: {snapshot.sources.systemd.error}</p>}
-      {snapshot.sources.podman.error && <p className="m-0 text-[13px] text-[#e3b341]">Podman nicht erreichbar: {snapshot.sources.podman.error}</p>}
+      {snapshot.sources.systemd.error && (
+        <p className="m-0 text-[13px] text-[#e3b341]">
+          {t.units.systemdDown} {snapshot.sources.systemd.error}
+        </p>
+      )}
+      {snapshot.sources.podman.error && (
+        <p className="m-0 text-[13px] text-[#e3b341]">
+          {t.units.podmanDown} {snapshot.sources.podman.error}
+        </p>
+      )}
       {filter === 'timer' ? (
         <TimersView />
       ) : (
@@ -85,15 +95,15 @@ function Units() {
           <table className="tbl">
             <thead>
               <tr>
-                <th>Unit</th>
-                <th className="hidden 2xl:table-cell">Typ</th>
-                <th>Status</th>
-                <th className="hidden xl:table-cell">CPU · 15 min</th>
-                <th>RAM</th>
-                <th className="hidden sm:table-cell">Seit</th>
-                <th className="hidden 2xl:table-cell">Boot</th>
+                <th>{t.units.col.unit}</th>
+                <th className="hidden 2xl:table-cell">{t.units.col.type}</th>
+                <th>{t.units.col.status}</th>
+                <th className="hidden xl:table-cell">{t.units.col.cpu}</th>
+                <th>{t.units.col.ram}</th>
+                <th className="hidden sm:table-cell">{t.units.col.since}</th>
+                <th className="hidden 2xl:table-cell">{t.units.col.boot}</th>
                 <th>
-                  <span className="sr-only">Aktionen</span>
+                  <span className="sr-only">{t.units.col.actions}</span>
                 </th>
               </tr>
             </thead>
@@ -101,7 +111,7 @@ function Units() {
               {shown.length === 0 && (
                 <tr>
                   <td colSpan={8} className="text-muted">
-                    Keine Einträge in diesem Filter.
+                    {t.units.empty}
                   </td>
                 </tr>
               )}
@@ -117,13 +127,14 @@ function Units() {
 }
 
 function UnitRow({ row, run, busy, readonly }: { row: Row; run: ReturnType<typeof useActions>['run']; busy: string | null; readonly: boolean }) {
+  const t = useT()
   const navigate = useNavigate()
   const guarded = useGuardedApi()
   const say = useToast()
   const { unit: u, container: c } = row
   const name = u?.name ?? c!.name
   const st = status(row)
-  const listen = u?.socket?.listen.length ? `lauscht auf ${u.socket.listen.map((l) => l.replace(/ \((Stream|Datagram|SequentialPacket)\)$/, '')).join(', ')}${u.socket.triggers ? ` → ${u.socket.triggers}` : ''}` : ''
+  const listen = u?.socket?.listen.length ? `${t.units.listens(u.socket.listen.map((l) => l.replace(/ \((Stream|Datagram|SequentialPacket)\)$/, '')).join(', '))}${u.socket.triggers ? ` → ${u.socket.triggers}` : ''}` : ''
   const why = u ? (failureReason(u) ?? listen ?? '') || [u.quadlet?.file, c?.image].filter(Boolean).join(' · ') : c!.image
   const detail = why || (u && u.description !== u.name ? u.description : '')
   const target = u ? { kind: 'unit' as const, name: u.name } : { kind: 'container' as const, name: c!.name }
@@ -135,23 +146,23 @@ function UnitRow({ row, run, busy, readonly }: { row: Row; run: ReturnType<typeo
   const setBoot = async (enabled: boolean) => {
     try {
       const r = await guarded('/api/systemd', { body: { enable: { unit: u!.name, enabled } } })
-      if (r) say(enabled ? `${u!.name} startet beim Booten` : `${u!.name} startet nicht mehr beim Booten`)
+      if (r) say(enabled ? t.units.bootOn(u!.name) : t.units.bootOff(u!.name))
     } catch (e) {
       say((e as Error).message, 'bad')
     }
   }
   const items: MenuItem[] = [
-    ...(u ? [{ label: 'Journal', onSelect: () => void navigate({ to: '/journal', search: { unit: u.name } }) }] : []),
+    ...(u ? [{ label: t.common.journal, onSelect: () => void navigate({ to: '/journal', search: { unit: u.name } }) }] : []),
     ...(u?.quadlet
-      ? [{ label: 'Quadlet bearbeiten', onSelect: () => void navigate({ to: '/quadlets', search: { file: u.quadlet!.file } }) }]
+      ? [{ label: t.units.editQuadlet, onSelect: () => void navigate({ to: '/quadlets', search: { file: u.quadlet!.file } }) }]
       : u
-        ? [{ label: 'Unit bearbeiten', onSelect: () => void navigate({ to: '/systemd', search: { unit: u.name } }) }]
+        ? [{ label: t.units.editUnit, onSelect: () => void navigate({ to: '/systemd', search: { unit: u.name } }) }]
         : []),
     ...(readonly
       ? []
       : [
-          ...(active ? [{ label: 'Stoppen …', onSelect: () => run('stop', target), danger: true, disabled: busy === name, separator: true }] : []),
-          ...(bootable ? [{ label: 'Beim Booten starten', checked: u!.unitFileState === 'enabled', onSelect: () => void setBoot(u!.unitFileState !== 'enabled'), separator: true }] : []),
+          ...(active ? [{ label: t.units.stopDots, onSelect: () => run('stop', target), danger: true, disabled: busy === name, separator: true }] : []),
+          ...(bootable ? [{ label: t.units.startAtBoot, checked: u!.unitFileState === 'enabled', onSelect: () => void setBoot(u!.unitFileState !== 'enabled'), separator: true }] : []),
         ]),
   ]
   return (
@@ -159,7 +170,7 @@ function UnitRow({ row, run, busy, readonly }: { row: Row; run: ReturnType<typeo
       <td>
         <div className="flex max-w-[13rem] min-w-0 items-center gap-2 lg:max-w-[22rem] 2xl:max-w-[28rem]">
           {u ? (
-            <Link to="/journal" search={{ unit: u.name }} className="truncate font-mono text-[13px] font-medium text-fg hover:text-accent" title={`Journal öffnen: ${name}`}>
+            <Link to="/journal" search={{ unit: u.name }} className="truncate font-mono text-[13px] font-medium text-fg hover:text-accent" title={t.units.openJournal(name)}>
               {name}
             </Link>
           ) : (
@@ -174,7 +185,7 @@ function UnitRow({ row, run, busy, readonly }: { row: Row; run: ReturnType<typeo
         )}
       </td>
       <td className="hidden 2xl:table-cell">
-        <span className={u?.kind === 'quadlet' ? 'chip q' : 'chip'} title={u?.quadlet ? `Quadlet (.${u.quadlet.type})` : u ? undefined : 'Container ohne Unit'}>
+        <span className={u?.kind === 'quadlet' ? 'chip q' : 'chip'} title={u?.quadlet ? `Quadlet (.${u.quadlet.type})` : u ? undefined : t.units.containerNoUnit}>
           {kindLabel(row)}
         </span>
       </td>
@@ -195,15 +206,15 @@ function UnitRow({ row, run, busy, readonly }: { row: Row; run: ReturnType<typeo
       <td className="hidden sm:table-cell" suppressHydrationWarning>
         {u ? age(u.since) : '–'}
       </td>
-      <td className="hidden text-subtle 2xl:table-cell">{u?.unitFileState ?? (c ? 'ohne Unit' : '–')}</td>
+      <td className="hidden text-subtle 2xl:table-cell">{u?.unitFileState ?? (c ? t.units.noUnit : '–')}</td>
       <td>
         <div className="flex justify-end gap-1.5">
           {!readonly && (
-            <button type="button" className="btn sm" disabled={busy === name} onClick={() => run(primary, target)} aria-label={`${name} ${primary === 'restart' ? 'neu starten' : 'starten'}`}>
-              {primary === 'restart' ? 'Neu starten' : 'Starten'}
+            <button type="button" className="btn sm" disabled={busy === name} onClick={() => run(primary, target)} aria-label={primary === 'restart' ? t.units.restartAria(name) : t.units.startAria(name)}>
+              {primary === 'restart' ? t.units.restart : t.units.start}
             </button>
           )}
-          {items.length > 0 && <RowMenu label={`Aktionen für ${name}`} items={items} />}
+          {items.length > 0 && <RowMenu label={t.common.actionsFor(name)} items={items} />}
         </div>
       </td>
     </tr>

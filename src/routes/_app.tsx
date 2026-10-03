@@ -4,9 +4,11 @@ import { ActionsProvider } from '~/components/Actions'
 import { CommandPalette } from '~/components/CommandPalette'
 import { JobChip, JobsProvider } from '~/components/Jobs'
 import { UnlockChip, UnlockProvider } from '~/components/Unlock'
+import { LangSelect } from '~/components/AuthCard'
 import { Glyph, Logo } from '~/components/Glyph'
 import { Dot } from '~/components/Status'
 import { ToastProvider } from '~/components/Toast'
+import { useT } from '~/i18n'
 import { api, setCsrfToken } from '~/lib/api'
 import { duration } from '~/lib/format'
 import { LiveProvider, useLive } from '~/lib/live'
@@ -35,25 +37,25 @@ function AppLayout() {
     <ToastProvider>
       <LiveProvider initial={initial}>
         <UnlockProvider>
-        <JobsProvider>
-        <ActionsProvider readonly={readonly}>
-          <div className="grid min-h-screen grid-cols-1 md:grid-cols-[232px_minmax(0,1fr)]">
-            <MobileBar onMenu={() => setMenu(true)} onSearch={() => setPalette(true)} />
-            <Sidebar
-              open={menu}
-              onClose={closeMenu}
-              onSearch={() => {
-                setMenu(false)
-                setPalette(true)
-              }}
-            />
-            <main className="box-border flex w-full min-w-0 flex-col gap-[18px] px-4 pt-[22px] pb-12 md:px-7">
-              <Outlet />
-            </main>
-          </div>
-          <CommandPalette open={palette} onOpenChange={setPalette} />
-        </ActionsProvider>
-        </JobsProvider>
+          <JobsProvider>
+            <ActionsProvider readonly={readonly}>
+              <div className="grid min-h-screen grid-cols-1 md:grid-cols-[232px_minmax(0,1fr)]">
+                <MobileBar onMenu={() => setMenu(true)} onSearch={() => setPalette(true)} />
+                <Sidebar
+                  open={menu}
+                  onClose={closeMenu}
+                  onSearch={() => {
+                    setMenu(false)
+                    setPalette(true)
+                  }}
+                />
+                <main className="box-border flex w-full min-w-0 flex-col gap-[18px] px-4 pt-[22px] pb-12 md:px-7">
+                  <Outlet />
+                </main>
+              </div>
+              <CommandPalette open={palette} onOpenChange={setPalette} />
+            </ActionsProvider>
+          </JobsProvider>
         </UnlockProvider>
       </LiveProvider>
     </ToastProvider>
@@ -66,31 +68,32 @@ function useNav(): { title?: string; items: NavItem[] }[] {
   const { snapshot } = useLive()
   const failed = snapshot.units.filter((u) => u.active === 'failed').length
   const smart = (snapshot.smart ?? []).filter((d) => d.level !== 'ok').length
+  const t = useT().shell.nav
   return [
-    { items: [{ to: '/', label: 'Übersicht', glyph: 'overview', badge: 0 }] },
+    { items: [{ to: '/', label: t.overview, glyph: 'overview', badge: 0 }] },
     {
-      title: 'Dienste',
+      title: t.services,
       items: [
-        { to: '/units', label: 'Units', glyph: 'units', badge: failed },
-        { to: '/journal', label: 'Journal', glyph: 'journal', badge: 0 },
+        { to: '/units', label: t.units, glyph: 'units', badge: failed },
+        { to: '/journal', label: t.journal, glyph: 'journal', badge: 0 },
       ],
     },
     {
-      title: 'Speicher',
+      title: t.storage,
       items: [
-        { to: '/disks', label: 'Festplatten', glyph: 'disk', badge: smart },
-        { to: '/files', label: 'Dateien', glyph: 'file', badge: 0 },
-        { to: '/shares', label: 'Freigaben', glyph: 'folder', badge: 0 },
+        { to: '/disks', label: t.disks, glyph: 'disk', badge: smart },
+        { to: '/files', label: t.files, glyph: 'file', badge: 0 },
+        { to: '/shares', label: t.shares, glyph: 'folder', badge: 0 },
       ],
     },
     {
-      title: 'Server',
+      title: t.server,
       items: [
-        { to: '/network', label: 'Netzwerk', glyph: 'network', badge: 0 },
-        { to: '/users', label: 'Benutzer', glyph: 'people', badge: 0 },
-        { to: '/ssh', label: 'SSH', glyph: 'key', badge: 0 },
-        { to: '/system', label: 'System', glyph: 'package', badge: 0 },
-        { to: '/notifications', label: 'Benachrichtigungen', glyph: 'bell', badge: 0 },
+        { to: '/network', label: t.network, glyph: 'network', badge: 0 },
+        { to: '/users', label: t.users, glyph: 'people', badge: 0 },
+        { to: '/ssh', label: t.ssh, glyph: 'key', badge: 0 },
+        { to: '/system', label: t.system, glyph: 'package', badge: 0 },
+        { to: '/notifications', label: t.notifications, glyph: 'bell', badge: 0 },
       ],
     },
   ]
@@ -101,28 +104,29 @@ const Badge = ({ n }: { n: number }) => <span className="rounded-full bg-[rgba(2
 /** Phones: a slim bar with the menu, the page's state and search instead of the whole sidebar above the content. */
 function MobileBar({ onMenu, onSearch }: { onMenu: () => void; onSearch: () => void }) {
   const { snapshot, connected } = useLive()
+  const t = useT().shell.bar
   const problems = useNav()
     .flatMap((g) => g.items)
     .reduce((n, i) => n + i.badge, 0)
   return (
     <header className="sticky top-0 z-30 flex items-center gap-1 border-b border-line bg-[rgba(13,17,23,.92)] px-2 py-2 backdrop-blur md:hidden">
-      <button type="button" className="relative grid h-10 w-10 place-items-center rounded-lg text-fg hover:bg-[#161c24]" onClick={onMenu} aria-label="Menü öffnen">
+      <button type="button" className="relative grid h-10 w-10 place-items-center rounded-lg text-fg hover:bg-[#161c24]" onClick={onMenu} aria-label={t.openMenu}>
         <Glyph name="menu" size={20} strokeWidth={2} />
-        {problems > 0 && <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-[#f85149]" aria-label={`${problems} Probleme`} />}
+        {problems > 0 && <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-[#f85149]" aria-label={t.problems(problems)} />}
       </button>
       <Link to="/" className="flex min-w-0 grow items-center gap-2 text-fg no-underline">
         <Logo size={26} />
         <span className="flex min-w-0 flex-col leading-tight">
           <span className="font-cond text-[17px] font-semibold">Quadeck</span>
           <span className="flex items-center gap-1.5 text-[11px] text-subtle">
-            <Dot tone={connected ? 'ok' : 'warn'} label={connected ? 'live verbunden' : 'Verbindung wird hergestellt'} />
+            <Dot tone={connected ? 'ok' : 'warn'} label={connected ? t.connected : t.connecting} />
             <span className="truncate">{snapshot.host.hostname}</span>
           </span>
         </span>
       </Link>
       <JobChip compact />
       <UnlockChip compact />
-      <button type="button" className="grid h-10 w-10 place-items-center rounded-lg text-muted hover:bg-[#161c24]" onClick={onSearch} aria-label="Suchen">
+      <button type="button" className="grid h-10 w-10 place-items-center rounded-lg text-muted hover:bg-[#161c24]" onClick={onSearch} aria-label={t.search}>
         <Glyph name="search" size={19} strokeWidth={2} />
       </button>
     </header>
@@ -133,6 +137,8 @@ function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => vo
   const { snapshot, connected } = useLive()
   const path = useRouterState({ select: (s) => s.location.pathname })
   const nav = useNav()
+  const { shell } = useT()
+  const t = shell.bar
   const h = snapshot.host
 
   // The drawer closes when a page is chosen, on Escape, and doesn't let the page behind scroll.
@@ -153,19 +159,24 @@ function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => vo
     <>
       <div className={`fixed inset-0 z-40 bg-black/55 transition-opacity md:hidden ${open ? 'opacity-100' : 'pointer-events-none opacity-0'}`} onClick={onClose} aria-hidden="true" />
       <aside
-        aria-label="Navigation"
+        aria-label={shell.nav.navigation}
         className={`fixed inset-y-0 left-0 z-50 flex w-[280px] max-w-[85vw] flex-col gap-[16px] overflow-y-auto border-r border-line bg-[#0d1117] px-[14px] py-5 transition-[transform,visibility] duration-200 md:sticky md:top-0 md:z-auto md:visible md:h-screen md:w-auto md:max-w-none md:translate-x-0 md:bg-[rgba(13,17,23,.85)] ${open ? 'visible translate-x-0' : 'invisible -translate-x-full'}`}
       >
         <div className="flex items-center gap-[10px] px-[6px]">
           <Logo />
           <div className="grow font-cond text-[21px] font-semibold tracking-[.01em]">Quadeck</div>
-          <button type="button" className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-[#161c24] md:hidden" onClick={onClose} aria-label="Menü schließen">
+          <button type="button" className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-[#161c24] md:hidden" onClick={onClose} aria-label={t.closeMenu}>
             <Glyph name="close" size={18} strokeWidth={2} />
           </button>
         </div>
-        <Link to="/hardware" title="Hardware dieses Rechners" aria-label={`${h.hostname}: Hardware dieses Rechners`} className={`mx-1 flex flex-col gap-[3px] rounded-[10px] border p-3 text-[12px] text-subtle no-underline hover:border-[#3a4452] ${path === '/hardware' ? 'border-accent' : 'border-edge'}`}>
+        <Link
+          to="/hardware"
+          title={t.hardwareTitle}
+          aria-label={t.hardwareLabel(h.hostname)}
+          className={`mx-1 flex flex-col gap-[3px] rounded-[10px] border p-3 text-[12px] text-subtle no-underline hover:border-[#3a4452] ${path === '/hardware' ? 'border-accent' : 'border-edge'}`}
+        >
           <div className="flex items-center gap-2 text-[13px] font-medium text-fg">
-            <Dot tone={connected ? 'ok' : 'warn'} label={connected ? 'live verbunden' : 'Verbindung wird hergestellt'} />
+            <Dot tone={connected ? 'ok' : 'warn'} label={connected ? t.connected : t.connecting} />
             {h.hostname}
           </div>
           <span>
@@ -178,12 +189,12 @@ function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => vo
         </Link>
         <button type="button" className="btn mx-1 justify-start text-muted" onClick={onSearch} aria-keyshortcuts="Control+K">
           <Glyph name="search" size={15} strokeWidth={2} />
-          <span className="grow text-left">Suchen</span>
-          <kbd className="font-mono rounded border border-[#333a45] px-1.5 py-0.5 text-[11px] max-md:hidden">Strg K</kbd>
+          <span className="grow text-left">{t.search}</span>
+          <kbd className="font-mono rounded border border-[#333a45] px-1.5 py-0.5 text-[11px] max-md:hidden">{t.searchKey}</kbd>
         </button>
         <UnlockChip />
         <JobChip />
-        <nav aria-label="Bereiche" className="flex flex-col gap-[2px]">
+        <nav aria-label={shell.nav.areas} className="flex flex-col gap-[2px]">
           {nav.map((g, i) => (
             <div key={g.title ?? i} role="group" aria-label={g.title} className="flex flex-col gap-[2px]">
               {g.title && <div className="mt-2.5 mb-0.5 px-3 text-[10.5px] font-semibold tracking-[.08em] text-faint uppercase">{g.title}</div>}
@@ -198,12 +209,12 @@ function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => vo
           ))}
         </nav>
         <div className="mt-auto flex flex-col gap-2 px-2 text-[12px] text-faint">
-          {snapshot.readonly && <span className="chip self-start">Read-only</span>}
+          {snapshot.readonly && <span className="chip self-start">{t.readonly}</span>}
           {problems.map(([k, s]) => (
             <span key={k} title={s.error} className="flex items-start gap-2 text-[#e3b341]">
               <Dot tone="warn" />
               <span className="line-clamp-2">
-                {SOURCE_LABEL[k] ?? k}: {s.error}
+                {shell.sources[k] ?? k}: {s.error}
               </span>
             </span>
           ))}
@@ -215,13 +226,14 @@ function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => vo
               window.location.href = '/login'
             }}
           >
-            <Glyph name="logout" size={15} /> Abmelden
+            <Glyph name="logout" size={15} /> {t.logout}
           </button>
-          <span>Quadeck {__APP_VERSION__}</span>
+          <div className="flex items-center justify-between gap-2">
+            <span>Quadeck {__APP_VERSION__}</span>
+            <LangSelect />
+          </div>
         </div>
       </aside>
     </>
   )
 }
-
-const SOURCE_LABEL: Record<string, string> = { podman: 'Podman', systemd: 'systemd', caddy: 'Caddy', disks: 'Platten', system: 'System', smart: 'SMART' }

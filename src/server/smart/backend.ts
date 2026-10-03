@@ -3,6 +3,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { SmartDisk, SmartReport } from '~/shared/smart'
+import { tr } from '~/shared/i18n'
 import { HttpError } from '../auth'
 import { run, runOk } from '../exec'
 import { parseSmartctl, physicalDisks } from './parse'
@@ -30,7 +31,7 @@ export class SystemSmart implements SmartBackend {
   }
 
   private async collect(): Promise<SmartReport> {
-    if (!Bun.which('smartctl')) return { checkedAt: Date.now(), disks: [], installed: false, error: 'smartctl ist nicht installiert (Paket smartmontools)' }
+    if (!Bun.which('smartctl')) return { checkedAt: Date.now(), disks: [], installed: false, error: tr('smartctl ist nicht installiert (Paket smartmontools)', 'smartctl is not installed (package smartmontools)') }
     const names = await this.disks()
     const disks: SmartDisk[] = []
     // A few at a time: smartctl can take a second per disk.
@@ -58,7 +59,7 @@ export class SystemSmart implements SmartBackend {
   }
 
   async smartSelfTest(disk: string, type: SelfTestType) {
-    if (!DISK_NAME.test(disk) || !(await this.disks()).includes(disk)) throw new HttpError(404, `Unbekannte Platte: ${disk}`)
+    if (!DISK_NAME.test(disk) || !(await this.disks()).includes(disk)) throw new HttpError(404, tr(`Unbekannte Platte: ${disk}`, `Unknown disk: ${disk}`))
     const r = await run(['smartctl', '-t', type, `/dev/${disk}`], { timeoutMs: 30_000 })
     // Exit bits 0/1 = could not even send the command.
     if (r.code & 3) throw new HttpError(422, `smartctl -t ${type}: ${(r.stdout + r.stderr).trim().split('\n').slice(-2).join(' ')}`)
@@ -84,8 +85,8 @@ export class FixtureSmart implements SmartBackend {
   }
   async smartSelfTest(disk: string, type: SelfTestType) {
     const d = this.disks.find((x) => x.name === disk)
-    if (!d) throw new HttpError(404, `Unbekannte Platte: ${disk}`)
-    if (!d.supported || d.standby) throw new HttpError(422, `${disk} kann gerade keinen Selbsttest ausführen`)
+    if (!d) throw new HttpError(404, tr(`Unbekannte Platte: ${disk}`, `Unknown disk: ${disk}`))
+    if (!d.supported || d.standby) throw new HttpError(422, tr(`${disk} kann gerade keinen Selbsttest ausführen`, `${disk} cannot run a self-test right now`))
     d.testRunning = type === 'short' ? 90 : 99
     return this.smartReport()
   }

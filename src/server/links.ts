@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 import { HttpError } from './auth'
 import { db, schema } from './db'
+import { tr } from '~/shared/i18n'
 
 export interface LinkInput {
   name: string
@@ -15,16 +16,16 @@ const str = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice
 export function validateLink(body: Record<string, unknown>): LinkInput {
   const name = str(body.name, 60)
   const url = str(body.url, 500)
-  if (!name) throw new HttpError(400, 'Name fehlt')
+  if (!name) throw new HttpError(400, tr('Name fehlt', 'Name is missing'))
   let parsed: URL
   try {
     parsed = new URL(url)
   } catch {
-    throw new HttpError(400, 'URL ist ungültig')
+    throw new HttpError(400, tr('URL ist ungültig', 'URL is invalid'))
   }
-  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') throw new HttpError(400, 'Nur http:// und https:// sind erlaubt')
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') throw new HttpError(400, tr('Nur http:// und https:// sind erlaubt', 'Only http:// and https:// are allowed'))
   const icon = str(body.icon, 80).toLowerCase()
-  if (icon && !/^[a-z0-9][a-z0-9-]*$/.test(icon)) throw new HttpError(400, 'Icon: nur Slug aus dashboard-icons, z. B. "home-assistant"')
+  if (icon && !/^[a-z0-9][a-z0-9-]*$/.test(icon)) throw new HttpError(400, tr('Icon: nur Slug aus dashboard-icons, z. B. "home-assistant"', 'Icon: only a slug from dashboard-icons, e.g. "home-assistant"'))
   return { name, url: parsed.toString(), group: str(body.group, 40) || undefined, icon: icon || undefined, healthCheck: body.healthCheck !== false }
 }
 
@@ -39,11 +40,11 @@ export function updateLink(id: number, l: LinkInput) {
     .where(eq(schema.manualServices.id, id))
     .returning()
     .all()
-  if (!r.length) throw new HttpError(404, 'Link nicht gefunden')
+  if (!r.length) throw new HttpError(404, tr('Link nicht gefunden', 'Link not found'))
   return r[0]
 }
 
 export function deleteLink(id: number) {
   const r = db().delete(schema.manualServices).where(eq(schema.manualServices.id, id)).returning().all()
-  if (!r.length) throw new HttpError(404, 'Link nicht gefunden')
+  if (!r.length) throw new HttpError(404, tr('Link nicht gefunden', 'Link not found'))
 }

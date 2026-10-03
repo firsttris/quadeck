@@ -6,6 +6,7 @@
 import { existsSync, readdirSync, readFileSync, readlinkSync, realpathSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { run } from '../exec'
+import { tr } from '~/shared/i18n'
 import { buildHardware, lookupIds, type AtaRaw, type Hardware, type HardwareRaw, type PciRaw, type SensorRaw, type UsbRaw } from '~/shared/hardware'
 
 export interface HardwareAdmin {
@@ -64,7 +65,11 @@ function readPci(): PciRaw[] {
   })
   const file = IDS('pci.ids')
   if (file) {
-    const ids = lookupIds(read(file) ?? '', devs.map((d) => ({ vendor: d.vendor, device: d.device })), devs.flatMap((d) => [d.class.slice(2, 4), d.class.slice(2, 6)]))
+    const ids = lookupIds(
+      read(file) ?? '',
+      devs.map((d) => ({ vendor: d.vendor, device: d.device })),
+      devs.flatMap((d) => [d.class.slice(2, 4), d.class.slice(2, 6)]),
+    )
     for (const d of devs as PciRaw[]) {
       d.vendorName = ids.vendors.get(d.vendor)
       d.deviceName = ids.devices.get(`${d.vendor}:${d.device}`)
@@ -81,7 +86,10 @@ function readUsb(): UsbRaw[] {
   for (const id of ls('/dev/serial/by-id')) {
     const tty = link(join('/dev/serial/by-id', id))
     const dev = tty && real(`/sys/class/tty/${tty}/device`)
-    const usb = dev?.split('/').filter((s) => /^\d+-[\d.]+$/.test(s)).pop()
+    const usb = dev
+      ?.split('/')
+      .filter((s) => /^\d+-[\d.]+$/.test(s))
+      .pop()
     if (usb) serial.set(usb, [...(serial.get(usb) ?? []), `/dev/serial/by-id/${id}`])
   }
   const devs: UsbRaw[] = ls(root)
@@ -103,7 +111,10 @@ function readUsb(): UsbRaw[] {
     })
   const file = IDS('usb.ids')
   if (file && devs.some((d) => !d.name || !d.manufacturer)) {
-    const ids = lookupIds(read(file) ?? '', devs.map((d) => ({ vendor: d.vendor, device: d.product })))
+    const ids = lookupIds(
+      read(file) ?? '',
+      devs.map((d) => ({ vendor: d.vendor, device: d.product })),
+    )
     for (const d of devs) {
       d.manufacturer ??= ids.vendors.get(d.vendor)
       d.name ??= ids.devices.get(`${d.vendor}:${d.product}`)
@@ -156,7 +167,14 @@ export function readHwmon(root = '/sys/class/hwmon'): SensorRaw[] {
         return Number.isFinite(v) && v > 0 ? v / scale : undefined
       }
       if (kind === 'temp' && (raw <= -40_000 || raw >= 150_000)) continue // unconnected sensor
-      out.push({ chip, label: label ?? `${kind === 'fan' ? 'Lüfter' : kind === 'temp' ? 'Temperatur' : kind} ${m[2]}`, kind, value: raw / scale, max: extra('max'), crit: extra('crit') })
+      out.push({
+        chip,
+        label: label ?? (kind === 'fan' ? tr(`Lüfter ${m[2]}`, `Fan ${m[2]}`) : kind === 'temp' ? tr(`Temperatur ${m[2]}`, `Temperature ${m[2]}`) : `${kind} ${m[2]}`),
+        kind,
+        value: raw / scale,
+        max: extra('max'),
+        crit: extra('crit'),
+      })
     }
   }
   return out.sort((a, b) => a.chip.localeCompare(b.chip) || a.kind.localeCompare(b.kind) || a.label.localeCompare(b.label, undefined, { numeric: true }))

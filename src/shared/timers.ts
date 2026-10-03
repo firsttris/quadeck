@@ -2,6 +2,8 @@
 // for its own timers, a schedule builder for OnCalendar= and a cron converter.
 // Shared by the page, the web app and the root helper.
 
+import { tr } from './i18n'
+
 /** A timer Quadeck manages: `<name>.service` + `<name>.timer` in /etc/systemd/system. */
 export interface TimerSpec {
   name: string
@@ -93,23 +95,24 @@ export const emptySpec = (): TimerSpec => ({
   network: false,
 })
 
-/** Problems with a spec (German), empty when fine. */
+/** Problems with a spec (in the viewer's language), empty when fine. */
 export function specErrors(s: TimerSpec): string[] {
   const out: string[] = []
-  if (!TIMER_BASE.test(s.name) || /\.(service|timer)$/.test(s.name)) out.push('Name: Buchstaben, Ziffern, „-“, „_“ oder „.“ (ohne .service/.timer)')
-  if (s.description.length > 200 || /[\n\r\\]/.test(s.description) || CONTROL.test(s.description)) out.push('Beschreibung: eine Zeile, ohne „\\“')
-  if (!s.command.trim()) out.push('Befehl fehlt')
-  else if (s.command.length > MAX_COMMAND || /[\x00\r]/.test(s.command) || CONTROL.test(s.command.replace(/\t/g, ''))) out.push('Befehl enthält Steuerzeichen oder ist zu lang')
-  if (s.user && !USER.test(s.user)) out.push('Benutzer ungültig')
-  if (s.workingDirectory && (!s.workingDirectory.startsWith('/') || /[\n\r\\]/.test(s.workingDirectory) || CONTROL.test(s.workingDirectory) || s.workingDirectory.length > 400)) out.push('Arbeitsverzeichnis muss ein absoluter Pfad sein')
-  if (!CALENDAR.test(s.calendar.trim())) out.push('Zeitplan ungültig')
-  if (!Number.isInteger(s.randomDelay) || s.randomDelay < 0 || s.randomDelay > 24 * 60) out.push('Zufällige Verzögerung: 0 bis 1440 Minuten')
+  if (!TIMER_BASE.test(s.name) || /\.(service|timer)$/.test(s.name)) out.push(tr('Name: Buchstaben, Ziffern, „-“, „_“ oder „.“ (ohne .service/.timer)', 'Name: letters, digits, “-”, “_” or “.” (without .service/.timer)'))
+  if (s.description.length > 200 || /[\n\r\\]/.test(s.description) || CONTROL.test(s.description)) out.push(tr('Beschreibung: eine Zeile, ohne „\\“', 'Description: one line, without “\\”'))
+  if (!s.command.trim()) out.push(tr('Befehl fehlt', 'Command missing'))
+  else if (s.command.length > MAX_COMMAND || /[\x00\r]/.test(s.command) || CONTROL.test(s.command.replace(/\t/g, ''))) out.push(tr('Befehl enthält Steuerzeichen oder ist zu lang', 'Command contains control characters or is too long'))
+  if (s.user && !USER.test(s.user)) out.push(tr('Benutzer ungültig', 'Invalid user'))
+  if (s.workingDirectory && (!s.workingDirectory.startsWith('/') || /[\n\r\\]/.test(s.workingDirectory) || CONTROL.test(s.workingDirectory) || s.workingDirectory.length > 400))
+    out.push(tr('Arbeitsverzeichnis muss ein absoluter Pfad sein', 'Working directory must be an absolute path'))
+  if (!CALENDAR.test(s.calendar.trim())) out.push(tr('Zeitplan ungültig', 'Invalid schedule'))
+  if (!Number.isInteger(s.randomDelay) || s.randomDelay < 0 || s.randomDelay > 24 * 60) out.push(tr('Zufällige Verzögerung: 0 bis 1440 Minuten', 'Random delay: 0 to 1440 minutes'))
   return out
 }
 
 /** Spec from untrusted JSON (API, helper socket); throws a message for the user. */
 export function parseSpec(v: unknown): TimerSpec {
-  if (!v || typeof v !== 'object') throw new Error('Zeitplan fehlt')
+  if (!v || typeof v !== 'object') throw new Error(tr('Zeitplan fehlt', 'Schedule missing'))
   const o = v as Record<string, unknown>
   const str = (k: string) => (typeof o[k] === 'string' ? (o[k] as string) : '')
   const spec: TimerSpec = {
@@ -153,8 +156,13 @@ export function execUnquote(word: string): string {
 
 const markerOf = (s: TimerSpec) => MANAGED_MARKER + JSON.stringify({ ...s })
 
-export function renderService(s: TimerSpec): string {
-  const lines = [markerOf(s), '# Angelegt von Quadeck – bitte über Units → Timer bearbeiten.', '[Unit]', `Description=${pct(s.description || s.name)}`]
+/** Header of the unit files Quadeck writes; files from before 0.4 carry the German one. */
+export const MANAGED_HEADER = '# Created by Quadeck – edit it under Units → Timers.'
+export const LEGACY_MANAGED_HEADER = '# Angelegt von Quadeck – bitte über Units → Timer bearbeiten.'
+
+/** `legacy`: the German wording older versions wrote – only to recognise unchanged files. */
+export function renderService(s: TimerSpec, legacy = false): string {
+  const lines = [markerOf(s), legacy ? LEGACY_MANAGED_HEADER : MANAGED_HEADER, '[Unit]', `Description=${pct(s.description || s.name)}`]
   if (s.network) lines.push('Wants=network-online.target', 'After=network-online.target')
   lines.push('', '[Service]', 'Type=oneshot')
   if (s.user) lines.push(`User=${s.user}`)
@@ -164,8 +172,8 @@ export function renderService(s: TimerSpec): string {
   return lines.join('\n') + '\n'
 }
 
-export function renderTimer(s: TimerSpec): string {
-  const lines = ['# Angelegt von Quadeck – bitte über Units → Timer bearbeiten.', '[Unit]', `Description=Zeitplan: ${pct(s.description || s.name)}`, '', '[Timer]', `OnCalendar=${s.calendar}`]
+export function renderTimer(s: TimerSpec, legacy = false): string {
+  const lines = [legacy ? LEGACY_MANAGED_HEADER : MANAGED_HEADER, '[Unit]', `Description=${legacy ? 'Zeitplan' : 'Schedule'}: ${pct(s.description || s.name)}`, '', '[Timer]', `OnCalendar=${s.calendar}`]
   if (s.persistent) lines.push('Persistent=true')
   if (s.randomDelay) lines.push(`RandomizedDelaySec=${s.randomDelay}min`)
   lines.push('', '[Install]', 'WantedBy=timers.target')
@@ -184,22 +192,15 @@ export function specFromService(content: string): TimerSpec | undefined {
 }
 
 export function overrideDropIn(calendar: string) {
-  return `# Quadeck: eigener Zeitplan\n[Timer]\nOnCalendar=\nOnCalendar=${calendar}\n`
+  return `# Quadeck: custom schedule\n[Timer]\nOnCalendar=\nOnCalendar=${calendar}\n`
 }
 
 // ---------- schedule builder ----------
 
 export const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 export type Day = (typeof DAYS)[number]
-export const DAY_LABEL: Record<Day, string> = {
-  Mon: 'Mo',
-  Tue: 'Di',
-  Wed: 'Mi',
-  Thu: 'Do',
-  Fri: 'Fr',
-  Sat: 'Sa',
-  Sun: 'So',
-}
+/** Short weekday name in the viewer's language. */
+export const dayLabel = (d: Day): string => tr('Mo Di Mi Do Fr Sa So', 'Mon Tue Wed Thu Fri Sat Sun').split(' ')[DAYS.indexOf(d)]!
 
 export type Schedule =
   | { kind: 'minutes'; every: number }
@@ -306,23 +307,27 @@ export function parseCalendar(expr: string): Schedule {
   return d && d <= 31 ? { kind: 'monthly', day: d, time: hhmm } : custom
 }
 
-/** Short German description ("täglich 03:30", "Mo–Fr 07:00", "alle 15 Minuten"). */
+/** Short description ("täglich 03:30", "Mo–Fr 07:00", "alle 15 Minuten" / "daily 03:30", …). */
 export function describeCalendar(expr: string | undefined): string {
   if (!expr) return '–'
   const s = parseCalendar(expr)
   switch (s.kind) {
     case 'minutes':
-      return s.every === 1 ? 'jede Minute' : `alle ${s.every} Minuten`
+      return s.every === 1 ? tr('jede Minute', 'every minute') : tr(`alle ${s.every} Minuten`, `every ${s.every} minutes`)
     case 'hours':
-      return s.every === 1 ? (s.minute ? `stündlich um :${two(s.minute)}` : 'stündlich') : `alle ${s.every} Stunden${s.minute ? ` um :${two(s.minute)}` : ''}`
+      return s.every === 1
+        ? s.minute
+          ? tr(`stündlich um :${two(s.minute)}`, `hourly at :${two(s.minute)}`)
+          : tr('stündlich', 'hourly')
+        : tr(`alle ${s.every} Stunden${s.minute ? ` um :${two(s.minute)}` : ''}`, `every ${s.every} hours${s.minute ? ` at :${two(s.minute)}` : ''}`)
     case 'daily':
-      return `täglich ${s.time}`
+      return tr(`täglich ${s.time}`, `daily ${s.time}`)
     case 'weekly': {
-      const days = s.days.length === 5 && !s.days.includes('Sat') && !s.days.includes('Sun') ? 'Mo–Fr' : s.days.length === 7 ? 'täglich' : s.days.map((d) => DAY_LABEL[d]).join(', ')
+      const days = s.days.length === 5 && !s.days.includes('Sat') && !s.days.includes('Sun') ? tr('Mo–Fr', 'Mon–Fri') : s.days.length === 7 ? tr('täglich', 'daily') : s.days.map(dayLabel).join(', ')
       return `${days} ${s.time}`
     }
     case 'monthly':
-      return `monatlich am ${s.day}. um ${s.time}`
+      return tr(`monatlich am ${s.day}. um ${s.time}`, `monthly on day ${s.day} at ${s.time}`)
     case 'custom':
       return s.expr
   }
@@ -354,14 +359,14 @@ function cronField(f: string, min: number, max: number, names?: string[]): strin
   const value = (v: string) => {
     const i = names?.indexOf(v.toLowerCase()) ?? -1
     const n = i >= 0 ? i + (names === MONTHS ? 1 : 0) : /^\d+$/.test(v) ? Number(v) : NaN
-    if (!Number.isInteger(n) || n < min || n > max) throw new Error(`Wert „${v}“ außerhalb ${min}–${max}`)
+    if (!Number.isInteger(n) || n < min || n > max) throw new Error(tr(`Wert „${v}“ außerhalb ${min}–${max}`, `Value “${v}” outside ${min}–${max}`))
     return n
   }
   return f
     .split(',')
     .map((part) => {
       const [range, step] = part.split('/') as [string, string | undefined]
-      if (step !== undefined && !/^\d+$/.test(step)) throw new Error(`Schritt „${step}“ ungültig`)
+      if (step !== undefined && !/^\d+$/.test(step)) throw new Error(tr(`Schritt „${step}“ ungültig`, `Invalid step “${step}”`))
       let out: string
       if (range === '*') out = step ? two(min) : '*'
       else if (range.includes('-')) {
@@ -377,14 +382,14 @@ function cronDays(f: string): string {
   const day = (v: string) => {
     const i = CRON_DAYS.indexOf(v.toLowerCase().slice(0, 3))
     const n = i >= 0 ? i : /^\d$/.test(v) ? Number(v) % 7 : NaN
-    if (!Number.isInteger(n) || n > 6) throw new Error(`Wochentag „${v}“ ungültig`)
+    if (!Number.isInteger(n) || n > 6) throw new Error(tr(`Wochentag „${v}“ ungültig`, `Invalid weekday “${v}”`))
     return n
   }
   const name = (n: number) => DAYS[(n + 6) % 7]!
   return f
     .split(',')
     .map((part) => {
-      if (part.includes('/')) throw new Error('Schritte bei Wochentagen kann systemd nicht')
+      if (part.includes('/')) throw new Error(tr('Schritte bei Wochentagen kann systemd nicht', 'systemd does not support steps for weekdays'))
       if (!part.includes('-')) return name(day(part))
       const [a, b] = part.split('-').map(day) as [number, number]
       // Sun is 0 in cron but last in systemd: 0-2 → Sun,Mon..Tue
@@ -402,27 +407,28 @@ function cronDays(f: string): string {
  */
 export function cronToCalendar(line: string): CronResult {
   const l = line.trim()
-  if (!l) return { error: 'Leer' }
+  if (!l) return { error: tr('Leer', 'Empty') }
   const special = l.match(/^(@\w+)\s*(.*)$/)
   if (special) {
     if (special[1] === '@reboot')
       return {
-        error: '@reboot ist kein Zeitplan – dafür passt eine Unit mit WantedBy=multi-user.target besser',
+        error: tr('@reboot ist kein Zeitplan – dafür passt eine Unit mit WantedBy=multi-user.target besser', '@reboot is not a schedule – a unit with WantedBy=multi-user.target fits better'),
       }
     const cal = CRON_SPECIAL[special[1]!.toLowerCase()]
-    return cal ? { calendar: cal, command: special[2] || undefined } : { error: `${special[1]} kennt cron nicht` }
+    return cal ? { calendar: cal, command: special[2] || undefined } : { error: tr(`${special[1]} kennt cron nicht`, `cron does not know ${special[1]}`) }
   }
   const parts = l.split(/\s+/)
   if (parts.length < 5)
     return {
-      error: 'Cron braucht fünf Felder: Minute Stunde Tag Monat Wochentag',
+      error: tr('Cron braucht fünf Felder: Minute Stunde Tag Monat Wochentag', 'Cron needs five fields: minute hour day month weekday'),
     }
   const [mi, h, dom, mon, dow] = parts as [string, string, string, string, string]
   const command = l.match(/^(?:\S+\s+){4}\S+\s+([\s\S]+)$/)?.[1]?.trim() || undefined
   try {
     const days = dow === '*' || dow === '?' ? '' : cronDays(dow)
     const calendar = `${days ? days + ' ' : ''}*-${cronField(mon, 1, 12, MONTHS)}-${dom === '?' ? '*' : cronField(dom, 1, 31)} ${cronField(h, 0, 23)}:${cronField(mi, 0, 59)}:00`
-    const warning = days && dom !== '*' && dom !== '?' ? 'Cron startet, wenn Tag ODER Wochentag passt – systemd verlangt beides. Bitte prüfen.' : undefined
+    const warning =
+      days && dom !== '*' && dom !== '?' ? tr('Cron startet, wenn Tag ODER Wochentag passt – systemd verlangt beides. Bitte prüfen.', 'Cron runs when the day OR the weekday matches – systemd requires both. Please check.') : undefined
     return { calendar, command, warning }
   } catch (e) {
     return { error: (e as Error).message }
