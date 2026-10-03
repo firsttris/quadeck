@@ -1,6 +1,5 @@
 import { expect, test, type Page } from '@playwright/test'
-import { readFileSync, readdirSync } from 'node:fs'
-import { join } from 'node:path'
+import { readFileSync } from 'node:fs'
 
 // Runs last (zz-): it opens dialogs and menus on every page.
 // English UI: switch the language and walk through every page and tab looking
@@ -14,29 +13,18 @@ const GERMAN =
   /[äöüÄÖÜß]|\b(der|die|das|den|dem|und|oder|nicht|wird|werden|keine?n?|mit|für|auf|von|ein|eine|ist|sind|zum|zur|neu|alle|Datei|Dateien|bitte|noch|nur|schon|Benutzer|Speichern|Abbrechen|Schließen|Löschen|Bearbeiten|Starten|Stoppen|Hinzufügen|Übersicht|Einstellungen|Fehler|läuft|gestoppt|Aktionen|Neue?r?|Freigaben?|Festplatten?|Netzwerk|Benachrichtigungen|Zeitplan|jetzt|vor|seit|Sekunden|Minuten|Stunden|Tage)\b/
 
 /**
- * Words that only occur in the German texts (namespace `de` objects, first
- * argument of tr()) and never in the English ones: if one shows up in the
- * English UI, a text was left behind.
+ * Words that only occur in the German texts (messages/de.json) and never in
+ * the English ones: if one shows up in the English UI, a text was left behind.
  */
 function germanOnlyWords(): Set<string> {
-  const STR = /'(?:[^'\\\n]|\\.)*'|"(?:[^"\\\n]|\\.)*"|`(?:[^`\\]|\\.)*`/g
-  const words = (t: string) => (t.match(/[A-Za-zÄÖÜäöüß]{4,}/g) ?? []).map((w) => w.toLowerCase())
-  const de = new Set<string>()
-  const en = new Set<string>()
-  const files = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? files(join(dir, e.name)) : /\.tsx?$/.test(e.name) ? [join(dir, e.name)] : []))
-  for (const f of files('src')) {
-    const src = readFileSync(f, 'utf8')
-    if (f.startsWith(join('src', 'i18n')) && !f.endsWith('index.tsx')) {
-      const split = src.indexOf('export const en')
-      for (const m of src.slice(0, split).match(STR) ?? []) words(m).forEach((w) => de.add(w))
-      for (const m of src.slice(split).match(STR) ?? []) words(m).forEach((w) => en.add(w))
-    }
-    const pair = new RegExp(`\\b(?:tr|k)\\(\\s*(${STR.source})\\s*,\\s*(${STR.source})`, 'g')
-    for (const m of src.matchAll(pair)) {
-      words(m[1]!).forEach((w) => de.add(w))
-      words(m[2]!).forEach((w) => en.add(w))
-    }
-  }
+  const words = (v: unknown) =>
+    (
+      JSON.stringify(v)
+        .replace(/\{\w+\}/g, ' ')
+        .match(/[A-Za-zÄÖÜäöüß]{4,}/g) ?? []
+    ).map((w) => w.toLowerCase())
+  const de = new Set(words(Object.values(JSON.parse(readFileSync('messages/de.json', 'utf8')))))
+  const en = new Set(words(Object.values(JSON.parse(readFileSync('messages/en.json', 'utf8')))))
   // German words that are English too (or names), and appear in host data
   const english = ['pods', 'fast', 'controller', 'asmedia', 'mainboard', 'manual']
   return new Set([...de].filter((w) => !en.has(w) && !english.includes(w)))

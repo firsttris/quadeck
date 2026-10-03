@@ -1,7 +1,7 @@
 // SMB shares and NFS exports: types and validation shared by the form, the
 // web app and the root helper.
 
-import { tr } from './i18n'
+import { msg } from './i18n'
 
 export interface SmbShareSpec {
   name: string
@@ -113,25 +113,25 @@ const FORBIDDEN = ['/etc', '/root', '/boot', '/proc', '/sys', '/dev', '/run', '/
 const CONTROL = /[\x00-\x1f\x7f]/
 
 export function validateSharePath(path: string): string | undefined {
-  if (!path.startsWith('/')) return tr('Pfad muss absolut sein (/mnt/…)', 'Path must be absolute (/mnt/…)')
-  if (CONTROL.test(path) || path.includes('"')) return tr('Pfad enthält unerlaubte Zeichen', 'Path contains invalid characters')
-  if (path.split('/').includes('..')) return tr('Pfad darf kein „..“ enthalten', 'Path must not contain “..”')
+  if (!path.startsWith('/')) return msg('shares_check_pathNotAbsolute')
+  if (CONTROL.test(path) || path.includes('"')) return msg('shares_check_pathInvalidChars')
+  if (path.split('/').includes('..')) return msg('files_check_pathDotDot')
   const clean = path.replace(/\/+$/, '') || '/'
-  if (clean === '/') return tr('Das Wurzelverzeichnis kann nicht freigegeben werden', 'The root directory cannot be shared')
+  if (clean === '/') return msg('shares_check_rootDir')
   const bad = FORBIDDEN.find((f) => clean === f || clean.startsWith(f + '/'))
-  if (bad) return tr(`${bad} kann nicht freigegeben werden`, `${bad} cannot be shared`)
+  if (bad) return msg('shares_check_pathForbidden', { path: bad })
   return undefined
 }
 
 export function validateSmb(s: SmbShareSpec): string[] {
   const e: string[] = []
-  if (!SMB_NAME.test(s.name)) e.push(tr('Name: Buchstaben, Ziffern, Leerzeichen, „_ . - $“, max. 80 Zeichen', 'Name: letters, digits, spaces, “_ . - $”, max. 80 characters'))
-  else if (RESERVED_SMB.has(s.name.toLowerCase())) e.push(tr(`„${s.name}“ ist ein reservierter Abschnitt`, `“${s.name}” is a reserved section`))
+  if (!SMB_NAME.test(s.name)) e.push(msg('shares_check_nameInvalid'))
+  else if (RESERVED_SMB.has(s.name.toLowerCase())) e.push(msg('shares_check_nameReserved', { name: s.name }))
   const p = validateSharePath(s.path)
   if (p) e.push(p)
-  if (CONTROL.test(s.comment) || s.comment.length > 200) e.push(tr('Kommentar: eine Zeile, max. 200 Zeichen', 'Comment: one line, max. 200 characters'))
+  if (CONTROL.test(s.comment) || s.comment.length > 200) e.push(msg('shares_check_commentInvalid'))
   const users = s.validUsers.split(/[\s,]+/).filter(Boolean)
-  if (CONTROL.test(s.validUsers) || users.some((u) => !USER_TOKEN.test(u))) e.push(tr('Benutzer: Namen oder @gruppe, durch Leerzeichen getrennt', 'Users: names or @group, separated by spaces'))
+  if (CONTROL.test(s.validUsers) || users.some((u) => !USER_TOKEN.test(u))) e.push(msg('shares_check_usersInvalid'))
   return e
 }
 
@@ -139,12 +139,12 @@ export function validateNfs(s: NfsExportSpec): string[] {
   const e: string[] = []
   const p = validateSharePath(s.path)
   if (p) e.push(p)
-  if (!s.clients.length) e.push(tr('Mindestens ein Client (z. B. 192.168.1.0/24)', 'At least one client (e.g. 192.168.1.0/24)'))
-  if (s.clients.length > 50) e.push(tr('Zu viele Clients', 'Too many clients'))
+  if (!s.clients.length) e.push(msg('shares_check_noClients'))
+  if (s.clients.length > 50) e.push(msg('shares_check_tooManyClients'))
   for (const c of s.clients) {
-    if (!NFS_HOST.test(c.host)) e.push(tr(`Client „${c.host}“: IP, Netz (192.168.1.0/24), Hostname oder *`, `Client “${c.host}”: IP, network (192.168.1.0/24), host name or *`))
-    for (const o of c.options) if (!(NFS_OPTIONS as readonly string[]).includes(o) && !NFS_VALUE_OPTION.test(o)) e.push(tr(`Option „${o}“ ist nicht erlaubt`, `Option “${o}” is not allowed`))
-    if (c.options.includes('rw') && c.options.includes('ro')) e.push(tr(`${c.host}: rw und ro gleichzeitig`, `${c.host}: rw and ro at the same time`))
+    if (!NFS_HOST.test(c.host)) e.push(msg('shares_check_clientInvalid', { host: c.host }))
+    for (const o of c.options) if (!(NFS_OPTIONS as readonly string[]).includes(o) && !NFS_VALUE_OPTION.test(o)) e.push(msg('shares_check_optionNotAllowed', { option: o }))
+    if (c.options.includes('rw') && c.options.includes('ro')) e.push(msg('shares_check_rwAndRo', { host: c.host }))
   }
   return e
 }

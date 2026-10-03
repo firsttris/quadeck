@@ -6,7 +6,7 @@ import { existsSync, mkdirSync, readFileSync, readlinkSync, symlinkSync, unlinkS
 import { release } from 'node:os'
 import { join } from 'node:path'
 import type { InstalledPackage, ManagerId, PackageDetail, PackageUpdate } from '~/shared/packages'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { run, runOk } from '../exec'
 import * as p from './parse'
 
@@ -51,7 +51,7 @@ const tail = (file: string, bytes = 2 * 1024 * 1024) => {
 function kernelReplaced(): string | undefined {
   const r = release()
   const dirs = [`/usr/lib/modules/${r}`, `/lib/modules/${r}`]
-  return existsSync('/usr/lib/modules') || existsSync('/lib/modules') ? (dirs.some(existsSync) ? undefined : tr(`Kernel aktualisiert (läuft noch ${r})`, `Kernel updated (still running ${r})`)) : undefined
+  return existsSync('/usr/lib/modules') || existsSync('/lib/modules') ? (dirs.some(existsSync) ? undefined : msg('packages_reboot_kernelUpdated', { version: r })) : undefined
 }
 
 const lines = (s: string) =>
@@ -70,7 +70,7 @@ export class Pacman implements Provider {
   canRemove = true
   configFiles = /\.(pacnew|pacsave)$/
   get configHint() {
-    return tr('Mit „pacdiff“ (pacman-contrib) vergleichen und zusammenführen.', 'Compare and merge with “pacdiff” (pacman-contrib).')
+    return msg('packages_configHint_pacdiff')
   }
 
   private async records() {
@@ -155,7 +155,7 @@ export class Apt implements Provider {
   canRemove = true
   configFiles = /\.(dpkg-dist|dpkg-new|dpkg-old|ucf-dist)$/
   get configHint() {
-    return tr('Neue Paketversionen der Dateien liegen daneben; vergleichen und übernehmen (z. B. mit diff).', 'The new package versions of the files lie next to them; compare and take over (e.g. with diff).')
+    return msg('packages_configHint_generic')
   }
 
   async installed() {
@@ -231,7 +231,7 @@ export class Apt implements Provider {
       } catch {
         // optional
       }
-      return pkgs ? tr(`Neustart nötig wegen ${pkgs}`, `Reboot needed because of ${pkgs}`) : tr('Neustart nötig (/run/reboot-required)', 'Reboot needed (/run/reboot-required)')
+      return pkgs ? msg('packages_reboot_becausePackages', { packages: pkgs }) : msg('packages_reboot_rebootRequired')
     }
     return kernelReplaced()
   }
@@ -279,7 +279,7 @@ export class Dnf implements Provider {
   canRemove = true
   configFiles = /\.(rpmnew|rpmsave)$/
   get configHint() {
-    return tr('Neue Paketversionen liegen als .rpmnew daneben; vergleichen und übernehmen (z. B. rpmconf -a).', 'New package versions lie next to them as .rpmnew; compare and take over (e.g. rpmconf -a).')
+    return msg('packages_configHint_rpmconf')
   }
   private bin: string
   private dnf5: boolean
@@ -350,7 +350,7 @@ export class Dnf implements Provider {
 
   async rebootRequired() {
     const r = this.dnf5 ? await run([this.bin, 'needs-restarting', '-r']) : Bun.which('needs-restarting') ? await run(['needs-restarting', '-r']) : undefined
-    if (r?.code === 1) return tr('Neustart nötig (needs-restarting)', 'Reboot needed (needs-restarting)')
+    if (r?.code === 1) return msg('packages_reboot_needsRestarting')
     return kernelReplaced()
   }
 
@@ -367,7 +367,7 @@ export class Zypper implements Provider {
   canRemove = true
   configFiles = /\.(rpmnew|rpmsave)$/
   get configHint() {
-    return tr('Neue Paketversionen liegen als .rpmnew daneben; vergleichen und übernehmen.', 'New package versions lie next to them as .rpmnew; compare and take over.')
+    return msg('packages_configHint_rpmnew')
   }
   private tumbleweed = (() => {
     try {
@@ -419,7 +419,7 @@ export class Zypper implements Provider {
 
   async rebootRequired() {
     const r = await run(['zypper', 'needs-rebooting'])
-    if (r.code === 102) return tr('Neustart nötig (zypper needs-rebooting)', 'Reboot needed (zypper needs-rebooting)')
+    if (r.code === 102) return msg('packages_reboot_zypper')
     return kernelReplaced()
   }
 
@@ -436,7 +436,7 @@ export class Apk implements Provider {
   canRemove = true
   configFiles = /\.apk-new$/
   get configHint() {
-    return tr('Neue Versionen liegen als .apk-new daneben; vergleichen und übernehmen.', 'New versions lie next to them as .apk-new; compare and take over.')
+    return msg('packages_configHint_apkNew')
   }
 
   async installed() {
@@ -506,7 +506,7 @@ export class RpmOstree implements Provider {
   canRemove = false
   configFiles = /\.(rpmnew|rpmsave)$/
   get configHint() {
-    return tr('/etc wird bei ostree beim Upgrade zusammengeführt; .rpmnew-Dateien manuell prüfen.', 'On ostree, /etc is merged during the upgrade; check .rpmnew files by hand.')
+    return msg('packages_configHint_ostree')
   }
 
   private async status() {
@@ -533,10 +533,7 @@ export class RpmOstree implements Provider {
   async removePreview() {
     return {
       packages: [],
-      error: tr(
-        'Auf rpm-ostree-Systemen werden Pakete nicht einzeln entfernt (rpm-ostree uninstall nur für überlagerte Pakete).',
-        'On rpm-ostree systems packages are not removed one by one (rpm-ostree uninstall only for layered packages).',
-      ),
+      error: msg('packages_error_ostreeNoRemove'),
     }
   }
 
@@ -545,7 +542,7 @@ export class RpmOstree implements Provider {
   }
 
   removeSteps(): Step[] {
-    throw new Error(tr('Entfernen wird auf rpm-ostree nicht unterstützt', 'Removing is not supported on rpm-ostree'))
+    throw new Error(msg('packages_error_ostreeRemove'))
   }
   installSteps(names: string[]): Step[] {
     // Layered package; active after the next reboot.
@@ -554,7 +551,7 @@ export class RpmOstree implements Provider {
 
   async rebootRequired() {
     const st = await this.status()
-    return st?.deployments.some((d) => !d.booted && d.staged) ? tr('Neues Deployment bereit – Neustart aktiviert es', 'New deployment ready – a reboot activates it') : undefined
+    return st?.deployments.some((d) => !d.booted && d.staged) ? msg('packages_reboot_deploymentStaged') : undefined
   }
 
   lastUpgrade() {

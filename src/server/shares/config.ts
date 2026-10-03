@@ -1,7 +1,7 @@
 // Text operations on smb.conf and exports files. Only the edited share
 // changes; comments, [global] and everything Quadeck does not know stay.
 
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import type { NfsClient, NfsExportSpec, SmbShareInfo, SmbShareSpec } from '~/shared/shares'
 
 // ---------- smb.conf ----------
@@ -85,8 +85,8 @@ export function setSmbShare(text: string, original: string | undefined, spec: Sm
   const sections = smbSections(text)
   const find = (n: string) => sections.find((s) => s.name.toLowerCase() === n.toLowerCase())
   const sec = original ? find(original) : undefined
-  if (original && !sec) throw new Error(tr(`Freigabe [${original}] nicht gefunden`, `Share [${original}] not found`))
-  if (spec && (!sec || sec.name.toLowerCase() !== spec.name.toLowerCase()) && find(spec.name)) throw new Error(tr(`Eine Freigabe [${spec.name}] gibt es schon`, `A share [${spec.name}] already exists`))
+  if (original && !sec) throw new Error(msg('shares_error_smbNotFound', { name: original }))
+  if (spec && (!sec || sec.name.toLowerCase() !== spec.name.toLowerCase()) && find(spec.name)) throw new Error(msg('shares_error_smbExists', { name: spec.name }))
 
   if (!sec) {
     if (!spec) return text
@@ -162,8 +162,8 @@ export function setExport(text: string, originalPath: string | undefined, spec: 
   const lines = text.split('\n')
   const entries = parseExportsFile(text)
   const cur = originalPath ? entries.find((e) => e.path === originalPath) : undefined
-  if (originalPath && !cur) throw new Error(tr(`Export ${originalPath} nicht gefunden`, `Export ${originalPath} not found`))
-  if (spec && spec.path !== originalPath && entries.some((e) => e.path === spec.path)) throw new Error(tr(`${spec.path} ist hier schon exportiert`, `${spec.path} is already exported here`))
+  if (originalPath && !cur) throw new Error(msg('shares_error_exportNotFound', { path: originalPath }))
+  if (spec && spec.path !== originalPath && entries.some((e) => e.path === spec.path)) throw new Error(msg('shares_error_exportExists', { path: spec.path }))
   if (cur) {
     let end = cur.line
     while (lines[end]!.replace(/\r$/, '').endsWith('\\')) end++

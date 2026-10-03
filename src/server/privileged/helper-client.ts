@@ -1,4 +1,4 @@
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { HttpError } from '../auth'
 import type { Privileged, UnitAction } from './actions'
 import type { ImageUpdatesReport, InstalledPackage, JobInfo, JobSpec, JobState, PackageDetail, PackageOverview, RemovePreview, UpdatesReport } from '~/shared/packages'
@@ -37,10 +37,10 @@ export class HelperClient implements Privileged {
         signal: AbortSignal.timeout(timeoutMs),
       } as RequestInit)
     } catch (e) {
-      throw new HttpError(503, tr(`Root-Helfer nicht erreichbar (${this.socket}): ${(e as Error).message}`, `Root helper not reachable (${this.socket}): ${(e as Error).message}`))
+      throw new HttpError(503, msg('helper_error_unreachable', { socket: this.socket, message: (e as Error).message }))
     }
     const data = (await res.json().catch(() => ({}))) as { error?: string }
-    if (!res.ok) throw new HttpError(res.status, data.error ?? tr(`Helfer: HTTP ${res.status}`, `Helper: HTTP ${res.status}`))
+    if (!res.ok) throw new HttpError(res.status, data.error ?? msg('helper_error_http', { status: res.status }))
     return data as T
   }
 

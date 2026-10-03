@@ -3,23 +3,23 @@ import { useCallback, useEffect, useState } from 'react'
 import { PageHeader } from '~/components/PageHeader'
 import { ReverseProxy } from '~/components/ReverseProxy'
 import { Pill, type Tone } from '~/components/Status'
-import { useT } from '~/i18n'
 import { bytes } from '~/lib/format'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { knownPorts, type IfaceKind, type ListeningPort, type NetInterface, type NetworkState } from '~/shared/network'
+import { m } from '~/paraglide/messages'
+import { pickMsg } from '~/i18n'
 
 type Tab = 'interfaces' | 'ports' | 'firewall' | 'proxy'
 
 export const Route = createFileRoute('/_app/network')({
   validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({ tab: s.tab === 'ports' || s.tab === 'firewall' || s.tab === 'proxy' ? s.tab : undefined }),
-  head: () => ({ meta: [{ title: tr('Netzwerk · Quadeck', 'Network · Quadeck') }] }),
+  head: () => ({ meta: [{ title: msg('page_title_network') }] }),
   component: NetworkPage,
 })
 
 const MAIN: IfaceKind[] = ['ethernet', 'wifi', 'vpn', 'bridge']
 
 function NetworkPage() {
-  const t = useT().network
   const { tab = 'interfaces' } = Route.useSearch()
   const [state, setState] = useState<NetworkState | null>(null)
   const [error, setError] = useState('')
@@ -48,15 +48,15 @@ function NetworkPage() {
   const hidden = (s?.interfaces.length ?? 0) - (s?.interfaces.filter((i) => MAIN.includes(i.kind)).length ?? 0)
   const ports = (s?.ports ?? []).filter((p) => !onlyExternal || p.scope !== 'local').sort((a, b) => Number(a.scope === 'local') - Number(b.scope === 'local') || a.port - b.port)
   const tabs: [Tab, string, number | undefined][] = [
-    ['interfaces', t.tabs.interfaces, undefined],
-    ['ports', t.tabs.ports, s?.ports.length],
-    ['firewall', t.tabs.firewall, undefined],
-    ['proxy', t.tabs.proxy, undefined],
+    ['interfaces', m.network_tabs_interfaces(), undefined],
+    ['ports', m.network_tabs_ports(), s?.ports.length],
+    ['firewall', m.network_tabs_firewall(), undefined],
+    ['proxy', m.network_tabs_proxy(), undefined],
   ]
   return (
     <>
-      <PageHeader title={t.title} subtitle={t.subtitle} />
-      <div role="tablist" aria-label={t.area} className="flex flex-wrap gap-1.5">
+      <PageHeader title={m.network_title()} subtitle={m.network_subtitle()} />
+      <div role="tablist" aria-label={m.network_area()} className="flex flex-wrap gap-1.5">
         {tabs.map(([k, label, n]) => (
           <Link key={k} to="/network" search={k === 'interfaces' ? {} : { tab: k }} role="tab" aria-selected={tab === k} className={`seg ${tab === k ? 'on' : ''}`}>
             {label}
@@ -67,14 +67,14 @@ function NetworkPage() {
       {tab === 'proxy' && <ReverseProxy />}
       {tab !== 'proxy' && error && <p className="m-0 text-[13px] text-[#e3b341]">{error}</p>}
       {tab !== 'proxy' && s?.error && <p className="m-0 text-[13px] text-[#e3b341]">{s.error}</p>}
-      {tab !== 'proxy' && !s && !error && <p className="m-0 text-muted">{t.loading}</p>}
+      {tab !== 'proxy' && !s && !error && <p className="m-0 text-muted">{m.network_loading()}</p>}
       {s && tab === 'interfaces' && (
         <>
-          <section className="flex flex-col gap-3" aria-label={t.tabs.interfaces}>
+          <section className="flex flex-col gap-3" aria-label={m.network_tabs_interfaces()}>
             {hidden > 0 && (
               <label className="flex items-center gap-2 self-end text-[12px] text-muted">
                 <input type="checkbox" checked={allIfaces} onChange={(e) => setAllIfaces(e.target.checked)} />
-                {t.ifaces.showAll(hidden)}
+                {m.network_ifaces_showAll({ n: hidden })}
               </label>
             )}
             <div className="grid grid-cols-1 gap-[18px] md:grid-cols-2 2xl:grid-cols-3">
@@ -84,22 +84,22 @@ function NetworkPage() {
             </div>
           </section>
 
-          <section className="panel flex flex-col gap-2 p-[18px] text-[13px] xl:max-w-[50%]" aria-label={t.routes.title}>
-            <h2 className="h2">{t.routes.title}</h2>
+          <section className="panel flex flex-col gap-2 p-[18px] text-[13px] xl:max-w-[50%]" aria-label={m.network_routes_title()}>
+            <h2 className="h2">{m.network_routes_title()}</h2>
             <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5">
-              <dt className="text-muted">{t.routes.hostname}</dt>
+              <dt className="text-muted">{m.network_routes_hostname()}</dt>
               <dd className="m-0 font-mono">{s.hostname}</dd>
               {s.routes
                 .filter((r) => r.dst === 'default')
                 .map((r, i) => (
-                  <Pair key={i} k={r.family === 'inet' ? t.routes.gateway : t.routes.gateway6} v={`${r.gateway ?? '–'}${r.dev ? t.routes.via(r.dev) : ''}`} />
+                  <Pair key={i} k={r.family === 'inet' ? m.network_routes_gateway() : m.network_routes_gateway6()} v={`${r.gateway ?? '–'}${r.dev ? m.network_routes_via({ dev: r.dev }) : ''}`} />
                 ))}
-              <Pair k={t.routes.dns} v={s.dns.servers.join(', ') || '–'} />
-              {s.dns.resolver && <Pair k={t.routes.resolver} v={s.dns.resolver} />}
-              {s.dns.search.length > 0 && <Pair k={t.routes.search} v={s.dns.search.join(', ')} />}
+              <Pair k={m.network_routes_dns()} v={s.dns.servers.join(', ') || '–'} />
+              {s.dns.resolver && <Pair k={m.network_routes_resolver()} v={s.dns.resolver} />}
+              {s.dns.search.length > 0 && <Pair k={m.network_routes_search()} v={s.dns.search.join(', ')} />}
             </dl>
             <details className="text-[12px] text-muted">
-              <summary className="cursor-pointer">{t.routes.all(s.routes.length)}</summary>
+              <summary className="cursor-pointer">{m.network_routes_all({ n: s.routes.length })}</summary>
               <ul className="m-0 mt-1.5 flex list-none flex-col gap-0.5 p-0 font-mono">
                 {s.routes.map((r, i) => (
                   <li key={i}>
@@ -114,28 +114,28 @@ function NetworkPage() {
         </>
       )}
       {s && tab === 'ports' && (
-        <section className="panel relative flex flex-col overflow-x-auto" aria-label={t.ports.title}>
+        <section className="panel relative flex flex-col overflow-x-auto" aria-label={m.network_ports_title()}>
           <div className="flex flex-wrap items-center gap-3 px-[18px] pt-[18px] pb-2">
-            <h2 className="h2 grow">{t.ports.title}</h2>
+            <h2 className="h2 grow">{m.network_ports_title()}</h2>
             <label className="flex items-center gap-2 text-[12px] text-muted">
               <input type="checkbox" checked={onlyExternal} onChange={(e) => setOnlyExternal(e.target.checked)} />
-              {t.ports.onlyExternal}
+              {m.network_ports_onlyExternal()}
             </label>
           </div>
           <table className="tbl">
             <thead>
               <tr>
-                <th>{t.ports.port}</th>
-                <th>{t.ports.reachable}</th>
-                <th>{t.ports.program}</th>
-                <th>{t.ports.firewall}</th>
+                <th>{m.network_ports_port()}</th>
+                <th>{m.network_ports_reachable()}</th>
+                <th>{m.network_ports_program()}</th>
+                <th>{m.network_ports_firewall()}</th>
               </tr>
             </thead>
             <tbody>
               {ports.length === 0 && (
                 <tr>
                   <td colSpan={4} className="text-muted">
-                    {t.ports.none}
+                    {m.network_ports_none()}
                   </td>
                 </tr>
               )}
@@ -167,14 +167,18 @@ function Iface({ iface: i, gateway }: { iface: NetInterface; gateway?: string })
   const v4 = i.addresses.filter((a) => a.family === 'inet')
   const v6 = i.addresses.filter((a) => a.family === 'inet6' && a.scope !== 'link')
   const link6 = i.addresses.filter((a) => a.family === 'inet6' && a.scope === 'link')
-  const t = useT().network
   return (
     <div className="panel flex flex-col gap-2 p-[16px]" data-testid="iface">
       <div className="flex items-center gap-2">
         <span className="font-mono text-[14px] font-semibold">{i.name}</span>
-        <span className="chip">{t.kind[i.kind]}</span>
+        <span className="chip">
+          {pickMsg(
+            { ethernet: m.network_kind_ethernet, wifi: m.network_kind_wifi, bridge: m.network_kind_bridge, container: m.network_kind_container, vpn: m.network_kind_vpn, loopback: m.network_kind_loopback, virtual: m.network_kind_virtual },
+            i.kind,
+          )}
+        </span>
         <span className="grow" />
-        <Pill tone={tone}>{up ? t.ifaces.connected : i.state === 'DOWN' ? t.ifaces.disconnected : i.state.toLowerCase()}</Pill>
+        <Pill tone={tone}>{up ? m.network_ifaces_connected() : i.state === 'DOWN' ? m.network_ifaces_disconnected() : i.state.toLowerCase()}</Pill>
       </div>
       <div className="flex flex-col gap-0.5 font-mono text-[13px]">
         {v4.map((a) => (
@@ -190,15 +194,15 @@ function Iface({ iface: i, gateway }: { iface: NetInterface; gateway?: string })
         ))}
         {!v4.length && !v6.length && (
           <span className="font-sans text-[12px] text-muted">
-            {t.ifaces.noAddress}
-            {link6.length ? t.ifaces.linkLocalOnly : ''}
+            {m.network_ifaces_noAddress()}
+            {link6.length ? m.network_ifaces_linkLocalOnly() : ''}
           </span>
         )}
       </div>
       <div className="flex flex-wrap gap-x-4 gap-y-0.5 text-[12px] text-muted">
-        {gateway && <span>{t.ifaces.gateway(gateway)}</span>}
+        {gateway && <span>{m.network_ifaces_gateway({ gw: gateway })}</span>}
         {i.speedMbps && <span>{i.speedMbps >= 1000 ? `${i.speedMbps / 1000} Gbit/s` : `${i.speedMbps} Mbit/s`}</span>}
-        {i.master && <span>{t.ifaces.member(i.master)}</span>}
+        {i.master && <span>{m.network_ifaces_member({ master: i.master })}</span>}
         {i.mac && <span className="font-mono">{i.mac}</span>}
         <span>MTU {i.mtu}</span>
         {i.rxBytes !== undefined && (
@@ -214,10 +218,15 @@ function Iface({ iface: i, gateway }: { iface: NetInterface; gateway?: string })
 const FW_TONE: Record<NonNullable<ListeningPort['firewall']>, Tone> = { open: 'ok', blocked: 'warn', podman: 'ok', unknown: 'idle' }
 
 function PortRow({ p }: { p: ListeningPort }) {
-  const t = useT().network
   const known = knownPorts()[`${p.port}/${p.proto}`]
-  const where = p.scope === 'all' ? t.ports.all : p.scope === 'local' ? t.ports.local : t.ports.only(p.addresses.join(', '))
-  const fw = p.firewall ? { tone: FW_TONE[p.firewall], ...t.fw[p.firewall] } : undefined
+  const where = p.scope === 'all' ? m.network_ports_all() : p.scope === 'local' ? m.network_ports_local() : m.network_ports_only({ addrs: p.addresses.join(', ') })
+  const fw = p.firewall
+    ? {
+        tone: FW_TONE[p.firewall],
+        label: pickMsg({ open: m.network_fw_open_label, blocked: m.network_fw_blocked_label, podman: m.network_fw_podman_label, unknown: m.network_fw_unknown_label }, p.firewall),
+        title: pickMsg({ open: m.network_fw_open_title, blocked: m.network_fw_blocked_title, podman: m.network_fw_podman_title, unknown: m.network_fw_unknown_title }, p.firewall),
+      }
+    : undefined
   return (
     <tr data-testid="port-row">
       <td className="whitespace-nowrap">
@@ -231,8 +240,8 @@ function PortRow({ p }: { p: ListeningPort }) {
       <td className="max-w-[320px]">
         <div className="flex flex-wrap items-center gap-1.5">
           {p.process && <span className="font-mono text-[13px]">{p.process}</span>}
-          {p.container && <span className="chip q">{t.ports.container(p.container)}</span>}
-          {!p.process && !p.container && <span className="text-[12px] text-muted">{t.ports.kernel}</span>}
+          {p.container && <span className="chip q">{m.network_ports_container({ name: p.container })}</span>}
+          {!p.process && !p.container && <span className="text-[12px] text-muted">{m.network_ports_kernel()}</span>}
         </div>
         {p.unit && (
           <Link to="/systemd" search={{ unit: p.unit }} className="font-mono text-[11px] text-subtle hover:underline">
@@ -256,19 +265,18 @@ function PortRow({ p }: { p: ListeningPort }) {
 function Firewall({ s }: { s: NetworkState }) {
   const f = s.firewall
   const blocked = s.ports.filter((p) => p.firewall === 'blocked')
-  const t = useT().network
   return (
-    <section className="panel flex flex-col gap-2 p-[18px] text-[13px]" aria-label={t.firewall.title}>
+    <section className="panel flex flex-col gap-2 p-[18px] text-[13px]" aria-label={m.network_firewall_title()}>
       <div className="flex items-center gap-2">
-        <h2 className="h2 grow">{t.firewall.title}</h2>
-        <Pill tone={f.active ? 'ok' : 'idle'}>{f.active ? t.firewall.active(f.kind) : t.firewall.noneActive}</Pill>
+        <h2 className="h2 grow">{m.network_firewall_title()}</h2>
+        <Pill tone={f.active ? 'ok' : 'idle'}>{f.active ? m.network_firewall_active({ kind: f.kind }) : m.network_firewall_noneActive()}</Pill>
       </div>
-      {!f.active && <p className="m-0 text-muted">{t.firewall.noFirewall}</p>}
+      {!f.active && <p className="m-0 text-muted">{m.network_firewall_noFirewall()}</p>}
       {f.active && (
         <>
           {f.zone && (
             <div className="text-muted">
-              {t.firewall.zone} <span className="font-mono text-fg">{f.zone}</span>
+              {m.network_firewall_zone()} <span className="font-mono text-fg">{f.zone}</span>
             </div>
           )}
           {f.services.length > 0 && (
@@ -283,8 +291,8 @@ function Firewall({ s }: { s: NetworkState }) {
           {f.ports.length > 0 && <div className="font-mono text-[12px] text-subtle">{f.ports.join(' ')}</div>}
           {blocked.length > 0 && (
             <p className="m-0 text-[#e3b341]">
-              {t.firewall.listening(blocked.length)}
-              {t.firewall.blocked(blocked.map((p) => `${p.port}/${p.proto}`).join(', '))}{' '}
+              {m.network_firewall_listening({ n: blocked.length })}
+              {m.network_firewall_blocked({ ports: blocked.map((p) => `${p.port}/${p.proto}`).join(', ') })}{' '}
               <span className="font-mono">{f.kind === 'ufw' ? `ufw allow ${blocked[0]!.port}/${blocked[0]!.proto}` : `firewall-cmd --permanent --add-port=${blocked[0]!.port}/${blocked[0]!.proto} && firewall-cmd --reload`}</span>).
             </p>
           )}

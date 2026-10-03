@@ -5,7 +5,7 @@
 //                      helper (`quadeck helper`) over a Unix socket
 // Both enforce the unlock gate where the root actions actually run.
 
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import type { JobInfo, JobSpec } from '~/shared/packages'
 import type { Maintenance } from '../packages/maintenance'
 import type { PodmanAdmin, WriteResult } from '../quadlets/backend'
@@ -90,16 +90,16 @@ export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAd
 const UNIT_NAME = /^[A-Za-z0-9:_.\\@-]{1,240}\.(service|timer|socket)$/
 
 export function assertUnitName(name: string) {
-  if (!UNIT_NAME.test(name) || name.startsWith('-')) throw new Error(tr(`Ungültiger Unit-Name: ${name}`, `Invalid unit name: ${name}`))
+  if (!UNIT_NAME.test(name) || name.startsWith('-')) throw new Error(msg('helper_error_invalidUnitName', { unit: name }))
 }
 
 /** Podman API reads the helper proxies. Everything else is refused. */
 const PODMAN_READS = [/^\/version$/, /^\/containers\/json\?all=true$/, /^\/v4\.0\.0\/libpod\/containers\/stats\?stream=false$/, /^\/containers\/[0-9a-f]{12,64}\/json$/]
 
 export function assertPodmanRead(path: string) {
-  if (!PODMAN_READS.some((r) => r.test(path))) throw new Error(tr(`Podman-Pfad nicht erlaubt: ${path}`, `Podman path not allowed: ${path}`))
+  if (!PODMAN_READS.some((r) => r.test(path))) throw new Error(msg('helper_error_podmanPathDenied', { path }))
 }
 
 export function assertContainerId(id: string) {
-  if (!/^[0-9a-f]{12,64}$/.test(id)) throw new Error(tr('Ungültige Container-ID', 'Invalid container ID'))
+  if (!/^[0-9a-f]{12,64}$/.test(id)) throw new Error(msg('helper_error_invalidContainerId'))
 }

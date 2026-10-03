@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { HttpError } from '~/server/auth'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { db } from '~/server/db'
 import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
@@ -28,7 +28,7 @@ export const Route = createFileRoute('/api/disks/smart')({
         const q = new URL(request.url).searchParams
         const id = q.get('history')
         if (id !== null) {
-          if (!/^[A-Za-z0-9_.-]{1,160}$/.test(id)) throw new HttpError(400, tr('Ungültige Platte', 'Invalid disk'))
+          if (!/^[A-Za-z0-9_.-]{1,160}$/.test(id)) throw new HttpError(400, msg('api_disks_invalidDisk'))
           const days = Math.min(365, Math.max(1, Number(q.get('days')) || 90))
           return Response.json({ series: querySmartHistory(db(), id, days) })
         }
@@ -41,7 +41,7 @@ export const Route = createFileRoute('/api/disks/smart')({
         if (b.selftest) {
           assertWritable()
           const { disk, type } = b.selftest
-          if (typeof disk !== 'string' || !DISK_NAME.test(disk) || (type !== 'short' && type !== 'long')) throw new HttpError(400, tr('disk und type (short|long) erforderlich', 'disk and type (short|long) required'))
+          if (typeof disk !== 'string' || !DISK_NAME.test(disk) || (type !== 'short' && type !== 'long')) throw new HttpError(400, msg('api_disks_diskTypeRequired'))
           report = await p.smartSelfTest(unlockToken(session.id), disk, type)
         } else report = await p.smartReport(true)
         void (await hubReady()).collectSmart().then(async () => (await hubReady()).publish())

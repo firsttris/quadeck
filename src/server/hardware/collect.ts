@@ -6,7 +6,7 @@
 import { existsSync, readdirSync, readFileSync, readlinkSync, realpathSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { run } from '../exec'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { buildHardware, lookupIds, type AtaRaw, type Hardware, type HardwareRaw, type PciRaw, type SensorRaw, type UsbRaw } from '~/shared/hardware'
 
 export interface HardwareAdmin {
@@ -169,7 +169,7 @@ export function readHwmon(root = '/sys/class/hwmon'): SensorRaw[] {
       if (kind === 'temp' && (raw <= -40_000 || raw >= 150_000)) continue // unconnected sensor
       out.push({
         chip,
-        label: label ?? (kind === 'fan' ? tr(`Lüfter ${m[2]}`, `Fan ${m[2]}`) : kind === 'temp' ? tr(`Temperatur ${m[2]}`, `Temperature ${m[2]}`) : `${kind} ${m[2]}`),
+        label: label ?? (kind === 'fan' ? msg('hardware_sensor_fan', { index: m[2] }) : kind === 'temp' ? msg('hardware_sensor_temperature', { index: m[2] }) : `${kind} ${m[2]}`),
         kind,
         value: raw / scale,
         max: extra('max'),

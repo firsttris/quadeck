@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { useT } from '~/i18n'
 import { localeOf } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 
 export interface ChartSeries {
   label: string
@@ -45,14 +45,14 @@ export function smoothPath(pts: [number, number][]): string {
   const f = (v: number) => v.toFixed(1)
   if (n < 3) return 'M' + pts.map(([a, b]) => `${f(a)},${f(b)}`).join('L')
   const dx: number[] = []
-  const m: number[] = []
+  const slopes: number[] = []
   for (let i = 0; i < n - 1; i++) {
     dx.push(pts[i + 1]![0] - pts[i]![0] || 1e-6)
-    m.push((pts[i + 1]![1] - pts[i]![1]) / dx[i]!)
+    slopes.push((pts[i + 1]![1] - pts[i]![1]) / dx[i]!)
   }
-  const t: number[] = [m[0]!]
-  for (let i = 1; i < n - 1; i++) t.push(m[i - 1]! * m[i]! <= 0 ? 0 : (3 * (dx[i - 1]! + dx[i]!)) / ((2 * dx[i]! + dx[i - 1]!) / m[i - 1]! + (dx[i]! + 2 * dx[i - 1]!) / m[i]!))
-  t.push(m[n - 2]!)
+  const t: number[] = [slopes[0]!]
+  for (let i = 1; i < n - 1; i++) t.push(slopes[i - 1]! * slopes[i]! <= 0 ? 0 : (3 * (dx[i - 1]! + dx[i]!)) / ((2 * dx[i]! + dx[i - 1]!) / slopes[i - 1]! + (dx[i]! + 2 * dx[i - 1]!) / slopes[i]!))
+  t.push(slopes[n - 2]!)
   let d = `M${f(pts[0]![0])},${f(pts[0]![1])}`
   for (let i = 0; i < n - 1; i++) {
     const [x0, y0] = pts[i]!
@@ -82,7 +82,6 @@ export function HistoryChart({ series, span, now, format, yMin, yMax, height = 4
   const [boxH, setBoxH] = useState(0)
   const [hover, setHover] = useState<number | null>(null)
   const uid = useId().replace(/:/g, '')
-  const t = useT().overview.chart
 
   useEffect(() => {
     const el = wrap.current
@@ -217,7 +216,7 @@ export function HistoryChart({ series, span, now, format, yMin, yMax, height = 4
             <div className="pointer-events-none absolute -bottom-5 left-0 flex w-full justify-between font-mono text-[10px] text-subtle">
               <span>{timeLabel(start, span)}</span>
               <span>{timeLabel(start + span / 2, span)}</span>
-              <span>{t.now}</span>
+              <span>{m.overview_chart_now()}</span>
             </div>
           </>
         )}
@@ -236,7 +235,7 @@ export function HistoryChart({ series, span, now, format, yMin, yMax, height = 4
             ))}
           </div>
         )}
-        {detailed && empty && width > 0 && <div className="absolute inset-0 flex items-center justify-center text-[13px] text-muted">{t.empty}</div>}
+        {detailed && empty && width > 0 && <div className="absolute inset-0 flex items-center justify-center text-[13px] text-muted">{m.overview_chart_empty()}</div>}
       </div>
     </div>
   )

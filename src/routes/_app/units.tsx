@@ -11,7 +11,7 @@ import { age, bytes, num } from '~/lib/format'
 import { useLive } from '~/lib/live'
 import { failureReason } from '~/shared/units'
 import { buildRows, FILTER_KEYS, failed, filters, matches, type Filter, type Row } from '~/lib/unit-rows'
-import { useT } from '~/i18n'
+import { m } from '~/paraglide/messages'
 
 export const Route = createFileRoute('/_app/units')({
   validateSearch: (s: Record<string, unknown>): { filter?: Filter } => ({
@@ -43,7 +43,6 @@ function status(r: Row): { tone: Tone; label: string } {
 }
 
 function Units() {
-  const t = useT()
   const { snapshot } = useLive()
   const rows = buildRows(snapshot.units, snapshot.containers)
   const hasContainers = rows.some((r) => matches(r, 'container'))
@@ -55,22 +54,22 @@ function Units() {
   const counts = Object.fromEntries(FILTER_KEYS.map((k) => [k, rows.filter((r) => matches(r, k)).length]))
   return (
     <>
-      <PageHeader title="Units" subtitle={t.units.subtitle}>
+      <PageHeader title="Units" subtitle={m.units_subtitle()}>
         {!readonly && (
           <>
             <Link to="/systemd" search={{ new: true }} className="btn sm">
-              {t.units.newUnit}
+              {m.units_newUnit()}
             </Link>
             <Link to="/quadlets" search={{ new: true }} className="btn sm">
-              {t.units.newContainer}
+              {m.units_newContainer()}
             </Link>
           </>
         )}
         <Link to="/quadlets" className="btn sm">
-          {t.units.quadletFiles}
+          {m.units_quadletFiles()}
         </Link>
       </PageHeader>
-      <div role="group" aria-label={t.units.filter} className="flex flex-wrap gap-1.5">
+      <div role="group" aria-label={m.units_filter()} className="flex flex-wrap gap-1.5">
         {filters().map(([k, label]) => (
           <Link key={k} to="/units" search={{ filter: k }} className={`seg ${filter === k ? 'on' : ''}`} aria-current={filter === k ? 'true' : undefined}>
             {label}
@@ -80,12 +79,12 @@ function Units() {
       </div>
       {snapshot.sources.systemd.error && (
         <p className="m-0 text-[13px] text-[#e3b341]">
-          {t.units.systemdDown} {snapshot.sources.systemd.error}
+          {m.units_systemdDown()} {snapshot.sources.systemd.error}
         </p>
       )}
       {snapshot.sources.podman.error && (
         <p className="m-0 text-[13px] text-[#e3b341]">
-          {t.units.podmanDown} {snapshot.sources.podman.error}
+          {m.units_podmanDown()} {snapshot.sources.podman.error}
         </p>
       )}
       {filter === 'timer' ? (
@@ -95,15 +94,15 @@ function Units() {
           <table className="tbl">
             <thead>
               <tr>
-                <th>{t.units.col.unit}</th>
-                <th className="hidden 2xl:table-cell">{t.units.col.type}</th>
-                <th>{t.units.col.status}</th>
-                <th className="hidden xl:table-cell">{t.units.col.cpu}</th>
-                <th>{t.units.col.ram}</th>
-                <th className="hidden sm:table-cell">{t.units.col.since}</th>
-                <th className="hidden 2xl:table-cell">{t.units.col.boot}</th>
+                <th>{m.units_col_unit()}</th>
+                <th className="hidden 2xl:table-cell">{m.units_col_type()}</th>
+                <th>{m.units_col_status()}</th>
+                <th className="hidden xl:table-cell">{m.units_col_cpu()}</th>
+                <th>{m.units_col_ram()}</th>
+                <th className="hidden sm:table-cell">{m.units_col_since()}</th>
+                <th className="hidden 2xl:table-cell">{m.units_col_boot()}</th>
                 <th>
-                  <span className="sr-only">{t.units.col.actions}</span>
+                  <span className="sr-only">{m.units_col_actions()}</span>
                 </th>
               </tr>
             </thead>
@@ -111,7 +110,7 @@ function Units() {
               {shown.length === 0 && (
                 <tr>
                   <td colSpan={8} className="text-muted">
-                    {t.units.empty}
+                    {m.units_empty()}
                   </td>
                 </tr>
               )}
@@ -127,14 +126,13 @@ function Units() {
 }
 
 function UnitRow({ row, run, busy, readonly }: { row: Row; run: ReturnType<typeof useActions>['run']; busy: string | null; readonly: boolean }) {
-  const t = useT()
   const navigate = useNavigate()
   const guarded = useGuardedApi()
   const say = useToast()
   const { unit: u, container: c } = row
   const name = u?.name ?? c!.name
   const st = status(row)
-  const listen = u?.socket?.listen.length ? `${t.units.listens(u.socket.listen.map((l) => l.replace(/ \((Stream|Datagram|SequentialPacket)\)$/, '')).join(', '))}${u.socket.triggers ? ` → ${u.socket.triggers}` : ''}` : ''
+  const listen = u?.socket?.listen.length ? `${m.units_listens({ addrs: (u.socket.listen.map((l) => l.replace(/ \((Stream|Datagram|SequentialPacket)\)$/, '')).join(', ')) })}${u.socket.triggers ? ` → ${u.socket.triggers}` : ''}` : ''
   const why = u ? (failureReason(u) ?? listen ?? '') || [u.quadlet?.file, c?.image].filter(Boolean).join(' · ') : c!.image
   const detail = why || (u && u.description !== u.name ? u.description : '')
   const target = u ? { kind: 'unit' as const, name: u.name } : { kind: 'container' as const, name: c!.name }
@@ -146,23 +144,23 @@ function UnitRow({ row, run, busy, readonly }: { row: Row; run: ReturnType<typeo
   const setBoot = async (enabled: boolean) => {
     try {
       const r = await guarded('/api/systemd', { body: { enable: { unit: u!.name, enabled } } })
-      if (r) say(enabled ? t.units.bootOn(u!.name) : t.units.bootOff(u!.name))
+      if (r) say(enabled ? m.units_bootOn({ name: u!.name }) : m.units_bootOff({ name: u!.name }))
     } catch (e) {
       say((e as Error).message, 'bad')
     }
   }
   const items: MenuItem[] = [
-    ...(u ? [{ label: t.common.journal, onSelect: () => void navigate({ to: '/journal', search: { unit: u.name } }) }] : []),
+    ...(u ? [{ label: m.common_journal(), onSelect: () => void navigate({ to: '/journal', search: { unit: u.name } }) }] : []),
     ...(u?.quadlet
-      ? [{ label: t.units.editQuadlet, onSelect: () => void navigate({ to: '/quadlets', search: { file: u.quadlet!.file } }) }]
+      ? [{ label: m.units_editQuadlet(), onSelect: () => void navigate({ to: '/quadlets', search: { file: u.quadlet!.file } }) }]
       : u
-        ? [{ label: t.units.editUnit, onSelect: () => void navigate({ to: '/systemd', search: { unit: u.name } }) }]
+        ? [{ label: m.units_editUnit(), onSelect: () => void navigate({ to: '/systemd', search: { unit: u.name } }) }]
         : []),
     ...(readonly
       ? []
       : [
-          ...(active ? [{ label: t.units.stopDots, onSelect: () => run('stop', target), danger: true, disabled: busy === name, separator: true }] : []),
-          ...(bootable ? [{ label: t.units.startAtBoot, checked: u!.unitFileState === 'enabled', onSelect: () => void setBoot(u!.unitFileState !== 'enabled'), separator: true }] : []),
+          ...(active ? [{ label: m.units_stopDots(), onSelect: () => run('stop', target), danger: true, disabled: busy === name, separator: true }] : []),
+          ...(bootable ? [{ label: m.units_startAtBoot(), checked: u!.unitFileState === 'enabled', onSelect: () => void setBoot(u!.unitFileState !== 'enabled'), separator: true }] : []),
         ]),
   ]
   return (
@@ -170,7 +168,7 @@ function UnitRow({ row, run, busy, readonly }: { row: Row; run: ReturnType<typeo
       <td>
         <div className="flex max-w-[13rem] min-w-0 items-center gap-2 lg:max-w-[22rem] 2xl:max-w-[28rem]">
           {u ? (
-            <Link to="/journal" search={{ unit: u.name }} className="truncate font-mono text-[13px] font-medium text-fg hover:text-accent" title={t.units.openJournal(name)}>
+            <Link to="/journal" search={{ unit: u.name }} className="truncate font-mono text-[13px] font-medium text-fg hover:text-accent" title={m.units_openJournal({ name })}>
               {name}
             </Link>
           ) : (
@@ -185,7 +183,7 @@ function UnitRow({ row, run, busy, readonly }: { row: Row; run: ReturnType<typeo
         )}
       </td>
       <td className="hidden 2xl:table-cell">
-        <span className={u?.kind === 'quadlet' ? 'chip q' : 'chip'} title={u?.quadlet ? `Quadlet (.${u.quadlet.type})` : u ? undefined : t.units.containerNoUnit}>
+        <span className={u?.kind === 'quadlet' ? 'chip q' : 'chip'} title={u?.quadlet ? `Quadlet (.${u.quadlet.type})` : u ? undefined : m.units_containerNoUnit()}>
           {kindLabel(row)}
         </span>
       </td>
@@ -206,15 +204,15 @@ function UnitRow({ row, run, busy, readonly }: { row: Row; run: ReturnType<typeo
       <td className="hidden sm:table-cell" suppressHydrationWarning>
         {u ? age(u.since) : '–'}
       </td>
-      <td className="hidden text-subtle 2xl:table-cell">{u?.unitFileState ?? (c ? t.units.noUnit : '–')}</td>
+      <td className="hidden text-subtle 2xl:table-cell">{u?.unitFileState ?? (c ? m.units_noUnit() : '–')}</td>
       <td>
         <div className="flex justify-end gap-1.5">
           {!readonly && (
-            <button type="button" className="btn sm" disabled={busy === name} onClick={() => run(primary, target)} aria-label={primary === 'restart' ? t.units.restartAria(name) : t.units.startAria(name)}>
-              {primary === 'restart' ? t.units.restart : t.units.start}
+            <button type="button" className="btn sm" disabled={busy === name} onClick={() => run(primary, target)} aria-label={primary === 'restart' ? m.units_restartAria({ name }) : m.units_startAria({ name })}>
+              {primary === 'restart' ? m.units_restart() : m.units_start()}
             </button>
           )}
-          {items.length > 0 && <RowMenu label={t.common.actionsFor(name)} items={items} />}
+          {items.length > 0 && <RowMenu label={m.common_actionsFor({ name })} items={items} />}
         </div>
       </td>
     </tr>

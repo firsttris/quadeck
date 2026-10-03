@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { useT } from '~/i18n'
 import { FEATURES, installCommand, type Feature, type ManagerId } from '~/shared/packages'
 import { useActions } from './Actions'
 import { Glyph } from './Glyph'
 import { useJobs } from './Jobs'
+import { m } from '~/paraglide/messages'
 
 /**
  * „Not installed“ with a way out: one click installs the package through
@@ -11,7 +11,6 @@ import { useJobs } from './Jobs'
  */
 export function InstallHint({ feature, what, onInstalled }: { feature: Feature; what: string; onInstalled: () => void }) {
   const jobs = useJobs()
-  const t = useT().shell.install
   const { readonly } = useActions()
   const [manager, setManager] = useState<ManagerId | null>(null)
   const [jobId, setJobId] = useState<string | null>(null)
@@ -47,22 +46,20 @@ export function InstallHint({ feature, what, onInstalled }: { feature: Feature; 
                 if (job) setJobId(job.id)
               }}
             >
-              <Glyph name="download" size={14} /> {t.install(f.packages[manager].join(', '))}
+              <Glyph name="download" size={14} /> {m.shell_install_install({ pkgs: (f.packages[manager].join(', ')) })}
             </button>
           )}
           <div className="text-[12px] text-muted">
-            {t.console}
+            {m.shell_install_console()}
             <code className="rounded bg-[#0e1319] px-1.5 py-0.5 font-mono text-[12px] text-fg select-all">{installCommand(manager, feature)}</code>
           </div>
-          {manager === 'rpm-ostree' && <div className="text-[12px] text-[#e3b341]">{t.ostree}</div>}
+          {manager === 'rpm-ostree' && <div className="text-[12px] text-[#e3b341]">{m.shell_install_ostree()}</div>}
         </>
       ) : (
         <div className="text-[12px] text-muted">
-          {t.pkg(
-            Object.values(f.packages)
+          {m.shell_install_pkg({ list: ((Object.values(f.packages)
               .flat()
-              .filter((v, i, a) => a.indexOf(v) === i),
-          )}
+              .filter((v, i, a) => a.indexOf(v) === i))).join(m.shell_install_or()) })}
         </div>
       )}
     </div>

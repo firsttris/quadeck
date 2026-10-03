@@ -3,7 +3,7 @@
 // paths, SATA link speeds and sensors – plus the warnings worth acting on.
 // buildHardware() is pure: the root helper reads sysfs into HardwareRaw.
 
-import { localize, tr } from './i18n'
+import { localize, msg } from './i18n'
 
 export interface PciRaw {
   address: string
@@ -161,7 +161,7 @@ export function parseDmidecode(text: string): { slots: MemorySlot[]; ecc?: boole
       const clean = (v?: string) => (v && !/^(Unknown|Not Specified|NO DIMM|None|Undefined|0000|\s*)$/i.test(v) ? v : undefined)
       const mts = (v?: string) => (v && /^\d+/.test(v) ? Number(v.match(/^\d+/)![0]) : undefined)
       slots.push({
-        locator: f('Locator') ?? f('Bank Locator') ?? tr(`Steckplatz ${slots.length + 1}`, `Slot ${slots.length + 1}`),
+        locator: f('Locator') ?? f('Bank Locator') ?? msg('hardware_label_slot', { number: slots.length + 1 }),
         size: installed ? bytesOf(size) : undefined,
         type: installed ? clean(f('Type')) : undefined,
         speed: installed ? mts(f('Speed')) : undefined,
@@ -197,7 +197,7 @@ export function parseCpu(lscpu: string | undefined, cpuinfo: string): Hardware['
   const virt = fields.get('Virtualization') ?? (/\bvmx\b/.test(flags) ? 'VT-x' : /\bsvm\b/.test(flags) ? 'AMD-V' : undefined)
   const max = Number(fields.get('CPU max MHz'))
   return {
-    model: (fields.get('Model name') ?? info('model name') ?? info('Model') ?? tr('unbekannt', 'unknown')).replace(/\s+/g, ' '),
+    model: (fields.get('Model name') ?? info('model name') ?? info('Model') ?? msg('podman_all_unknownVersion')).replace(/\s+/g, ' '),
     vendor: fields.get('Vendor ID') ?? info('vendor_id'),
     sockets,
     cores: coresPerSocket * sockets,
@@ -221,20 +221,20 @@ const gbps = (s?: string) => Number(s?.match(/^([\d.]+)\s*Gbps/)?.[1]) || undefi
 export const chassisName = (type: string): string | undefined =>
   ({
     '3': 'Desktop',
-    '4': tr('Desktop (flach)', 'Desktop (low profile)'),
+    '4': msg('hardware_chassis_lowProfileDesktop'),
     '6': 'Mini-Tower',
     '7': 'Tower',
     '8': 'Laptop',
     '9': 'Laptop',
     '10': 'Notebook',
     '13': 'All-in-One',
-    '17': tr('Rack-Server', 'Rack server'),
+    '17': msg('hardware_chassis_rackServer'),
     '23': 'Rack',
     '24': 'Tower',
     '30': 'Tablet',
     '31': 'Convertible',
     '35': 'Mini-PC',
-    '36': tr('Stick-PC', 'Stick PC'),
+    '36': msg('hardware_chassis_stickPc'),
   })[type]
 
 export type PciKind = 'nvme' | 'storage' | 'network' | 'graphics' | 'media' | 'usb' | 'bridge' | 'other'
@@ -259,19 +259,19 @@ export function pciGroup(cls: string): string {
     case 'nvme':
       return 'NVMe'
     case 'storage':
-      return tr('Speicher-Controller', 'Storage controllers')
+      return msg('hardware_category_storage')
     case 'network':
-      return tr('Netzwerk', 'Network')
+      return msg('network_title')
     case 'graphics':
-      return tr('Grafik', 'Graphics')
+      return msg('hardware_graphics')
     case 'media':
-      return tr('Audio und Video', 'Audio and video')
+      return msg('hardware_category_audioVideo')
     case 'usb':
-      return tr('USB-Controller', 'USB controllers')
+      return msg('hardware_category_usb')
     case 'bridge':
-      return tr('Brücken', 'Bridges')
+      return msg('hardware_category_bridges')
     case 'other':
-      return tr('Sonstige', 'Other')
+      return msg('hardware_category_other')
   }
 }
 
@@ -323,10 +323,9 @@ export function buildHardware(raw: HardwareRaw, now = Date.now()): Hardware {
       const kind = pciKind(p.class)
       const group = pciGroup(p.class)
       let downgraded: string | undefined
-      if ((kind === 'nvme' || kind === 'storage' || kind === 'network') && p.linkWidth && p.maxLinkWidth && p.linkWidth < p.maxLinkWidth)
-        downgraded = tr(`läuft mit x${p.linkWidth} statt x${p.maxLinkWidth}`, `runs at x${p.linkWidth} instead of x${p.maxLinkWidth}`)
+      if ((kind === 'nvme' || kind === 'storage' || kind === 'network') && p.linkWidth && p.maxLinkWidth && p.linkWidth < p.maxLinkWidth) downgraded = msg('hardware_status_linkWidthDown', { linkWidth: p.linkWidth, maxLinkWidth: p.maxLinkWidth })
       else if (kind === 'nvme' && pcieGen(p.linkSpeed) && pcieGen(p.maxLinkSpeed) && pcieGen(p.linkSpeed)! < pcieGen(p.maxLinkSpeed)!)
-        downgraded = tr(`läuft mit PCIe ${pcieGen(p.linkSpeed)}.0 statt ${pcieGen(p.maxLinkSpeed)}.0`, `runs at PCIe ${pcieGen(p.linkSpeed)}.0 instead of ${pcieGen(p.maxLinkSpeed)}.0`)
+        downgraded = msg('hardware_status_pcieGenDown', { gen: pcieGen(p.linkSpeed) ?? '', maxGen: pcieGen(p.maxLinkSpeed) ?? '' })
       return { ...p, group, kind, downgraded }
     })
     .sort((a, b) => a.group.localeCompare(b.group) || a.address.localeCompare(b.address))
@@ -344,50 +343,35 @@ export function buildHardware(raw: HardwareRaw, now = Date.now()): Hardware {
   const sata = raw.ata.map((a) => ({ ...a, slow: !!(gbps(a.speed) && gbps(a.limit) && gbps(a.speed)! < gbps(a.limit)!) }))
 
   const warnings: Hardware['warnings'] = []
-  // downgraded and sensor labels may carry both languages already (tr() inside tr() would not resolve): pick each side.
-  const de = (t: string) => localize(t, 'de')
-  const en = (t: string) => localize(t, 'en')
   for (const p of pci)
     if (p.downgraded) {
       const who = p.names?.[0] ?? p.deviceName ?? p.address
       warnings.push({
         level: 'warning',
-        text: tr(
-          `${who} ${de(p.downgraded)} – meist ein Steckplatz, der weniger Lanes hat oder sie mit einem anderen teilt (Handbuch des Mainboards).`,
-          `${who} ${en(p.downgraded)} – usually a slot that has fewer lanes or shares them with another one (see the mainboard manual).`,
-        ),
+        text: msg('hardware_warn_pcieDowngraded', { device: who, link: p.downgraded }),
       })
     }
   for (const a of sata)
     if (a.slow && a.disk)
       warnings.push({
         level: 'warning',
-        text: tr(
-          `${a.disk}${a.model ? ` (${a.model})` : ''} ist mit ${a.speed} statt ${a.limit} angebunden – oft Kabel oder Port; passt zu CRC-Fehlern in SMART.`,
-          `${a.disk}${a.model ? ` (${a.model})` : ''} is linked at ${a.speed} instead of ${a.limit} – often the cable or port; matches CRC errors in SMART.`,
-        ),
+        text: msg('hardware_warn_sataSlowLink', { disk: a.disk, model: a.model ? ` (${a.model})` : '', speed: a.speed ?? '', limit: a.limit ?? '' }),
       })
   for (const s of raw.sensors)
     if (s.kind === 'temp' && s.crit && s.value >= s.crit - 5)
       warnings.push({
         level: 'warning',
-        text: tr(`${s.chip} ${de(s.label)}: ${Math.round(s.value)} °C – nahe am kritischen Wert (${s.crit} °C).`, `${s.chip} ${en(s.label)}: ${Math.round(s.value)} °C – close to the critical value (${s.crit} °C).`),
+        text: msg('hardware_warn_tempNearCritical', { chip: s.chip, label: s.label, temp: Math.round(s.value), crit: s.crit }),
       })
   if (year && new Date(now).getUTCFullYear() - year >= 4)
     warnings.push({
       level: 'info',
-      text: tr(
-        `Das BIOS ist von ${year}. Neuere Versionen beheben oft Fehler und Sicherheitslücken – auf der Seite des Mainboard-Herstellers nachsehen.`,
-        `The BIOS is from ${year}. Newer versions often fix bugs and security holes – check the mainboard maker’s website.`,
-      ),
+      text: msg('hardware_warn_biosOld', { year }),
     })
   if (raw.virt && raw.virt !== 'none')
     warnings.push({
       level: 'info',
-      text: tr(
-        `Läuft in einer virtuellen Maschine (${raw.virt}) – Steckplätze, Sensoren und Anbindungen zeigen dann die virtuelle Hardware.`,
-        `Runs in a virtual machine (${raw.virt}) – slots, sensors and links then show the virtual hardware.`,
-      ),
+      text: msg('hardware_note_virtualMachine', { virt: raw.virt }),
     })
 
   return {
@@ -422,4 +406,4 @@ export function gpuQuadletLine(nodes: string[]): string | undefined {
   return render ? `AddDevice=${render}` : 'AddDevice=/dev/dri'
 }
 
-export const sensorUnit = (kind: SensorRaw['kind']): string => ({ temp: '°C', fan: tr('U/min', 'rpm'), in: 'V', power: 'W' })[kind]
+export const sensorUnit = (kind: SensorRaw['kind']): string => ({ temp: '°C', fan: msg('hardware_unit_rpm'), in: 'V', power: 'W' })[kind]

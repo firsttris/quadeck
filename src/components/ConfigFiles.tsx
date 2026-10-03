@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { useT } from '~/i18n'
 import { describeConfigAction, parseConfigPath, type ConfigAction, type ConfigFileInfo } from '~/shared/configfiles'
 import { useActions } from './Actions'
 import { useJobs } from './Jobs'
@@ -8,6 +7,8 @@ import { DiffView } from './QuadletEditor'
 import { Pill } from './Status'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
+import { m } from '~/paraglide/messages'
+import { rich } from '~/i18n'
 
 /**
  * .pacnew & co. from the last updates: per file the difference to the live
@@ -15,14 +16,12 @@ import { useGuardedApi } from './Unlock'
  */
 export function ConfigFilesPanel({ files, hint, onChanged }: { files: string[]; hint?: string; onChanged: () => void }) {
   const say = useToast()
-  const t = useT()
-  const c = t.system.config
   const [open, setOpen] = useState<ConfigFileInfo | null>(null)
   const show = async (path: string) => {
     try {
       const r = await fetch(`/api/system/config?path=${encodeURIComponent(path)}`)
       const d = (await r.json()) as ConfigFileInfo & { error?: string }
-      if (!r.ok) throw new Error(d.error ?? t.common.http(r.status))
+      if (!r.ok) throw new Error(d.error ?? m.common_http({ status: r.status }))
       setOpen(d)
     } catch (e) {
       say((e as Error).message, 'bad')
@@ -30,23 +29,23 @@ export function ConfigFilesPanel({ files, hint, onChanged }: { files: string[]; 
     }
   }
   return (
-    <section className="panel flex flex-col" aria-label={c.label}>
+    <section className="panel flex flex-col" aria-label={m.system_config_label()}>
       <div className="flex flex-wrap items-baseline gap-2 px-[18px] pt-4 pb-2">
-        <h2 className="h2">{c.title}</h2>
+        <h2 className="h2">{m.system_config_title()}</h2>
         <Pill tone="warn">{files.length}</Pill>
-        <span className="text-[12px] text-muted">{c.intro}</span>
+        <span className="text-[12px] text-muted">{m.system_config_intro()}</span>
       </div>
       {files.map((f) => {
         const p = parseConfigPath(f)
         return (
           <button key={f} type="button" data-testid="config-file" onClick={() => void show(f)} className="flex items-center gap-3 border-t border-line px-[18px] py-[7px] text-left hover:bg-[rgba(255,255,255,.03)]">
             <span className="grow truncate font-mono text-[12px]">{f}</span>
-            <span className="chip shrink-0">{p?.kind === 'save' ? c.backup : c.newVersion}</span>
-            <span className="shrink-0 text-[12px] text-accent">{c.view}</span>
+            <span className="chip shrink-0">{p?.kind === 'save' ? m.system_config_backup() : m.system_config_newVersion()}</span>
+            <span className="shrink-0 text-[12px] text-accent">{m.system_config_view()}</span>
           </button>
         )
       })}
-      {hint && <p className="m-0 border-t border-line px-[18px] py-2 text-[12px] text-muted">{c.hint(hint.match(/„[^“]+“|“[^”]+”/)?.[0] ?? 'diff')}</p>}
+      {hint && <p className="m-0 border-t border-line px-[18px] py-2 text-[12px] text-muted">{m.system_config_hint({ cmd: (hint.match(/„[^“]+“|“[^”]+”/)?.[0] ?? 'diff') })}</p>}
       {open && (
         <ConfigDialog
           f={open}
@@ -63,8 +62,6 @@ export function ConfigFilesPanel({ files, hint, onChanged }: { files: string[]; 
 
 function ConfigDialog({ f, onClose, onDone }: { f: ConfigFileInfo; onClose: () => void; onDone: () => void }) {
   const { readonly } = useActions()
-  const t = useT()
-  const c = t.system.config
   const say = useToast()
   const guarded = useGuardedApi()
   const jobs = useJobs()
@@ -104,24 +101,24 @@ function ConfigDialog({ f, onClose, onDone }: { f: ConfigFileInfo; onClose: () =
           {f.replaceRisk}
         </p>
       )}
-      {f.binary && <p className="m-0 text-[13px] text-muted">{c.binary}</p>}
+      {f.binary && <p className="m-0 text-[13px] text-muted">{m.system_config_binary()}</p>}
       {!f.binary && f.kind === 'new' && merge === null && (
         <>
-          <p className="m-0 text-[12px] text-muted">{f.liveExists ? c.diffIntro(<span className="text-[#ff8a80]">−</span>, <span className="text-[#7ee2a8]">+</span>) : c.noLive(f.live)}</p>
+          <p className="m-0 text-[12px] text-muted">{f.liveExists ? rich(m.system_config_diffIntro, { minus: (<span className="text-[#ff8a80]">−</span>), plus: (<span className="text-[#7ee2a8]">+</span>) }) : m.system_config_noLive({ live: f.live })}</p>
           <DiffView before={f.liveContent ?? ''} after={f.content ?? ''} />
         </>
       )}
       {!f.binary && f.kind === 'save' && (
-        <pre className="joblog !min-h-0 max-h-[320px] whitespace-pre-wrap" aria-label={c.content}>
+        <pre className="joblog !min-h-0 max-h-[320px] whitespace-pre-wrap" aria-label={m.system_config_content()}>
           {f.content}
         </pre>
       )}
       {merge !== null && (
         <>
-          <p className="m-0 text-[12px] text-muted">{c.mergeIntro}</p>
+          <p className="m-0 text-[12px] text-muted">{m.system_config_mergeIntro()}</p>
           <DiffView before={f.liveContent ?? ''} after={f.content ?? ''} />
-          <textarea className="field h-[260px] font-mono text-[12px]" spellCheck={false} aria-label={c.merged} value={merge} onChange={(e) => setMerge(e.target.value)} />
-          {f.check && <p className="m-0 text-[12px] text-muted">{c.check(f.check)}</p>}
+          <textarea className="field h-[260px] font-mono text-[12px]" spellCheck={false} aria-label={m.system_config_merged()} value={merge} onChange={(e) => setMerge(e.target.value)} />
+          {f.check && <p className="m-0 text-[12px] text-muted">{m.system_config_check({ cmd: f.check })}</p>}
         </>
       )}
       {error && (
@@ -132,41 +129,41 @@ function ConfigDialog({ f, onClose, onDone }: { f: ConfigFileInfo; onClose: () =
       {confirm ? (
         <div className="flex flex-col gap-2 rounded-[10px] border border-edge p-3 text-[13px]">
           <span>{describeConfigAction(f, confirm)}</span>
-          {f.after === 'mkinitcpio' && confirm !== 'keep' && <span className="text-muted">{c.mkinitcpio}</span>}
+          {f.after === 'mkinitcpio' && confirm !== 'keep' && <span className="text-muted">{m.system_config_mkinitcpio()}</span>}
           <div className="flex justify-end gap-2">
             <button type="button" className="btn" onClick={() => setConfirm(null)}>
-              {t.common.back}
+              {m.common_back()}
             </button>
             <button type="button" className={confirm === 'keep' ? 'btn danger' : 'btn primary'} disabled={busy} onClick={() => void apply(confirm)}>
-              {busy ? c.applying : t.common.confirm}
+              {busy ? m.system_config_applying() : m.common_confirm()}
             </button>
           </div>
         </div>
       ) : (
         <div className="flex flex-wrap justify-end gap-2">
           <button type="button" className="btn" onClick={merge !== null ? () => setMerge(null) : onClose}>
-            {merge !== null ? t.common.back : t.common.close}
+            {merge !== null ? m.common_back() : m.common_close()}
           </button>
           {!readonly && merge === null && (
             <button type="button" className="btn" onClick={() => setConfirm('keep')}>
-              {f.kind === 'save' ? t.common.deleteDots : c.keepMine}
+              {f.kind === 'save' ? m.common_deleteDots() : m.system_config_keepMine()}
             </button>
           )}
           {canChange && merge === null && (
             <>
               <button type="button" className="btn" onClick={() => setMerge(f.liveContent ?? f.content ?? '')}>
-                {c.mergeDots}
+                {m.system_config_mergeDots()}
               </button>
               {!f.replaceRisk && (
                 <button type="button" className="btn primary" onClick={() => setConfirm('replace')}>
-                  {c.replaceDots}
+                  {m.system_config_replaceDots()}
                 </button>
               )}
             </>
           )}
           {merge !== null && (
             <button type="button" className="btn primary" onClick={() => setConfirm('merge')}>
-              {c.saveDots}
+              {m.system_config_saveDots()}
             </button>
           )}
         </div>

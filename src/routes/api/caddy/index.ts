@@ -7,7 +7,6 @@ import { privileged } from '~/server/privileged'
 import { unlockToken } from '~/server/unlock-sessions'
 import { parseCaddyChange } from '~/shared/caddy'
 import { msg } from '~/shared/i18n'
-import * as C from '~/i18n/common'
 
 // Reverse proxy (Caddyfile).
 // GET → file, sites, how it goes live · ?revision=id → content of an earlier version.
@@ -41,7 +40,7 @@ export const Route = createFileRoute('/api/caddy/')({
         if (b.path === null || typeof b.path === 'string') return Response.json(await p.setCaddyPath(token, b.path))
         throw new HttpError(
           400,
-          msg(C, (m) => m.errors.unknownRequest),
+          msg('common_errors_unknownRequest'),
         )
       }),
     },

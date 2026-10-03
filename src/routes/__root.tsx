@@ -1,8 +1,9 @@
 import type { ReactNode } from 'react'
 import { HeadContent, Outlet, Scripts, createRootRoute, useRouteContext } from '@tanstack/react-router'
-import { I18nProvider, useT } from '~/i18n'
+import { I18nProvider } from '~/i18n'
 import { getAuthState } from '~/lib/server-fns'
 import css from '~/styles.css?url'
+import { m } from '~/paraglide/messages'
 
 export const Route = createRootRoute({
   beforeLoad: async () => ({ auth: await getAuthState() }),
@@ -22,11 +23,10 @@ export const Route = createRootRoute({
 })
 
 function NotFound() {
-  const t = useT().shell
   return (
     <div className="flex min-h-screen items-center justify-center text-muted">
       <p>
-        {t.notFound} <a href="/">{t.toOverview}</a>
+        {m.shell_notFound()} <a href="/">{m.shell_toOverview()}</a>
       </p>
     </div>
   )

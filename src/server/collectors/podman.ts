@@ -2,7 +2,7 @@
 // Podman REST API on podman.sock. Read-only except for start/stop/restart of
 // containers that have no systemd unit.
 
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { existsSync } from 'node:fs'
 import type { Container, ContainerPort } from '~/shared/types'
 
@@ -99,7 +99,7 @@ export class PodmanCollector {
   }
 
   async collect(): Promise<Container[]> {
-    if (this.socket && !existsSync(this.socket)) throw new Error(tr(`Socket ${this.socket} fehlt – systemctl enable --now podman.socket`, `Socket ${this.socket} missing – systemctl enable --now podman.socket`))
+    if (this.socket && !existsSync(this.socket)) throw new Error(msg('podman_error_socketMissing', { socket: this.socket }))
     const list = await this.get<CompatContainer[]>('/containers/json?all=true')
     const stats = await this.get<LibpodStats>('/v4.0.0/libpod/containers/stats?stream=false')
       .then((s) => new Map((s.Stats ?? []).map((x) => [x.ContainerID, x])))

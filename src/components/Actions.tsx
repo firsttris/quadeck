@@ -1,9 +1,10 @@
 import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
-import { useT } from '~/i18n'
 import { api, ApiError } from '~/lib/api'
 import { useUnlock } from './Unlock'
 import { ConfirmDialog } from './Modal'
 import { useToast } from './Toast'
+import { m } from '~/paraglide/messages'
+import { pickMsg } from '~/i18n'
 
 type Action = 'start' | 'stop' | 'restart'
 type Target = { kind: 'unit'; name: string } | { kind: 'container'; name: string; unit?: string }
@@ -22,7 +23,6 @@ const ActionCtx = createContext<Ctx>({ run: () => {}, busy: null, readonly: fals
  */
 export function ActionsProvider({ readonly, children }: { readonly: boolean; children: ReactNode }) {
   const say = useToast()
-  const t = useT().shell.actions
   const unlock = useUnlock()
   const [busy, setBusy] = useState<string | null>(null)
   const [pending, setPending] = useState<{ action: Action; target: Target } | null>(null)
@@ -43,14 +43,14 @@ export function ActionsProvider({ readonly, children }: { readonly: boolean; chi
           r = await call()
         }
         const what = target.kind === 'container' && target.unit ? target.unit : target.name
-        say(`${what} ${t.done[action]} (${r.via === 'podman' ? `Podman-API` : `systemctl ${action}`})`)
+        say(`${what} ${pickMsg({ "start": m.shell_actions_done_start, "stop": m.shell_actions_done_stop, "restart": m.shell_actions_done_restart }, action)} (${r.via === 'podman' ? `Podman-API` : `systemctl ${action}`})`)
       } catch (e) {
         say((e as Error).message, 'bad')
       } finally {
         setBusy(null)
       }
     },
-    [say, unlock, t],
+    [say, unlock],
   )
 
   const run = useCallback(
@@ -69,13 +69,13 @@ export function ActionsProvider({ readonly, children }: { readonly: boolean; chi
       {children}
       <ConfirmDialog
         open={!!p}
-        title={p ? t.confirmTitle(p.target.name, t.label[p.action]) : ''}
+        title={p ? m.shell_actions_confirmTitle({ name: p.target.name, action: pickMsg({ "start": m.shell_actions_label_start, "stop": m.shell_actions_label_stop, "restart": m.shell_actions_label_restart }, p.action), actionLower: (pickMsg({ "start": m.shell_actions_label_start, "stop": m.shell_actions_label_stop, "restart": m.shell_actions_label_restart }, p.action)).toLowerCase() }) : ''}
         danger={p?.action === 'stop'}
-        confirm={p ? t.label[p.action] : ''}
+        confirm={p ? pickMsg({ "start": m.shell_actions_label_start, "stop": m.shell_actions_label_stop, "restart": m.shell_actions_label_restart }, p.action) : ''}
         body={
           <p className="m-0">
-            {t.runs}
-            <span className="rounded bg-[#0e1319] px-1.5 py-0.5 font-mono text-[12px]">{via}</span>.{p?.action === 'stop' && t.stopHint}
+            {m.shell_actions_runs()}
+            <span className="rounded bg-[#0e1319] px-1.5 py-0.5 font-mono text-[12px]">{via}</span>.{p?.action === 'stop' && m.shell_actions_stopHint()}
           </p>
         }
         onConfirm={() => p && void exec(p.action, p.target)}

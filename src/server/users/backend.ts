@@ -8,7 +8,7 @@ import { join } from 'node:path'
 import { HttpError } from '../auth'
 import { run } from '../exec'
 import { parseAuthorizedKeys } from '../ssh/keys'
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { changeProblem, isHuman, knownGroups, parseGroup, parseLast, parsePasswd, parseShadow, passwordState, type Account, type GroupInfo, type LoginRecord, type UserChange, type UsersState } from '~/shared/users'
 
 export interface UsersAdmin {
@@ -63,7 +63,7 @@ export function buildUsersState(files: { passwd: string; group: string; shadow: 
       keys: extra.keys(p.name, p.home),
       samba: extra.samba ? extra.samba.has(p.name) : undefined,
       lastLogin: last || undefined,
-      protected: p.uid === 0 ? tr('root ist das Systemkonto und wird nicht gelöscht', 'root is the system account and is not deleted') : undefined,
+      protected: p.uid === 0 ? msg('users_note_rootProtected') : undefined,
     }
   })
   // Personal groups (same name and gid as a user) are not offered.
@@ -79,10 +79,9 @@ export function buildUsersState(files: { passwd: string; group: string; shadow: 
 
 /** userdel/usermod messages in plain words. */
 export function shadowError(tool: string, out: string): string {
-  if (/currently used by process|is currently logged in/i.test(out))
-    return tr('Das Konto ist gerade angemeldet oder Prozesse laufen darunter – erst abmelden bzw. beenden', 'The account is logged in or processes are running under it – log out or stop them first')
-  if (/already exists/i.test(out)) return tr('Den Namen gibt es schon (auch als Gruppe)', 'The name already exists (maybe as a group)')
-  return `${tool}: ${out.trim() || tr('fehlgeschlagen', 'failed')}`
+  if (/currently used by process|is currently logged in/i.test(out)) return msg('users_error_inUse')
+  if (/already exists/i.test(out)) return msg('users_error_nameExists')
+  return `${tool}: ${out.trim() || msg('notifications_failed')}`
 }
 
 export class SystemUsers implements UsersBackend {
@@ -162,7 +161,7 @@ export class SystemUsers implements UsersBackend {
         break
       }
       case 'samba-password':
-        if (!Bun.which('smbpasswd')) throw new HttpError(409, tr('Samba ist nicht installiert', 'Samba is not installed'))
+        if (!Bun.which('smbpasswd')) throw new HttpError(409, msg('users_error_sambaMissing'))
         await this.tool(['smbpasswd', '-a', '-s', c.name], `${c.password}\n${c.password}\n`)
         break
       case 'delete': {

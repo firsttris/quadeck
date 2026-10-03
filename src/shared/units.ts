@@ -1,5 +1,5 @@
 // Shared by the server collector and the UI alarm card.
-import { tr } from './i18n'
+import { msg } from './i18n'
 import type { Unit } from './types'
 
 /** Human-readable reason for a failed unit (shown on the alarm card). */
@@ -7,25 +7,23 @@ export function failureReason(u: Unit): string | undefined {
   if (u.active !== 'failed') return undefined
   switch (u.result) {
     case 'oom-kill':
-      return u.memoryMax
-        ? tr(`OOM-Kill: Speicherlimit MemoryMax=${formatLimit(u.memoryMax)} erreicht`, `OOM kill: memory limit MemoryMax=${formatLimit(u.memoryMax)} reached`)
-        : tr('OOM-Kill: vom Kernel wegen Speichermangel beendet', 'OOM kill: terminated by the kernel due to low memory')
+      return u.memoryMax ? msg('units_failure_oomLimit', { limit: formatLimit(u.memoryMax) }) : msg('units_failure_oomKernel')
     case 'exit-code':
-      return tr(`Prozess endete mit Exit ${u.exitStatus ?? '?'}`, `Process exited with status ${u.exitStatus ?? '?'}`)
+      return msg('units_failure_exitCode', { status: u.exitStatus ?? '?' })
     case 'signal':
-      return tr(`Prozess durch Signal beendet${u.exitStatus ? ` (${u.exitStatus})` : ''}`, `Process killed by signal${u.exitStatus ? ` (${u.exitStatus})` : ''}`)
+      return msg('units_failure_signal', { detail: u.exitStatus ? ` (${u.exitStatus})` : '' })
     case 'core-dump':
-      return tr('Prozess abgestürzt (Core-Dump)', 'Process crashed (core dump)')
+      return msg('units_failure_coreDump')
     case 'timeout':
-      return tr('Zeitüberschreitung beim Starten oder Stoppen', 'Timed out while starting or stopping')
+      return msg('units_failure_timeout')
     case 'watchdog':
-      return tr('Watchdog ausgelöst', 'Watchdog triggered')
+      return msg('units_failure_watchdog')
     case 'start-limit-hit':
-      return tr('Zu viele Neustarts in kurzer Zeit (Start-Limit)', 'Too many restarts in a short time (start limit)')
+      return msg('units_failure_startLimit')
     case 'resources':
-      return tr('Ressourcen fehlen (z. B. Image, Volume oder Netzwerk)', 'Resources missing (e.g. image, volume or network)')
+      return msg('units_failure_resources')
     default:
-      return u.result ? tr(`Ergebnis: ${u.result}`, `Result: ${u.result}`) : undefined
+      return u.result ? msg('units_failure_result', { result: u.result }) : undefined
   }
 }
 

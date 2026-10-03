@@ -4,7 +4,7 @@
 // process where systemd-run is not available. Output goes to stdout; the last
 // line is the exit marker the helper waits for.
 
-import { localize, tr } from '~/shared/i18n'
+import { localize, msg } from '~/shared/i18n'
 import { HttpError } from '../auth'
 import { assertUnitName } from '../privileged/actions'
 import { FEATURES, PACKAGE_NAME, PROTECTED_PACKAGES, type Feature, type JobSpec } from '~/shared/packages'
@@ -38,7 +38,7 @@ export function parseJobSpec(v: unknown): JobSpec {
       return { kind: o.kind }
     case 'remove': {
       const names = Array.isArray(o.names) ? o.names : []
-      if (!names.length || names.length > 200 || !names.every((n) => typeof n === 'string' && PACKAGE_NAME.test(n))) throw new HttpError(400, tr('Ungültige Paketnamen', 'Invalid package names'))
+      if (!names.length || names.length > 200 || !names.every((n) => typeof n === 'string' && PACKAGE_NAME.test(n))) throw new HttpError(400, msg('api_packages_invalidNames'))
       return { kind: 'remove', names: [...new Set(names as string[])] }
     }
     case 'image-update': {
@@ -51,59 +51,58 @@ export function parseJobSpec(v: unknown): JobSpec {
       return { kind: 'image-update', unit }
     }
     case 'install': {
-      if (typeof o.feature !== 'string' || !(o.feature in FEATURES)) throw new HttpError(400, tr('Unbekannte Funktion', 'Unknown feature'))
+      if (typeof o.feature !== 'string' || !(o.feature in FEATURES)) throw new HttpError(400, msg('packages_error_unknownFeature'))
       return { kind: 'install', feature: o.feature as Feature }
     }
     case 'fs-copy':
     case 'fs-move':
     case 'fs-delete': {
       const paths = Array.isArray(o.paths) ? o.paths : []
-      if (!paths.length || paths.length > 1000 || !paths.every((p) => typeof p === 'string' && !validatePath(p))) throw new HttpError(400, tr('Ungültige Pfade', 'Invalid paths'))
+      if (!paths.length || paths.length > 1000 || !paths.every((p) => typeof p === 'string' && !validatePath(p))) throw new HttpError(400, msg('packages_error_invalidPaths'))
       if (o.kind === 'fs-delete') return { kind: 'fs-delete', paths: paths as string[] }
-      if (typeof o.toDir !== 'string' || validatePath(o.toDir)) throw new HttpError(400, tr('Ungültiges Ziel', 'Invalid target'))
+      if (typeof o.toDir !== 'string' || validatePath(o.toDir)) throw new HttpError(400, msg('packages_error_invalidTarget'))
       return { kind: o.kind, paths: paths as string[], toDir: o.toDir, overwrite: o.overwrite === true }
     }
     case 'kernel-install':
     case 'kernel-remove':
-      if (!isFlavor(o.flavor)) throw new HttpError(400, tr('Unbekannter Kernel', 'Unknown kernel'))
+      if (!isFlavor(o.flavor)) throw new HttpError(400, msg('boot_error_unknownKernel'))
       return { kind: o.kind, flavor: o.flavor }
     default:
-      throw new HttpError(400, tr('Unbekannter Job', 'Unknown job'))
+      throw new HttpError(400, msg('packages_error_unknownJob'))
   }
 }
 
 export function jobTitle(spec: JobSpec): string {
   switch (spec.kind) {
     case 'upgrade':
-      return tr('Systemupdate', 'System update')
+      return msg('packages_job_systemUpdate')
     case 'aur-upgrade':
-      return tr('AUR-Update', 'AUR update')
+      return msg('packages_job_aurUpdate')
     case 'remove': {
       const names = `${spec.names.slice(0, 4).join(', ')}${spec.names.length > 4 ? ` +${spec.names.length - 4}` : ''}`
-      return tr(`Entfernen: ${names}`, `Remove: ${names}`)
+      return msg('packages_job_remove', { names })
     }
     case 'images-update':
-      return tr('Container-Images aktualisieren', 'Update container images')
+      return msg('packages_job_updateImages')
     case 'image-update':
-      return tr(`Image aktualisieren: ${spec.unit}`, `Update image: ${spec.unit}`)
+      return msg('packages_job_updateImage', { unit: spec.unit })
     case 'install': {
-      // label is tr() itself: pick each language (tr() inside tr() would not resolve).
       const label = FEATURES[spec.feature].label
-      return tr(`Installieren: ${localize(label, 'de')}`, `Install: ${localize(label, 'en')}`)
+      return msg('packages_job_install', { label })
     }
     case 'mkinitcpio':
-      return tr('initramfs neu bauen', 'Rebuild initramfs')
+      return msg('packages_job_rebuildInitramfs')
     case 'kernel-install':
-      return tr(`Kernel installieren: ${spec.flavor}`, `Install kernel: ${spec.flavor}`)
+      return msg('packages_job_installKernel', { flavor: spec.flavor })
     case 'kernel-remove':
-      return tr(`Kernel entfernen: ${spec.flavor}`, `Remove kernel: ${spec.flavor}`)
+      return msg('packages_job_removeKernel', { flavor: spec.flavor })
     case 'fs-copy':
     case 'fs-move':
     case 'fs-delete': {
       const one = spec.paths.length === 1 ? baseName(spec.paths[0]!) : undefined
-      const what = (de: boolean) => one ?? (de ? `${spec.paths.length} Einträge` : `${spec.paths.length} entries`)
-      if (spec.kind === 'fs-delete') return tr(`Löschen: ${what(true)}`, `Delete: ${what(false)}`)
-      return spec.kind === 'fs-copy' ? tr(`Kopieren: ${what(true)} → ${spec.toDir}`, `Copy: ${what(false)} → ${spec.toDir}`) : tr(`Verschieben: ${what(true)} → ${spec.toDir}`, `Move: ${what(false)} → ${spec.toDir}`)
+      const what = one ?? msg('common_items', { n: spec.paths.length })
+      if (spec.kind === 'fs-delete') return msg('packages_job_fsDelete', { what })
+      return spec.kind === 'fs-copy' ? msg('packages_job_fsCopy', { what, toDir: spec.toDir }) : msg('packages_job_fsMove', { what, toDir: spec.toDir })
     }
   }
 }
@@ -134,30 +133,30 @@ async function execute(spec: JobSpec): Promise<number> {
   switch (spec.kind) {
     case 'upgrade': {
       const p = detectProvider()
-      if (!p) throw new Error(tr('Kein unterstützter Paketmanager gefunden', 'No supported package manager found'))
+      if (!p) throw new Error(msg('system_page_noManager'))
       return steps(p.upgradeSteps())
     }
     case 'remove': {
       const p = detectProvider()
-      if (!p) throw new Error(tr('Kein unterstützter Paketmanager gefunden', 'No supported package manager found'))
+      if (!p) throw new Error(msg('system_page_noManager'))
       // Re-check here, where root acts: never take away a protected package.
       const preview = await p.removePreview(spec.names)
       if (preview.error) throw new Error(preview.error)
       const blocked = preview.packages.filter((x) => PROTECTED_PACKAGES[p.id].includes(x.name)).map((x) => x.name)
-      if (blocked.length) throw new Error(tr(`Geschützte Pakete wären betroffen: ${blocked.join(', ')}`, `Protected packages would be affected: ${blocked.join(', ')}`))
-      out(tr(`Wird entfernt: ${preview.packages.map((x) => x.name).join(' ')}`, `Removing: ${preview.packages.map((x) => x.name).join(' ')}`))
+      if (blocked.length) throw new Error(msg('packages_error_protectedAffected', { list: blocked.join(', ') }))
+      out(msg('packages_job_removing', { list: preview.packages.map((x) => x.name).join(' ') }))
       return steps(p.removeSteps(spec.names))
     }
     case 'aur-upgrade': {
       const helper = aurHelper()
       const user = aurUser()
-      if (!helper) throw new Error(tr('Weder yay noch paru ist installiert', 'Neither yay nor paru is installed'))
-      if (!user) throw new Error(tr('Kein Benutzer für AUR-Updates (QUADECK_AUR_USER setzen)', 'No user for AUR updates (set QUADECK_AUR_USER)'))
+      if (!helper) throw new Error(msg('packages_error_noAurHelper'))
+      if (!user) throw new Error(msg('packages_error_noAurUser'))
       return runAurUpgrade(helper, user, exec, out)
     }
     case 'install': {
       const p = detectProvider()
-      if (!p) throw new Error(tr('Kein unterstützter Paketmanager gefunden', 'No supported package manager found'))
+      if (!p) throw new Error(msg('system_page_noManager'))
       return steps(p.installSteps(FEATURES[spec.feature].packages[p.id]))
     }
     case 'fs-copy':
@@ -172,24 +171,24 @@ async function execute(spec: JobSpec): Promise<number> {
       return 0
     }
     case 'mkinitcpio':
-      if (!Bun.which('mkinitcpio')) throw new Error(tr('mkinitcpio ist nicht installiert', 'mkinitcpio is not installed'))
+      if (!Bun.which('mkinitcpio')) throw new Error(msg('packages_error_mkinitcpioMissing'))
       return exec(['mkinitcpio', '-P'])
     case 'kernel-install': {
-      if (detectProvider()?.id !== 'pacman') throw new Error(tr('Kernel-Varianten gibt es hier nur für Arch (pacman)', 'Kernel variants are only available on Arch (pacman) here'))
+      if (detectProvider()?.id !== 'pacman') throw new Error(msg('packages_error_kernelArchOnly'))
       // DKMS modules (NVIDIA, ZFS …) are built for every kernel that has its headers.
       const pkgs = [spec.flavor, ...(Bun.which('dkms') ? [`${spec.flavor}-headers`] : [])]
       return exec(['pacman', '-S', '--needed', '--noconfirm', '--noprogressbar', '--color', 'never', '--', ...pkgs])
     }
     case 'kernel-remove': {
-      if (detectProvider()?.id !== 'pacman') throw new Error(tr('Kernel-Varianten gibt es hier nur für Arch (pacman)', 'Kernel variants are only available on Arch (pacman) here'))
+      if (detectProvider()?.id !== 'pacman') throw new Error(msg('packages_error_kernelArchOnly'))
       // Checked again here, where root acts: never the running, the default or the last kernel.
       const installed = parsePacmanQ((await capture(['pacman', '-Q', 'linux', 'linux-lts', 'linux-zen', 'linux-hardened', `${spec.flavor}-headers`])).stdout)
       const entries = Bun.which('bootctl') ? parseBootctlList((await capture(['bootctl', '--no-pager', 'list', '--json=short'])).stdout).map((e) => ({ ...e, missing: [] })) : []
       const kernels = kernelInfos(installed, release(), entries)
       const k = kernels.find((x) => x.pkg === spec.flavor)!
-      if (!k.installed) throw new Error(tr(`${spec.flavor} ist nicht installiert`, `${spec.flavor} is not installed`))
+      if (!k.installed) throw new Error(msg('packages_error_kernelNotInstalled', { flavor: spec.flavor }))
       const problem = kernelRemoveProblem(k, kernels)
-      if (problem) throw new Error(`${spec.flavor}: ${problem}`) // problem is a single tr(): stays resolvable
+      if (problem) throw new Error(`${spec.flavor}: ${problem}`)
       return exec(['pacman', '-Rns', '--noconfirm', '--noprogressbar', '--color', 'never', '--', spec.flavor, ...(installed.has(`${spec.flavor}-headers`) ? [`${spec.flavor}-headers`] : [])])
     }
     case 'images-update':
@@ -197,7 +196,7 @@ async function execute(spec: JobSpec): Promise<number> {
       return exec(['podman', 'auto-update', '--rollback=true'])
     case 'image-update': {
       const item = (await imageUpdates()).find((i) => i.unit === spec.unit)
-      if (!item) throw new Error(tr(`${spec.unit} ist nicht für Auto-Update markiert`, `${spec.unit} is not marked for auto-update`))
+      if (!item) throw new Error(msg('packages_error_notAutoUpdate', { unit: spec.unit }))
       const pulled = await exec(['podman', 'pull', '--', item.image])
       if (pulled !== 0) return pulled
       return exec(['systemctl', 'restart', '--', spec.unit])
@@ -209,11 +208,10 @@ export async function runJobCommand(encoded: string | undefined): Promise<number
   process.umask(0o022) // installed files must stay readable for everyone
   let code = 1
   try {
-    if (process.getuid?.() !== 0) throw new Error(tr('quadeck job muss als root laufen', 'quadeck job must run as root'))
+    if (process.getuid?.() !== 0) throw new Error(msg('packages_error_jobNeedsRoot'))
     code = await execute(decodeSpec(encoded ?? ''))
   } catch (e) {
-    const msg = (e as Error).message
-    out(tr(`Fehler: ${localize(msg, 'de')}`, `Error: ${localize(msg, 'en')}`))
+    out(msg('packages_job_error', { message: (e as Error).message }))
     code = 1
   }
   out(`${EXIT_MARKER}${code}`)

@@ -1,4 +1,4 @@
-import { tr } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { createFileRoute } from '@tanstack/react-router'
 import { HttpError } from '~/server/auth'
 import { config } from '~/server/config'
@@ -18,9 +18,9 @@ export const Route = createFileRoute('/api/unlock')({
         return Response.json({ ...info, until: await p.unlockedUntil(unlockToken(session.id)) })
       }),
       POST: authed(async ({ request }, session) => {
-        if (config().readonly) throw new HttpError(403, tr('Read-only-Modus (QUADECK_READONLY)', 'Read-only mode (QUADECK_READONLY)'))
+        if (config().readonly) throw new HttpError(403, msg('api_unlock_readonly'))
         const body = await readJson<{ user?: unknown; password?: unknown }>(request)
-        if (typeof body.password !== 'string') throw new HttpError(400, tr('Passwort fehlt', 'Password missing'))
+        if (typeof body.password !== 'string') throw new HttpError(400, msg('notify_error_passwordMissing'))
         const { token, expiresAt } = await privileged().unlock(typeof body.user === 'string' ? body.user : 'root', body.password)
         setUnlockToken(session.id, token)
         return Response.json({ ok: true, until: expiresAt })

@@ -1,17 +1,16 @@
 import { useEffect, useState } from 'react'
-import { useT } from '~/i18n'
 import { api } from '~/lib/api'
 import type { Service } from '~/shared/types'
 import { Glyph } from './Glyph'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
+import { m } from '~/paraglide/messages'
 
 /** Icon picker over the dashboard-icons index; empty value = automatic. */
 export function IconPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   const [query, setQuery] = useState(value)
   const [icons, setIcons] = useState<string[]>([])
   const [available, setAvailable] = useState(true)
-  const t = useT().overview.dialog
   useEffect(() => {
     const t = setTimeout(() => {
       fetch(`/api/icons/search?q=${encodeURIComponent(query)}`)
@@ -29,8 +28,8 @@ export function IconPicker({ value, onChange }: { value: string; onChange: (v: s
       <div className="flex gap-2">
         <input
           className="field grow font-mono"
-          aria-label={t.searchIcon}
-          placeholder={t.iconPlaceholder}
+          aria-label={m.overview_dialog_searchIcon()}
+          placeholder={m.overview_dialog_iconPlaceholder()}
           value={query}
           onChange={(e) => {
             setQuery(e.target.value)
@@ -46,7 +45,7 @@ export function IconPicker({ value, onChange }: { value: string; onChange: (v: s
               onChange('')
             }}
           >
-            {t.automatic}
+            {m.overview_dialog_automatic()}
           </button>
         )}
       </div>
@@ -71,7 +70,7 @@ export function IconPicker({ value, onChange }: { value: string; onChange: (v: s
           ))}
         </div>
       ) : (
-        <p className="m-0 text-[12px] text-muted">{t.iconsOffline}</p>
+        <p className="m-0 text-[12px] text-muted">{m.overview_dialog_iconsOffline()}</p>
       )}
     </div>
   )
@@ -85,8 +84,6 @@ const label = 'flex flex-col gap-1 text-[12px] font-medium text-muted'
  */
 export function ServiceDialog({ service, groups, onClose }: { service: Service | null; groups: string[]; onClose: () => void }) {
   const say = useToast()
-  const tt = useT()
-  const t = tt.overview.dialog
   const [error, setError] = useState('')
   const [icon, setIcon] = useState('')
   const s = service
@@ -110,7 +107,7 @@ export function ServiceDialog({ service, groups, onClose }: { service: Service |
           body: { key: s.key, name: f.get('name'), group: f.get('group'), url: f.get('url'), icon, pinned: f.get('pinned') === 'on', hidden: f.get('hidden') === 'on' },
         })
       }
-      say(t.saved(String(f.get('name') || s.name)))
+      say(m.overview_dialog_saved({ name: (String(f.get('name') || s.name)) }))
       onClose()
     } catch (e) {
       setError((e as Error).message)
@@ -120,7 +117,7 @@ export function ServiceDialog({ service, groups, onClose }: { service: Service |
   const reset = async () => {
     try {
       await api('/api/services/override', { method: 'DELETE', body: { key: s.key } })
-      say(t.automaticAgain(s.name))
+      say(m.overview_dialog_automaticAgain({ name: s.name }))
       onClose()
     } catch (e) {
       setError((e as Error).message)
@@ -129,7 +126,7 @@ export function ServiceDialog({ service, groups, onClose }: { service: Service |
 
   const o = s.overridden ?? {}
   return (
-    <Modal open onClose={onClose} title={manual ? t.editLink(s.name) : t.editService(s.name)}>
+    <Modal open onClose={onClose} title={manual ? m.overview_dialog_editLink({ name: s.name }) : m.overview_dialog_editService({ name: s.name })}>
       <form
         key={s.key}
         className="flex flex-col gap-3"
@@ -140,19 +137,19 @@ export function ServiceDialog({ service, groups, onClose }: { service: Service |
       >
         {!manual && (
           <p className="m-0 text-[12px] text-muted">
-            {t.detectedFrom(s.source === 'caddy' ? 'Caddy' : t.sourceLabel)}
-            {s.container ? ` · ${tt.overview.alert.container(s.container)}` : ''}
+            {m.overview_dialog_detectedFrom({ source: (s.source === 'caddy' ? 'Caddy' : m.overview_dialog_sourceLabel()) })}
+            {s.container ? ` · ${m.overview_alert_container({ name: s.container })}` : ''}
             {s.unit ? ` · ${s.unit}` : ''}
-            {t.emptyFollows}
+            {m.overview_dialog_emptyFollows()}
           </p>
         )}
         <label className={label}>
-          {tt.common.name}
+          {m.common_name()}
           <input name="name" maxLength={60} required={manual} className="field" defaultValue={manual ? s.name : (o.name ?? '')} placeholder={s.name} autoFocus />
         </label>
         <div className="grid grid-cols-2 gap-3">
           <label className={label}>
-            {t.group}
+            {m.overview_dialog_group()}
             <input name="group" maxLength={40} className="field" defaultValue={manual ? s.group : (o.group ?? '')} placeholder={s.group} list="service-groups" />
             <datalist id="service-groups">
               {groups.map((g) => (
@@ -171,15 +168,15 @@ export function ServiceDialog({ service, groups, onClose }: { service: Service |
         </div>
         {manual ? (
           <label className="flex items-center gap-2 text-[13px]">
-            <input name="health" type="checkbox" defaultChecked={s.healthCheck !== false} /> {t.healthCheck}
+            <input name="health" type="checkbox" defaultChecked={s.healthCheck !== false} /> {m.overview_dialog_healthCheck()}
           </label>
         ) : (
           <div className="flex flex-wrap gap-4 text-[13px]">
             <label className="flex items-center gap-2">
-              <input name="pinned" type="checkbox" defaultChecked={!!s.pinned} /> {t.pin}
+              <input name="pinned" type="checkbox" defaultChecked={!!s.pinned} /> {m.overview_dialog_pin()}
             </label>
             <label className="flex items-center gap-2">
-              <input name="hidden" type="checkbox" /> {t.hide}
+              <input name="hidden" type="checkbox" /> {m.overview_dialog_hide()}
             </label>
           </div>
         )}
@@ -191,14 +188,14 @@ export function ServiceDialog({ service, groups, onClose }: { service: Service |
         <div className="flex flex-wrap justify-end gap-2">
           {!manual && (s.overridden || s.pinned) && (
             <button type="button" className="btn mr-auto" onClick={reset}>
-              <Glyph name="restart" size={14} /> {t.resetAuto}
+              <Glyph name="restart" size={14} /> {m.overview_dialog_resetAuto()}
             </button>
           )}
           <button type="button" className="btn" onClick={onClose}>
-            {tt.common.cancel}
+            {m.common_cancel()}
           </button>
           <button type="submit" className="btn primary">
-            {tt.common.save}
+            {m.common_save()}
           </button>
         </div>
       </form>

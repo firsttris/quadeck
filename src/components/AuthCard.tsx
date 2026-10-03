@@ -1,6 +1,7 @@
 import { useEffect, useState, type ReactNode } from 'react'
-import { LANGS, switchLang, useLang, useT, type Lang } from '~/i18n'
+import { LANGS, switchLang, useLang, type Lang } from '~/i18n'
 import { Logo } from './Glyph'
+import { m } from '~/paraglide/messages'
 
 export function AuthCard({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
@@ -23,12 +24,11 @@ export function AuthCard({ title, subtitle, children }: { title: string; subtitl
 
 /** Small language switch (login card, sidebar footer). Reloads the page in the chosen language. */
 export function LangSelect({ className = '' }: { className?: string }) {
-  const t = useT().shell
   const lang = useLang()
   return (
     <select
-      aria-label={t.language}
-      title={t.language}
+      aria-label={m.shell_language()}
+      title={m.shell_language()}
       value={lang}
       onChange={(e) => void switchLang(e.target.value as Lang)}
       className={`cursor-pointer rounded-md border border-[#2a323d] bg-[#0e1319] px-1.5 py-1 text-[12px] text-muted hover:text-fg ${className}`}
