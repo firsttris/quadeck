@@ -17,6 +17,7 @@ import { FixtureFstabHost, FstabManager, SystemFstabHost } from '../fstab/backen
 import { FixtureBoot, SystemBoot } from '../boot/backend'
 import { FixtureUsers, SystemUsers } from '../users/backend'
 import { FixtureHardware, SystemHardware } from '../hardware/collect'
+import { CaddyManager, FixtureCaddyHost, SystemCaddyHost } from '../caddy/backend'
 import { bilingual } from '../lang'
 
 export function unlockMode(helperProcess: boolean): UnlockMode {
@@ -64,6 +65,7 @@ export function privileged(): Privileged {
             fixtures ? new FixtureBoot(fixtures, async () => new Map((await maint.installed()).map((p) => [p.name, p.version]))) : new SystemBoot(),
             fixtures ? new FixtureUsers(fixtures) : new SystemUsers(),
             fixtures ? new FixtureHardware(fixtures) : new SystemHardware(),
+          new CaddyManager(fixtures ? new FixtureCaddyHost(fixtures) : new SystemCaddyHost()),
           ),
         )
       : new HelperClient(config().helperSocket)

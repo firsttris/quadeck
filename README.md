@@ -80,7 +80,9 @@ on it. That is Quadeck.
 - **SSH**: keys per user with last use, hardening through a drop-in with a lock-out guard, recent
   logins and failed attempts, ready-made commands for a new device
 - **Network**: interfaces, routes, DNS, listening ports with the program, unit or container behind
-  each one, and what firewalld or ufw does with it. Read-only by design
+  each one, and what firewalld or ufw does with it
+- **Reverse proxy**: Caddy domains as a list – add, change, delete domain → container, or edit the
+  whole Caddyfile; Caddy checks every change before it goes live and reloads without interruption
 - **Notifications**: ntfy, Gotify, Telegram, e-mail (SMTP) or a webhook (Discord, Slack, Home Assistant) when a
   unit or timer fails, a web service is down, a container is unhealthy, SMART complains, a disk is
   nearly full or updates are available. Each problem once, with an all-clear when it is resolved

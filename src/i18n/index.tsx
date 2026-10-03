@@ -18,6 +18,7 @@ import * as network from './network'
 import * as notifications from './notifications'
 import * as overview from './overview'
 import * as podman from './podman'
+import * as proxy from './proxy'
 import * as quadlets from './quadlets'
 import * as shares from './shares'
 import * as shell from './shell'
@@ -28,7 +29,7 @@ import * as timers from './timers'
 import * as units from './units'
 import * as users from './users'
 
-const NS = { common, shell, overview, units, journal, timers, quadlets, systemd, podman, disks, files, shares, system, boot, hardware, network, ssh, users, notifications }
+const NS = { common, shell, overview, units, journal, timers, quadlets, systemd, podman, disks, files, shares, system, boot, hardware, network, proxy, ssh, users, notifications }
 type Ns = typeof NS
 
 export type Messages = { [K in keyof Ns]: Ns[K]['de'] }

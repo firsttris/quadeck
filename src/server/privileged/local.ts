@@ -15,6 +15,8 @@ import type { FstabBackend } from '../fstab/backend'
 import type { BootBackend } from '../boot/backend'
 import type { UsersBackend } from '../users/backend'
 import type { HardwareAdmin } from '../hardware/collect'
+import type { CaddyBackend } from '../caddy/backend'
+import type { CaddyChange } from '~/shared/caddy'
 import type { UserChange } from '~/shared/users'
 import type { ConfigAction } from '~/shared/configfiles'
 import type { FstabChange } from '~/shared/fstab'
@@ -53,6 +55,7 @@ export class LocalPrivileged implements Privileged {
     private boot: BootBackend,
     private users: UsersBackend,
     private hw: HardwareAdmin,
+    private caddy: CaddyBackend,
   ) {}
 
   async info() {
@@ -385,5 +388,22 @@ export class LocalPrivileged implements Privileged {
 
   hardware() {
     return this.hw.hardware()
+  }
+
+  // ---------- reverse proxy (Caddy) ----------
+
+  caddyState() {
+    return this.caddy.caddyState()
+  }
+  caddyRevision(id: string) {
+    return this.caddy.caddyRevision(id)
+  }
+  async applyCaddy(token: string | undefined, change: CaddyChange, expected: string | undefined) {
+    this.gate.check(token)
+    return this.caddy.applyCaddy(change, expected)
+  }
+  async setCaddyPath(token: string | undefined, path: string | null) {
+    this.gate.check(token)
+    return this.caddy.setCaddyPath(path)
   }
 }

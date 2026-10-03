@@ -37,6 +37,7 @@ import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
 import { Route as ApiAuthSetupRouteImport } from './routes/api/auth/setup'
 import { Route as ApiBootIndexRouteImport } from './routes/api/boot/index'
+import { Route as ApiCaddyIndexRouteImport } from './routes/api/caddy/index'
 import { Route as ApiDisksSmartRouteImport } from './routes/api/disks/smart'
 import { Route as ApiFaviconKeyRouteImport } from './routes/api/favicon/$key'
 import { Route as ApiFilesIndexRouteImport } from './routes/api/files/index'
@@ -210,6 +211,11 @@ const ApiAuthSetupRoute = ApiAuthSetupRouteImport.update({
 const ApiBootIndexRoute = ApiBootIndexRouteImport.update({
   id: '/api/boot/',
   path: '/api/boot/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiCaddyIndexRoute = ApiCaddyIndexRouteImport.update({
+  id: '/api/caddy/',
+  path: '/api/caddy/',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiDisksSmartRoute = ApiDisksSmartRouteImport.update({
@@ -435,6 +441,7 @@ export interface FileRoutesByFullPath {
   '/api/system/remove-preview': typeof ApiSystemRemovePreviewRoute
   '/api/system/updates': typeof ApiSystemUpdatesRoute
   '/api/boot/': typeof ApiBootIndexRoute
+  '/api/caddy/': typeof ApiCaddyIndexRoute
   '/api/files/': typeof ApiFilesIndexRoute
   '/api/fstab/': typeof ApiFstabIndexRoute
   '/api/hardware/': typeof ApiHardwareIndexRoute
@@ -499,6 +506,7 @@ export interface FileRoutesByTo {
   '/api/system/remove-preview': typeof ApiSystemRemovePreviewRoute
   '/api/system/updates': typeof ApiSystemUpdatesRoute
   '/api/boot': typeof ApiBootIndexRoute
+  '/api/caddy': typeof ApiCaddyIndexRoute
   '/api/files': typeof ApiFilesIndexRoute
   '/api/fstab': typeof ApiFstabIndexRoute
   '/api/hardware': typeof ApiHardwareIndexRoute
@@ -565,6 +573,7 @@ export interface FileRoutesById {
   '/api/system/remove-preview': typeof ApiSystemRemovePreviewRoute
   '/api/system/updates': typeof ApiSystemUpdatesRoute
   '/api/boot/': typeof ApiBootIndexRoute
+  '/api/caddy/': typeof ApiCaddyIndexRoute
   '/api/files/': typeof ApiFilesIndexRoute
   '/api/fstab/': typeof ApiFstabIndexRoute
   '/api/hardware/': typeof ApiHardwareIndexRoute
@@ -631,6 +640,7 @@ export interface FileRouteTypes {
     | '/api/system/remove-preview'
     | '/api/system/updates'
     | '/api/boot/'
+    | '/api/caddy/'
     | '/api/files/'
     | '/api/fstab/'
     | '/api/hardware/'
@@ -695,6 +705,7 @@ export interface FileRouteTypes {
     | '/api/system/remove-preview'
     | '/api/system/updates'
     | '/api/boot'
+    | '/api/caddy'
     | '/api/files'
     | '/api/fstab'
     | '/api/hardware'
@@ -760,6 +771,7 @@ export interface FileRouteTypes {
     | '/api/system/remove-preview'
     | '/api/system/updates'
     | '/api/boot/'
+    | '/api/caddy/'
     | '/api/files/'
     | '/api/fstab/'
     | '/api/hardware/'
@@ -812,6 +824,7 @@ export interface RootRouteChildren {
   ApiSystemRemovePreviewRoute: typeof ApiSystemRemovePreviewRoute
   ApiSystemUpdatesRoute: typeof ApiSystemUpdatesRoute
   ApiBootIndexRoute: typeof ApiBootIndexRoute
+  ApiCaddyIndexRoute: typeof ApiCaddyIndexRoute
   ApiFilesIndexRoute: typeof ApiFilesIndexRoute
   ApiFstabIndexRoute: typeof ApiFstabIndexRoute
   ApiHardwareIndexRoute: typeof ApiHardwareIndexRoute
@@ -1026,6 +1039,13 @@ declare module '@tanstack/react-router' {
       path: '/api/boot'
       fullPath: '/api/boot/'
       preLoaderRoute: typeof ApiBootIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/caddy/': {
+      id: '/api/caddy/'
+      path: '/api/caddy'
+      fullPath: '/api/caddy/'
+      preLoaderRoute: typeof ApiCaddyIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/disks/smart': {
@@ -1346,6 +1366,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSystemRemovePreviewRoute: ApiSystemRemovePreviewRoute,
   ApiSystemUpdatesRoute: ApiSystemUpdatesRoute,
   ApiBootIndexRoute: ApiBootIndexRoute,
+  ApiCaddyIndexRoute: ApiCaddyIndexRoute,
   ApiFilesIndexRoute: ApiFilesIndexRoute,
   ApiFstabIndexRoute: ApiFstabIndexRoute,
   ApiHardwareIndexRoute: ApiHardwareIndexRoute,

@@ -1,0 +1,36 @@
+# Reverse proxy for the home server – managed partly by Quadeck
+{
+	email admin@home.example
+}
+
+jellyfin.home.example {
+	reverse_proxy jellyfin:8096
+}
+
+fotos.home.example {
+	reverse_proxy immich-server:2283
+}
+
+namarr.home.example {
+	reverse_proxy localhost:3000
+}
+
+dl.home.example {
+	reverse_proxy downloader:8080
+}
+
+qbt.home.example {
+	reverse_proxy 127.0.0.1:8080
+}
+
+# Home Assistant needs websockets and the real client address
+ha.home.example {
+	reverse_proxy 192.168.1.30:8123 {
+		header_up X-Real-IP {remote_host}
+	}
+}
+
+vault.home.example {
+	encode gzip
+	reverse_proxy 192.168.1.31:80
+}

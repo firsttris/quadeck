@@ -1,16 +1,17 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
 import { PageHeader } from '~/components/PageHeader'
+import { ReverseProxy } from '~/components/ReverseProxy'
 import { Pill, type Tone } from '~/components/Status'
 import { useT } from '~/i18n'
 import { bytes } from '~/lib/format'
 import { tr } from '~/shared/i18n'
 import { knownPorts, type IfaceKind, type ListeningPort, type NetInterface, type NetworkState } from '~/shared/network'
 
-type Tab = 'interfaces' | 'ports' | 'firewall'
+type Tab = 'interfaces' | 'ports' | 'firewall' | 'proxy'
 
 export const Route = createFileRoute('/_app/network')({
-  validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({ tab: s.tab === 'ports' || s.tab === 'firewall' ? s.tab : undefined }),
+  validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({ tab: s.tab === 'ports' || s.tab === 'firewall' || s.tab === 'proxy' ? s.tab : undefined }),
   head: () => ({ meta: [{ title: tr('Netzwerk · Quadeck', 'Network · Quadeck') }] }),
   component: NetworkPage,
 })
@@ -50,6 +51,7 @@ function NetworkPage() {
     ['interfaces', t.tabs.interfaces, undefined],
     ['ports', t.tabs.ports, s?.ports.length],
     ['firewall', t.tabs.firewall, undefined],
+    ['proxy', t.tabs.proxy, undefined],
   ]
   return (
     <>
@@ -62,9 +64,10 @@ function NetworkPage() {
           </Link>
         ))}
       </div>
-      {error && <p className="m-0 text-[13px] text-[#e3b341]">{error}</p>}
-      {s?.error && <p className="m-0 text-[13px] text-[#e3b341]">{s.error}</p>}
-      {!s && !error && <p className="m-0 text-muted">{t.loading}</p>}
+      {tab === 'proxy' && <ReverseProxy />}
+      {tab !== 'proxy' && error && <p className="m-0 text-[13px] text-[#e3b341]">{error}</p>}
+      {tab !== 'proxy' && s?.error && <p className="m-0 text-[13px] text-[#e3b341]">{s.error}</p>}
+      {tab !== 'proxy' && !s && !error && <p className="m-0 text-muted">{t.loading}</p>}
       {s && tab === 'interfaces' && (
         <>
           <section className="flex flex-col gap-3" aria-label={t.tabs.interfaces}>

@@ -21,6 +21,8 @@ import type { FstabAdmin } from '../fstab/backend'
 import type { BootAdmin } from '../boot/backend'
 import type { UsersAdmin } from '../users/backend'
 import type { HardwareAdmin } from '../hardware/collect'
+import type { CaddyAdmin } from '../caddy/backend'
+import type { CaddyChange, CaddyResult, CaddyState } from '~/shared/caddy'
 import type { UserChange, UsersState } from '~/shared/users'
 import type { ConfigAction, ConfigFileInfo } from '~/shared/configfiles'
 import type { BootState } from '~/shared/boot'
@@ -36,7 +38,7 @@ export type UnitAction = 'start' | 'stop' | 'restart'
 export const UNIT_ACTIONS: readonly UnitAction[] = ['start', 'stop', 'restart']
 
 /** Package/image reads need no unlock (they change nothing); jobs do. */
-export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAdmin, SmartAdmin, FilesAdmin, TimersAdmin, UnitEditorAdmin, NetworkAdmin, FstabAdmin, BootAdmin, UsersAdmin, HardwareAdmin {
+export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAdmin, SmartAdmin, FilesAdmin, TimersAdmin, UnitEditorAdmin, NetworkAdmin, FstabAdmin, BootAdmin, UsersAdmin, HardwareAdmin, CaddyAdmin {
   readonly kind: 'local' | 'helper'
   info(): Promise<UnlockInfo>
   unlock(user: string, password: string): Promise<{ token: string; expiresAt: number }>
@@ -81,6 +83,8 @@ export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAd
   removeBootEntry(token: string | undefined, id: string): Promise<BootState>
   applyUser(token: string | undefined, change: UserChange): Promise<UsersState>
   applyConfigFile(token: string | undefined, path: string, action: ConfigAction, content?: string): Promise<{ done: string; after?: ConfigFileInfo['after']; warning?: string }>
+  applyCaddy(token: string | undefined, change: CaddyChange, expected: string | undefined): Promise<CaddyResult>
+  setCaddyPath(token: string | undefined, path: string | null): Promise<CaddyState>
 }
 
 const UNIT_NAME = /^[A-Za-z0-9:_.\\@-]{1,240}\.(service|timer|socket)$/

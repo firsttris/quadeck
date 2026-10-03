@@ -2,9 +2,9 @@
 
 export const de = {
   title: 'Netzwerk',
-  subtitle: 'Schnittstellen, Routen, DNS, offene Ports und Firewall – nur zum Ansehen',
+  subtitle: 'Schnittstellen, Routen, DNS, offene Ports, Firewall und Reverse Proxy',
   area: 'Bereich',
-  tabs: { interfaces: 'Schnittstellen', ports: 'Ports', firewall: 'Firewall' },
+  tabs: { interfaces: 'Schnittstellen', ports: 'Ports', firewall: 'Firewall', proxy: 'Reverse Proxy' },
   loading: 'Wird geladen …',
   kind: { ethernet: 'LAN', wifi: 'WLAN', bridge: 'Bridge', container: 'Container', vpn: 'VPN', loopback: 'Loopback', virtual: 'virtuell' },
   ifaces: {
@@ -60,9 +60,9 @@ export const de = {
 
 export const en: typeof de = {
   title: 'Network',
-  subtitle: 'Interfaces, routes, DNS, open ports and firewall – view only',
+  subtitle: 'Interfaces, routes, DNS, open ports, firewall and reverse proxy',
   area: 'Section',
-  tabs: { interfaces: 'Interfaces', ports: 'Ports', firewall: 'Firewall' },
+  tabs: { interfaces: 'Interfaces', ports: 'Ports', firewall: 'Firewall', proxy: 'Reverse proxy' },
   loading: 'Loading …',
   kind: { ethernet: 'LAN', wifi: 'Wi-Fi', bridge: 'Bridge', container: 'Container', vpn: 'VPN', loopback: 'Loopback', virtual: 'virtual' },
   ifaces: {

@@ -45,6 +45,8 @@ export const de = {
   http: (status: number) => `HTTP ${status}`,
   files: (n: number) => plural(n, 'Datei', 'Dateien'),
   items: (n: number) => plural(n, 'Eintrag', 'Einträge'),
+  errors: { invalidContent: 'Ungültiger Inhalt', unknownRequest: 'Unbekannte Anfrage', versionNotFound: 'Version nicht gefunden' },
+  history: { original: 'Ursprünglicher Stand', saved: 'Gespeichert' },
 }
 
 export const en: typeof de = {
@@ -90,4 +92,6 @@ export const en: typeof de = {
   http: (status: number) => `HTTP ${status}`,
   files: (n: number) => plural(n, 'file', 'files'),
   items: (n: number) => plural(n, 'entry', 'entries'),
+  errors: { invalidContent: 'Invalid content', unknownRequest: 'Unknown request', versionNotFound: 'Version not found' },
+  history: { original: 'Original state', saved: 'Saved' },
 }
