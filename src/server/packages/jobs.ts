@@ -111,7 +111,7 @@ export function selfArgv(): string[] {
   return /^bun(-debug)?$/.test(basename(process.execPath)) ? [process.execPath, Bun.main] : [process.execPath]
 }
 
-const FORWARD_ENV = ['QUADECK_PACKAGE_MANAGER', 'QUADECK_AUR_USER', 'QUADECK_SHADOW', 'QUADECK_GROUP', 'QUADECK_FILE_ROOTS']
+const FORWARD_ENV = ['QUADECK_BACKUP_DIR', 'QUADECK_PACKAGE_MANAGER', 'QUADECK_AUR_USER', 'QUADECK_SHADOW', 'QUADECK_GROUP', 'QUADECK_FILE_ROOTS']
 
 /** Child process of the helper (containers, systems without systemd-run). */
 export class SpawnLauncher implements Launcher {

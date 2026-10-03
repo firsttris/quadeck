@@ -118,7 +118,7 @@ test.describe('English', () => {
     page.on('console', (m) => {
       if (m.type() === 'error' && /hydrat/i.test(m.text())) mismatches.push(m.text().slice(0, 300))
     })
-    const pages = ['/', '/units', '/units?filter=timer', '/units?filter=socket', '/journal', '/disks', '/files', '/shares', '/ssh', '/network', '/system', '/notifications', '/users', '/hardware', '/quadlets', '/systemd']
+    const pages = ['/', '/units', '/units?filter=timer', '/units?filter=socket', '/journal', '/disks', '/files', '/shares', '/backups', '/ssh', '/network', '/system', '/notifications', '/users', '/hardware', '/quadlets', '/systemd']
     for (const p of pages) {
       await page.goto(p)
       await page.waitForLoadState('networkidle').catch(() => {})

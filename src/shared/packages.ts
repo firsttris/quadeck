@@ -106,6 +106,7 @@ export type JobSpec =
   | { kind: 'kernel-install'; flavor: KernelFlavor }
   | { kind: 'kernel-remove'; flavor: KernelFlavor }
   | { kind: 'mkinitcpio' }
+  | { kind: 'backup-restore'; snapshot: string; paths: string[]; target?: string; stop: string[] }
 
 export type JobStatus = 'running' | 'ok' | 'failed'
 
@@ -199,7 +200,7 @@ export const REBOOT_PACKAGES = /^(linux(-lts|-zen|-hardened)?|linux-image-.*|ker
  * Tools Quadeck pages need, installable with one click. Only these – never
  * arbitrary package names from the browser.
  */
-export type Feature = 'smart' | 'samba' | 'nfs' | 'ssh'
+export type Feature = 'smart' | 'samba' | 'nfs' | 'ssh' | 'restic'
 
 /** `label` is a getter: read in the viewer's language. */
 export const FEATURES: Record<Feature, { label: string; packages: Record<ManagerId, string[]>; service?: Record<ManagerId, string> }> = {
@@ -226,6 +227,10 @@ export const FEATURES: Record<Feature, { label: string; packages: Record<Manager
       return msg('packages_feature_openssh')
     },
     packages: { pacman: ['openssh'], apt: ['openssh-server'], dnf: ['openssh-server'], zypper: ['openssh-server'], apk: ['openssh'], 'rpm-ostree': ['openssh-server'] },
+  },
+  restic: {
+    label: 'restic',
+    packages: { pacman: ['restic'], apt: ['restic'], dnf: ['restic'], zypper: ['restic'], apk: ['restic'], 'rpm-ostree': ['restic'] },
   },
 }
 

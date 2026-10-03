@@ -19,6 +19,7 @@ import type { Hardware } from '~/shared/hardware'
 import type { CaddyChange, CaddyResult, CaddyState } from '~/shared/caddy'
 import type { ConfigAction, ConfigFileInfo } from '~/shared/configfiles'
 import type { UnlockInfo } from './gate'
+import type { BackupPlan, BackupSizes, BackupState, BackupSuggestion, LsEntry } from '~/shared/backup'
 
 /** Privileged over the root helper's Unix socket. */
 export class HelperClient implements Privileged {
@@ -185,14 +186,19 @@ export class HelperClient implements Privileged {
   readTextFile(token: string | undefined, path: string) {
     return this.call<TextFile>('POST', '/files/read', { token, path }, 60_000)
   }
-  async fileResponse(token: string | undefined, path: string, opts: { range?: string | null; download?: boolean }) {
+  fileResponse(token: string | undefined, path: string, opts: { range?: string | null; download?: boolean }) {
+    return this.stream('/files/raw', { token, path, range: opts.range ?? undefined, download: opts.download === true })
+  }
+
+  /** A route answering with a body that is passed on as it arrives (file contents). */
+  private async stream(route: string, body: unknown) {
     let res: Response
     try {
-      res = await fetch('http://helper/files/raw', {
+      res = await fetch(`http://helper${route}`, {
         method: 'POST',
         unix: this.socket,
         headers: { 'content-type': 'application/json' },
-        body: JSON.stringify({ token, path, range: opts.range ?? undefined, download: opts.download === true }),
+        body: JSON.stringify(body),
       } as RequestInit)
     } catch (e) {
       throw new HttpError(503, msg('helper_error_unreachable', { socket: this.socket, message: (e as Error).message }))
@@ -342,5 +348,33 @@ export class HelperClient implements Privileged {
   }
   applyConfigFile(token: string | undefined, path: string, action: ConfigAction, content?: string) {
     return this.call<{ done: string; after?: ConfigFileInfo['after']; warning?: string }>('POST', '/pkg/config-apply', { token, path, action, content }, 180_000)
+  }
+
+  backupState(refresh?: boolean) {
+    return this.call<BackupState>('POST', '/backup/state', { refresh: refresh === true }, 600_000)
+  }
+  backupSuggest() {
+    return this.call<BackupSuggestion>('POST', '/backup/suggest', {})
+  }
+  backupSizes(paths: string[], excludes: string[]) {
+    return this.call<BackupSizes>('POST', '/backup/sizes', { paths, excludes }, 600_000)
+  }
+  async backupLs(snapshot: string, dir: string) {
+    return (await this.call<{ data: LsEntry[] }>('POST', '/backup/ls', { snapshot, dir }, 180_000)).data
+  }
+  saveBackupPlan(token: string | undefined, plan: BackupPlan, secrets: Record<string, string>) {
+    return this.call<BackupState>('POST', '/backup/save', { token, plan, secrets }, 600_000)
+  }
+  disableBackup(token: string | undefined) {
+    return this.call<BackupState>('POST', '/backup/disable', { token }, 120_000)
+  }
+  async backupPassword(token: string | undefined) {
+    return (await this.call<{ data: string }>('POST', '/backup/password', { token })).data
+  }
+  async startBackup(token: string | undefined, kind: 'backup' | 'check') {
+    await this.call('POST', '/backup/start', { token, kind })
+  }
+  backupDump(token: string | undefined, snapshot: string, path: string) {
+    return this.stream('/backup/dump', { token, snapshot, path })
   }
 }

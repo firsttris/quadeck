@@ -12,6 +12,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
+      # tests/backup.test.ts runs against the real restic
+      - run: sudo apt-get install -y --no-install-recommends restic
       - run: bun run typecheck
       - run: bun run test
       - name: E2E (production build against fixtures)

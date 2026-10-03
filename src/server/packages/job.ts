@@ -15,6 +15,8 @@ import { baseName, validatePath } from '~/shared/files'
 import { imageUpdates } from './images'
 import { detectProvider, type Step } from './providers'
 import { release } from 'node:os'
+import { SystemBackup } from '../backup/backend'
+import { STOP_UNIT, SNAPSHOT_ID, absPathProblem } from '~/shared/backup'
 import { isFlavor, kernelInfos, kernelRemoveProblem, parseBootctlList, parsePacmanQ } from '~/shared/boot'
 
 export const EXIT_MARKER = '::quadeck-exit '
@@ -63,6 +65,15 @@ export function parseJobSpec(v: unknown): JobSpec {
       if (typeof o.toDir !== 'string' || validatePath(o.toDir)) throw new HttpError(400, msg('packages_error_invalidTarget'))
       return { kind: o.kind, paths: paths as string[], toDir: o.toDir, overwrite: o.overwrite === true }
     }
+    case 'backup-restore': {
+      const paths = Array.isArray(o.paths) ? o.paths : []
+      const stop = Array.isArray(o.stop) ? o.stop : []
+      if (typeof o.snapshot !== 'string' || !SNAPSHOT_ID.test(o.snapshot)) throw new HttpError(400, msg('backup_error_snapshot'))
+      if (!paths.length || paths.length > 200 || paths.some((p) => absPathProblem(p))) throw new HttpError(400, msg('packages_error_invalidPaths'))
+      if (o.target !== undefined && absPathProblem(o.target)) throw new HttpError(400, msg('packages_error_invalidTarget'))
+      if (stop.length > 30 || !stop.every((u) => typeof u === 'string' && STOP_UNIT.test(u) && !u.startsWith('-'))) throw new HttpError(400, msg('backup_error_unit'))
+      return { kind: 'backup-restore', snapshot: o.snapshot, paths: paths as string[], ...(o.target !== undefined ? { target: o.target as string } : {}), stop: stop as string[] }
+    }
     case 'kernel-install':
     case 'kernel-remove':
       if (!isFlavor(o.flavor)) throw new HttpError(400, msg('boot_error_unknownKernel'))
@@ -96,6 +107,10 @@ export function jobTitle(spec: JobSpec): string {
       return msg('packages_job_installKernel', { flavor: spec.flavor })
     case 'kernel-remove':
       return msg('packages_job_removeKernel', { flavor: spec.flavor })
+    case 'backup-restore': {
+      const what = spec.paths.length === 1 ? spec.paths[0]! : msg('common_items', { n: spec.paths.length })
+      return spec.target ? msg('backup_job_restoreTo', { what, target: spec.target }) : msg('backup_job_restoreInPlace', { what })
+    }
     case 'fs-copy':
     case 'fs-move':
     case 'fs-delete': {
@@ -191,6 +206,8 @@ async function execute(spec: JobSpec): Promise<number> {
       if (problem) throw new Error(`${spec.flavor}: ${problem}`)
       return exec(['pacman', '-Rns', '--noconfirm', '--noprogressbar', '--color', 'never', '--', spec.flavor, ...(installed.has(`${spec.flavor}-headers`) ? [`${spec.flavor}-headers`] : [])])
     }
+    case 'backup-restore':
+      return new SystemBackup({ log: out }).restore(spec)
     case 'images-update':
       // Rolls back to the previous image if the restarted unit fails.
       return exec(['podman', 'auto-update', '--rollback=true'])

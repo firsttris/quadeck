@@ -14,6 +14,7 @@ import { DISK_NAME } from '../smart/backend'
 import { parseSave, parseTimerAction } from '../timers/backend'
 import { parseFstabChange } from '../fstab/parse'
 import { parseCaddyChange } from '~/shared/caddy'
+import { parseBackupPlan, parseSecrets } from '~/shared/backup'
 import { parseBootEntryChange } from '~/shared/boot'
 import { parseUserChange } from '../users/parse'
 import { UNIT_ACTIONS, type Privileged, type UnitAction } from './actions'
@@ -21,6 +22,7 @@ import { UNIT_ACTIONS, type Privileged, type UnitAction } from './actions'
 type Handler = (body: Record<string, unknown>, p: Privileged) => Promise<unknown>
 
 const str = (v: unknown) => (typeof v === 'string' ? v : undefined)
+const strs = (v: unknown) => (Array.isArray(v) && v.length <= 200 && v.every((x) => typeof x === 'string') ? (v as string[]) : [])
 const names = (v: unknown) => {
   if (!Array.isArray(v) || !v.length || v.length > 200 || !v.every((n) => typeof n === 'string' && PACKAGE_NAME.test(n))) throw new HttpError(400, msg('api_packages_invalidNames'))
   return v as string[]
@@ -151,6 +153,25 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/caddy/state': (_b, p) => p.caddyState(),
   '/caddy/revision': async (b, p) => ({ data: await p.caddyRevision(str(b.id) ?? '') }),
   '/caddy/apply': (b, p) => p.applyCaddy(str(b.token), parseCaddyChange(b.change), str(b.expected)),
+  '/backup/state': (b, p) => p.backupState(b.refresh === true),
+  '/backup/suggest': (_b, p) => p.backupSuggest(),
+  '/backup/sizes': (b, p) => p.backupSizes(strs(b.paths), strs(b.excludes)),
+  '/backup/ls': async (b, p) => ({ data: await p.backupLs(str(b.snapshot) ?? '', str(b.dir) ?? '') }),
+  '/backup/save': (b, p) => {
+    // Checked again here, where root writes it.
+    const { plan, error } = parseBackupPlan(b.plan)
+    if (!plan) throw new HttpError(400, error!)
+    const s = parseSecrets(plan.repo.kind, b.secrets)
+    if (!s.secrets) throw new HttpError(400, s.error!)
+    return p.saveBackupPlan(str(b.token), plan, s.secrets)
+  },
+  '/backup/disable': (b, p) => p.disableBackup(str(b.token)),
+  '/backup/password': async (b, p) => ({ data: await p.backupPassword(str(b.token)) }),
+  '/backup/start': async (b, p) => {
+    await p.startBackup(str(b.token), b.kind === 'check' ? 'check' : 'backup')
+    return { ok: true }
+  },
+  '/backup/dump': (b, p) => p.backupDump(str(b.token), str(b.snapshot) ?? '', str(b.path) ?? ''),
   '/caddy/path': (b, p) => p.setCaddyPath(str(b.token), b.path === null ? null : (str(b.path) ?? '')),
   '/users/apply': (b, p) => p.applyUser(str(b.token), parseUserChange(b.change)),
   '/boot/default': (b, p) => p.setBootDefault(str(b.token), str(b.id) ?? ''),

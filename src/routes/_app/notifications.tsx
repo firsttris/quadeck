@@ -247,6 +247,13 @@ function Rules({ settings, onSave }: { settings: NotifySettings; onSave: (s: Not
                 )}
               </span>
             )}
+            {r.key === 'backup' && (
+              <span className="mt-1 flex flex-wrap items-center gap-2 text-[12px] text-muted">
+                {m.notifications_rules_backupAfter()}
+                <input className="field w-[70px]" type="number" min={1} max={60} aria-label={m.notifications_rules_backupDays()} value={draft.backupDays} onChange={(e) => setDraft({ ...draft, backupDays: Math.min(60, Math.max(1, Number(e.target.value) || 2)) })} />
+                {m.notifications_rules_backupDaysAfter()}
+              </span>
+            )}
             {r.key === 'updates' && (
               <span className="mt-1 flex items-center gap-2 text-[12px] text-muted">
                 {m.notifications_rules_from()}
@@ -273,7 +280,7 @@ function Rules({ settings, onSave }: { settings: NotifySettings; onSave: (s: Not
             {m.notifications_rules_discard()}
           </button>
         )}
-        <button type="button" className="btn primary sm" disabled={!dirty} onClick={() => void onSave({ ...settings, rules: draft.rules, diskThreshold: draft.diskThreshold, recovery: draft.recovery, updatesHour: draft.updatesHour, speedMode: draft.speedMode, speedPercent: draft.speedPercent, speedMbit: draft.speedMbit })}>
+        <button type="button" className="btn primary sm" disabled={!dirty} onClick={() => void onSave({ ...settings, rules: draft.rules, diskThreshold: draft.diskThreshold, recovery: draft.recovery, updatesHour: draft.updatesHour, speedMode: draft.speedMode, speedPercent: draft.speedPercent, speedMbit: draft.speedMbit, backupDays: draft.backupDays })}>
           {m.notifications_rules_save()}
         </button>
       </div>

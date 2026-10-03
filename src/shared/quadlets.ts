@@ -109,22 +109,48 @@ function iniValues(text: string, section: string, key: string): string[] {
   return out
 }
 
-/** The volumes a Quadlet mounts: podman volume name (and .volume file) or the host directory. */
-function mounts(content: string, section: string, files: { name: string; content: string }[]) {
-  const named: { name: string; file?: string }[] = []
-  const binds: string[] = []
+/** One Volume= line: a host path or a podman volume (with the .volume file that creates it). */
+export interface QuadletMount {
+  kind: 'bind' | 'volume'
+  /** Host path (bind) or podman volume name. */
+  source: string
+  /** .volume Quadlet that creates the volume. */
+  file?: string
+  /** Path inside the container. */
+  dest: string
+  readOnly: boolean
+}
+
+/** The Volume= lines of a Quadlet; anonymous volumes are left out. */
+export function quadletMounts(content: string, section: string, files: { name: string; content: string }[]): QuadletMount[] {
+  const out: QuadletMount[] = []
   for (const v of iniValues(content, section, 'Volume')) {
     const parts = v.split(':')
     if (parts.length < 2) continue // anonymous volume
     const src = parts[0]!
-    if (/^[/.~%]/.test(src)) binds.push(src)
+    const dest = parts[1]!
+    const readOnly = (parts[2] ?? '').split(',').includes('ro')
+    if (/^[/.~%]/.test(src)) out.push({ kind: 'bind', source: src, dest, readOnly })
     else if (src.endsWith('.volume')) {
       const file = files.find((f) => f.name.split('/').pop() === src)
       const name = (file && iniValues(file.content, 'Volume', 'VolumeName')[0]) || `systemd-${src.replace(/\.volume$/, '')}`
-      named.push({ name, file: file?.name })
-    } else named.push({ name: src })
+      out.push({ kind: 'volume', source: name, file: file?.name, dest, readOnly })
+    } else out.push({ kind: 'volume', source: src, dest, readOnly })
   }
-  return { named, binds }
+  return out
+}
+
+function mounts(content: string, section: string, files: { name: string; content: string }[]) {
+  const all = quadletMounts(content, section, files)
+  return {
+    named: all.filter((m) => m.kind === 'volume').map((m) => ({ name: m.source, file: m.file })),
+    binds: all.filter((m) => m.kind === 'bind').map((m) => m.source),
+  }
+}
+
+/** Value of Key= lines in [section], continuation lines not joined. */
+export function quadletValues(content: string, section: string, key: string): string[] {
+  return iniValues(content, section, key)
 }
 
 /** files: every Quadlet file with its content, the one being deleted included. */

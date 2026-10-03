@@ -18,6 +18,8 @@ import type { BootEntryChange } from '~/shared/boot'
 import type { UsersBackend } from '../users/backend'
 import type { HardwareAdmin } from '../hardware/collect'
 import type { CaddyBackend } from '../caddy/backend'
+import type { BackupBackend } from '../backup/backend'
+import type { BackupPlan } from '~/shared/backup'
 import type { CaddyChange } from '~/shared/caddy'
 import type { UserChange } from '~/shared/users'
 import type { ConfigAction } from '~/shared/configfiles'
@@ -58,6 +60,7 @@ export class LocalPrivileged implements Privileged {
     private users: UsersBackend,
     private hw: HardwareAdmin,
     private caddy: CaddyBackend,
+    private backup: BackupBackend,
   ) {}
 
   async info() {
@@ -436,5 +439,40 @@ export class LocalPrivileged implements Privileged {
   async setCaddyPath(token: string | undefined, path: string | null) {
     this.gate.check(token)
     return this.caddy.setCaddyPath(path)
+  }
+
+  // ---------- backups (restic) ----------
+
+  backupState(refresh?: boolean) {
+    return this.backup.backupState(refresh)
+  }
+  backupSuggest() {
+    return this.backup.backupSuggest()
+  }
+  backupSizes(paths: string[], excludes: string[]) {
+    return this.backup.backupSizes(paths, excludes)
+  }
+  backupLs(snapshot: string, dir: string) {
+    return this.backup.backupLs(snapshot, dir)
+  }
+  async saveBackupPlan(token: string | undefined, plan: BackupPlan, secrets: Record<string, string>) {
+    this.gate.check(token)
+    return this.backup.saveBackupPlan(plan, secrets)
+  }
+  async disableBackup(token: string | undefined) {
+    this.gate.check(token)
+    return this.backup.disableBackup()
+  }
+  async backupPassword(token: string | undefined) {
+    this.gate.check(token)
+    return this.backup.backupPassword()
+  }
+  async startBackup(token: string | undefined, kind: 'backup' | 'check') {
+    this.gate.check(token)
+    return this.backup.startBackup(kind)
+  }
+  async backupDump(token: string | undefined, snapshot: string, path: string) {
+    this.gate.check(token)
+    return this.backup.backupDump(snapshot, path)
   }
 }
