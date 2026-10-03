@@ -68,6 +68,8 @@ export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAd
   /** Text file for the editor; keys and secrets only when unlocked (423 otherwise). */
   readTextFile(token: string | undefined, path: string): Promise<TextFile>
   writeTextFile(token: string | undefined, path: string, content: string, expected: string): Promise<TextFile>
+  /** The file as an HTTP response for the browser (Range, inline or download); keys and secrets only when unlocked. */
+  fileResponse(token: string | undefined, path: string, opts: { range?: string | null; download?: boolean }): Promise<Response>
   saveTimer(token: string | undefined, spec: TimerSpec, previous: string | undefined, enable: boolean): Promise<TimersState>
   deleteTimer(token: string | undefined, name: string): Promise<TimersState>
   setTimerSchedule(token: string | undefined, name: string, calendar: string): Promise<TimersState>

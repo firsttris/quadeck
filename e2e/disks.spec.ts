@@ -115,7 +115,7 @@ test.describe.serial('Dateien', () => {
     await login(page)
     await page.goto('/files?path=%2Fsrv%2Fscripts')
     const files = page.getByRole('region', { name: 'Ordnerinhalt' })
-    await expect(files.getByTestId('file-row')).toHaveCount(4) // .env hidden
+    await expect(files.getByTestId('file-row')).toHaveCount(5) // .env hidden
 
     // Read without unlocking, save after it, with the diff first.
     await files.getByRole('button', { name: 'backup.sh öffnen' }).click()
@@ -150,5 +150,34 @@ test.describe.serial('Dateien', () => {
     await page.getByRole('dialog', { name: '.env' }).getByLabel('Inhalt von .env').fill('X=1\n')
     await page.getByRole('dialog', { name: '.env' }).getByRole('button', { name: 'Abbrechen' }).click()
     await expect(page.getByRole('dialog', { name: 'Ungespeicherte Änderungen verwerfen?' })).toBeVisible()
+  })
+
+  test('photos and PDFs open in a new tab, the rest downloads; videos can jump (Range)', async ({ page, context }) => {
+    await login(page)
+    await page.goto('/files?path=%2Fmnt%2Fdisk2%2FFotos%2F2024')
+    const files = page.getByRole('region', { name: 'Ordnerinhalt' })
+    const [tab] = await Promise.all([context.waitForEvent('page'), files.getByRole('button', { name: 'IMG_0001.jpg im neuen Tab öffnen' }).click()])
+    await tab.waitForLoadState()
+    expect(tab.url()).toContain('raw=%2Fmnt%2Fdisk2%2FFotos%2F2024%2FIMG_0001.jpg')
+    await tab.close()
+
+    // The same request the browser makes for a video seek.
+    const part = await page.request.get('/api/files?raw=%2Fmnt%2Fdisk2%2FFotos%2F2024%2FIMG_0001.jpg', { headers: { range: 'bytes=0-1' } })
+    expect(part.status()).toBe(206)
+    expect(part.headers()['content-type']).toBe('image/jpeg')
+    expect([...(await part.body())]).toEqual([0xff, 0xd8])
+    expect((await page.request.get('/api/files?raw=%2Fetc%2Fpasswd')).status()).toBe(403)
+
+    // Download from the row menu; a secret asks for the unlock first.
+    await page.goto('/files?path=%2Fsrv%2Fscripts')
+    await files.getByRole('button', { name: 'Aktionen für NOTES.txt' }).click()
+    const [download] = await Promise.all([page.waitForEvent('download'), page.getByRole('menuitem', { name: 'Herunterladen' }).click()])
+    expect(download.suggestedFilename()).toBe('NOTES.txt')
+    expect((await page.request.get('/api/files?raw=%2Fsrv%2Fscripts%2F.env')).status()).toBe(423)
+    await page.getByLabel('versteckte').check()
+    await files.getByRole('button', { name: 'Aktionen für .env' }).click()
+    await page.getByRole('menuitem', { name: 'Herunterladen' }).click()
+    const [secret] = await Promise.all([page.waitForEvent('download'), unlock(page)])
+    expect(secret.suggestedFilename()).toMatch(/env$/) // Chromium drops the leading dot
   })
 })

@@ -1,13 +1,14 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { bytes, diskSize } from '~/lib/format'
-import { baseName, fileKind, joinPath, parentOf, validateName, type DirListing, type FileEntry, type FileRoot } from '~/shared/files'
+import { baseName, fileKind, isSensitivePath, joinPath, parentOf, validateName, type DirListing, type FileEntry, type FileRoot } from '~/shared/files'
 import { useActions } from './Actions'
 import { Glyph } from './Glyph'
 import { useJobs } from './Jobs'
 import { ConfirmDialog, Modal } from './Modal'
 import { useToast } from './Toast'
 import { TextFileEditor } from './TextFileEditor'
-import { useGuardedApi } from './Unlock'
+import { RowMenu } from './RowMenu'
+import { useGuardedApi, useUnlock } from './Unlock'
 import { localeOf } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
 
@@ -34,6 +35,23 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
   const [hidden, setHidden] = useState(false)
   const [sort, setSort] = useState<Sort>('name')
   const [open, setOpen] = useState<string | null>(null)
+  const unlock = useUnlock()
+
+  /** In a new tab (what the browser can show) or as a download; keys and secrets ask for the unlock first. */
+  const openRaw = async (p: string, download: boolean) => {
+    if (isSensitivePath(p) && !(await unlock.ensure())) return
+    const url = `/api/files?raw=${encodeURIComponent(p)}${download ? '&download=1' : ''}`
+    if (!download) {
+      window.open(url, '_blank', 'noopener')
+      return
+    }
+    const a = document.createElement('a')
+    a.href = url
+    a.download = baseName(p)
+    document.body.appendChild(a)
+    a.click()
+    a.remove()
+  }
   const [dialog, setDialog] = useState<null | { kind: 'mkdir' } | { kind: 'rename'; entry: FileEntry } | { kind: 'delete' } | { kind: 'overwrite'; names: string[] }>(null)
 
   useEffect(() => {
@@ -208,12 +226,13 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
                 <th className="hidden sm:table-cell">{m.common_size()}</th>
                 <th className="hidden md:table-cell">{m.files_explorer_modified()}</th>
                 <th className="hidden lg:table-cell">{m.files_explorer_owner()}</th>
+                <th className="w-10" />
               </tr>
             </thead>
             <tbody>
               {listing && entries.length === 0 && (
                 <tr>
-                  <td colSpan={5} className="text-muted">
+                  <td colSpan={6} className="text-muted">
                     {m.files_explorer_empty()}
                   </td>
                 </tr>
@@ -235,8 +254,18 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
                           <button type="button" className="truncate text-left hover:underline" onClick={() => onNavigate(joinPath(cur, e.name))}>
                             {e.name}
                           </button>
-                        ) : e.type === 'file' && (fileKind(e.name) === 'text' || fileKind(e.name) === 'unknown') ? (
-                          <button type="button" className="truncate text-left hover:underline" onClick={() => setOpen(joinPath(cur, e.name))} aria-label={m.files_editor_open({ name: e.name })}>
+                        ) : e.type === 'file' ? (
+                          <button
+                            type="button"
+                            className="truncate text-left hover:underline"
+                            onClick={() => {
+                              const p = joinPath(cur, e.name)
+                              const k = fileKind(e.name)
+                              if (k === 'text' || k === 'unknown') setOpen(p)
+                              else void openRaw(p, k !== 'browser')
+                            }}
+                            aria-label={fileKind(e.name) === 'browser' ? m.files_open_tabLabel({ name: e.name }) : fileKind(e.name) === 'binary' ? m.files_open_downloadLabel({ name: e.name }) : m.files_editor_open({ name: e.name })}
+                          >
                             {e.name}
                           </button>
                         ) : (
@@ -255,6 +284,18 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
                     </td>
                     <td className="hidden font-mono text-[12px] text-subtle lg:table-cell">
                       {e.owner}:{e.group} {e.mode}
+                    </td>
+                    <td className="w-10 text-right">
+                      {e.type === 'file' && (
+                        <RowMenu
+                          label={m.files_open_actions({ name: e.name })}
+                          items={[
+                            ...(['text', 'unknown'].includes(fileKind(e.name)) ? [{ label: m.files_open_editor(), onSelect: () => setOpen(joinPath(cur, e.name)) }] : []),
+                            ...(['text', 'browser'].includes(fileKind(e.name)) ? [{ label: m.files_open_tab(), onSelect: () => void openRaw(joinPath(cur, e.name), false) }] : []),
+                            { label: m.files_open_download(), onSelect: () => void openRaw(joinPath(cur, e.name), true) },
+                          ]}
+                        />
+                      )}
                     </td>
                   </tr>
                 )

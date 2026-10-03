@@ -155,6 +155,22 @@ interrupt it. Conflicts and paths outside the areas are refused before the job s
 failing job. Every change needs the [unlock](security.md#unlock). There is no trash: deleted is
 deleted.
 
+### Opening files
+
+A click on a file does what fits it: text opens in Quadeck's editor (below); photos, PDFs, audio
+and videos the browser can play (MP4, WebM, MP3, FLAC …) open in a **new tab**; everything else
+(archives, ISOs, MKV …) is **downloaded**. The **⋯** menu of every file offers the other ways too:
+**Open in a new tab** and **Download**.
+
+Files are streamed, not loaded first, and the browser can ask for parts of them (HTTP range
+requests): a video starts right away and can jump to any point, even with many gigabytes over the
+LAN. Whether a video plays is up to the browser – MP4 with H.264 and WebM everywhere, MKV often only
+in Chrome, HEVC rarely. Quadeck does not convert anything; for that there is Jellyfin.
+
+What the browser shows gets headers that keep it from running anything on Quadeck's address
+(`X-Content-Type-Options: nosniff`, a sandboxing `Content-Security-Policy`). HTML and SVG files are
+never shown as pages – they open as text.
+
 ### Text files
 
 A click on a text file opens it in the editor: scripts, patches, notes, configuration (`.sh`,
@@ -166,6 +182,6 @@ Reading is free; **Next** shows the diff and **Save** needs the unlock. The file
 the original and renamed over it, so it is never half written; owner, mode and Windows line endings
 (CRLF) stay as they were. If the file changed since it was opened, saving is refused.
 
-Keys and credentials are only shown after unlocking: everything in `.ssh`, `.gnupg`, `.docker`,
+Keys and credentials are only shown (or downloaded) after unlocking: everything in `.ssh`, `.gnupg`, `.docker`,
 `.aws`, `.kube` and similar folders, `.env` files, `id_*` keys, `*.key`, `*.pem`, `.netrc`,
 `.pgpass` and the like.
