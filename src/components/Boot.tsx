@@ -7,6 +7,7 @@ import {
   describeTimeout,
   isEditableEntry,
   newEntryContent,
+  hiddenAutoEntry,
   timeoutChoices,
   kernelRemoveProblem,
   parseCmdline,
@@ -281,47 +282,49 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
               </div>
               <table className="tbl">
                 <tbody>
-                  {state.entries.map((e) => (
-                    <tr key={e.id} data-testid="boot-entry">
-                      <td>
-                        <div className="font-medium">{e.title}</div>
-                        <div className="font-mono text-[12px] text-muted">{e.version ?? e.id}</div>
-                        {e.missing.length > 0 && <div className="text-[12px] text-[#ff8a80]">{m.boot_missing({ files: e.missing.join(', ') })}</div>}
-                      </td>
-                      <td>
-                        <div className="flex flex-wrap gap-1.5">
-                          {e.isDefault && <Pill tone="ok">{m.boot_default()}</Pill>}
-                          {e.isSelected && <span className="chip">{m.boot_running()}</span>}
-                          {e.isOneshot && <span className="chip q">{m.boot_nextBoot()}</span>}
-                        </div>
-                      </td>
-                      <td className="whitespace-nowrap text-right">
-                        {!readonly && e.type !== 'auto' && (
-                          <div className="inline-flex gap-1.5">
-                            {!e.isDefault && (
-                              <button type="button" className="btn sm" disabled={!!busy || e.missing.length > 0} onClick={() => void change('default', { default: e.id }, m.boot_nowDefault({ name: `${e.title} ${e.version ?? ''}` }))}>
-                                {m.boot_makeDefault()}
-                              </button>
-                            )}
-                            <button type="button" className="btn sm" disabled={e.missing.length > 0} onClick={() => setReboot({ entry: e })} aria-label={m.boot_bootOnceWith({ name: `${e.title} ${e.version ?? ''}` })}>
-                              {m.boot_bootOnce()}
-                            </button>
-                            {isEditableEntry(e) && (
-                              <RowMenu
-                                label={m.boot_editor_actions({ title: e.title })}
-                                items={[
-                                  { label: e.isDefault || e.isSelected ? m.boot_editor_editCopy() : m.boot_editor_edit(), onSelect: () => void openEntry(e, false) },
-                                  { label: m.boot_editor_copy(), onSelect: () => void openEntry(e, true) },
-                                  { label: m.boot_editor_rename(), onSelect: () => setRename(e.id) },
-                                  { label: m.common_deleteDots(), danger: true, disabled: e.isDefault || e.isSelected || e.isOneshot, separator: true, onSelect: () => setRemove(e) },
-                                ]}
-                              />
-                            )}
+                  {state.entries
+                    .filter((e) => !hiddenAutoEntry(e, state.firmwareSetup))
+                    .map((e) => (
+                      <tr key={e.id} data-testid="boot-entry">
+                        <td>
+                          <div className="font-medium">{e.title}</div>
+                          <div className="font-mono text-[12px] text-muted">{e.version ?? e.id}</div>
+                          {e.missing.length > 0 && <div className="text-[12px] text-[#ff8a80]">{m.boot_missing({ files: e.missing.join(', ') })}</div>}
+                        </td>
+                        <td>
+                          <div className="flex flex-wrap gap-1.5">
+                            {e.isDefault && <Pill tone="ok">{m.boot_default()}</Pill>}
+                            {e.isSelected && <span className="chip">{m.boot_running()}</span>}
+                            {e.isOneshot && <span className="chip q">{m.boot_nextBoot()}</span>}
                           </div>
-                        )}
-                      </td>
-                    </tr>
-                  ))}
+                        </td>
+                        <td className="whitespace-nowrap text-right">
+                          {!readonly && (
+                            <div className="inline-flex gap-1.5">
+                              {!e.isDefault && (
+                                <button type="button" className="btn sm" disabled={!!busy || e.missing.length > 0} onClick={() => void change('default', { default: e.id }, m.boot_nowDefault({ name: `${e.title} ${e.version ?? ''}` }))}>
+                                  {m.boot_makeDefault()}
+                                </button>
+                              )}
+                              <button type="button" className="btn sm" disabled={e.missing.length > 0} onClick={() => setReboot({ entry: e })} aria-label={m.boot_bootOnceWith({ name: `${e.title} ${e.version ?? ''}` })}>
+                                {m.boot_bootOnce()}
+                              </button>
+                              {isEditableEntry(e) && (
+                                <RowMenu
+                                  label={m.boot_editor_actions({ title: e.title })}
+                                  items={[
+                                    { label: e.isDefault || e.isSelected ? m.boot_editor_editCopy() : m.boot_editor_edit(), onSelect: () => void openEntry(e, false) },
+                                    { label: m.boot_editor_copy(), onSelect: () => void openEntry(e, true) },
+                                    { label: m.boot_editor_rename(), onSelect: () => setRename(e.id) },
+                                    { label: m.common_deleteDots(), danger: true, disabled: e.isDefault || e.isSelected || e.isOneshot, separator: true, onSelect: () => setRemove(e) },
+                                  ]}
+                                />
+                              )}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    ))}
                 </tbody>
               </table>
             </section>

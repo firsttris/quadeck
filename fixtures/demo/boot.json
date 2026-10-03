@@ -51,6 +51,16 @@
       "size": 176160768
     },
     {
+      "id": "auto-windows",
+      "title": "Windows Boot Manager",
+      "type": "auto",
+      "initrd": [],
+      "isDefault": false,
+      "isSelected": false,
+      "isOneshot": false,
+      "missing": []
+    },
+    {
       "id": "auto-reboot-to-firmware-setup",
       "title": "Reboot Into Firmware Interface",
       "type": "auto",

@@ -90,6 +90,9 @@ and making sure the server comes back.
   which one is running. **Make default** sets the default (`bootctl set-default`). **Boot this once …** boots once into another entry (`bootctl set-oneshot`) – for trying a new kernel
   or falling back to linux-lts; the reboot after that uses the default again, so a reset is
   enough when something goes wrong. A pending one-time entry is shown and can be withdrawn.
+  Entries systemd-boot finds by itself (Windows, macOS, the EFI shell) get both buttons too;
+  its "Reboot", "Power Off" and "Reboot Into Firmware Interface" entries are not listed, the page
+  has its own buttons for that.
 - **Editing entries** (the `.conf` files in `loader/entries`, from the row menu "⋯"):
   **Edit …**, **Make a copy …**, **Rename …**, **Delete …** and **New entry …** (filled in
   from the default entry). The editor has two views of the same file:
