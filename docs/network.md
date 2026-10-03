@@ -62,11 +62,25 @@ routing table on request.
 
 <img src="screenshot-proxy.png" alt="Reverse proxy: the Caddyfile found through caddy.container, domains with their targets" width="900">
 
-The tab **Reverse proxy** edits the Caddyfile: each site block is a row (domain → target). Simple
-blocks – a domain with nothing but `reverse_proxy <target>` – can be added, changed and deleted in
-a form; everything else (global options, snippets, `import`, headers, auth, matchers) stays exactly
-as written and is edited in the text editor, which jumps to the block. Target suggestions are the
-containers with a published port (`localhost:<port>`).
+The tab **Reverse proxy** edits the Caddyfile: each site block is a row (domain → target, with the
+options it uses). **New domain** and **Edit** open a dialog for that one entry:
+
+- **Domains** (several separated by commas) and **targets** (several: Caddy balances the load).
+  Suggestions are the containers with a published port (`localhost:<port>`).
+- **Only reachable from the home network** – requests from outside private address ranges (LAN,
+  VPN) get 403 (`@outside not remote_ip private_ranges` + `respond @outside 403`).
+- **Password protection** – `basic_auth` with one user. The password is turned into a bcrypt hash
+  on the server; only the hash is written. Editing again keeps it unless a new one is typed.
+- **Compression** – `encode zstd gzip`.
+- **Target uses HTTPS with its own certificate** – for Proxmox, UniFi and the like:
+  `transport http { tls_insecure_skip_verify }`.
+- **Local certificate** – `tls internal`, for names that do not exist on the internet.
+- **Advanced**: further lines inside `reverse_proxy { … }` (e.g. `header_up`) and further lines of
+  the block. Whatever the dialog does not know is kept there as written – nothing gets lost.
+
+Blocks that are more than "domain → one target" (several `reverse_proxy` with paths, `file_server`,
+`handle` …) are edited as text – only that block, not the whole file. Global options, snippets and
+`import` stay as written; **Edit Caddyfile** opens the whole file.
 
 **Which file.** The first that applies:
 

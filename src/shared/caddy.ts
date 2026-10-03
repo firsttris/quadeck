@@ -16,6 +16,8 @@ export interface CaddyBlock {
   addresses: string[]
   /** proxy only. */
   upstreams?: string[]
+  /** proxy only: the options the dialog shows (everything else is kept in `extra`). */
+  options?: SiteOptions
   /** Character range in the file, end exclusive. */
   start: number
   end: number
@@ -59,7 +61,27 @@ export interface CaddyState {
   manual?: string
 }
 
-export type CaddyChange = { kind: 'site'; /** First address of the block to replace; empty = new. */ previous?: string; addresses: string[]; upstreams: string[] } | { kind: 'delete'; address: string } | { kind: 'text'; content: string }
+/** What the site dialog edits besides domains and targets. */
+export interface SiteOptions {
+  /** Only from private addresses (LAN, VPN); everyone else gets 403. */
+  lanOnly: boolean
+  /** encode zstd gzip */
+  compress: boolean
+  /** The target speaks HTTPS with a self-signed certificate (Proxmox, UniFi …). */
+  insecureTls: boolean
+  /** Certificate from Caddy's own CA, for names that do not exist on the internet. */
+  tlsInternal: boolean
+  /** basic_auth with one user; `password` is turned into `hash` on the server, never written. */
+  auth?: { user: string; hash?: string; password?: string }
+  /** Lines inside reverse_proxy { } the dialog does not know (header_up …). */
+  proxyExtra: string
+  /** Other directives of the block, as written. */
+  extra: string
+}
+
+export const NO_OPTIONS: SiteOptions = { lanOnly: false, compress: false, insecureTls: false, tlsInternal: false, proxyExtra: '', extra: '' }
+
+export type CaddyChange = { kind: 'site'; /** First address of the block to replace; empty = new. */ previous?: string; addresses: string[]; upstreams: string[]; options?: SiteOptions } | { kind: 'delete'; address: string } | { kind: 'text'; content: string } | { kind: 'block'; /** A domain of the block to replace. */ address: string; text: string }
 
 export interface CaddyResult {
   state: CaddyState
@@ -128,13 +150,96 @@ function bodyLines(block: string): string[] {
 
 const UPSTREAM_TOKEN = /^(?:(?:https?|h2c):\/\/)?(?:\[[0-9a-f:]+\]|[A-Za-z0-9_.-]+)(?::\d{1,5})?$|^unix\/\/\S+$/
 
-function proxyUpstreams(block: string): string[] | undefined {
-  const lines = bodyLines(block)
-  if (lines.length !== 1) return undefined
-  const tokens = lines[0]!.split(/\s+/)
-  if (tokens[0] !== 'reverse_proxy' || tokens.length < 2) return undefined
-  const ups = tokens.slice(1)
-  return ups.every((u) => UPSTREAM_TOKEN.test(u)) ? ups : undefined
+/** Top-level directives of a block body: a line, or a line ending in "{" with everything up to its "}". Indentation removed. */
+export function directives(body: string): string[] {
+  const out: string[] = []
+  let cur: string[] = []
+  let depth = 0
+  for (const raw of body.split('\n')) {
+    const line = raw.trim()
+    if (!line && !depth) continue
+    cur.push(line)
+    const code = line.replace(/(^|\s)#.*$/, '').replace(/"[^"]*"|`[^`]*`/g, '')
+    depth += (code.match(/\{/g) ?? []).length - (code.match(/\}/g) ?? []).length
+    if (depth <= 0) {
+      out.push(indentLines(cur))
+      cur = []
+      depth = 0
+    }
+  }
+  if (cur.length) out.push(indentLines(cur))
+  return out
+}
+
+/** Lines of a directive with nested blocks indented by tabs again. */
+function indentLines(lines: string[]): string {
+  let depth = 0
+  return lines
+    .map((l) => {
+      if (/^\}/.test(l)) depth = Math.max(0, depth - 1)
+      const out = `${'\t'.repeat(depth)}${l}`
+      const code = l.replace(/(^|\s)#.*$/, '').replace(/"[^"]*"|`[^`]*`/g, '')
+      depth = Math.max(0, depth + (code.match(/\{/g) ?? []).length - (code.match(/\}/g) ?? []).length + (/^\}/.test(l) ? 1 : 0))
+      return out
+    })
+    .join('\n')
+}
+
+const innerOf = (directive: string) => directive.slice(directive.indexOf('{') + 1, directive.lastIndexOf('}'))
+const headOf = (directive: string) =>
+  directive
+    .split('\n')[0]!
+    .replace(/(^|\s)#.*$/, '')
+    .replace(/\s*\{\s*$/, '')
+    .trim()
+const BCRYPT = /^\$2[aby]\$\d\d\$[./A-Za-z0-9]{53}$/
+
+/** Domains → targets with the options the dialog knows; undefined when the block is more than that (then: text). */
+export function siteForm(block: string): { upstreams: string[]; options: SiteOptions } | undefined {
+  const dirs = directives(innerOf(block))
+  const opts: SiteOptions = { ...NO_OPTIONS }
+  const extra: string[] = []
+  let upstreams: string[] | undefined
+  const matchers = new Map<string, number>()
+  for (const [i, d] of dirs.entries()) {
+    const tokens = headOf(d).split(/\s+/)
+    const hasBlock = d.includes('\n') || /\{\s*$/.test(d.split('\n')[0]!.replace(/(^|\s)#.*$/, ''))
+    if (tokens[0] === 'reverse_proxy') {
+      const ups = tokens.slice(1)
+      // a second one, or one with a matcher: more than the dialog can show
+      if (upstreams || !ups.length || !ups.every((u) => UPSTREAM_TOKEN.test(u))) return undefined
+      upstreams = ups
+      if (hasBlock) {
+        const rest: string[] = []
+        for (const sub of directives(innerOf(d))) {
+          const t = headOf(sub).split(/\s+/)
+          const inner = sub.includes('{') ? directives(innerOf(sub)) : []
+          if (t[0] === 'transport' && t[1] === 'http' && t.length === 2 && inner.length === 1 && inner[0] === 'tls_insecure_skip_verify') opts.insecureTls = true
+          else rest.push(sub)
+        }
+        opts.proxyExtra = rest.join('\n')
+      }
+    } else if (tokens[0] === 'encode' && !hasBlock && tokens.length > 1 && tokens.slice(1).every((t) => t === 'zstd' || t === 'gzip')) opts.compress = true
+    else if (tokens.join(' ') === 'tls internal' && !hasBlock) opts.tlsInternal = true
+    else if ((tokens[0] === 'basic_auth' || tokens[0] === 'basicauth') && tokens.length === 1 && hasBlock && !opts.auth) {
+      const users = directives(innerOf(d))
+      const u = users.length === 1 ? users[0]!.split(/\s+/) : []
+      if (u.length === 2 && BCRYPT.test(u[1]!)) opts.auth = { user: u[0]!, hash: u[1]! }
+      else extra.push(d)
+    } else if (/^@\S+$/.test(tokens[0] ?? '') && tokens.slice(1).join(' ') === 'not remote_ip private_ranges' && !hasBlock) matchers.set(tokens[0]!, i)
+    else extra.push(d)
+  }
+  if (!upstreams) return undefined
+  // LAN only: the matcher and the 403 for it, as the dialog writes them.
+  for (const [name] of matchers) {
+    const r = extra.findIndex((d) => d === `respond ${name} 403` || d === `abort ${name}`)
+    if (r >= 0 && !opts.lanOnly) {
+      extra.splice(r, 1)
+      opts.lanOnly = true
+    } else extra.push(`${name} not remote_ip private_ranges`)
+  }
+  opts.extra = extra.join('\n')
+  return { upstreams, options: opts }
 }
 
 export function parseCaddyfile(text: string): ParsedCaddyfile {
@@ -176,8 +281,8 @@ export function parseCaddyfile(text: string): ParsedCaddyfile {
     else if (/^&?\(.+\)$/.test(header)) blocks.push({ ...base, kind: 'snippet', addresses: [header] })
     else {
       const addresses = header.split(/[\s,]+/).filter(Boolean)
-      const upstreams = proxyUpstreams(blockText)
-      blocks.push(upstreams ? { ...base, kind: 'proxy', addresses, upstreams } : { ...base, kind: 'site', addresses })
+      const form = siteForm(blockText)
+      blocks.push(form ? { ...base, kind: 'proxy', addresses, upstreams: form.upstreams, options: form.options } : { ...base, kind: 'site', addresses })
     }
     i = end
   }
@@ -200,7 +305,40 @@ export function upstreamProblem(u: string): string | undefined {
   return undefined
 }
 
-export const renderSite = (addresses: string[], upstreams: string[]) => `${addresses.join(', ')} {\n\treverse_proxy ${upstreams.join(' ')}\n}`
+const tabbed = (text: string, depth: number) =>
+  text
+    .split('\n')
+    .filter((l) => l.trim())
+    .map((l) => '\t'.repeat(depth) + l)
+
+/** A site block from the dialog; the order does not matter to Caddy (it sorts directives itself). */
+export function renderSite(addresses: string[], upstreams: string[], o: SiteOptions = NO_OPTIONS): string {
+  const lines: string[] = []
+  if (o.tlsInternal) lines.push('\ttls internal')
+  if (o.lanOnly) lines.push('\t@outside not remote_ip private_ranges', '\trespond @outside 403')
+  if (o.auth) lines.push('\tbasic_auth {', `\t\t${o.auth.user} ${o.auth.hash ?? '<bcrypt hash of the new password>'}`, '\t}')
+  if (o.compress) lines.push('\tencode zstd gzip')
+  const inner = [...(o.insecureTls ? ['transport http {', '\ttls_insecure_skip_verify', '}'] : []), ...tabbed(o.proxyExtra, 0)]
+  if (inner.length) lines.push(`\treverse_proxy ${upstreams.join(' ')} {`, ...inner.map((l) => `\t\t${l}`), '\t}')
+  else lines.push(`\treverse_proxy ${upstreams.join(' ')}`)
+  lines.push(...tabbed(o.extra, 1))
+  return `${addresses.join(', ')} {\n${lines.join('\n')}\n}`
+}
+
+/** Why the dialog's options cannot be written, or undefined. */
+export function optionsProblem(o: SiteOptions): string | undefined {
+  if (o.auth) {
+    if (!/^[A-Za-z0-9._@-]{1,64}$/.test(o.auth.user)) return msg('proxy_errors_authUser')
+    if (!o.auth.hash && !o.auth.password) return msg('proxy_errors_authPassword')
+    if (o.auth.password !== undefined && o.auth.password.length < 8) return msg('proxy_errors_authShort')
+    if (o.auth.hash && !BCRYPT.test(o.auth.hash)) return msg('proxy_errors_authHash')
+  }
+  for (const t of [o.extra, o.proxyExtra]) {
+    const code = t.replace(/(^|\s)#.*$/gm, '').replace(/"[^"]*"|`[^`]*`/g, '')
+    if ((code.match(/\{/g) ?? []).length !== (code.match(/\}/g) ?? []).length) return msg('proxy_errors_braces')
+  }
+  return undefined
+}
 
 const tidy = (text: string) =>
   text
@@ -214,6 +352,17 @@ export function applyCaddyChange(text: string, change: CaddyChange): string {
   const { blocks } = parseCaddyfile(text)
   const sites = blocks.filter((b) => b.kind === 'proxy' || b.kind === 'site')
   const find = (address: string) => sites.find((b) => b.addresses.includes(address))
+  if (change.kind === 'block') {
+    const b = find(change.address)
+    if (!b) throw new Error(msg('proxy_errors_notInFile', { address: change.address }))
+    const parsed = parseCaddyfile(change.text)
+    if (parsed.unstructured || parsed.blocks.length !== 1 || (parsed.blocks[0]!.kind !== 'proxy' && parsed.blocks[0]!.kind !== 'site')) throw new Error(msg('proxy_errors_oneBlock'))
+    for (const a of parsed.blocks[0]!.addresses) {
+      const other = find(a)
+      if (other && other !== b) throw new Error(msg('proxy_errors_exists', { address: a, line: other.line }))
+    }
+    return text.slice(0, b.start) + change.text.trim() + text.slice(b.end)
+  }
   if (change.kind === 'delete') {
     const b = find(change.address)
     if (!b) throw new Error(msg('proxy_errors_notInFile', { address: change.address }))
@@ -231,6 +380,9 @@ export function applyCaddyChange(text: string, change: CaddyChange): string {
     const p = upstreamProblem(u)
     if (p) throw new Error(p)
   }
+  const options = change.options ?? NO_OPTIONS
+  const op = optionsProblem(options)
+  if (op) throw new Error(op)
   const previous = change.previous ? find(change.previous) : undefined
   if (change.previous && !previous) throw new Error(msg('proxy_errors_notInFile', { address: change.previous! }))
   if (previous && previous.kind !== 'proxy') throw new Error(msg('proxy_errors_custom', { address: change.previous! }))
@@ -238,7 +390,7 @@ export function applyCaddyChange(text: string, change: CaddyChange): string {
     const other = find(a)
     if (other && other !== previous) throw new Error(msg('proxy_errors_exists', { address: a, line: other.line }))
   }
-  const block = renderSite(addresses, upstreams)
+  const block = renderSite(addresses, upstreams, options)
   if (previous) return text.slice(0, previous.start) + block + text.slice(previous.end)
   return tidy(`${text.replace(/\s*$/, '')}\n\n${block}\n`)
 }
@@ -327,10 +479,31 @@ export function parseCaddyChange(v: unknown): CaddyChange {
   const strs = (x: unknown) => (Array.isArray(x) && x.length <= 20 && x.every((s) => typeof s === 'string' && s.length <= 300) ? (x as string[]) : undefined)
   if (o.kind === 'text' && typeof o.content === 'string') return { kind: 'text', content: o.content }
   if (o.kind === 'delete' && typeof o.address === 'string') return { kind: 'delete', address: o.address }
+  if (o.kind === 'block' && typeof o.address === 'string' && typeof o.text === 'string' && o.text.length <= 64_000) return { kind: 'block', address: o.address, text: o.text }
   if (o.kind === 'site') {
     const addresses = strs(o.addresses)
     const upstreams = strs(o.upstreams)
-    if (addresses && upstreams && (o.previous === undefined || typeof o.previous === 'string')) return { kind: 'site', previous: (o.previous as string | undefined) || undefined, addresses, upstreams }
+    if (addresses && upstreams && (o.previous === undefined || typeof o.previous === 'string')) {
+      const options = parseOptions(o.options)
+      return { kind: 'site', previous: (o.previous as string | undefined) || undefined, addresses, upstreams, ...(options ? { options } : {}) }
+    }
   }
   throw new Error(msg('proxy_errors_invalidChange'))
+}
+
+function parseOptions(v: unknown): SiteOptions | undefined {
+  if (v === undefined) return undefined
+  const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>
+  const text = (x: unknown) => (typeof x === 'string' && x.length <= 8000 ? x : '')
+  const a = o.auth && typeof o.auth === 'object' ? (o.auth as Record<string, unknown>) : undefined
+  const str = (x: unknown) => (typeof x === 'string' && x.length <= 300 ? x : undefined)
+  return {
+    lanOnly: o.lanOnly === true,
+    compress: o.compress === true,
+    insecureTls: o.insecureTls === true,
+    tlsInternal: o.tlsInternal === true,
+    auth: a ? { user: str(a.user) ?? '', hash: str(a.hash), password: str(a.password) } : undefined,
+    proxyExtra: text(o.proxyExtra),
+    extra: text(o.extra),
+  }
 }
