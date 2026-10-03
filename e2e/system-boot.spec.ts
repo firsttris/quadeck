@@ -132,7 +132,10 @@ test('boot entries: edit the default as a copy, check it live, test it once, ren
   await expect(save.getByLabel('Änderungen')).toContainText('- options')
   await expect(save.getByLabel('Änderungen')).toContainText('loglevel=4')
   await save.getByRole('button', { name: 'Speichern' }).click()
-  await page.getByRole('dialog', { name: /jetzt testen/ }).getByRole('button', { name: 'Später' }).click()
+  await page
+    .getByRole('dialog', { name: /jetzt testen/ })
+    .getByRole('button', { name: 'Später' })
+    .click()
 
   await copy.getByRole('button', { name: 'Aktionen für Arch Linux (copy)' }).click()
   await page.getByRole('menuitem', { name: 'Bearbeiten …' }).click()
