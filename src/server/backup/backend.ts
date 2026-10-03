@@ -8,7 +8,7 @@
 // snapshot list. The schedule is a pair of systemd units in /etc/systemd/system.
 
 import { randomBytes } from 'node:crypto'
-import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { statfs } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import {
@@ -36,6 +36,11 @@ import {
   type BackupState,
   type BackupSuggestion,
   type LsEntry,
+  CLIENT_NAME,
+  targetQuadlet,
+  type BackupClient,
+  type TargetConfig,
+  type TargetState,
 } from '~/shared/backup'
 import { localize, msg } from '~/shared/i18n'
 import { HttpError } from '../auth'
@@ -47,6 +52,7 @@ export interface BackupAdmin {
   backupSuggest(): Promise<BackupSuggestion>
   backupSizes(paths: string[], excludes: string[]): Promise<BackupSizes>
   backupLs(snapshot: string, dir: string): Promise<LsEntry[]>
+  targetState(refresh?: boolean): Promise<TargetState>
 }
 
 /** Writes and reads of backed-up content; the caller has checked the unlock. */
@@ -56,6 +62,51 @@ export interface BackupBackend extends BackupAdmin {
   backupPassword(): Promise<string>
   startBackup(kind: 'backup' | 'check'): Promise<void>
   backupDump(snapshot: string, path: string): Promise<Response>
+  /** Stores the target and returns its Quadlet (written by the caller through the Quadlet backend). */
+  saveTarget(config: TargetConfig): Promise<string>
+  clearTarget(): Promise<void>
+  addClient(name: string, warnDays: number | undefined): Promise<{ password: string }>
+  updateClient(name: string, change: { warnDays?: number | null; disabled?: boolean }): Promise<TargetState>
+  renewClient(name: string): Promise<{ password: string }>
+  removeClient(name: string, deleteData: boolean): Promise<TargetState>
+}
+
+interface StoredClient extends Omit<BackupClient, 'lastAt' | 'snapshots' | 'size'> {
+  /** bcrypt, kept so a disabled client can be enabled again with the same access. */
+  hash: string
+}
+
+interface TargetFile {
+  config?: TargetConfig
+  clients: StoredClient[]
+  sizes?: Record<string, number>
+}
+
+/** A random access password (letters and digits, easy to paste). */
+export function accessPassword(len = 28) {
+  const abc = 'ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789'
+  const bytes = randomBytes(len)
+  return Array.from(bytes, (b) => abc[b % abc.length]).join('')
+}
+
+/** Last backup of a client from its repository, without the password: snapshot files are written per backup. */
+export function clientRepoStatus(repoDir: string): { lastAt?: number; snapshots: number } {
+  let names: string[] = []
+  try {
+    names = readdirSync(join(repoDir, 'snapshots'))
+  } catch {
+    return { snapshots: 0 }
+  }
+  let lastAt: number | undefined
+  for (const n of names) {
+    try {
+      const t = statSync(join(repoDir, 'snapshots', n)).mtimeMs
+      if (lastAt === undefined || t > lastAt) lastAt = t
+    } catch {
+      // removed meanwhile (prune)
+    }
+  }
+  return { lastAt, snapshots: names.length }
 }
 
 export interface RestoreSpec {
@@ -396,6 +447,113 @@ export class SystemBackup implements BackupBackend {
     })
   }
 
+  // ---------- backup target for clients ----------
+
+  private target(): TargetFile {
+    return readJson<TargetFile>(this.file('target.json'), { clients: [] })
+  }
+
+  private writeTarget(t: TargetFile) {
+    this.ensureDir()
+    writePrivate(this.file('target.json'), JSON.stringify(t, null, 2))
+    // The rest-server reads its users from .htpasswd in the data folder (and notices changes).
+    if (t.config && existsSync(t.config.dataDir)) {
+      writePrivate(join(t.config.dataDir, '.htpasswd'), t.clients.filter((c) => !c.disabled).map((c) => `${c.name}:${c.hash}`).join('\n') + (t.clients.some((c) => !c.disabled) ? '\n' : ''))
+    }
+  }
+
+  private client(t: TargetFile, name: string): StoredClient {
+    const c = t.clients.find((x) => x.name === name)
+    if (!c) throw new HttpError(404, msg('backup_error_clientUnknown', { name }))
+    return c
+  }
+
+  async targetState(refresh = false): Promise<TargetState> {
+    const t = this.target()
+    const config = t.config
+    if (refresh && config) {
+      const sizes: Record<string, number> = {}
+      for (const c of t.clients) {
+        const r = await this.exec(['du', '-sb', '--', join(config.dataDir, c.name)], { timeoutMs: 600_000 })
+        const n = Number(r.stdout.split(/\s/)[0])
+        if (r.code === 0 && Number.isFinite(n)) sizes[c.name] = n
+      }
+      t.sizes = sizes
+      writePrivate(this.file('target.json'), JSON.stringify(t, null, 2))
+    }
+    const clients = t.clients.map(({ hash: _h, ...c }) => ({ ...c, ...(config ? clientRepoStatus(join(config.dataDir, c.name)) : {}), ...(t.sizes?.[c.name] !== undefined ? { size: t.sizes[c.name] } : {}) }))
+    let disk: TargetState['disk']
+    if (config)
+      try {
+        const st = await statfs(existsSync(config.dataDir) ? config.dataDir : dirname(config.dataDir))
+        disk = { free: st.bavail * st.bsize, size: st.blocks * st.bsize }
+      } catch {
+        // not there
+      }
+    return { ...(config ? { config } : {}), clients, ...(disk ? { disk } : {}) }
+  }
+
+  async saveTarget(config: TargetConfig): Promise<string> {
+    if (!existsSync(dirname(config.dataDir))) throw new HttpError(422, msg('backup_error_parentMissing', { path: dirname(config.dataDir) }))
+    const plan = this.plan()
+    if (plan?.repo.kind === 'local' && (config.dataDir === plan.repo.location || config.dataDir.startsWith(plan.repo.location + '/'))) throw new HttpError(422, msg('backup_error_targetInRepo'))
+    mkdirSync(config.dataDir, { recursive: true, mode: 0o700 })
+    const t = this.target()
+    this.writeTarget({ ...t, config })
+    return targetQuadlet(config)
+  }
+
+  async clearTarget() {
+    const t = this.target()
+    // Clients and their repositories stay: setting the target up again brings them back.
+    this.writeTarget({ ...t, config: undefined })
+  }
+
+  async addClient(name: string, warnDays: number | undefined) {
+    if (!CLIENT_NAME.test(name)) throw new HttpError(400, msg('backup_error_clientName'))
+    const t = this.target()
+    if (!t.config) throw new HttpError(409, msg('backup_error_noTarget'))
+    if (t.clients.some((c) => c.name === name)) throw new HttpError(409, msg('backup_error_clientExists', { name }))
+    const password = accessPassword()
+    t.clients.push({ name, created: Date.now(), ...(warnDays ? { warnDays } : {}), hash: await Bun.password.hash(password, { algorithm: 'bcrypt', cost: 10 }) })
+    this.writeTarget(t)
+    return { password }
+  }
+
+  async updateClient(name: string, change: { warnDays?: number | null; disabled?: boolean }) {
+    const t = this.target()
+    const c = this.client(t, name)
+    if (change.warnDays !== undefined) {
+      if (change.warnDays === null) delete c.warnDays
+      else c.warnDays = change.warnDays
+    }
+    if (change.disabled !== undefined) {
+      if (change.disabled) c.disabled = true
+      else delete c.disabled
+    }
+    this.writeTarget(t)
+    return this.targetState()
+  }
+
+  async renewClient(name: string) {
+    const t = this.target()
+    const c = this.client(t, name)
+    const password = accessPassword()
+    c.hash = await Bun.password.hash(password, { algorithm: 'bcrypt', cost: 10 })
+    this.writeTarget(t)
+    return { password }
+  }
+
+  async removeClient(name: string, deleteData: boolean) {
+    const t = this.target()
+    this.client(t, name)
+    t.clients = t.clients.filter((c) => c.name !== name)
+    if (t.sizes) delete t.sizes[name]
+    this.writeTarget(t)
+    if (deleteData && t.config && CLIENT_NAME.test(name)) rmSync(join(t.config.dataDir, name), { recursive: true, force: true })
+    return this.targetState()
+  }
+
   // ---------- runs (`quadeck backup run|check`, restore jobs) ----------
 
   /** Stops units, runs `restic backup`, starts them again, applies the retention. Returns the run record. */
@@ -527,6 +685,8 @@ export class FixtureBackup implements BackupBackend {
   private snapshots: BackupSnapshot[] = []
   private secrets = new Set<string>()
   private running: 'backup' | 'check' | undefined
+  private targetConfig: TargetConfig | undefined = { dataDir: '/srv/backups', port: 8000, appendOnly: false, url: 'http://nas-01.local:8000' }
+  private clients: BackupClient[]
 
   constructor(
     private quadlets: () => Promise<{ name: string; content: string }[]> = async () => [],
@@ -568,6 +728,12 @@ export class FixtureBackup implements BackupBackend {
       total -= gb * 1e9
       return r
     })
+    const ago = (h: number) => now - h * 3600_000
+    this.clients = [
+      { name: 'laptop', created: ago(24 * 90), warnDays: 3, lastAt: ago(6), snapshots: 32, size: 84e9 },
+      { name: 'pc-wohnzimmer', created: ago(24 * 200), warnDays: 3, lastAt: ago(24 * 9 + 2), snapshots: 41, size: 121e9 },
+      { name: 'workstation', created: ago(24 * 30), lastAt: ago(1), snapshots: 18, size: 9e9 },
+    ]
     this.runs.splice(9, 0, { kind: 'check', startedAt: at(9) + 3 * 3600_000, endedAt: at(9) + 3 * 3600_000 + 840_000, status: 'ok', errors: [] })
     const keepDays = [0, 1, 2, 3, 4, 5, 6, 13, 20, 27, 33, 64, 94, 125, 155]
     this.snapshots = keepDays.map((d, i) => {
@@ -677,5 +843,44 @@ export class FixtureBackup implements BackupBackend {
 
   async backupDump(_snapshot: string, path: string) {
     return new Response(`Demo: content of ${path} from the backup\n`, { headers: { 'content-type': 'application/octet-stream', 'content-disposition': `attachment; filename="${basename(path)}"` } })
+  }
+
+  async targetState(): Promise<TargetState> {
+    return { ...(this.targetConfig ? { config: { ...this.targetConfig } } : {}), clients: structuredClone(this.clients), ...(this.targetConfig ? { disk: { free: 2.9e12, size: 4e12 } } : {}) }
+  }
+  async saveTarget(config: TargetConfig) {
+    this.targetConfig = config
+    return targetQuadlet(config)
+  }
+  async clearTarget() {
+    this.targetConfig = undefined
+  }
+  async addClient(name: string, warnDays: number | undefined) {
+    if (!CLIENT_NAME.test(name)) throw new HttpError(400, msg('backup_error_clientName'))
+    if (!this.targetConfig) throw new HttpError(409, msg('backup_error_noTarget'))
+    if (this.clients.some((c) => c.name === name)) throw new HttpError(409, msg('backup_error_clientExists', { name }))
+    this.clients.push({ name, created: Date.now(), ...(warnDays ? { warnDays } : {}), snapshots: 0 })
+    return { password: accessPassword() }
+  }
+  async updateClient(name: string, change: { warnDays?: number | null; disabled?: boolean }) {
+    const c = this.clients.find((x) => x.name === name)
+    if (!c) throw new HttpError(404, msg('backup_error_clientUnknown', { name }))
+    if (change.warnDays !== undefined) {
+      if (change.warnDays === null) delete c.warnDays
+      else c.warnDays = change.warnDays
+    }
+    if (change.disabled !== undefined) {
+      if (change.disabled) c.disabled = true
+      else delete c.disabled
+    }
+    return this.targetState()
+  }
+  async renewClient(name: string) {
+    if (!this.clients.some((x) => x.name === name)) throw new HttpError(404, msg('backup_error_clientUnknown', { name }))
+    return { password: accessPassword() }
+  }
+  async removeClient(name: string) {
+    this.clients = this.clients.filter((c) => c.name !== name)
+    return this.targetState()
   }
 }

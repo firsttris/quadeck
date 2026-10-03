@@ -19,7 +19,7 @@ import type { Hardware } from '~/shared/hardware'
 import type { CaddyChange, CaddyResult, CaddyState } from '~/shared/caddy'
 import type { ConfigAction, ConfigFileInfo } from '~/shared/configfiles'
 import type { UnlockInfo } from './gate'
-import type { BackupPlan, BackupSizes, BackupState, BackupSuggestion, LsEntry } from '~/shared/backup'
+import type { BackupPlan, BackupSizes, BackupState, BackupSuggestion, LsEntry, TargetConfig, TargetState } from '~/shared/backup'
 
 /** Privileged over the root helper's Unix socket. */
 export class HelperClient implements Privileged {
@@ -376,5 +376,26 @@ export class HelperClient implements Privileged {
   }
   backupDump(token: string | undefined, snapshot: string, path: string) {
     return this.stream('/backup/dump', { token, snapshot, path })
+  }
+  targetState(refresh?: boolean) {
+    return this.call<TargetState>('POST', '/backup/target/state', { refresh: refresh === true }, 900_000)
+  }
+  setupTarget(token: string | undefined, config: TargetConfig) {
+    return this.call<TargetState>('POST', '/backup/target/setup', { token, config }, 300_000)
+  }
+  removeTarget(token: string | undefined) {
+    return this.call<TargetState>('POST', '/backup/target/remove', { token }, 120_000)
+  }
+  addBackupClient(token: string | undefined, name: string, warnDays: number | undefined) {
+    return this.call<{ password: string }>('POST', '/backup/client/add', { token, name, warnDays })
+  }
+  updateBackupClient(token: string | undefined, name: string, change: { warnDays?: number | null; disabled?: boolean }) {
+    return this.call<TargetState>('POST', '/backup/client/update', { token, name, change })
+  }
+  renewBackupClient(token: string | undefined, name: string) {
+    return this.call<{ password: string }>('POST', '/backup/client/renew', { token, name })
+  }
+  removeBackupClient(token: string | undefined, name: string, deleteData: boolean) {
+    return this.call<TargetState>('POST', '/backup/client/remove', { token, name, deleteData }, 600_000)
   }
 }

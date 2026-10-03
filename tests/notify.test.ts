@@ -277,3 +277,19 @@ describe('e-mail', () => {
     expect(smtpError({ message: 'routines:ssl3_get_record:wrong version number', code: 'ESOCKET' })).toMatch(/465.*SSL\/TLS.*587.*STARTTLS/)
   })
 })
+
+describe('backup rule', () => {
+  const now = Date.now()
+  it('reports a failed or old server backup and overdue clients', () => {
+    const s = defaultSettings()
+    const failed = currentAlerts(snap({ backup: { server: true, since: now, lastAt: now, lastStatus: 'failed', lastMessage: 'disk gone' } }), s).alerts
+    expect(failed.map((a) => a.key)).toEqual(['backup'])
+    const old = currentAlerts(snap({ backup: { server: true, since: now - 9 * 86_400_000, lastOkAt: now - 3 * 86_400_000, lastStatus: 'ok' } }), s).alerts
+    expect(old).toHaveLength(1)
+    expect(currentAlerts(snap({ backup: { server: true, since: now, lastOkAt: now - 3600_000, lastStatus: 'ok' } }), s).alerts).toHaveLength(0)
+    // Only clients: no server alert, one per overdue client.
+    const clients = currentAlerts(snap({ backup: { server: false, since: now, stale: [{ name: 'laptop', days: 9, never: false }, { name: 'pc', days: 4, never: true }] } }), s).alerts
+    expect(clients.map((a) => a.key)).toEqual(['backup:client:laptop', 'backup:client:pc'])
+    expect(currentAlerts(snap({ backup: { server: false, since: now, stale: [{ name: 'laptop', days: 9, never: false }] } }), { ...s, rules: { ...s.rules, backup: false } }).alerts).toHaveLength(0)
+  })
+})

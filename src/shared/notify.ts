@@ -337,6 +337,11 @@ export function currentAlerts(snap: Snapshot, s: NotifySettings, active: Set<str
     })
   if (on('backup') && snap.backup) {
     const b = snap.backup
+    for (const c of b.stale ?? [])
+      alerts.push({ key: `backup:client:${c.name}`, rule: 'backup', severity: 'warning', title: c.never ? msg('backup_alert_clientNever', { name: c.name }) : msg('backup_alert_client', { name: c.name, days: c.days }), subject: c.name })
+  }
+  if (on('backup') && snap.backup?.server) {
+    const b = snap.backup
     const age = (Date.now() - (b.lastOkAt ?? b.since)) / 86_400_000
     if (b.lastStatus === 'failed') alerts.push({ key: 'backup', rule: 'backup', severity: 'warning', title: msg('backup_alert_failed', { message: b.lastMessage ?? '' }), subject: msg('notify_subject_backup') })
     else if (age >= s.backupDays) alerts.push({ key: 'backup', rule: 'backup', severity: 'warning', title: b.lastOkAt ? msg('backup_alert_old', { days: Math.floor(age) }) : msg('backup_alert_never'), subject: msg('notify_subject_backup') })

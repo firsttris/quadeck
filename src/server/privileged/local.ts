@@ -19,7 +19,7 @@ import type { UsersBackend } from '../users/backend'
 import type { HardwareAdmin } from '../hardware/collect'
 import type { CaddyBackend } from '../caddy/backend'
 import type { BackupBackend } from '../backup/backend'
-import type { BackupPlan } from '~/shared/backup'
+import { TARGET_QUADLET, type BackupPlan, type TargetConfig } from '~/shared/backup'
 import type { CaddyChange } from '~/shared/caddy'
 import type { UserChange } from '~/shared/users'
 import type { ConfigAction } from '~/shared/configfiles'
@@ -474,5 +474,39 @@ export class LocalPrivileged implements Privileged {
   async backupDump(token: string | undefined, snapshot: string, path: string) {
     this.gate.check(token)
     return this.backup.backupDump(snapshot, path)
+  }
+  targetState(refresh?: boolean) {
+    return this.backup.targetState(refresh)
+  }
+  async setupTarget(token: string | undefined, config: TargetConfig) {
+    this.gate.check(token)
+    // The Quadlet goes through the Quadlet backend: generator check, history, (re)start.
+    const r = await this.admin.writeQuadlet(TARGET_QUADLET, await this.backup.saveTarget(config), true)
+    if (r.warning) throw new HttpError(500, r.warning)
+    return this.backup.targetState()
+  }
+  async removeTarget(token: string | undefined) {
+    this.gate.check(token)
+    await this.admin.deleteQuadlet(TARGET_QUADLET).catch((e: unknown) => {
+      if (!(e instanceof HttpError && e.status === 404)) throw e
+    })
+    await this.backup.clearTarget()
+    return this.backup.targetState()
+  }
+  async addBackupClient(token: string | undefined, name: string, warnDays: number | undefined) {
+    this.gate.check(token)
+    return this.backup.addClient(name, warnDays)
+  }
+  async updateBackupClient(token: string | undefined, name: string, change: { warnDays?: number | null; disabled?: boolean }) {
+    this.gate.check(token)
+    return this.backup.updateClient(name, change)
+  }
+  async renewBackupClient(token: string | undefined, name: string) {
+    this.gate.check(token)
+    return this.backup.renewClient(name)
+  }
+  async removeBackupClient(token: string | undefined, name: string, deleteData: boolean) {
+    this.gate.check(token)
+    return this.backup.removeClient(name, deleteData)
   }
 }
