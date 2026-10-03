@@ -1,6 +1,7 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
 import { PageHeader } from '~/components/PageHeader'
+import { SpeedTest } from '~/components/SpeedTest'
 import { ReverseProxy } from '~/components/ReverseProxy'
 import { Pill, type Tone } from '~/components/Status'
 import { bytes } from '~/lib/format'
@@ -9,10 +10,10 @@ import { knownPorts, type IfaceKind, type ListeningPort, type NetInterface, type
 import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
 
-type Tab = 'interfaces' | 'ports' | 'firewall' | 'proxy'
+type Tab = 'interfaces' | 'ports' | 'firewall' | 'proxy' | 'speed'
 
 export const Route = createFileRoute('/_app/network')({
-  validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({ tab: s.tab === 'ports' || s.tab === 'firewall' || s.tab === 'proxy' ? s.tab : undefined }),
+  validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({ tab: s.tab === 'ports' || s.tab === 'firewall' || s.tab === 'proxy' || s.tab === 'speed' ? s.tab : undefined }),
   head: () => ({ meta: [{ title: msg('page_title_network') }] }),
   component: NetworkPage,
 })
@@ -52,6 +53,7 @@ function NetworkPage() {
     ['ports', m.network_tabs_ports(), s?.ports.length],
     ['firewall', m.network_tabs_firewall(), undefined],
     ['proxy', m.network_tabs_proxy(), undefined],
+    ['speed', m.network_tabs_speed(), undefined],
   ]
   return (
     <>
@@ -65,9 +67,10 @@ function NetworkPage() {
         ))}
       </div>
       {tab === 'proxy' && <ReverseProxy />}
-      {tab !== 'proxy' && error && <p className="m-0 text-[13px] text-[#e3b341]">{error}</p>}
-      {tab !== 'proxy' && s?.error && <p className="m-0 text-[13px] text-[#e3b341]">{s.error}</p>}
-      {tab !== 'proxy' && !s && !error && <p className="m-0 text-muted">{m.network_loading()}</p>}
+      {tab === 'speed' && <SpeedTest />}
+      {tab !== 'proxy' && tab !== 'speed' && error && <p className="m-0 text-[13px] text-[#e3b341]">{error}</p>}
+      {tab !== 'proxy' && tab !== 'speed' && s?.error && <p className="m-0 text-[13px] text-[#e3b341]">{s.error}</p>}
+      {tab !== 'proxy' && tab !== 'speed' && !s && !error && <p className="m-0 text-muted">{m.network_loading()}</p>}
       {s && tab === 'interfaces' && (
         <>
           <section className="flex flex-col gap-3" aria-label={m.network_tabs_interfaces()}>
