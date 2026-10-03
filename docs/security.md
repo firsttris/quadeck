@@ -28,7 +28,7 @@ Every change on the server (start, stop, save, install, delete) is locked until 
 with the password of a **Linux administrator**: root or a member of `wheel` or `sudo`. The check
 happens inside the helper against `/etc/shadow` with the system's `crypt(3)`, so the web app never
 sees the password hash, and the unlock token the helper hands out is bound to the session. The
-unlock lasts 15 minutes (`QUADECK_UNLOCK_MINUTES`) with a countdown in the sidebar; **Sperren**
+unlock lasts 15 minutes (`QUADECK_UNLOCK_MINUTES`) with a countdown in the sidebar; **Lock**
 ends it early. A failed unlock is rate-limited like a login.
 
 `QUADECK_UNLOCK=none` switches the unlock off (every logged-in user may change everything);

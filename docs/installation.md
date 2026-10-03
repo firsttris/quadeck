@@ -199,10 +199,10 @@ files. They keep working without Quadeck; delete what you no longer want.
 
 | Symptom | What to check |
 |---|---|
-| "Podman nicht erreichbar" | `systemctl enable --now podman.socket`; `QUADECK_PODMAN_SOCKET` if the socket lives elsewhere |
-| "systemd nicht erreichbar" | the web app needs D-Bus: `busctl` must work for the `quadeck` user; inside a container this cannot work |
+| "Podman not reachable" | `systemctl enable --now podman.socket`; `QUADECK_PODMAN_SOCKET` if the socket lives elsewhere |
+| "systemd not reachable" | the web app needs D-Bus: `busctl` must work for the `quadeck` user; inside a container this cannot work |
 | no journal entries | the `quadeck` user must be in `systemd-journal` (`install.sh` does that); `systemctl restart quadeck` after changing groups |
-| "Root-Helfer nicht erreichbar" | `systemctl status quadeck-helper`; the socket must be `root:quadeck` 0660 |
+| "Root helper not reachable" | `systemctl status quadeck-helper`; the socket must be `root:quadeck` 0660 |
 | unlock refuses the password | the user must be root or in `wheel`/`sudo`; the helper reads `/etc/shadow`, so it must run as root |
 | no icons | the CDN is not reachable; icons are cached in `/var/lib/quadeck/icons`, favicons and glyphs are used meanwhile |
 | login blocked | after 5 failed attempts the client waits 30 s, doubling up to 15 min; the limit is per client IP (see trusted proxies) |

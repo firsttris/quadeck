@@ -1,7 +1,7 @@
 # Disks and files
 
-The **Festplatten** page has two tabs: **SMART** for the health of every drive and **Einhängen**,
-a configurator for `/etc/fstab`. **Dateien** in the navigation is a small file explorer for the data
+The **Disks** page has two tabs: **SMART** for the health of every drive and **Mounts**,
+a configurator for `/etc/fstab`. **Files** in the navigation is a small file explorer for the data
 areas.
 
 <img src="screenshot-disks.png" alt="Disks page: SMART verdict, temperature, hours and sector counters per disk, with advice" width="900">
@@ -9,7 +9,7 @@ areas.
 ## SMART
 
 Quadeck reads every drive with `smartctl --json` from smartmontools: every 30 minutes, on
-**Jetzt prüfen**, and when the page opens if the last reading is older. Sleeping disks are not
+**Check now**, and when the page opens if the last reading is older. Sleeping disks are not
 woken up (`-n standby`); their last values stay until they spin up on their own.
 
 ### Per disk
@@ -50,7 +50,7 @@ reallocated sector that has been there for a year is not. The history opens per 
 
 ### Self-tests
 
-**Kurzer Test** (a few minutes) and **Langer Test** (hours, the whole surface) start through the
+**Short test** (a few minutes) and **Long test** (hours, the whole surface) start through the
 helper and need the [unlock](security.md#unlock). Progress and the test log are shown on the disk.
 
 ### On the overview
@@ -65,20 +65,20 @@ storage card still shows usage and the file explorer works.
 
 ## Mounts (fstab)
 
-**Einhängen** shows which file systems `/etc/fstab` mounts where and adds, changes and removes
+**Mounts** shows which file systems `/etc/fstab` mounts where and adds, changes and removes
 data disks. A broken fstab can stop the server in emergency mode at boot, so every change passes
 several checks before the file is written.
 
 ### The list
 
-- **Eingebunden**: every entry with its mount point, file system, usage, the device behind it
+- **Configured**: every entry with its mount point, file system, usage, the device behind it
   (path, label, model), whether it is mounted, and whether it would **stop the boot** when the disk
   is missing (no `nofail`). Options show their meaning on hover. Shares, NFS exports and Quadlet
   volumes below a mount point are named, so you see what depends on it.
-- **Systemeinträge**: `/`, `/boot`, `/boot/efi`, `/home`, swap, pseudo file systems and subvolumes of
+- **System entries**: `/`, `/boot`, `/boot/efi`, `/home`, swap, pseudo file systems and subvolumes of
   the root file system are shown, never changed.
-- **Nicht eingebunden**: file systems on the machine that are not in the file (RAID members, LUKS
-  containers and swap are left out), with **Einbinden …**.
+- **Not configured**: file systems on the machine that are not in the file (RAID members, LUKS
+  containers and swap are left out), with **Add to fstab …**.
 
 ### Adding and changing
 
@@ -117,7 +117,7 @@ file atomically (previous version as `/etc/fstab.quadeck-bak` and in the history
 `/var/lib/quadeck-helper/fstab-history`), `systemctl daemon-reload`, and start the mount unit (or
 `reload` it to remount with new options; changing source or mount point unmounts first). If any
 step after writing fails, the previous file is written back and reloaded. Removing an entry
-unmounts it first and refuses when it is busy. **Verlauf** shows earlier versions with a diff and
+unmounts it first and refuses when it is busy. **History** shows earlier versions with a diff and
 restores one through the same checks.
 
 ### If the server does not boot anyway
@@ -132,7 +132,7 @@ reboot
 
 ## File explorer
 
-**Dateien** in the navigation (`/files`) is a small explorer for the data areas, meant for moving a download into the
+**Files** in the navigation (`/files`) is a small explorer for the data areas, meant for moving a download into the
 media folder or cleaning up, not for administering the system.
 
 ### Areas
@@ -144,9 +144,9 @@ and symlinks are resolved before the check, so a link cannot lead out of an area
 
 ### Working with files
 
-Open folders, path bar, show or hide hidden files, sort by name, date or size. **Neuer Ordner**
-(owned by the parent folder's owner), **Umbenennen**, **Kopieren / Ausschneiden / Einfügen**,
-**Löschen**, also with Ctrl+C/X/V, Del and F2. Overwriting asks first; copying a folder into
+Open folders, path bar, show or hide hidden files, sort by name, date or size. **New folder**
+(owned by the parent folder's owner), **Rename**, **Copy / Cut / Paste**,
+**Delete**, also with Ctrl+C/X/V, Del and F2. Overwriting asks first; copying a folder into
 itself or deleting an area is refused.
 
 Copy, move and delete run as [jobs](updates.md#jobs) with live output (`cp -a --reflink=auto`,

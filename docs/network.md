@@ -1,9 +1,9 @@
 # Network
 
-The **Netzwerk** page shows the network side of the server: interfaces, listening ports with who
+The **Network** page shows the network side of the server: interfaces, listening ports with who
 is behind them, the firewall's view on those ports, routes and DNS. It answers "why can't I reach
-it?" and "what is listening on 8080?" without a terminal. Four tabs: **Schnittstellen**
-(interfaces, routes and DNS), **Ports** and **Firewall** only show; **Reverse Proxy** edits the
+it?" and "what is listening on 8080?" without a terminal. Four tabs: **Interfaces**
+(interfaces, routes and DNS), **Ports** and **Firewall** only show; **Reverse proxy** edits the
 Caddyfile (see [below](#reverse-proxy)).
 
 <img src="screenshot-network.png" alt="Network page: interfaces, listening ports with program, unit or container, firewall verdicts, routes and DNS" width="900">
@@ -23,7 +23,7 @@ Everything listening on TCP or UDP (`ss -tulpn`, run by the root helper so proce
 available), IPv4 and IPv6 sockets of the same program merged into one row:
 
 - **port** and protocol, with a name for well-known ports (SSH, SMB, NFS, DNS, mDNS, HTTP, …);
-- **reach**: *alle Schnittstellen* (0.0.0.0 or ::), *nur dieser Rechner* (loopback only) or a
+- **reach**: *all interfaces* (0.0.0.0 or ::), *this machine only* (loopback only) or a
   specific address;
 - **program**, with the systemd unit it belongs to (from the process's cgroup; links to the
   [unit editor](systemd.md)) or the container (from the libpod cgroup, or because Podman published
@@ -31,7 +31,7 @@ available), IPv4 and IPv6 sockets of the same program merged into one row:
   they are added from the container list;
 - **firewall**: see below.
 
-*nur aus dem Netz erreichbare* hides the loopback-only rows.
+*only reachable from the network* hides the loopback-only rows.
 
 ## Firewall
 
@@ -40,10 +40,10 @@ Quadeck detects **firewalld** (default zone, services resolved to their ports, o
 
 | Verdict | Meaning |
 |---|---|
-| **offen** | the firewall allows it, or there is no firewall |
-| **blockiert** | something listens, but the firewall drops connections from the network |
-| **offen (Podman)** | a published container port; Podman adds its own forwarding rules |
-| **unklar** | hand-written nftables rules with a drop policy; Quadeck does not interpret them |
+| **open** | the firewall allows it, or there is no firewall |
+| **blocked** | something listens, but the firewall drops connections from the network |
+| **open (Podman)** | a published container port; Podman adds its own forwarding rules |
+| **unclear** | hand-written nftables rules with a drop policy; Quadeck does not interpret them |
 
 Ports that are listening but blocked are listed in the firewall tab with the command to open
 them (`firewall-cmd --permanent --add-port=… && firewall-cmd --reload` or `ufw allow …`).
@@ -62,7 +62,7 @@ routing table on request.
 
 <img src="screenshot-proxy.png" alt="Reverse proxy: the Caddyfile found through caddy.container, domains with their targets" width="900">
 
-The tab **Reverse Proxy** edits the Caddyfile: each site block is a row (domain → target). Simple
+The tab **Reverse proxy** edits the Caddyfile: each site block is a row (domain → target). Simple
 blocks – a domain with nothing but `reverse_proxy <target>` – can be added, changed and deleted in
 a form; everything else (global options, snippets, `import`, headers, auth, matchers) stays exactly
 as written and is edited in the text editor, which jumps to the block. Target suggestions are the
@@ -71,7 +71,7 @@ containers with a published port (`localhost:<port>`).
 **Which file.** The first that applies:
 
 1. `QUADECK_CADDYFILE` in `/etc/quadeck/quadeck.env` – fixed, cannot be changed in the UI.
-2. A path picked in the UI (*Pfad ändern …*), remembered by the root helper.
+2. A path picked in the UI (*Change path …*), remembered by the root helper.
 3. The Caddy Quadlet (image `caddy`, `caddy-…`): the path inside the container comes from
    `Exec=… --config …` or the image default `/etc/caddy/Caddyfile` and is mapped to the host
    through its `Volume=` lines (a mounted file, a mounted directory or a named volume). This works
@@ -87,7 +87,7 @@ The tab always shows which file is used and where it came from.
 1. Caddy checks the new version – through the admin API (`POST /adapt`) when it is reachable,
    otherwise with `caddy validate` in a throwaway container of the same image and mounts, or the
    `caddy` binary on the host. If Caddy rejects it, nothing is written and its message is shown.
-2. The previous version goes to the history (*Verlauf*, restorable).
+2. The previous version goes to the history (*History*, restorable).
 3. The file is written **in place** (same inode, owner and mode): a Caddyfile mounted as a single
    file would otherwise still show the old version inside the container.
 4. Caddy reloads without interruption – admin API (`POST /load`), else
