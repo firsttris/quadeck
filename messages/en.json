@@ -1397,7 +1397,7 @@
   "hardware_noSensors": "No sensors readable (normal in VMs; otherwise the kernel module is often missing, e.g. nct6775 or it87).",
   "hardware_fanStopped": "stopped",
   "network_title": "Network",
-  "network_subtitle": "Interfaces, routes, DNS, open ports, firewall and reverse proxy",
+  "network_subtitle": "Interfaces, routes, DNS, open ports, firewall, reverse proxy and speed test",
   "network_area": "Section",
   "network_tabs_interfaces": "Interfaces",
   "network_tabs_ports": "Ports",

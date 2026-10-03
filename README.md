@@ -2,8 +2,8 @@
 
 <img src="docs/banner.png" alt="Quadeck: the dashboard for a Podman home server" width="900">
 
-**The dashboard for a Podman home server.**<br>
-See and run your containers, Quadlets, systemd, disks, shares and updates in one place.<br>
+**Dashboard and server console for a Podman home server.**<br>
+Containers, Quadlets, systemd, updates, disks, shares, users, network and reverse proxy in one place.<br>
 One binary on the host. No container, no socket mounts, nothing to configure.
 
 [![CI](https://github.com/firsttris/quadeck/actions/workflows/ci.yml/badge.svg)](https://github.com/firsttris/quadeck/actions/workflows/ci.yml)
@@ -28,13 +28,18 @@ curl -fsSL https://raw.githubusercontent.com/firsttris/quadeck/main/install.sh |
 
 ## 💡 Why Quadeck?
 
-Cockpit is a full server console, Portainer wants Docker, and most homelab dashboards are link
-pages that know nothing about the machine behind them. A Podman server with Quadlets already has
-what it needs: systemd runs the containers, Caddy publishes them, the package manager updates the
-host. Quadeck puts all of it in one place where you can also act on it.
+Cockpit is a general-purpose server console, Portainer is about containers and wants Docker, and
+most homelab dashboards are link pages that know nothing about the machine behind them. Quadeck is
+the console for a home server that runs its apps with Podman: what you would otherwise do in
+Cockpit, at the shell or in a dozen config files – units and timers, updates and kernels, disks and
+`fstab`, users and SSH, Samba and NFS, network and Caddy – plus what a homelab needs on top: a
+dashboard of your services, SMART advice in plain words, notifications and a speed test.
 
 - **Zero config**: install, open the page, and the dashboard is already filled. Services, URLs and
   icons come from Caddy, Podman and your Quadlet files.
+- **Changes you can trust**: every change is checked by the tool that owns the file before it is
+  written (the Quadlet generator, `systemd-analyze`, `findmnt`, `testparm`, `sshd -t`, Caddy), shown
+  as a diff first and kept in a history.
 - **systemd stays in charge**: a container with a Quadlet unit is always started and stopped
   through systemd, never behind its back.
 - **Root in a separate process**: the web app runs unprivileged. A small root helper with a fixed
@@ -68,11 +73,12 @@ a reverse proxy and uninstalling are in the [installation guide](docs/installati
 | 📦 **Containers & Quadlets** | Units with status and journal, a Quadlet editor (form or text) checked by the real generator, templates, docker-compose import |
 | ⚙️ **systemd & timers** | Edit any unit through overrides, verified before saving; timers with a schedule builder as the cron replacement |
 | ⬆️ **Updates** | pacman (with AUR), apt, dnf, zypper, apk, rpm-ostree and container images as live jobs; reboot hints and Arch news |
-| 🥾 **Boot** | Reboot, boot once into another entry, edit systemd-boot entries safely (copy, test once, then make it the default), second kernel on Arch |
-| 💽 **Disks** | SMART health with plain advice and a year of history, an fstab editor that checks every change, a small file explorer |
-| 🌐 **Network & reverse proxy** | Interfaces, ports with the container behind them, firewall; Caddy domains added and changed from a list |
+| 🥾 **Boot** | Reboot, boot once into another entry, edit systemd-boot entries in a form with every kernel parameter explained (copy, test once, then make it the default), second kernel on Arch |
+| 💽 **Disks & files** | SMART health with plain advice and a year of history, an fstab editor that checks every change; a file explorer that edits text files and opens photos, PDFs and videos in the browser |
+| 🌐 **Network & reverse proxy** | Interfaces, ports with the container behind them, firewall; Caddy domains in a dialog (home network only, password, compression …) |
+| 🚀 **Speed test** | This device ↔ server and server ↔ internet (Cloudflare) with a live gauge in Mbit/s and MB/s; optional daily runs with a graph and an alert when the line gets slow |
 | 🔐 **Users, shares & SSH** | Accounts and groups, SMB and NFS shares, SSH keys and hardening with a lock-out guard |
-| 🔔 **Notifications** | ntfy, Gotify, Telegram, e-mail or webhook when something fails, a disk fills up or updates are waiting |
+| 🔔 **Notifications** | ntfy, Gotify, Telegram, e-mail or webhook when something fails, a disk fills up, the internet is slow or updates are waiting |
 
 Plus: hardware details (memory slots, GPU passthrough lines, stable USB paths), a command palette
 (<kbd>Ctrl</kbd>+<kbd>K</kbd>), English and German, a read-only mode and an unlock that expires after
@@ -82,16 +88,19 @@ Plus: hardware details (memory slots, GPU passthrough lines, stable USB paths), 
 
 <table>
   <tr>
-    <td width="50%"><a href="docs/quadlets.md"><img src="docs/screenshot-quadlets.png" alt="Quadlet editor: jellyfin.container as a form with image, ports, volumes and environment"></a><br><sub><b>Quadlet editor</b> – form and text on the same file</sub></td>
-    <td width="50%"><a href="docs/updates.md"><img src="docs/screenshot-system.png" alt="Updates: Arch news, pacman and AUR updates with a reboot hint, container images"></a><br><sub><b>Updates</b> – packages, AUR and container images</sub></td>
+    <td width="50%"><img src="docs/screenshot-quadlets.png" alt="Quadlet editor: jellyfin.container as a form with image, ports, volumes and environment"><br><sub><b>Quadlet editor</b> – form and text on the same file · <a href="docs/quadlets.md">docs →</a></sub></td>
+    <td width="50%"><img src="docs/screenshot-system.png" alt="Updates: Arch news, pacman and AUR updates with a reboot hint, container images"><br><sub><b>Updates</b> – packages, AUR and container images · <a href="docs/updates.md">docs →</a></sub></td>
   </tr>
   <tr>
-    <td><a href="docs/updates.md"><img src="docs/screenshot-boot.png" alt="Boot and reboot: systemd-boot entries, boot loader, kernels"></a><br><sub><b>Boot</b> – entries, one-time boot, kernels</sub></td>
-    <td><a href="docs/network.md"><img src="docs/screenshot-proxy.png" alt="Reverse proxy: Caddy domains and their targets"></a><br><sub><b>Reverse proxy</b> – Caddy domains as a list</sub></td>
+    <td><img src="docs/screenshot-boot.png" alt="Boot and reboot: systemd-boot entries, boot loader, kernels"><br><sub><b>Boot</b> – entries, one-time boot, kernels · <a href="docs/updates.md">docs →</a></sub></td>
+    <td><img src="docs/screenshot-proxy.png" alt="Reverse proxy: Caddy domains and their targets"><br><sub><b>Reverse proxy</b> – Caddy domains with their options · <a href="docs/network.md">docs →</a></sub></td>
   </tr>
   <tr>
-    <td><a href="docs/disks.md"><img src="docs/screenshot-disks.png" alt="Disks: SMART verdict and advice per disk"></a><br><sub><b>Disks</b> – SMART with advice</sub></td>
-    <td><a href="docs/systemd.md"><img src="docs/screenshot-timers.png" alt="Timers: schedule, next and last run, result and command"></a><br><sub><b>Timers</b> – the cron replacement</sub></td>
+    <td><img src="docs/screenshot-disks.png" alt="Disks: SMART verdict and advice per disk"><br><sub><b>Disks</b> – SMART with advice · <a href="docs/disks.md">docs →</a></sub></td>
+    <td><img src="docs/screenshot-timers.png" alt="Timers: schedule, next and last run, result and command"><br><sub><b>Timers</b> – the cron replacement · <a href="docs/systemd.md">docs →</a></sub></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshot-speedtest.png" alt="Speed test: gauges for this device and the internet, results in Mbit/s and MB/s, the graph over 30 days, automatic runs"><br><sub><b>Speed test</b> – live gauge, both units, graph over time · <a href="docs/network.md#speed-test">docs →</a></sub></td>
   </tr>
 </table>
 
