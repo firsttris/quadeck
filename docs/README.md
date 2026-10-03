@@ -16,7 +16,7 @@ disks, shares and the host itself, with the actions you need day to day.
 | [Disks and files](disks.md) | SMART verdicts and advice, history, self-tests, fstab configurator and its checks, file explorer, data areas |
 | [Shares](shares.md) | SMB shares, NFS exports, services, what is checked, what is never touched |
 | [SSH](ssh.md) | keys, hardening, lock-out guard, logins, connecting a new device |
-| [Network](network.md) | interfaces, ports, firewall verdicts, routes and DNS |
+| [Network](network.md) | interfaces, ports, firewall verdicts, routes and DNS, reverse proxy (Caddy), speed test |
 | [Notifications](notifications.md) | channels, rules, how spam is avoided, retries |
 | [Security](security.md) | the two processes, unlock, authentication, hardening, data and secrets |
 | [Development](development.md) | setup with demo data, checks, architecture, tests, releases |

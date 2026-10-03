@@ -18,12 +18,12 @@ them when a client asks "are you sure you want to continue connecting?" the firs
 For every user with a home directory, `~/.ssh/authorized_keys`: key type, size, comment, SHA256
 fingerprint, and when the key was last used (from the journal's "Accepted publickey" lines).
 
-- **Add a key**: paste the public key line. It is parsed and checked: duplicates and DSA keys are
+- **Add a public key**: paste the public key line and press **Check and add …**. It is parsed and checked: duplicates and DSA keys are
   refused, RSA keys below 3072 bits are marked as weak. Keys with options in front of them
   (`from=`, `command=`, …) are not added through the UI; existing ones are shown with their
   options. `~/.ssh` and `authorized_keys` are created with `700`/`600` and the right owner when
   needed.
-- **Remove a key** by fingerprint.
+- **Remove** a key (by fingerprint).
 - Permission problems that make `sshd` ignore the file (world-writable home, wrong owner) are
   shown, because they are the usual reason a key "does not work".
 
@@ -50,7 +50,7 @@ while its connection is still open: the client address and port from the journal
 against the established connections to sshd's ports (`ss -Htn state established`). Older logins
 are shown with a grey dot.
 
-## New device
+## Connect a new device
 
 Ready-made commands with the server's address filled in: `ssh-keygen` for a new key on the client,
 `ssh-copy-id` to install it, and `ssh` to connect. Copy, paste, done.

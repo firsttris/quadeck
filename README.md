@@ -92,7 +92,7 @@ Plus: hardware details (memory slots, GPU passthrough lines, stable USB paths), 
     <td width="50%"><img src="docs/screenshot-system.png" alt="Updates: Arch news, pacman and AUR updates with a reboot hint, container images"><br><sub><b>Updates</b> – packages, AUR and container images · <a href="docs/updates.md">docs →</a></sub></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshot-boot.png" alt="Boot and reboot: systemd-boot entries, boot loader, kernels"><br><sub><b>Boot</b> – entries, one-time boot, kernels · <a href="docs/updates.md">docs →</a></sub></td>
+    <td><img src="docs/screenshot-boot.png" alt="Boot and reboot: systemd-boot entries, boot loader, kernels"><br><sub><b>Boot</b> – entries, one-time boot, kernels · <a href="docs/updates.md#boot-and-reboot">docs →</a></sub></td>
     <td><img src="docs/screenshot-proxy.png" alt="Reverse proxy: Caddy domains and their targets"><br><sub><b>Reverse proxy</b> – Caddy domains with their options · <a href="docs/network.md">docs →</a></sub></td>
   </tr>
   <tr>

@@ -17,7 +17,7 @@ follows when it is resolved.
 | **E-mail** | the SMTP server of your mail provider: server, port, encryption, login, sender and one or more recipients. Buttons fill in server and port for Gmail, GMX, web.de, Posteo, mailbox.org, iCloud and Outlook. Most providers need an *app password* for this, not your normal password, and the sender must be your own address |
 
 E-mail encryption: **SSL/TLS** (port 465) encrypts from the first byte, **STARTTLS** (port 587)
-upgrades the connection and is required – Quadeck never falls back to plain text. **None** is only
+upgrades the connection and is required – Quadeck never falls back to plain text. **none** is only
 for a relay in your own network (for example a local Postfix) and works only without a password;
 a password is never sent unencrypted. The subject carries the hostname and 🔴/🟠/✅ by severity,
 the body is plain text. Errors are translated: a rejected login points to the app password, a TLS
