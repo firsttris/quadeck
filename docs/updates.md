@@ -90,7 +90,15 @@ and making sure the server comes back.
   enough when something goes wrong. A pending one-time entry is shown and can be withdrawn.
 - **Editing entries** (the `.conf` files in `loader/entries`, from the row menu "⋯"):
   **Edit**, **Make a copy**, **Rename**, **Delete** and **New entry** (filled in
-  from the default entry). A typo here can keep the server from booting, so:
+  from the default entry). The editor has two views of the same file:
+  - **Form**: the title, the kernel and the initramfs and microcode files to choose from what is
+    on the boot partition (switching the kernel swaps the matching initramfs), and every kernel
+    parameter of the `options` line with what it does – change, remove or add one, with
+    suggestions for the parameters Quadeck can explain. Other lines (`version`, `sort-key` …)
+    stay as they are.
+  - **Text**: the file itself, for everything else.
+
+  A typo here can keep the server from booting, so:
   - Every change is checked before it is written, live while typing: a kernel (`linux`, `efi` or
     `uki`), every file it names exists on the boot partition (paths start with `/` there),
     `options` contains `root=` when this system boots with one, unknown keys (typos) and missing

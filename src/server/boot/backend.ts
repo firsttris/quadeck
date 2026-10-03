@@ -3,7 +3,7 @@
 // helper; writes to EFI variables run through systemd-run, because the
 // helper's own sandbox (ProtectKernelTunables) keeps /sys read-only.
 
-import { existsSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { contentHash } from '~/shared/caddy'
 import type { Revision } from '~/shared/quadlets'
 import { release } from 'node:os'
@@ -48,6 +48,8 @@ export interface BootAdmin {
   bootEntryRevision(id: string, revision: string): Promise<string>
   /** Problems of an entry's text before it is saved (`id`: the entry it replaces, if any). */
   checkBootEntry(content: string): Promise<EntryProblem[]>
+  /** Kernels, initramfs and microcode on the boot partition (paths from its root), for the entry form. */
+  bootFiles(): Promise<string[]>
 }
 
 /** Writes; the caller has checked the unlock. */
@@ -121,6 +123,14 @@ export function entryFile(state: BootState, id: string, host: EntryHost): BootEn
   const content = host.read(e.path)
   if (content === undefined) throw new HttpError(404, msg('boot_error_entryNotFound', { id }))
   return { id, path: e.path, content, hash: contentHash(content), locked: locked(e), history: host.history.list(e.path) }
+}
+
+/** Files directly in $BOOT plus every file an entry points to (some distributions use subdirectories). */
+export function entryFiles(state: BootState, list: (dir: string) => string[]): string[] {
+  const root = entryRoot(join(entriesDir(state), 'x.conf'))
+  const own = list(root).map((f) => `/${f}`)
+  const used = state.entries.filter(isEditableEntry).flatMap((e) => [e.linux, ...e.initrd].filter((f): f is string => !!f && !e.missing.includes(f)))
+  return [...new Set([...own, ...used])].sort()
 }
 
 export function entryRevision(state: BootState, id: string, revision: string, host: EntryHost) {
@@ -380,6 +390,18 @@ export class SystemBoot implements BootBackend {
     return checkEntry(await this.systemdBoot(), content, this.host)
   }
 
+  async bootFiles() {
+    return entryFiles(await this.systemdBoot(), (dir) => {
+      try {
+        return readdirSync(dir, { withFileTypes: true })
+          .filter((d) => d.isFile())
+          .map((d) => d.name)
+      } catch {
+        return []
+      }
+    })
+  }
+
   async writeBootEntry(change: BootEntryChange) {
     await applyEntryChange(await this.systemdBoot(), change, this.host, (args) => this.bootctlWrite(args))
     return this.bootState()
@@ -546,6 +568,12 @@ export class FixtureBoot implements BootBackend {
 
   async checkBootEntry(content: string) {
     return checkEntry(await this.bootState(), content, await this.host())
+  }
+
+  async bootFiles() {
+    const inst = await this.installed()
+    const kernels = [...inst.keys()].filter(isFlavor)
+    return entryFiles(await this.bootState(), () => ['intel-ucode.img', 'amd-ucode.img', ...kernels.flatMap((k) => [`vmlinuz-${k}`, `initramfs-${k}.img`, `initramfs-${k}-fallback.img`])])
   }
 
   async writeBootEntry(change: BootEntryChange) {

@@ -381,6 +381,9 @@ export class LocalPrivileged implements Privileged {
   checkBootEntry(content: string) {
     return this.boot.checkBootEntry(content)
   }
+  bootFiles() {
+    return this.boot.bootFiles()
+  }
   async writeBootEntry(token: string | undefined, change: BootEntryChange) {
     this.gate.check(token)
     return this.boot.writeBootEntry(change)
