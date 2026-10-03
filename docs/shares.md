@@ -19,8 +19,8 @@ Before writing, `testparm` checks the new file; after writing, `smbcontrol smbd 
 makes Samba pick it up without dropping open connections. The previous file is kept as
 `smb.conf.quadeck-bak`. Active connections from `smbstatus` are shown per share.
 
-Samba users need their own Samba password (`smbpasswd -a <name>` on the console); creating Samba
-users is not part of the UI.
+Samba users need their own Samba password: set it on the [Users](users.md) page with **Set Samba
+password …** (or `smbpasswd -a <name>` on the console).
 
 ## NFS
 

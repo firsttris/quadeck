@@ -16,22 +16,22 @@ the containers. Quadeck detects the package manager; `QUADECK_PACKAGE_MANAGER` f
 
 ## Updates tab
 
-- **Available updates**: package, old → new version, repository, download size. The list is
+- **System packages**: package, old → new version, repository, download size. The list is
   refreshed once an hour and on **Check now**. On Arch the check synchronises a *copy* of the
   package database (like `checkupdates`), never a partial `pacman -Sy` that would leave the system
   in a half-updated state.
-- **Reboot hint**: when a kernel, systemd, glibc or similar package is in the list, and when the
+- **Reboot recommended**: when a kernel, systemd, glibc or similar package is in the list, and when the
   running kernel has already been replaced on disk.
 - **Arch news** from the Arch Linux feed, with the ones newer than the last system update
   highlighted, because those are the ones that may need manual intervention.
-- **Leftover config files**: `.pacnew` and `.pacsave` (Arch), `.rpmnew` and `.rpmsave` (Fedora,
-  openSUSE), `.dpkg-dist` and `.dpkg-old` (Debian) that are waiting for a merge. A click shows
+- **New config files**: `.pacnew` and `.pacsave` (Arch), `.rpmnew` and `.rpmsave` (Fedora,
+  openSUSE), `.dpkg-dist`, `.dpkg-new`, `.dpkg-old` and `.ucf-dist` (Debian), `.apk-new` (Alpine) that are waiting for a merge. A click shows
   what the file is for and the difference between yours (−) and the package's new one (+), with
   three ways out:
-  - **Keep mine**: the new file is deleted, yours stays.
-  - **Take over new version**: yours is replaced (kept as `<file>.quadeck-bak`, owner and
+  - **Keep mine …**: the new file is deleted, yours stays.
+  - **Take over new version …**: yours is replaced (kept as `<file>.quadeck-bak`, owner and
     mode stay).
-  - **Merge**: edit your version next to the diff and save exactly that text.
+  - **Merge …**: edit your version next to the diff and save exactly that text.
 
   `.pacsave` files (your version of a removed package) can only be viewed and deleted. Some
   files never get the package version: `passwd`, `shadow`, `group`, `gshadow`, `shells`,
@@ -64,9 +64,11 @@ All installed packages with search and filters: explicitly installed, dependenci
 local), orphans. Per package: version, size, description; details show dependencies and
 *required by*.
 
-**Remove** first shows what would go: the package and every dependency that nothing else needs
+**Remove …** first shows what would go: the package and every dependency that nothing else needs
 afterwards. Packages the system needs (kernel, systemd, glibc, the package manager, sudo, OpenSSH,
 Podman, Quadeck's own tools) are protected; the helper refuses them too, not only the UI.
+Packages can be selected and removed together; **Remove all orphans …** clears the orphan list in
+one go.
 
 ## Podman tab
 
@@ -81,15 +83,15 @@ The **Boot and reboot** tab is about the step after an update: restarting into t
 and making sure the server comes back.
 
 - **Reboot**: reboots the server after a confirmation that names what boots and warns about a
-  running job. The page waits and reloads itself when the server is back. **Into the UEFI settings** reboots into the firmware setup when the firmware supports it (the server
+  running job. The page waits and reloads itself when the server is back. **Into the UEFI settings …** reboots into the firmware setup when the firmware supports it (the server
   then waits there for someone at the machine). The "reboot recommended" banner on the other
   tabs links here.
 - **Entries** (systemd-boot, from `bootctl list`): kernel version, which one is the default,
-  which one is running. **Make default** sets the default (`bootctl set-default`). **Boot this once** boots once into another entry (`bootctl set-oneshot`) – for trying a new kernel
+  which one is running. **Make default** sets the default (`bootctl set-default`). **Boot this once …** boots once into another entry (`bootctl set-oneshot`) – for trying a new kernel
   or falling back to linux-lts; the reboot after that uses the default again, so a reset is
   enough when something goes wrong. A pending one-time entry is shown and can be withdrawn.
 - **Editing entries** (the `.conf` files in `loader/entries`, from the row menu "⋯"):
-  **Edit**, **Make a copy**, **Rename**, **Delete** and **New entry** (filled in
+  **Edit …**, **Make a copy …**, **Rename …**, **Delete …** and **New entry …** (filled in
   from the default entry). The editor has two views of the same file:
   - **Form**: the title, the kernel and the initramfs and microcode files to choose from what is
     on the boot partition (switching the kernel swaps the matching initramfs), and every kernel
@@ -103,8 +105,8 @@ and making sure the server comes back.
     `uki`), every file it names exists on the boot partition (paths start with `/` there),
     `options` contains `root=` when this system boots with one, unknown keys (typos) and missing
     values. Errors block saving; the changes are shown as a diff first.
-  - The default and the running entry are never edited in place: **Edit as a copy** opens a
-    copy (`arch-copy.conf`, title with " (copy)"). After saving, Quadeck offers **Boot this once** – boot the copy once; if it fails, a reset brings back the old default. When it
+  - The default and the running entry are never edited in place: **Edit as a copy …** opens a
+    copy (`arch-copy.conf`, title with " (copy)"). After saving, Quadeck offers **Boot this once …** – boot the copy once; if it fails, a reset brings back the old default. When it
     works, **Make default**.
   - Renaming a default or one-time entry moves that to the new name (`bootctl set-default`,
     `set-oneshot`); the file name is the entry's id. Names: letters, digits, `@ _ . + ~ -`, ending
@@ -126,10 +128,10 @@ and making sure the server comes back.
   back and forth. Per flavour: installed version, which one is running, whether it has a boot
   entry. **Install** runs pacman as a job (with the `-headers` package when DKMS modules
   such as NVIDIA or ZFS are installed, so they are built for it too). systemd-boot with classic
-  `.conf` entries does not get an entry for a new kernel by itself: **Create boot entry**
+  `.conf` entries does not get an entry for a new kernel by itself: **Create boot entry …**
   copies the default entry (same `options`, microcode kept) with kernel and initramfs swapped,
   shows the file first and writes `loader/entries/arch-lts.conf` – existing entries are not
-  touched. Then use **Boot this once** or **Make default**. **Remove** refuses the
+  touched. Then use **Boot this once …** or **Make default**. **Remove …** refuses the
   running kernel, the one of the default entry and the last one (checked again inside the job);
   the entry left behind is marked as pointing to missing files and can be deleted from its row
   menu. On Fedora and Debian the

@@ -48,7 +48,7 @@ the same card as the discovered services and are edited in the same dialog.
 
 ### Editing a service
 
-In edit mode (**Edit** or the `E` key) a click on a tile opens **Edit service**: name,
+In edit mode (**Edit** or the `E` key) a click on a tile opens **Edit <name>**: name,
 group, URL and icon (with a search over the dashboard-icons collection) override the discovery,
 empty fields follow it. Tiles can be pinned (always first in their group) and hidden; hidden
 services are listed in the edit bar so they can be shown again.

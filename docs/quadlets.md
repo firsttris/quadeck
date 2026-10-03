@@ -3,8 +3,8 @@
 ## Units page
 
 **Units** lists everything systemd runs for you: Quadlet units with their container, plain
-services, timers, sockets and containers without a unit. Filters: *All*, *Container*,
-*Services*, *Timer* (this one opens the [timer editor](systemd.md#timers)), *Sockets* and
+services, timers, sockets and containers without a unit. Filters: *All*, *Containers*,
+*Services*, *Timers* (this one opens the [timer editor](systemd.md#timers)), *Sockets* and
 *Failed*.
 
 Per row: name and description (for a socket: what it listens on and which service it starts),
@@ -40,7 +40,7 @@ its own list can be acted on.
 ## Quadlet editor
 
 The Quadlet editor is not a menu entry of its own; like the [systemd editor](systemd.md) it is
-reached from the units page: **Edit** on a container, **+ New container** (template or
+reached from the units page: **Edit Quadlet** on a container, **+ New container** (template or
 empty file) or **Quadlet files**. It lists every file in `/etc/containers/systemd`
 (`QUADECK_QUADLET_DIR`): `.container`,
 `.pod`, `.network`, `.volume`, `.kube`, `.image` and `.build`, including one level of
@@ -89,7 +89,7 @@ works.
 
 ### New files and templates
 
-**+ New** creates a file from a template: web service with a published port, PostgreSQL database,
+**New** creates a file from a template: web service with a published port, PostgreSQL database,
 empty container, network, volume, pod. The name becomes the file name and the generated unit name
 (`name.container` → `name.service`, `name.network` → `name-network.service`).
 
@@ -100,9 +100,10 @@ empty container, network, volume, pod. The name becomes the file name and the ge
 them. Image, ports, volumes, environment, env files, command and entrypoint, user, working
 directory, hostname, restart policy, devices, privileged, added capabilities, healthcheck,
 labels, networks and dependencies are translated. Everything the importer cannot express (`build`
-sections, deploy options, unknown keys) is listed as a warning next to the file instead of
-disappearing silently. The result is a set of files in the editor; nothing is
-written until you save each one.
+sections, deploy options, unknown keys) is listed as a warning above the preview instead of
+disappearing silently. **Convert** shows the files first; **Create N files** writes them all
+(networks and volumes first, existing files are marked "will be overwritten") and, if chosen,
+starts the units.
 
 ### Deleting
 

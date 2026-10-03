@@ -17,8 +17,9 @@ bun run compile       # single binary for this platform into release/
 
 With `QUADECK_FIXTURES=fixtures/demo` every collector and every helper backend reads the host from
 JSON files instead of the machine: a Fedora NAS with eight containers, failed units, timers, SMART
-data, shares, SSH keys and a network. Changes you make (a new timer, a share, a notification
-channel) live in memory until the process restarts. `QUADECK_UNLOCK=quadeck` makes the unlock use
+data, shares, SSH keys and a network. Changes to the host (a new timer, a share) live in memory
+until the process restarts; what Quadeck stores itself (layout, links, notification channels, speed
+tests) goes to the database in `.data`. `QUADECK_UNLOCK=quadeck` makes the unlock use
 the Quadeck password, so no root is needed anywhere. Without fixtures, `bun run dev` reads the real
 host and needs root for the helper parts (or run `sudo quadeck helper` from a compiled binary next
 to it).
@@ -45,7 +46,9 @@ src/server/
   quadlets/                   Quadlet files, generator dry run, git history, Podman settings, compose import
   systemd/editor.ts           unit files, overrides, systemd-analyze verify, history
   timers/backend.ts           timers list, own timers, schedule overrides
-  shares/, ssh/, smart/, files/, network/   one backend each, System* for the host and Fixture* for demo data
+  shares/, ssh/, smart/, files/, network/, fstab/, boot/, users/, hardware/, caddy/
+                              one backend each, System* for the host and Fixture* for demo data
+  speedtest.ts                speed test (Cloudflare), automatic runs, history
   db/                         Drizzle schema, generated migrations
 src/shared/                   types and pure logic used by server and UI: ini editing, quadlet keys,
                               timers (schedule builder, cron), unit-files, notify, network, smart assessment
@@ -89,10 +92,11 @@ the metric history; everything discovered is recomputed live. Schema changes: ed
 | backends | fixture backends end to end; real `systemd-analyze verify`/`calendar` and `smartctl` where installed; shares with `testparm`/`exportfs` in a temp dir; SSH keys and drop-ins; file jobs with real `cp`/`mv`/`rm` |
 | helper | socket server with the unlock gate and the system password check |
 | auth | setup token, argon2 login, sessions, CSRF, rate limit |
-| E2E | Playwright against the production build with fixtures: setup and login, dashboard, units and actions, Quadlet editor, system page and jobs, disks and files, shares, SSH, timers, unit editor, network, notifications |
+| E2E | Playwright against the production build with fixtures: setup and login, dashboard, units and actions, Quadlet editor, system page and jobs, disks and files, shares, SSH, timers, unit editor, network, notifications, reverse proxy, mounts, boot, users, hardware, metrics, speed test, English scan |
 
-`bun run test` runs the unit tests (about 215), `bun run test:e2e` the Playwright suite (about 40
-tests). CI runs both plus the four binary builds and a smoke test of the musl binary on Alpine.
+`bun run test` runs the unit tests (about 320), `bun run test:e2e` the Playwright suite (about 60
+tests). CI runs both plus the four binary builds and smoke tests of the glibc binary and of the musl
+binary on Alpine.
 
 ## Releases
 

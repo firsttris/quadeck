@@ -9,7 +9,7 @@ areas.
 ## SMART
 
 Quadeck reads every drive with `smartctl --json` from smartmontools: every 30 minutes, on
-**Check now**, and when the page opens if the last reading is older. Sleeping disks are not
+**Read now**, and when the page opens if the last reading is older. Sleeping disks are not
 woken up (`-n standby`); their last values stay until they spin up on their own.
 
 ### Per disk
@@ -25,8 +25,8 @@ The assessment is the one from [snapraid-ui](https://github.com/firsttris/snapra
 | Level | When |
 |---|---|
 | **critical** | the drive reports itself as failing (`FAIL`), a pre-failure attribute is below its threshold now (`PREFAIL`), wear at 100 %, temperature at 60 °C or more |
-| **warning** | a pre-failure attribute was below its threshold in the past, entries in the drive's error log, reallocated, pending or uncorrectable sectors (attributes 5, 197, 198), reported uncorrectable read errors (187), CRC errors (199) that grew during the last 7 days, media errors on NVMe, wear above 80 %, temperature above 50 °C, a failed or aborted last self-test, SMART data not readable |
-| **ok** | nothing of the above |
+| **Warning** | a pre-failure attribute was below its threshold in the past, entries in the drive's error log, reallocated, pending or uncorrectable sectors (attributes 5, 197, 198), reported uncorrectable read errors (187), CRC errors (199) that grew during the last 7 days, media errors on NVMe, wear at 80 % or more, temperature above 50 °C, a failed or aborted last self-test, SMART data not readable |
+| **healthy** | nothing of the above |
 
 Every finding comes with what to do: *replace the disk* (status, sectors, read errors, wear,
 failed test), *check the cable* (CRC errors and a filling error log are usually a cable, a port or
@@ -44,8 +44,8 @@ solved.
 ### History
 
 Temperature, the sector and error counters and the wear level are sampled hourly and kept for a
-year (daily averages beyond 30 days). A rising counter is the real warning sign, a single
-reallocated sector that has been there for a year is not. The history opens per disk with 7, 30 or
+year (daily maximums for ranges over 30 days). A rising counter is the real warning sign, a single
+reallocated sector that has been there for a year is not. The history opens per disk with 30, 90 or
 365 days.
 
 ### Self-tests
@@ -159,8 +159,8 @@ deleted.
 
 A click on a file does what fits it: text opens in Quadeck's editor (below); photos, PDFs, audio
 and videos the browser can play (MP4, WebM, MP3, FLAC …) open in a **new tab**; everything else
-(archives, ISOs, MKV …) is **downloaded**. The **⋯** menu of every file offers the other ways too:
-**Open in a new tab** and **Download**.
+(archives, ISOs, MKV …) is **downloaded**. The **⋯** menu of every file offers the other ways that fit it:
+**Open in the editor**, **Open in a new tab** and **Download**.
 
 Files are streamed, not loaded first, and the browser can ask for parts of them (HTTP range
 requests): a video starts right away and can jump to any point, even with many gigabytes over the

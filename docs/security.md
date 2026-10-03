@@ -38,12 +38,13 @@ as root in one process (installations from before the helper).
 ## Login
 
 - One admin password, hashed with argon2id, set on the first start through `/setup` with a token
-  that only root can read (`quadeck setup-token`). `quadeck passwd` resets it.
+  that only root and the `quadeck` user can read (`quadeck setup-token`). `quadeck passwd` resets it.
 - Sessions last 7 days. The cookie is `HttpOnly`, `SameSite=Strict`, `Secure` behind HTTPS; the
   database stores only a hash of the session token.
 - After 5 failed attempts a client waits 30 seconds, doubling up to 15 minutes. The client address
   comes from `X-Forwarded-For` only for proxies listed in `QUADECK_TRUSTED_PROXIES`.
-- Logout and a password change end every session, including open live streams.
+- Logout ends this session; setting a new password (`quadeck passwd`, then `/setup`) ends every
+  session. Open live streams of an ended session close within 15 seconds.
 
 ## Requests
 
@@ -69,7 +70,10 @@ as root in one process (installations from before the helper).
 | accounts | `/etc/passwd`, `/etc/shadow`, `/etc/group` via `useradd`, `usermod`, `chpasswd`, `userdel`; Samba via `smbpasswd` | names, shells and groups checked; passwords only on stdin; lock-out guard for the last administrator |
 | mounts | `/etc/fstab` (data disks only; system entries are protected) | device, driver, `findmnt --verify`, systemd generator, test mount, confirmation for boot-critical entries, `.quadeck-bak`, history, rollback |
 | packages | the package manager | protected package list, removal preview |
-| files | the data areas only | conflicts refused before the job |
+| files | the data areas only | conflicts refused before the job; text files: hash check, written next to the file and renamed over it |
+| reverse proxy | the Caddyfile (`QUADECK_CADDYFILE`, a path picked in the UI, the Caddy Quadlet's mount, or `/etc/caddy/Caddyfile`) | admin API `/adapt` or `caddy validate`, history in `/var/lib/quadeck-helper/caddy-history`, reload, restore when the reload fails |
+| boot | systemd-boot entries in `loader/entries`; EFI variables via `bootctl` (default, timeout, one-time entry) | entry check (kernel, files, `root=`), written next to the file and renamed, history in `/var/lib/quadeck-helper/boot-history`; default and running entry never edited in place |
+| package config files | the live file next to a `.pacnew`/`.pacsave`/`.rpmnew`/`.dpkg-dist` | both versions shown before keeping, replacing or merging; `sshd -t`/`testparm` where they apply |
 
 Nothing is written outside these places. Quadeck's own units are read-only in the editor.
 
@@ -78,8 +82,9 @@ Nothing is written outside these places. Quadeck's own units are read-only in th
 - `/var/lib/quadeck` (user `quadeck`, 0700): SQLite database with the password hash, sessions,
   layout, overrides, metric history, notification state and channel tokens; the icon cache; the
   setup token.
-- `/var/lib/quadeck-helper` (root, 0700): the Quadlet git repository and the history of unit files
-  and `/etc/fstab`.
+- `/var/lib/quadeck-helper` (root, 0700): the Quadlet git repository, the history of unit files,
+  `/etc/fstab`, boot entries and the Caddyfile (`unit-history`, `fstab-history`, `boot-history`,
+  `caddy-history`) and `caddy.json` (the Caddyfile path picked in the UI).
 - `/var/cache/quadeck` (root): the copy of the pacman database for update checks.
 - Notification tokens are returned masked by the API and never logged.
 

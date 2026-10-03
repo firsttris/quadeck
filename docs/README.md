@@ -16,7 +16,7 @@ disks, shares and the host itself, with the actions you need day to day.
 | [Disks and files](disks.md) | SMART verdicts and advice, history, self-tests, fstab configurator and its checks, file explorer, data areas |
 | [Shares](shares.md) | SMB shares, NFS exports, services, what is checked, what is never touched |
 | [SSH](ssh.md) | keys, hardening, lock-out guard, logins, connecting a new device |
-| [Network](network.md) | interfaces, ports, firewall verdicts, routes and DNS |
+| [Network](network.md) | interfaces, ports, firewall verdicts, routes and DNS, reverse proxy (Caddy), speed test |
 | [Notifications](notifications.md) | channels, rules, how spam is avoided, retries |
 | [Security](security.md) | the two processes, unlock, authentication, hardening, data and secrets |
 | [Development](development.md) | setup with demo data, checks, architecture, tests, releases |
@@ -37,7 +37,7 @@ disks, shares and the host itself, with the actions you need day to day.
 - **Zero config.** Services, their URLs and icons are discovered from Caddy, Podman and the Quadlet
   files. Labels in the Quadlet file and overrides in the UI only refine what was found.
 - **Nothing is deleted silently.** Config files Quadeck edits (`smb.conf`, `exports`, `sshd` drop-ins,
-  unit files, Quadlet files) are checked with the respective tool before they are written, keep a
+  unit files, Quadlet files, `/etc/fstab`, the Caddyfile, boot entries) are checked with the respective tool before they are written, keep a
   backup or a history, and are rolled back when the tool refuses.
 
 ## Which page does what
@@ -50,12 +50,12 @@ and the unlock countdown in reach.
 |---|---|---|
 | **Hardware** | host card in the sidebar | CPU, memory, GPUs, USB, sensors, PCIe/SATA links |
 | **Overview** | | gauges with history, failed units, services, storage, timers, shares |
-| **Units** | Services | services, timers and containers with actions; the *Timer* filter is the schedule editor; from here the Quadlet and systemd editors open |
+| **Units** | Services | services, timers and containers with actions; the *Timers* filter is the schedule editor; from here the Quadlet and systemd editors open |
 | **Journal** | Services | `journalctl` live, per unit and priority, searchable |
 | **Disks** | Storage | SMART verdicts, history, self-tests; mounting disks via `/etc/fstab` |
 | **Files** | Storage | file explorer for the data areas |
 | **Shares** | Storage | SMB and NFS |
-| **Network** | Server | interfaces, ports, firewall, reverse proxy (Caddyfile) |
+| **Network** | Server | interfaces, ports, firewall, reverse proxy (Caddyfile), speed test |
 | **Users** | Server | accounts, groups, passwords, Samba, keys |
 | **SSH** | Server | keys, hardening, logins |
 | **System** | Server | updates, installed packages, Podman settings, boot and reboot |
@@ -63,5 +63,4 @@ and the unlock countdown in reach.
 
 The UI is in German and English. It follows the browser's language; the switch at the bottom of
 the sidebar (and on the login page) overrides it and is remembered in a cookie. E-mails and push
-messages use the language last picked there. The documentation names the German labels where you
-need to find them; the English UI uses the English words in brackets.
+messages use the language last picked there. The documentation uses the English labels.

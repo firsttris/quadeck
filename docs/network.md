@@ -2,15 +2,16 @@
 
 The **Network** page shows the network side of the server: interfaces, listening ports with who
 is behind them, the firewall's view on those ports, routes and DNS. It answers "why can't I reach
-it?" and "what is listening on 8080?" without a terminal. Four tabs: **Interfaces**
+it?" and "what is listening on 8080?" without a terminal. Five tabs: **Interfaces**
 (interfaces, routes and DNS), **Ports** and **Firewall** only show; **Reverse proxy** edits the
-Caddyfile (see [below](#reverse-proxy)).
+Caddyfile (see [below](#reverse-proxy)); **Speed test** measures the connection (see
+[below](#speed-test)).
 
 <img src="screenshot-network.png" alt="Network page: interfaces, listening ports with program, unit or container, firewall verdicts, routes and DNS" width="900">
 
 ## Interfaces
 
-Every interface with its kind (LAN, WLAN, VPN, Thread – the `wpan0` of an OpenThread border router for Matter devices –, bridge, container, loopback, virtual), state,
+Every interface with its kind (LAN, Wi-Fi, VPN, Thread – the `wpan0` of an OpenThread border router for Matter devices –, bridge, container, loopback, virtual), state,
 IPv4 and IPv6 addresses (DHCP marked), the gateway on it, link speed, MAC, MTU and the bytes
 received and sent since boot. Loopback and container-side veth interfaces are hidden by default;
 a checkbox shows them.
@@ -22,14 +23,14 @@ Source: `ip -j -d addr`, `/sys/class/net`; without iproute2, Node's own interfac
 Everything listening on TCP or UDP (`ss -tulpn`, run by the root helper so process names are
 available), IPv4 and IPv6 sockets of the same program merged into one row:
 
-- **port** and protocol, with a name for well-known ports (SSH, SMB, NFS, DNS, mDNS, HTTP, …);
-- **reach**: *all interfaces* (0.0.0.0 or ::), *this machine only* (loopback only) or a
+- **Port** and protocol, with a name for well-known ports (SSH, SMB, NFS, DNS, mDNS, HTTP, …);
+- **Reachable**: *all interfaces* (0.0.0.0 or ::), *this machine only* (loopback only) or a
   specific address;
-- **program**, with the systemd unit it belongs to (from the process's cgroup; links to the
+- **Program**, with the systemd unit it belongs to (from the process's cgroup; links to the
   [unit editor](systemd.md)) or the container (from the libpod cgroup, or because Podman published
   the port). Published container ports usually have no socket of their own in rootful Podman, so
   they are added from the container list;
-- **firewall**: see below.
+- **Firewall**: see below.
 
 *only reachable from the network* hides the loopback-only rows.
 
@@ -65,7 +66,8 @@ routing table on request.
 The tab **Reverse proxy** edits the Caddyfile: each site block is a row (domain → target, with the
 options it uses). **New domain** and **Edit** open a dialog for that one entry:
 
-- **Domains** (several separated by commas) and **targets** (several: Caddy balances the load).
+- **Domain(s)** (several separated by commas) and **Target** (several separated by spaces: Caddy
+  balances the load).
   Suggestions are the containers with a published port (`localhost:<port>`).
 - **Only reachable from the home network** – requests from outside private address ranges (LAN,
   VPN) get 403 (`@outside not remote_ip private_ranges` + `respond @outside 403`).
@@ -79,7 +81,7 @@ options it uses). **New domain** and **Edit** open a dialog for that one entry:
   the block. Whatever the dialog does not know is kept there as written – nothing gets lost.
 
 Blocks that are more than "domain → one target" (several `reverse_proxy` with paths, `file_server`,
-`handle` …) are edited as text – only that block, not the whole file. Global options, snippets and
+`handle` …) are edited as text (**Edit as text …**) – only that block, not the whole file. Global options, snippets and
 `import` stay as written; **Edit Caddyfile** opens the whole file.
 
 **Which file.** The first that applies:
@@ -124,7 +126,8 @@ the steps ping → download → upload and a curve while it runs:
   uploads for six seconds; ping and jitter come from ten small requests before. Through a reverse
   proxy this includes the proxy.
 - **Server ↔ internet** – the server's own connection, measured by the web app against Cloudflare
-  (`speed.cloudflare.com`: `__down` and `__up`), the same way. The result names the Cloudflare
+  (`speed.cloudflare.com`: `__down` and `__up`), the same way (eight pings, then six seconds each over
+  four connections). The result names the Cloudflare
   location that answered (e.g. FRA). No root and nothing to install; only one test runs at a time.
 
 Every result shows Mbit/s and MB/s (Mbit/s ÷ 8): connections are sold in Mbit/s, file sizes are in
