@@ -3,7 +3,7 @@
 
 import { msg } from './i18n'
 
-export type IfaceKind = 'ethernet' | 'wifi' | 'bridge' | 'container' | 'vpn' | 'loopback' | 'virtual'
+export type IfaceKind = 'ethernet' | 'wifi' | 'bridge' | 'container' | 'vpn' | 'thread' | 'loopback' | 'virtual'
 
 export interface NetAddress {
   family: 'inet' | 'inet6'

@@ -14,6 +14,8 @@ describe('ip', () => {
     writeFileSync(join(sys, 'enp3s0/statistics/rx_bytes'), '123\n')
     writeFileSync(join(sys, 'enp3s0/statistics/tx_bytes'), '45\n')
     mkdirSync(join(sys, 'wlan0/wireless'), { recursive: true })
+    mkdirSync(join(sys, 'wpan0'), { recursive: true })
+    writeFileSync(join(sys, 'wpan0/speed'), '10000\n') // tun devices report a made-up 10 Gbit/s
     const json = JSON.stringify([
       { ifname: 'lo', flags: ['LOOPBACK', 'UP', 'LOWER_UP'], mtu: 65536, operstate: 'UNKNOWN', link_type: 'loopback', address: '00:00:00:00:00:00', addr_info: [{ family: 'inet', local: '127.0.0.1', prefixlen: 8, scope: 'host' }] },
       {
@@ -32,6 +34,8 @@ describe('ip', () => {
       { ifname: 'podman0', flags: ['UP'], mtu: 1500, operstate: 'UP', link_type: 'ether', linkinfo: { info_kind: 'bridge' }, address: '6e:00:00:00:00:01' },
       { ifname: 'veth0', flags: ['UP'], mtu: 1500, operstate: 'UP', link_type: 'ether', linkinfo: { info_kind: 'veth' }, master: 'podman0' },
       { ifname: 'wg0', flags: ['UP'], mtu: 1420, operstate: 'UNKNOWN', link_type: 'none', linkinfo: { info_kind: 'wireguard' } },
+      // OpenThread border router (Matter/Thread): a tun device, but not a VPN
+      { ifname: 'wpan0', flags: ['UP', 'LOWER_UP'], mtu: 1280, operstate: 'UNKNOWN', link_type: 'none', linkinfo: { info_kind: 'tun' }, addr_info: [{ family: 'inet6', local: 'fddf:bdac:eb86:bced:0:ff:fe00:e400', prefixlen: 64, scope: 'global' }] },
     ])
     const ifs = parseIpAddr(json, sys)
     expect(ifs.map((i) => [i.name, i.kind, i.state])).toEqual([
@@ -41,7 +45,9 @@ describe('ip', () => {
       ['podman0', 'bridge', 'UP'],
       ['veth0', 'container', 'UP'],
       ['wg0', 'vpn', 'UNKNOWN'],
+      ['wpan0', 'thread', 'UP'],
     ])
+    expect(ifs[6]!.speedMbps).toBeUndefined()
     expect(ifs[0]!.mac).toBeUndefined()
     expect(ifs[1]).toMatchObject({
       speedMbps: 1000,

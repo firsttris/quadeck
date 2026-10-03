@@ -18,7 +18,7 @@ export const Route = createFileRoute('/_app/network')({
   component: NetworkPage,
 })
 
-const MAIN: IfaceKind[] = ['ethernet', 'wifi', 'vpn', 'bridge']
+const MAIN: IfaceKind[] = ['ethernet', 'wifi', 'vpn', 'thread', 'bridge']
 
 function NetworkPage() {
   const { tab = 'interfaces' } = Route.useSearch()
@@ -176,7 +176,7 @@ function Iface({ iface: i, gateway }: { iface: NetInterface; gateway?: string })
         <span className="font-mono text-[14px] font-semibold">{i.name}</span>
         <span className="chip">
           {pickMsg(
-            { ethernet: m.network_kind_ethernet, wifi: m.network_kind_wifi, bridge: m.network_kind_bridge, container: m.network_kind_container, vpn: m.network_kind_vpn, loopback: m.network_kind_loopback, virtual: m.network_kind_virtual },
+            { ethernet: m.network_kind_ethernet, wifi: m.network_kind_wifi, bridge: m.network_kind_bridge, container: m.network_kind_container, vpn: m.network_kind_vpn, thread: m.network_kind_thread, loopback: m.network_kind_loopback, virtual: m.network_kind_virtual },
             i.kind,
           )}
         </span>
