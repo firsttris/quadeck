@@ -28,22 +28,10 @@ curl -fsSL https://raw.githubusercontent.com/firsttris/quadeck/main/install.sh |
 
 ## 💡 Why Quadeck?
 
-Cockpit is a general-purpose server console, Portainer is about containers and wants Docker, and
-most homelab dashboards are link pages that know nothing about the machine behind them. Quadeck is
-the console for a home server that runs its apps with Podman: what you would otherwise do in
-Cockpit, at the shell or in a dozen config files – units and timers, updates and kernels, disks and
-`fstab`, users and SSH, Samba and NFS, network and Caddy – plus what a homelab needs on top: a
-dashboard of your services, SMART advice in plain words, notifications and a speed test.
-
-- **Zero config**: install, open the page, and the dashboard is already filled. Services, URLs and
-  icons come from Caddy, Podman and your Quadlet files.
-- **Changes you can trust**: every change is checked by the tool that owns the file before it is
-  written (the Quadlet generator, `systemd-analyze`, `findmnt`, `testparm`, `sshd -t`, Caddy), shown
-  as a diff first and kept in a history.
-- **systemd stays in charge**: a container with a Quadlet unit is always started and stopped
-  through systemd, never behind its back.
-- **Root in a separate process**: the web app runs unprivileged. A small root helper with a fixed
-  list of actions does the rest, and only after you unlock it with your password.
+- A web UI for **Podman Quadlets and systemd** – start, stop, edit and watch your containers and units.
+- The **server around it**: disks and mounts, updates, users, Samba/NFS, backups, network.
+- **Plain Linux underneath**: changes go into the usual units and config files.
+- **Made for one home server**, not for clusters.
 
 ## 🚀 Install
 
