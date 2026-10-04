@@ -28,24 +28,10 @@ curl -fsSL https://raw.githubusercontent.com/firsttris/quadeck/main/install.sh |
 
 ## 💡 Why Quadeck?
 
-Quadeck started as a small web UI for Podman Quadlets and systemd units. Running a home server
-turned out to be more than starting containers, though – disks, updates, users, shares and backups
-need looking after too – so it grew step by step into a console for the whole machine.
-
-It is made for one server at home that runs its apps with Podman. Great tools like Cockpit and
-Portainer already exist; Quadeck simply puts Quadlets first and gathers the everyday homelab tasks
-around them in one place. Under the hood it stays plain Linux: everything it changes ends up in the
-same units and config files you would edit by hand.
-
-- **Ready after install**: the dashboard fills itself from Caddy, Podman and your Quadlet files –
-  services, URLs and icons included.
-- **Checked before it is saved**: changes are validated by the tool that owns the file (the
-  Quadlet generator, `systemd-analyze`, `findmnt`, `testparm`, `sshd -t`, Caddy), shown as a diff
-  first and kept in a history.
-- **systemd stays in charge**: containers with a Quadlet unit are started and stopped through
-  systemd, never behind its back.
-- **Root only where needed**: the web app runs unprivileged. A small root helper with a fixed list
-  of actions does the rest, and only after you unlock it with your password.
+- A web UI for **Podman Quadlets and systemd** – start, stop, edit and watch your containers and units.
+- The **server around it**: disks and mounts, updates, users, Samba/NFS, backups, network.
+- **Plain Linux underneath**: changes go into the usual units and config files.
+- **Made for one home server**, not for clusters.
 
 ## 🚀 Install
 
