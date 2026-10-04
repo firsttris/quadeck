@@ -2,6 +2,7 @@
 // (web app, root helper and the `quadeck job` runner).
 
 import type { KernelFlavor } from './boot'
+import type { PackFormat } from './archives'
 import { msg } from './i18n'
 
 export type ManagerId = 'pacman' | 'apt' | 'dnf' | 'zypper' | 'apk' | 'rpm-ostree' | 'transactional-update'
@@ -103,6 +104,8 @@ export type JobSpec =
   | { kind: 'fs-copy'; paths: string[]; toDir: string; overwrite: boolean }
   | { kind: 'fs-move'; paths: string[]; toDir: string; overwrite: boolean }
   | { kind: 'fs-delete'; paths: string[] }
+  | { kind: 'fs-extract'; archive: string; toDir: string; overwrite: boolean }
+  | { kind: 'fs-pack'; paths: string[]; format: PackFormat; name: string }
   | { kind: 'kernel-install'; flavor: KernelFlavor }
   | { kind: 'kernel-remove'; flavor: KernelFlavor }
   | { kind: 'mkinitcpio' }
@@ -201,7 +204,7 @@ export const REBOOT_PACKAGES = /^(linux(-lts|-zen|-hardened)?|linux-image-.*|ker
  * Tools Quadeck pages need, installable with one click. Only these – never
  * arbitrary package names from the browser.
  */
-export type Feature = 'smart' | 'samba' | 'nfs' | 'ssh' | 'restic' | 'hdparm'
+export type Feature = 'smart' | 'samba' | 'nfs' | 'ssh' | 'restic' | 'hdparm' | 'zip'
 
 /** `label` is a getter: read in the viewer's language. */
 export const FEATURES: Record<Feature, { label: string; packages: Record<ManagerId, string[]>; service?: Record<ManagerId, string> }> = {
@@ -232,6 +235,10 @@ export const FEATURES: Record<Feature, { label: string; packages: Record<Manager
   hdparm: {
     label: 'hdparm',
     packages: { pacman: ['hdparm'], apt: ['hdparm'], dnf: ['hdparm'], zypper: ['hdparm'], apk: ['hdparm'], 'rpm-ostree': ['hdparm'], 'transactional-update': ['hdparm'] },
+  },
+  zip: {
+    label: 'zip / unzip',
+    packages: { pacman: ['zip', 'unzip'], apt: ['zip', 'unzip'], dnf: ['zip', 'unzip'], zypper: ['zip', 'unzip'], apk: ['zip', 'unzip'], 'rpm-ostree': ['zip', 'unzip'], 'transactional-update': ['zip', 'unzip'] },
   },
   restic: {
     label: 'restic',

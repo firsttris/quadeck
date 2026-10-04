@@ -415,6 +415,12 @@ export class LocalPrivileged implements Privileged {
     this.gate.check(token)
     return this.files.makeDir(path)
   }
+  archivePreview(token: string | undefined, archive: string, toDir: string) {
+    return this.files.archivePreview(archive, toDir, this.gate.unlockedUntil(token) !== null)
+  }
+  archiveTools() {
+    return this.files.archiveTools()
+  }
   readTextFile(token: string | undefined, path: string) {
     return this.files.readTextFile(path, this.gate.unlockedUntil(token) !== null)
   }

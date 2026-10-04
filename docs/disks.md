@@ -216,11 +216,40 @@ as the target. Both folders are in the address (`/files?path=…&right=…`), so
 bookmark keeps them, and the browser remembers whether two panes were open. On a phone the panes
 become two tabs, **Left** and **Right**.
 
-Copy, move and delete run as [jobs](updates.md#jobs) with live output (`cp -a --reflink=auto`,
+Copy, move, delete, unpack and pack run as [jobs](updates.md#jobs) with live output (`cp -a --reflink=auto`,
 `mv`, `rm -r --one-file-system`), so a large folder blocks nothing and a restart of Quadeck does not
 interrupt it. Conflicts and paths outside the areas are refused before the job starts, not in a
 failing job. Every change needs the [unlock](security.md#unlock). There is no trash: deleted is
 deleted.
+
+### Archives
+
+**Unpack …** in the **⋯** menu of an archive (`.zip`, `.tar`, `.tar.gz`/`.tgz`, `.tar.bz2`, `.tar.xz`,
+`.tar.zst`) first reads its contents and shows the number of files, the unpacked size and the free
+space at the target. By default it unpacks into a new folder named after the archive; **Here** and,
+with two panes, **Into the other pane** are the alternatives. Existing entries are kept unless
+**Overwrite existing files** is ticked.
+
+Archives can be crafted, so Quadeck checks every entry before anything is written and refuses the
+whole archive when one is dangerous:
+
+| Refused | Why |
+|---|---|
+| absolute paths, paths with `../` | they would write outside the target ("zip slip") |
+| symlinks pointing outside the archive (also zip's, read from their content) | later entries could write through them |
+| setuid/setgid bits, device files, FIFOs | they don't belong in a data area |
+| a symlink in the target where the archive writes | unpacking would follow it |
+| more data than free space | a full disk (or a zip bomb) |
+
+The checks run again in the job right before unpacking. `tar` and `unzip` then run as the **owner
+of the target folder** (`setpriv`), not as root, so even an archive that slipped through could only
+write where that owner may; owners and permission bits from the archive are not taken over
+(`--no-same-owner --no-same-permissions`). `tar` reads the archive through a pipe that root opens,
+so this also works when the owner can't read the archive itself; `unzip` needs to read the file.
+
+**Pack …** in the toolbar packs the selected entries of a folder as `.zip` or `.tar.gz` next to them
+(also as their owner) – handy to download a whole folder. `.zip` needs `zip`/`unzip`; when they are
+missing, the dialog offers to install them.
 
 ### Opening files
 

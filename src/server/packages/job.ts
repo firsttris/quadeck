@@ -12,6 +12,8 @@ import { aurHelper, aurUser, runAurUpgrade } from './aur'
 import { fileRootPaths } from '../files/backend'
 import { assertNoMountsInside, fsJobSteps, gnuCoreutils, prepareFsJob, systemFsOps } from '../files/transfer'
 import { baseName, validatePath } from '~/shared/files'
+import { PACK_FORMATS, type PackFormat } from '~/shared/archives'
+import { asOwnerOf, assertExtractable, extractArgv, gnuTar, makeTarget, packArgv, preparePack, systemArchiveHost } from '../files/archives'
 import { imageUpdates } from './images'
 import { detectProvider, type Step } from './providers'
 import { release } from 'node:os'
@@ -64,6 +66,18 @@ export function parseJobSpec(v: unknown): JobSpec {
       if (o.kind === 'fs-delete') return { kind: 'fs-delete', paths: paths as string[] }
       if (typeof o.toDir !== 'string' || validatePath(o.toDir)) throw new HttpError(400, msg('packages_error_invalidTarget'))
       return { kind: o.kind, paths: paths as string[], toDir: o.toDir, overwrite: o.overwrite === true }
+    }
+    case 'fs-extract': {
+      if (typeof o.archive !== 'string' || validatePath(o.archive)) throw new HttpError(400, msg('packages_error_invalidPaths'))
+      if (typeof o.toDir !== 'string' || validatePath(o.toDir)) throw new HttpError(400, msg('packages_error_invalidTarget'))
+      return { kind: 'fs-extract', archive: o.archive, toDir: o.toDir, overwrite: o.overwrite === true }
+    }
+    case 'fs-pack': {
+      const paths = Array.isArray(o.paths) ? o.paths : []
+      if (!paths.length || paths.length > 1000 || !paths.every((p) => typeof p === 'string' && !validatePath(p))) throw new HttpError(400, msg('packages_error_invalidPaths'))
+      if (!(PACK_FORMATS as readonly unknown[]).includes(o.format)) throw new HttpError(400, msg('files_archive_format'))
+      if (typeof o.name !== 'string' || !o.name) throw new HttpError(400, msg('packages_error_invalidTarget'))
+      return { kind: 'fs-pack', paths: paths as string[], format: o.format as PackFormat, name: o.name }
     }
     case 'backup-restore': {
       const paths = Array.isArray(o.paths) ? o.paths : []
@@ -119,14 +133,18 @@ export function jobTitle(spec: JobSpec): string {
       if (spec.kind === 'fs-delete') return msg('packages_job_fsDelete', { what })
       return spec.kind === 'fs-copy' ? msg('packages_job_fsCopy', { what, toDir: spec.toDir }) : msg('packages_job_fsMove', { what, toDir: spec.toDir })
     }
+    case 'fs-extract':
+      return msg('packages_job_fsExtract', { name: baseName(spec.archive), toDir: spec.toDir })
+    case 'fs-pack':
+      return msg('packages_job_fsPack', { name: spec.name })
   }
 }
 
 const out = (s: string) => process.stdout.write(s.endsWith('\n') ? s : s + '\n')
 
-async function exec(argv: string[], env: Record<string, string> = {}): Promise<number> {
-  out(`$ ${argv.join(' ')}`)
-  const proc = Bun.spawn(argv, { stdin: 'ignore', stdout: 'inherit', stderr: 'inherit', env: { ...process.env, LC_ALL: 'C.UTF-8', ...env } })
+async function exec(argv: string[], env: Record<string, string> = {}, cwd?: string, stdin?: string): Promise<number> {
+  out(`$ ${argv.join(' ')}${stdin ? ` < ${stdin}` : ''}`)
+  const proc = Bun.spawn(argv, { cwd, stdin: stdin ? Bun.file(stdin) : 'ignore', stdout: 'inherit', stderr: 'inherit', env: { ...process.env, LC_ALL: 'C.UTF-8', ...env } })
   return proc.exited
 }
 
@@ -186,6 +204,20 @@ async function execute(spec: JobSpec): Promise<number> {
         if (code !== 0) return code
       }
       return 0
+    }
+    case 'fs-extract': {
+      // Checked again here, where root acts: paths, links, space, conflicts, links in the target.
+      const host = systemArchiveHost(fileRootPaths())
+      const p = await assertExtractable(spec, host)
+      makeTarget(p)
+      const { argv, stdin } = extractArgv(p.format, host.file(spec.archive), p.toDir, spec.overwrite, gnuTar())
+      return exec(asOwnerOf(p.toDir, argv), {}, undefined, stdin)
+    }
+    case 'fs-pack': {
+      const { dir, names, out: file } = preparePack(spec, systemArchiveHost(fileRootPaths()))
+      if (spec.format === 'zip' && !Bun.which('zip')) throw new Error(msg('files_archive_needsZip'))
+      const { argv, cwd } = packArgv(spec.format, dir, file, names)
+      return exec(asOwnerOf(dir, argv), {}, cwd)
     }
     case 'mkinitcpio':
       if (!Bun.which('mkinitcpio')) throw new Error(msg('packages_error_mkinitcpioMissing'))

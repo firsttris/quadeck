@@ -23,6 +23,7 @@ import { HttpError } from '../auth'
 import { aurInfo, aurUpdates } from './aur'
 import { fileRootPaths, type FixtureFiles } from '../files/backend'
 import { prepareFsJob, systemFsOps } from '../files/transfer'
+import { assertExtractable, preparePack, systemArchiveHost } from '../files/archives'
 import { imageUpdates } from './images'
 import { defaultLauncher, JobManager, type JobSink, type Launcher } from './jobs'
 import { detectProvider, type Provider } from './providers'
@@ -227,6 +228,11 @@ export class SystemMaintenance implements MaintenanceBackend {
     }
     // Copy/move/delete: refuse now (conflicts, outside the roots) instead of in a failing job.
     if (spec.kind === 'fs-copy' || spec.kind === 'fs-move' || spec.kind === 'fs-delete') prepareFsJob(spec, systemFsOps(fileRootPaths()))
+    if (spec.kind === 'fs-extract') await assertExtractable(spec, systemArchiveHost(fileRootPaths()))
+    if (spec.kind === 'fs-pack') {
+      preparePack(spec, systemArchiveHost(fileRootPaths()))
+      if (spec.format === 'zip' && !Bun.which('zip')) throw new HttpError(409, msg('files_archive_needsZip'))
+    }
     return this.jobsMgr.start(spec)
   }
 
@@ -321,6 +327,14 @@ export class FixtureMaintenance implements MaintenanceBackend {
         await say(msg('packages_job_error', { message: (e as Error).message }))
         return sink.exit(1)
       }
+    } else if (spec.kind === 'fs-extract' || spec.kind === 'fs-pack') {
+      await say(spec.kind === 'fs-extract' ? `$ tar -x -v -f ${spec.archive} -C ${spec.toDir} --no-same-owner --no-same-permissions` : `$ ${spec.format === 'zip' ? 'zip -r -y' : 'tar -c -v -z -f'} ${spec.name} …`)
+      try {
+        for (const l of spec.kind === 'fs-extract' ? await this.files!.extract(spec) : await this.files!.pack(spec)) await say(l)
+      } catch (e) {
+        await say(msg('packages_job_error', { message: (e as Error).message }))
+        return sink.exit(1)
+      }
     } else if (spec.kind === 'mkinitcpio') {
       await say('$ mkinitcpio -P')
       await say("==> Building image from preset: /etc/mkinitcpio.d/linux.preset: 'default'")
@@ -392,6 +406,8 @@ export class FixtureMaintenance implements MaintenanceBackend {
       if (p.blocked.length) throw new HttpError(403, msg('packages_error_protectedAffected', { list: p.blocked.join(', ') }))
     }
     if ((spec.kind === 'fs-copy' || spec.kind === 'fs-move' || spec.kind === 'fs-delete') && this.files) prepareFsJob(spec, this.files.ops())
+    if (spec.kind === 'fs-extract' && this.files) await assertExtractable(spec, this.files.archiveHost())
+    if (spec.kind === 'fs-pack' && this.files) preparePack(spec, this.files.archiveHost())
     return this.jobsMgr.start(spec)
   }
   async jobs() {

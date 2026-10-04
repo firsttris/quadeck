@@ -18,6 +18,7 @@ import type { SshAdmin } from '../ssh/backend'
 import type { SelfTestType, SmartAdmin } from '../smart/backend'
 import type { FilesAdmin } from '../files/backend'
 import type { TextFile } from '~/shared/files'
+import type { ArchivePreview } from '~/shared/archives'
 import type { TimersAdmin } from '../timers/backend'
 import type { UnitEditorAdmin } from '../systemd/editor'
 import type { NetworkAdmin } from '../network/collect'
@@ -89,6 +90,9 @@ export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAd
   /** Text file for the editor; keys and secrets only when unlocked (423 otherwise). */
   readTextFile(token: string | undefined, path: string): Promise<TextFile>
   writeTextFile(token: string | undefined, path: string, content: string, expected: string): Promise<TextFile>
+  /** What unpacking an archive would do, with the safety checks; keys and secrets only when unlocked. */
+  archivePreview(token: string | undefined, archive: string, toDir: string): Promise<ArchivePreview>
+  archiveTools(): Promise<{ zip: boolean }>
   /** The file as an HTTP response for the browser (Range, inline or download); keys and secrets only when unlocked. */
   fileResponse(token: string | undefined, path: string, opts: { range?: string | null; download?: boolean }): Promise<Response>
   saveTimer(token: string | undefined, spec: TimerSpec, previous: string | undefined, enable: boolean): Promise<TimersState>
