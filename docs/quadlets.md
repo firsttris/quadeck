@@ -140,3 +140,40 @@ The **Podman** tab on the System page (next to the container image updates):
   The file is parsed as TOML before it is written; the previous version is kept next to it as
   `.quadeck-bak`.
 - **`storage.conf`** is shown read-only: changes there can make existing containers unusable.
+
+### Storage & cleanup
+
+What Podman keeps on disk and what uses it, on the same tab:
+
+- **Overview**: images, volumes and containers with their size and what could be freed, where
+  Podman stores them (`graphRoot`) and how full that disk is. Read from the Podman API
+  (`system/df`, which measures every volume – on a large server that takes a moment).
+- **Images**: name, size (only what this image holds alone, shared layers excluded), age and
+  **used by** – containers, or the Quadlet whose `Image=` names it (also while that service is
+  stopped). Untagged images are shown as *old version of …*: what an update leaves behind.
+- **Volumes**: size, created, used by, the Quadlet `.volume` file that creates it, the folder on
+  disk. Volumes no container uses come first.
+- **Stopped containers**: state, exit code, since when. Containers of a Quadlet or a pod are not
+  removed here – their unit or pod decides.
+- **Delete** next to anything nobody uses; volumes ask first, they hold data.
+
+**Clean up …** opens a dialog with a live preview of exactly what goes and how much it frees:
+
+- *Safe* (on by default): stopped containers without a Quadlet or pod, old image versions
+  (untagged), networks without containers (never the default network, never one from a `.network`
+  file).
+- *More thorough* (off): all images no container and no Quadlet uses; they are pulled again when
+  needed.
+- *Volumes without a container* (off, in a red box): picked one by one.
+
+Images, volumes and networks that only the removed containers used are freed with them. Right
+before deleting, Quadeck reads everything again and drops whatever is in use by now; every item is
+deleted on its own through the Podman API **without force**, so Podman itself refuses anything in
+use. The result lists what was freed and what was not, with Podman's reason. Needs unlocking; off in
+read-only mode.
+
+**Clean up regularly** creates the timer `quadeck-podman-prune.timer` (weekly on Sunday or
+monthly on the 1st, 04:00, persistent, low priority): `podman container prune` for stopped
+containers without a `PODMAN_SYSTEMD_UNIT` label and `podman image prune` for untagged images,
+both only older than a week. It never touches volumes, tagged images or networks. The timer also
+shows under Units → Timers with its journal.

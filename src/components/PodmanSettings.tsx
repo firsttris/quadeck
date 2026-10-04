@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { PodmanStorageCard } from './PodmanStorage'
 import { relative } from '~/lib/format'
 import { getToml, setToml, type TomlValue } from '~/shared/toml-edit'
 import type { PodmanConfigFile, PodmanSettings } from '~/shared/quadlets'
@@ -261,6 +262,8 @@ export function PodmanSettingsView() {
           <p className="m-0 text-[13px] text-muted">{m.podman_all_unsupported({ version: s.version ?? m.podman_all_unknownVersion() })}</p>
         )}
       </section>
+
+      <PodmanStorageCard />
 
       {s.files.map((f) => (
         <ConfigCard key={f.name} file={f} readonly={readonly} onSaved={setS} />

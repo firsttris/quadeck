@@ -59,6 +59,7 @@ import { Route as ApiNetworkIndexRouteImport } from './routes/api/network/index'
 import { Route as ApiNetworkDevicesRouteImport } from './routes/api/network/devices'
 import { Route as ApiNotificationsIndexRouteImport } from './routes/api/notifications/index'
 import { Route as ApiPodmanSettingsRouteImport } from './routes/api/podman/settings'
+import { Route as ApiPodmanStorageRouteImport } from './routes/api/podman/storage'
 import { Route as ApiQuadletsIndexRouteImport } from './routes/api/quadlets/index'
 import { Route as ApiQuadletsComposeRouteImport } from './routes/api/quadlets/compose'
 import { Route as ApiQuadletsFileRouteImport } from './routes/api/quadlets/file'
@@ -329,6 +330,11 @@ const ApiPodmanSettingsRoute = ApiPodmanSettingsRouteImport.update({
   path: '/api/podman/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPodmanStorageRoute = ApiPodmanStorageRouteImport.update({
+  id: '/api/podman/storage',
+  path: '/api/podman/storage',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiQuadletsIndexRoute = ApiQuadletsIndexRouteImport.update({
   id: '/api/quadlets/',
   path: '/api/quadlets/',
@@ -469,6 +475,7 @@ export interface FileRoutesByFullPath {
   '/api/metrics/history': typeof ApiMetricsHistoryRoute
   '/api/network/devices': typeof ApiNetworkDevicesRoute
   '/api/podman/settings': typeof ApiPodmanSettingsRoute
+  '/api/podman/storage': typeof ApiPodmanStorageRoute
   '/api/quadlets/compose': typeof ApiQuadletsComposeRoute
   '/api/quadlets/file': typeof ApiQuadletsFileRoute
   '/api/quadlets/revision': typeof ApiQuadletsRevisionRoute
@@ -540,6 +547,7 @@ export interface FileRoutesByTo {
   '/api/metrics/history': typeof ApiMetricsHistoryRoute
   '/api/network/devices': typeof ApiNetworkDevicesRoute
   '/api/podman/settings': typeof ApiPodmanSettingsRoute
+  '/api/podman/storage': typeof ApiPodmanStorageRoute
   '/api/quadlets/compose': typeof ApiQuadletsComposeRoute
   '/api/quadlets/file': typeof ApiQuadletsFileRoute
   '/api/quadlets/revision': typeof ApiQuadletsRevisionRoute
@@ -613,6 +621,7 @@ export interface FileRoutesById {
   '/api/metrics/history': typeof ApiMetricsHistoryRoute
   '/api/network/devices': typeof ApiNetworkDevicesRoute
   '/api/podman/settings': typeof ApiPodmanSettingsRoute
+  '/api/podman/storage': typeof ApiPodmanStorageRoute
   '/api/quadlets/compose': typeof ApiQuadletsComposeRoute
   '/api/quadlets/file': typeof ApiQuadletsFileRoute
   '/api/quadlets/revision': typeof ApiQuadletsRevisionRoute
@@ -686,6 +695,7 @@ export interface FileRouteTypes {
     | '/api/metrics/history'
     | '/api/network/devices'
     | '/api/podman/settings'
+    | '/api/podman/storage'
     | '/api/quadlets/compose'
     | '/api/quadlets/file'
     | '/api/quadlets/revision'
@@ -757,6 +767,7 @@ export interface FileRouteTypes {
     | '/api/metrics/history'
     | '/api/network/devices'
     | '/api/podman/settings'
+    | '/api/podman/storage'
     | '/api/quadlets/compose'
     | '/api/quadlets/file'
     | '/api/quadlets/revision'
@@ -829,6 +840,7 @@ export interface FileRouteTypes {
     | '/api/metrics/history'
     | '/api/network/devices'
     | '/api/podman/settings'
+    | '/api/podman/storage'
     | '/api/quadlets/compose'
     | '/api/quadlets/file'
     | '/api/quadlets/revision'
@@ -887,6 +899,7 @@ export interface RootRouteChildren {
   ApiMetricsHistoryRoute: typeof ApiMetricsHistoryRoute
   ApiNetworkDevicesRoute: typeof ApiNetworkDevicesRoute
   ApiPodmanSettingsRoute: typeof ApiPodmanSettingsRoute
+  ApiPodmanStorageRoute: typeof ApiPodmanStorageRoute
   ApiQuadletsComposeRoute: typeof ApiQuadletsComposeRoute
   ApiQuadletsFileRoute: typeof ApiQuadletsFileRoute
   ApiQuadletsRevisionRoute: typeof ApiQuadletsRevisionRoute
@@ -1272,6 +1285,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPodmanSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/podman/storage': {
+      id: '/api/podman/storage'
+      path: '/api/podman/storage'
+      fullPath: '/api/podman/storage'
+      preLoaderRoute: typeof ApiPodmanStorageRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/quadlets/': {
       id: '/api/quadlets/'
       path: '/api/quadlets'
@@ -1478,6 +1498,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiMetricsHistoryRoute: ApiMetricsHistoryRoute,
   ApiNetworkDevicesRoute: ApiNetworkDevicesRoute,
   ApiPodmanSettingsRoute: ApiPodmanSettingsRoute,
+  ApiPodmanStorageRoute: ApiPodmanStorageRoute,
   ApiQuadletsComposeRoute: ApiQuadletsComposeRoute,
   ApiQuadletsFileRoute: ApiQuadletsFileRoute,
   ApiQuadletsRevisionRoute: ApiQuadletsRevisionRoute,

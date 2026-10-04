@@ -73,7 +73,8 @@ one go.
 ## Podman tab
 
 Podman's own settings (auto-update timer, `AutoUpdate=registry` for all containers, registries and
-`containers.conf`) are described in [Units and Quadlets](quadlets.md#podman-settings).
+`containers.conf`) and what Podman keeps on disk – images, volumes, stopped containers, cleaning up
+with a preview – are described in [Units and Quadlets](quadlets.md#podman-settings).
 
 ## Boot and reboot
 

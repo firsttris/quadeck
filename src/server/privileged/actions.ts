@@ -5,6 +5,7 @@
 //                      helper (`quadeck helper`) over a Unix socket
 // Both enforce the unlock gate where the root actions actually run.
 
+import type { CleanupKind, CleanupResult, PodmanStorage, PruneEvery } from '~/shared/podman-storage'
 import { msg } from '~/shared/i18n'
 import type { JobInfo, JobSpec } from '~/shared/packages'
 import type { Maintenance } from '../packages/maintenance'
@@ -57,6 +58,9 @@ export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAd
   /** Read-only Podman API call from a fixed allowlist (no unlock needed). */
   podmanGet<T>(path: string): Promise<T>
   podmanContainer(token: string | undefined, id: string, action: UnitAction): Promise<void>
+  podmanStorage(): Promise<PodmanStorage>
+  cleanPodman(token: string | undefined, items: { kind: CleanupKind; id: string }[]): Promise<{ results: CleanupResult[]; skipped: number }>
+  setPodmanPrune(token: string | undefined, every: PruneEvery | null): Promise<PodmanStorage>
   startJob(token: string | undefined, spec: JobSpec): Promise<JobInfo>
   writeQuadlet(token: string | undefined, name: string, content: string, restart: boolean): Promise<WriteResult>
   deleteQuadlet(token: string | undefined, name: string, also?: RemoveAlso): Promise<{ warnings: string[] }>

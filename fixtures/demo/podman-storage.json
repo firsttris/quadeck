@@ -1,0 +1,620 @@
+{
+ "df": {
+  "Images": [
+   {
+    "ImageID": "28d81f2e7f99e2f862924d4748a4b71c4fd94e3ec26e0c6da17ce1252992af68",
+    "UniqueSize": 930000000,
+    "Size": 930000000,
+    "SharedSize": 0,
+    "Containers": 0
+   },
+   {
+    "ImageID": "316303c1ae35d72e1d167f4a26209e166654c02a530853e9d5d0c8a2dbd781c0",
+    "UniqueSize": 1700000000,
+    "Size": 1700000000,
+    "SharedSize": 0,
+    "Containers": 0
+   },
+   {
+    "ImageID": "78c0a46676aa6d608852506ec7761b9e4dffa2b904ee18adcddf4444a2bc052e",
+    "UniqueSize": 1450000000,
+    "Size": 1450000000,
+    "SharedSize": 0,
+    "Containers": 0
+   },
+   {
+    "ImageID": "d6e0ff2b7a534a9750d13545971476557164f72cb92ad74be7f145491ec4acf4",
+    "UniqueSize": 48000000,
+    "Size": 48000000,
+    "SharedSize": 0,
+    "Containers": 0
+   },
+   {
+    "ImageID": "db07748ee5ef4a1cf4507221641e6aee520555e2f0d83e94a3a000d3d4346aa8",
+    "UniqueSize": 160000000,
+    "Size": 160000000,
+    "SharedSize": 0,
+    "Containers": 0
+   },
+   {
+    "ImageID": "8d91b7785bbbd5f0b21b8c2b07dfd456c2e2f9a5785fc4ed592bfcd352f8891d",
+    "UniqueSize": 140000000,
+    "Size": 140000000,
+    "SharedSize": 0,
+    "Containers": 0
+   },
+   {
+    "ImageID": "e851219b75c97d1a161ad6b20c05b82cabb6c3b1b5ab542d9538d0fb1f31ba88",
+    "UniqueSize": 210000000,
+    "Size": 210000000,
+    "SharedSize": 0,
+    "Containers": 0
+   },
+   {
+    "ImageID": "54c5b3dd459d5ef778bb2fa1e23a5fb0e1b62ae66970bcb436e8f81a1a1a8e41",
+    "UniqueSize": 8000000,
+    "Size": 8000000,
+    "SharedSize": 0,
+    "Containers": 0
+   },
+   {
+    "ImageID": "5be1ecc7935f1dd85635d4feedaf660594030253cc97c9e9ca3819ffeac36b65",
+    "UniqueSize": 190000000,
+    "Size": 190000000,
+    "SharedSize": 0,
+    "Containers": 0
+   },
+   {
+    "ImageID": "c309b00daeb9c0325b24cc0910cea5f7c102fb9b58cb6900ef0a973e3bd4df7a",
+    "UniqueSize": 1600000000,
+    "Size": 1600000000,
+    "SharedSize": 0,
+    "Containers": 0
+   },
+   {
+    "ImageID": "861f9c241b01bb9cdccb51589d4469fc8516b0be9a167fe1dbbda1095b647d01",
+    "UniqueSize": 910000000,
+    "Size": 910000000,
+    "SharedSize": 0,
+    "Containers": 0
+   },
+   {
+    "ImageID": "da509034352e8f56fdbd3d4dd62898b9aa6d328fbc79a46926bf4a4d36e5ed0f",
+    "UniqueSize": 1380000000,
+    "Size": 1380000000,
+    "SharedSize": 0,
+    "Containers": 0
+   },
+   {
+    "ImageID": "42c0d69be7734e0821d2ce480b39afb5f2432e9ed43b0bce9c4c49cd2fce9abb",
+    "UniqueSize": 95000000,
+    "Size": 95000000,
+    "SharedSize": 0,
+    "Containers": 0
+   },
+   {
+    "ImageID": "a2a1e69c4f8340f60ff88d1484f30c77dc7f46ae32b443db8c0bc373679feba7",
+    "UniqueSize": 480000000,
+    "Size": 480000000,
+    "SharedSize": 0,
+    "Containers": 0
+   }
+  ],
+  "Containers": [
+   {
+    "ContainerID": "jellyfin00000000000000000000000000000000000000000000000000000000",
+    "RWSize": 2000000,
+    "Size": 2000000
+   },
+   {
+    "ContainerID": "immich-server000000000000000000000000000000000000000000000000000",
+    "RWSize": 5000000,
+    "Size": 5000000
+   },
+   {
+    "ContainerID": "immich-ml0000000000000000000000000000000000000000000000000000000",
+    "RWSize": 1000000,
+    "Size": 1000000
+   },
+   {
+    "ContainerID": "caddy00000000000000000000000000000000000000000000000000000000000",
+    "RWSize": 1000000,
+    "Size": 1000000
+   },
+   {
+    "ContainerID": "namarr0000000000000000000000000000000000000000000000000000000000",
+    "RWSize": 3000000,
+    "Size": 3000000
+   },
+   {
+    "ContainerID": "downloader000000000000000000000000000000000000000000000000000000",
+    "RWSize": 2000000,
+    "Size": 2000000
+   },
+   {
+    "ContainerID": "qbittorrent00000000000000000000000000000000000000000000000000000",
+    "RWSize": 4000000,
+    "Size": 4000000
+   },
+   {
+    "ContainerID": "scratch000000000000000000000000000000000000000000000000000000000",
+    "RWSize": 0,
+    "Size": 0
+   },
+   {
+    "ContainerID": "f00d111111111111111111111111111111111111111111111111111111111111",
+    "RWSize": 12000000,
+    "Size": 12000000
+   },
+   {
+    "ContainerID": "f00d222222222222222222222222222222222222222222222222222222222222",
+    "RWSize": 28000000,
+    "Size": 28000000
+   },
+   {
+    "ContainerID": "f00d333333333333333333333333333333333333333333333333333333333333",
+    "RWSize": 0,
+    "Size": 0
+   }
+  ],
+  "Volumes": [
+   {
+    "VolumeName": "caddy-data",
+    "Size": 35000000,
+    "Links": 0,
+    "ReclaimableSize": 0
+   },
+   {
+    "VolumeName": "qbittorrent-config",
+    "Size": 120000000,
+    "Links": 0,
+    "ReclaimableSize": 0
+   },
+   {
+    "VolumeName": "nextcloud-data",
+    "Size": 2100000000,
+    "Links": 0,
+    "ReclaimableSize": 0
+   },
+   {
+    "VolumeName": "3f9c0aeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+    "Size": 220000000,
+    "Links": 0,
+    "ReclaimableSize": 0
+   },
+   {
+    "VolumeName": "9b1d77aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+    "Size": 64000000,
+    "Links": 0,
+    "ReclaimableSize": 0
+   }
+  ]
+ },
+ "images": [
+  {
+   "Id": "28d81f2e7f99e2f862924d4748a4b71c4fd94e3ec26e0c6da17ce1252992af68",
+   "Names": [
+    "docker.io/jellyfin/jellyfin:latest"
+   ],
+   "RepoTags": [
+    "docker.io/jellyfin/jellyfin:latest"
+   ],
+   "Created": 1790481600,
+   "Size": 930000000,
+   "Dangling": false
+  },
+  {
+   "Id": "316303c1ae35d72e1d167f4a26209e166654c02a530853e9d5d0c8a2dbd781c0",
+   "Names": [
+    "ghcr.io/immich-app/immich-server:release"
+   ],
+   "RepoTags": [
+    "ghcr.io/immich-app/immich-server:release"
+   ],
+   "Created": 1790827200,
+   "Size": 1700000000,
+   "Dangling": false
+  },
+  {
+   "Id": "78c0a46676aa6d608852506ec7761b9e4dffa2b904ee18adcddf4444a2bc052e",
+   "Names": [
+    "ghcr.io/immich-app/immich-machine-learning:release"
+   ],
+   "RepoTags": [
+    "ghcr.io/immich-app/immich-machine-learning:release"
+   ],
+   "Created": 1790827200,
+   "Size": 1450000000,
+   "Dangling": false
+  },
+  {
+   "Id": "d6e0ff2b7a534a9750d13545971476557164f72cb92ad74be7f145491ec4acf4",
+   "Names": [
+    "docker.io/library/caddy:2"
+   ],
+   "RepoTags": [
+    "docker.io/library/caddy:2"
+   ],
+   "Created": 1788408000,
+   "Size": 48000000,
+   "Dangling": false
+  },
+  {
+   "Id": "db07748ee5ef4a1cf4507221641e6aee520555e2f0d83e94a3a000d3d4346aa8",
+   "Names": [
+    "ghcr.io/firsttris/namarr:latest"
+   ],
+   "RepoTags": [
+    "ghcr.io/firsttris/namarr:latest"
+   ],
+   "Created": 1789963200,
+   "Size": 160000000,
+   "Dangling": false
+  },
+  {
+   "Id": "8d91b7785bbbd5f0b21b8c2b07dfd456c2e2f9a5785fc4ed592bfcd352f8891d",
+   "Names": [
+    "ghcr.io/firsttris/downloader:latest"
+   ],
+   "RepoTags": [
+    "ghcr.io/firsttris/downloader:latest"
+   ],
+   "Created": 1789963200,
+   "Size": 140000000,
+   "Dangling": false
+  },
+  {
+   "Id": "e851219b75c97d1a161ad6b20c05b82cabb6c3b1b5ab542d9538d0fb1f31ba88",
+   "Names": [
+    "lscr.io/linuxserver/qbittorrent:latest"
+   ],
+   "RepoTags": [
+    "lscr.io/linuxserver/qbittorrent:latest"
+   ],
+   "Created": 1789272000,
+   "Size": 210000000,
+   "Dangling": false
+  },
+  {
+   "Id": "54c5b3dd459d5ef778bb2fa1e23a5fb0e1b62ae66970bcb436e8f81a1a1a8e41",
+   "Names": [
+    "docker.io/library/alpine:3"
+   ],
+   "RepoTags": [
+    "docker.io/library/alpine:3"
+   ],
+   "Created": 1785816000,
+   "Size": 8000000,
+   "Dangling": false
+  },
+  {
+   "Id": "5be1ecc7935f1dd85635d4feedaf660594030253cc97c9e9ca3819ffeac36b65",
+   "Names": [
+    "docker.io/library/nginx:1.25"
+   ],
+   "RepoTags": [
+    "docker.io/library/nginx:1.25"
+   ],
+   "Created": 1773720000,
+   "Size": 190000000,
+   "Dangling": false
+  },
+  {
+   "Id": "c309b00daeb9c0325b24cc0910cea5f7c102fb9b58cb6900ef0a973e3bd4df7a",
+   "Names": [],
+   "RepoTags": [],
+   "Created": 1789012800,
+   "Size": 1600000000,
+   "Dangling": true,
+   "History": [
+    "ghcr.io/immich-app/immich-server:release"
+   ]
+  },
+  {
+   "Id": "861f9c241b01bb9cdccb51589d4469fc8516b0be9a167fe1dbbda1095b647d01",
+   "Names": [],
+   "RepoTags": [],
+   "Created": 1787457600,
+   "Size": 910000000,
+   "Dangling": true,
+   "History": [
+    "docker.io/jellyfin/jellyfin:latest"
+   ]
+  },
+  {
+   "Id": "da509034352e8f56fdbd3d4dd62898b9aa6d328fbc79a46926bf4a4d36e5ed0f",
+   "Names": [],
+   "RepoTags": [],
+   "Created": 1789012800,
+   "Size": 1380000000,
+   "Dangling": true,
+   "History": [
+    "ghcr.io/immich-app/immich-machine-learning:release"
+   ]
+  },
+  {
+   "Id": "42c0d69be7734e0821d2ce480b39afb5f2432e9ed43b0bce9c4c49cd2fce9abb",
+   "Names": [],
+   "RepoTags": [],
+   "Created": 1783224000,
+   "Size": 95000000,
+   "Dangling": true
+  },
+  {
+   "Id": "a2a1e69c4f8340f60ff88d1484f30c77dc7f46ae32b443db8c0bc373679feba7",
+   "Names": [
+    "docker.io/library/nextcloud:29"
+   ],
+   "RepoTags": [
+    "docker.io/library/nextcloud:29"
+   ],
+   "Created": 1778040000,
+   "Size": 480000000,
+   "Dangling": false
+  }
+ ],
+ "containers": [
+  {
+   "Id": "jellyfin00000000000000000000000000000000000000000000000000000000",
+   "Names": [
+    "jellyfin"
+   ],
+   "Image": "docker.io/jellyfin/jellyfin:latest",
+   "ImageID": "28d81f2e7f99e2f862924d4748a4b71c4fd94e3ec26e0c6da17ce1252992af68",
+   "State": "running",
+   "Labels": {
+    "PODMAN_SYSTEMD_UNIT": "jellyfin.service"
+   },
+   "Networks": [
+    "media"
+   ],
+   "Mounts": [],
+   "Pod": "",
+   "IsInfra": false
+  },
+  {
+   "Id": "immich-server000000000000000000000000000000000000000000000000000",
+   "Names": [
+    "immich-server"
+   ],
+   "Image": "ghcr.io/immich-app/immich-server:release",
+   "ImageID": "316303c1ae35d72e1d167f4a26209e166654c02a530853e9d5d0c8a2dbd781c0",
+   "State": "running",
+   "Labels": {
+    "PODMAN_SYSTEMD_UNIT": "immich.service"
+   },
+   "Networks": [
+    "media"
+   ],
+   "Mounts": [],
+   "Pod": "",
+   "IsInfra": false
+  },
+  {
+   "Id": "immich-ml0000000000000000000000000000000000000000000000000000000",
+   "Names": [
+    "immich-ml"
+   ],
+   "Image": "ghcr.io/immich-app/immich-machine-learning:release",
+   "ImageID": "78c0a46676aa6d608852506ec7761b9e4dffa2b904ee18adcddf4444a2bc052e",
+   "State": "exited",
+   "Labels": {
+    "PODMAN_SYSTEMD_UNIT": "immich-ml.service"
+   },
+   "Networks": [
+    "media"
+   ],
+   "Mounts": [],
+   "Pod": "",
+   "IsInfra": false,
+   "ExitCode": 1,
+   "ExitedAt": 1790989200
+  },
+  {
+   "Id": "caddy00000000000000000000000000000000000000000000000000000000000",
+   "Names": [
+    "caddy"
+   ],
+   "Image": "docker.io/library/caddy:2",
+   "ImageID": "d6e0ff2b7a534a9750d13545971476557164f72cb92ad74be7f145491ec4acf4",
+   "State": "running",
+   "Labels": {
+    "PODMAN_SYSTEMD_UNIT": "caddy.service"
+   },
+   "Networks": [
+    "media"
+   ],
+   "Mounts": [
+    {
+     "Type": "volume",
+     "Name": "caddy-data",
+     "Destination": "/data"
+    }
+   ],
+   "Pod": "",
+   "IsInfra": false
+  },
+  {
+   "Id": "namarr0000000000000000000000000000000000000000000000000000000000",
+   "Names": [
+    "namarr"
+   ],
+   "Image": "ghcr.io/firsttris/namarr:latest",
+   "ImageID": "db07748ee5ef4a1cf4507221641e6aee520555e2f0d83e94a3a000d3d4346aa8",
+   "State": "running",
+   "Labels": {
+    "PODMAN_SYSTEMD_UNIT": "namarr.service"
+   },
+   "Networks": [
+    "media"
+   ],
+   "Mounts": [],
+   "Pod": "",
+   "IsInfra": false
+  },
+  {
+   "Id": "downloader000000000000000000000000000000000000000000000000000000",
+   "Names": [
+    "downloader"
+   ],
+   "Image": "ghcr.io/firsttris/downloader:latest",
+   "ImageID": "8d91b7785bbbd5f0b21b8c2b07dfd456c2e2f9a5785fc4ed592bfcd352f8891d",
+   "State": "running",
+   "Labels": {
+    "PODMAN_SYSTEMD_UNIT": "downloader.service"
+   },
+   "Networks": [
+    "media"
+   ],
+   "Mounts": [],
+   "Pod": "",
+   "IsInfra": false
+  },
+  {
+   "Id": "qbittorrent00000000000000000000000000000000000000000000000000000",
+   "Names": [
+    "qbittorrent"
+   ],
+   "Image": "lscr.io/linuxserver/qbittorrent:latest",
+   "ImageID": "e851219b75c97d1a161ad6b20c05b82cabb6c3b1b5ab542d9538d0fb1f31ba88",
+   "State": "exited",
+   "Labels": {
+    "PODMAN_SYSTEMD_UNIT": "qbittorrent.service"
+   },
+   "Networks": [
+    "media"
+   ],
+   "Mounts": [
+    {
+     "Type": "volume",
+     "Name": "qbittorrent-config",
+     "Destination": "/data"
+    }
+   ],
+   "Pod": "",
+   "IsInfra": false,
+   "ExitCode": 0,
+   "ExitedAt": 1790892000
+  },
+  {
+   "Id": "scratch000000000000000000000000000000000000000000000000000000000",
+   "Names": [
+    "scratch"
+   ],
+   "Image": "docker.io/library/alpine:3",
+   "ImageID": "54c5b3dd459d5ef778bb2fa1e23a5fb0e1b62ae66970bcb436e8f81a1a1a8e41",
+   "State": "running",
+   "Labels": {},
+   "Networks": [
+    "media"
+   ],
+   "Mounts": [],
+   "Pod": "",
+   "IsInfra": false
+  },
+  {
+   "Id": "f00d111111111111111111111111111111111111111111111111111111111111",
+   "Names": [
+    "test-alpine"
+   ],
+   "Image": "docker.io/library/alpine:3",
+   "ImageID": "54c5b3dd459d5ef778bb2fa1e23a5fb0e1b62ae66970bcb436e8f81a1a1a8e41",
+   "State": "exited",
+   "Labels": {},
+   "Networks": [
+    "test-net"
+   ],
+   "Mounts": [],
+   "Pod": "",
+   "IsInfra": false,
+   "ExitCode": 0,
+   "ExitedAt": 1790222400
+  },
+  {
+   "Id": "f00d222222222222222222222222222222222222222222222222222222222222",
+   "Names": [
+    "old-nginx"
+   ],
+   "Image": "docker.io/library/nginx:1.25",
+   "ImageID": "5be1ecc7935f1dd85635d4feedaf660594030253cc97c9e9ca3819ffeac36b65",
+   "State": "exited",
+   "Labels": {},
+   "Networks": [
+    "podman"
+   ],
+   "Mounts": [
+    {
+     "Type": "volume",
+     "Name": "3f9c0aeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+     "Destination": "/data"
+    }
+   ],
+   "Pod": "",
+   "IsInfra": false,
+   "ExitCode": 137,
+   "ExitedAt": 1787544000
+  },
+  {
+   "Id": "f00d333333333333333333333333333333333333333333333333333333333333",
+   "Names": [
+    "watchtower-test"
+   ],
+   "Image": "docker.io/library/alpine:3",
+   "ImageID": "54c5b3dd459d5ef778bb2fa1e23a5fb0e1b62ae66970bcb436e8f81a1a1a8e41",
+   "State": "created",
+   "Labels": {},
+   "Networks": [
+    "podman"
+   ],
+   "Mounts": [],
+   "Pod": "",
+   "IsInfra": false
+  }
+ ],
+ "volumes": [
+  {
+   "Name": "caddy-data",
+   "Mountpoint": "/var/lib/containers/storage/volumes/caddy-data/_data",
+   "CreatedAt": "2025-12-07T04:00:00Z"
+  },
+  {
+   "Name": "qbittorrent-config",
+   "Mountpoint": "/var/lib/containers/storage/volumes/qbittorrent-config/_data",
+   "CreatedAt": "2026-03-17T04:00:00Z"
+  },
+  {
+   "Name": "nextcloud-data",
+   "Mountpoint": "/var/lib/containers/storage/volumes/nextcloud-data/_data",
+   "CreatedAt": "2026-05-06T04:00:00Z"
+  },
+  {
+   "Name": "3f9c0aeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee",
+   "Mountpoint": "/var/lib/containers/storage/volumes/3f9c0aeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee/_data",
+   "CreatedAt": "2026-08-24T04:00:00Z",
+   "Anonymous": true
+  },
+  {
+   "Name": "9b1d77aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+   "Mountpoint": "/var/lib/containers/storage/volumes/9b1d77aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa/_data",
+   "CreatedAt": "2026-07-25T04:00:00Z",
+   "Anonymous": true
+  }
+ ],
+ "networks": [
+  {
+   "name": "podman"
+  },
+  {
+   "name": "media"
+  },
+  {
+   "name": "immich"
+  },
+  {
+   "name": "nextcloud_default"
+  },
+  {
+   "name": "test-net"
+  }
+ ]
+}
