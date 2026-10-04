@@ -5,6 +5,7 @@ import { PEER_HEADER, ensureSetupToken, resetPassword } from './server/auth'
 import { config } from './server/config'
 import { db } from './server/db'
 import { selfUpdate } from './server/update'
+import { checkExpectations, doctorReport, formatReport } from './server/doctor'
 import { installNoLang, installRequestLang, withRequestLang } from './server/lang'
 import { HELPER_UNIT, WEB_UNIT } from './unit-file'
 import { serveHelper } from './server/privileged/helper-server'
@@ -122,6 +123,7 @@ const HELP = `quadeck – dashboard for Podman servers with Quadlets
   quadeck helper         start the root helper (as root, Unix socket)
   quadeck print-unit web|helper   print a systemd unit (for install.sh)
   quadeck backup run|check   run the backup or check its repository (started by its timer)
+  quadeck doctor [--json]   show what Quadeck finds on this system (distribution, package manager, Podman …)
   quadeck update         download the latest version from GitHub and restart the service
   quadeck version        print the version
 
@@ -229,6 +231,18 @@ export async function main(argv: string[], opts: MainOptions) {
       // Started by the helper only (systemd-run or child process), as root.
       installNoLang()
       process.exit(await runJobCommand(argv[1]))
+    case 'doctor': {
+      // --json for scripts, --expect key=value (repeatable) for CI
+      installNoLang()
+      const r = await doctorReport()
+      console.log(argv.includes('--json') ? JSON.stringify(r, null, 2) : formatReport(r))
+      const failed = checkExpectations(
+        r,
+        argv.flatMap((a, i) => (a === '--expect' && argv[i + 1] ? [argv[i + 1]!] : a.startsWith('--expect=') ? [a.slice(9)] : [])),
+      )
+      for (const f of failed) console.error(`doctor: ${f}`)
+      process.exit(failed.length ? 1 : 0)
+    }
     case 'update':
       await selfUpdate(opts.version, argv.includes('--force'))
       return

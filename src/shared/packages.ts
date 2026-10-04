@@ -4,7 +4,7 @@
 import type { KernelFlavor } from './boot'
 import { msg } from './i18n'
 
-export type ManagerId = 'pacman' | 'apt' | 'dnf' | 'zypper' | 'apk' | 'rpm-ostree'
+export type ManagerId = 'pacman' | 'apt' | 'dnf' | 'zypper' | 'apk' | 'rpm-ostree' | 'transactional-update'
 
 export interface InstalledPackage {
   name: string
@@ -189,6 +189,7 @@ export const PROTECTED_PACKAGES: Record<ManagerId, string[]> = {
   zypper: ['zypper', 'rpm', 'glibc', 'systemd', 'bash', 'coreutils', 'filesystem', 'shadow', 'util-linux', 'sudo', 'openssh-server', 'podman', 'iproute2', 'kernel-default', 'grub2', 'ca-certificates'],
   apk: ['apk-tools', 'alpine-base', 'busybox', 'musl', 'openrc', 'openssh', 'podman', 'sudo', 'ca-certificates', 'linux-lts'],
   'rpm-ostree': [],
+  'transactional-update': ['zypper', 'rpm', 'glibc', 'systemd', 'bash', 'coreutils', 'filesystem', 'shadow', 'util-linux', 'sudo', 'openssh-server', 'podman', 'iproute2', 'kernel-default', 'ca-certificates', 'transactional-update', 'tukit'],
 }
 
 export const PACKAGE_NAME = /^[A-Za-z0-9@_+][A-Za-z0-9@._+:-]{0,127}$/
@@ -208,33 +209,33 @@ export const FEATURES: Record<Feature, { label: string; packages: Record<Manager
     get label() {
       return msg('packages_feature_smartmontools')
     },
-    packages: { pacman: ['smartmontools'], apt: ['smartmontools'], dnf: ['smartmontools'], zypper: ['smartmontools'], apk: ['smartmontools'], 'rpm-ostree': ['smartmontools'] },
+    packages: { pacman: ['smartmontools'], apt: ['smartmontools'], dnf: ['smartmontools'], zypper: ['smartmontools'], apk: ['smartmontools'], 'rpm-ostree': ['smartmontools'], 'transactional-update': ['smartmontools'] },
   },
   samba: {
     get label() {
       return msg('packages_feature_samba')
     },
-    packages: { pacman: ['samba'], apt: ['samba'], dnf: ['samba'], zypper: ['samba'], apk: ['samba'], 'rpm-ostree': ['samba'] },
+    packages: { pacman: ['samba'], apt: ['samba'], dnf: ['samba'], zypper: ['samba'], apk: ['samba'], 'rpm-ostree': ['samba'], 'transactional-update': ['samba'] },
   },
   nfs: {
     get label() {
       return msg('packages_feature_nfs')
     },
-    packages: { pacman: ['nfs-utils'], apt: ['nfs-kernel-server'], dnf: ['nfs-utils'], zypper: ['nfs-kernel-server'], apk: ['nfs-utils'], 'rpm-ostree': ['nfs-utils'] },
+    packages: { pacman: ['nfs-utils'], apt: ['nfs-kernel-server'], dnf: ['nfs-utils'], zypper: ['nfs-kernel-server'], apk: ['nfs-utils'], 'rpm-ostree': ['nfs-utils'], 'transactional-update': ['nfs-kernel-server'] },
   },
   ssh: {
     get label() {
       return msg('packages_feature_openssh')
     },
-    packages: { pacman: ['openssh'], apt: ['openssh-server'], dnf: ['openssh-server'], zypper: ['openssh-server'], apk: ['openssh'], 'rpm-ostree': ['openssh-server'] },
+    packages: { pacman: ['openssh'], apt: ['openssh-server'], dnf: ['openssh-server'], zypper: ['openssh-server'], apk: ['openssh'], 'rpm-ostree': ['openssh-server'], 'transactional-update': ['openssh-server'] },
   },
   hdparm: {
     label: 'hdparm',
-    packages: { pacman: ['hdparm'], apt: ['hdparm'], dnf: ['hdparm'], zypper: ['hdparm'], apk: ['hdparm'], 'rpm-ostree': ['hdparm'] },
+    packages: { pacman: ['hdparm'], apt: ['hdparm'], dnf: ['hdparm'], zypper: ['hdparm'], apk: ['hdparm'], 'rpm-ostree': ['hdparm'], 'transactional-update': ['hdparm'] },
   },
   restic: {
     label: 'restic',
-    packages: { pacman: ['restic'], apt: ['restic'], dnf: ['restic'], zypper: ['restic'], apk: ['restic'], 'rpm-ostree': ['restic'] },
+    packages: { pacman: ['restic'], apt: ['restic'], dnf: ['restic'], zypper: ['restic'], apk: ['restic'], 'rpm-ostree': ['restic'], 'transactional-update': ['restic'] },
   },
 }
 
@@ -254,5 +255,7 @@ export function installCommand(manager: ManagerId, feature: Feature): string {
       return `doas apk add ${pkgs}`
     case 'rpm-ostree':
       return `sudo rpm-ostree install ${pkgs} && sudo systemctl reboot`
+    case 'transactional-update':
+      return `sudo transactional-update pkg install ${pkgs} && sudo systemctl reboot`
   }
 }

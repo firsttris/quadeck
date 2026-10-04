@@ -1,7 +1,7 @@
 // Checks for copy/move/delete jobs – in the helper before the job starts
 // (immediate error) and again in the job itself, where root acts.
 
-import { existsSync, lstatSync, statSync } from 'node:fs'
+import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { HttpError } from '../auth'
 import { msg } from '~/shared/i18n'
 import { baseName, joinPath, parentOf } from '~/shared/files'
@@ -60,16 +60,54 @@ export function prepareFsJob(spec: FsJob, ops: FsOps): { sources: string[]; toDi
   return { sources, toDir }
 }
 
+/**
+ * GNU coreutils (or a compatible cp/rm such as uutils) rather than BusyBox/Toybox, which know
+ * neither --reflink nor --one-file-system (Alpine, OpenWrt-like systems).
+ */
+export function gnuCoreutils(which: (bin: string) => string | null = Bun.which): boolean {
+  const cp = which('cp')
+  if (!cp) return true
+  try {
+    return !/^(busybox|toybox)/.test(baseName(realpathSync(cp)))
+  } catch {
+    return true
+  }
+}
+
+/** Mount points strictly inside one of the sources (from /proc/self/mounts; octal escapes like \040 decoded). */
+export function mountsInside(sources: string[], mounts: string): string[] {
+  const points = mounts
+    .split('\n')
+    .map((l) => l.split(' ')[1])
+    .filter((m): m is string => !!m)
+    .map((m) => m.replace(/\\([0-7]{3})/g, (_, o: string) => String.fromCharCode(parseInt(o, 8))))
+  return [...new Set(points.filter((m) => sources.some((s) => m.startsWith(s.endsWith('/') ? s : s + '/'))))]
+}
+
 /** argv for the job (verbose, so the output shows progress per file). */
-export function fsJobSteps(spec: FsJob, prepared: { sources: string[]; toDir?: string }): string[][] {
+export function fsJobSteps(spec: FsJob, prepared: { sources: string[]; toDir?: string }, gnu = true): string[][] {
   switch (spec.kind) {
     case 'fs-copy':
       // -a keeps owner, rights and times; reflink makes copies on btrfs/xfs instant.
-      return [['cp', '-a', '-v', '--reflink=auto', '--', ...prepared.sources, prepared.toDir!]]
+      return [['cp', '-a', '-v', ...(gnu ? ['--reflink=auto'] : []), '--', ...prepared.sources, prepared.toDir!]]
     case 'fs-move':
       return [['mv', '-v', ...(spec.overwrite ? [] : ['-n']), '--', ...prepared.sources, prepared.toDir!]]
     case 'fs-delete':
-      // Never across a mount point inside the tree.
-      return [['rm', '-r', '-f', '-v', '--one-file-system', '--', ...prepared.sources]]
+      // Never across a mount point inside the tree (BusyBox rm can't promise that: checked before, see assertNoMountsInside).
+      return [['rm', '-r', '-f', '-v', ...(gnu ? ['--one-file-system'] : []), '--', ...prepared.sources]]
+  }
+}
+
+/** Without --one-file-system, refuse to delete a tree with something mounted inside. */
+export function assertNoMountsInside(sources: string[], mounts: string = readMounts()) {
+  const inside = mountsInside(sources, mounts)
+  if (inside.length) throw new HttpError(409, msg('files_error_mountInside', { path: inside[0]! }))
+}
+
+function readMounts(): string {
+  try {
+    return readFileSync('/proc/self/mounts', 'utf8')
+  } catch {
+    return ''
   }
 }

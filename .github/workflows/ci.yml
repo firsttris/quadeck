@@ -29,20 +29,46 @@ jobs:
         run: bun scripts/compile.ts bun-linux-x64-baseline bun-linux-arm64 bun-linux-x64-musl bun-linux-arm64-musl
       - name: Smoke test (glibc)
         run: ./release/quadeck-linux-x64-baseline version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: release-x64
+          path: |
+            release/quadeck-linux-x64-baseline
+            release/quadeck-linux-x64-musl
+          retention-days: 3
 
-  smoke-musl:
+  # The release binary in a bare container of each distribution: it starts, finds the
+  # distribution and its package manager (quadeck doctor) and serves the web app.
+  distros:
     needs: check
     runs-on: ubuntu-latest
-    container: alpine:3.20
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: Fedora, image: 'fedora:latest', id: fedora, pm: dnf }
+          - { name: Debian 12, image: 'debian:12', id: debian, pm: apt }
+          - { name: Debian 13, image: 'debian:13', id: debian, pm: apt }
+          - { name: Ubuntu 22.04, image: 'ubuntu:22.04', id: ubuntu, pm: apt }
+          - { name: Ubuntu 24.04, image: 'ubuntu:24.04', id: ubuntu, pm: apt }
+          - { name: Arch Linux, image: 'archlinux:latest', id: arch, pm: pacman }
+          - { name: openSUSE Tumbleweed, image: 'opensuse/tumbleweed:latest', id: opensuse, pm: zypper }
+          - { name: Rocky Linux 9, image: 'rockylinux/rockylinux:9', id: rhel, pm: dnf }
+          # MicroOS: read-only root with transactional-update (a stand-in script; only detection is tested)
+          - { name: openSUSE MicroOS (simulated), image: 'opensuse/tumbleweed:latest', id: opensuse, pm: transactional-update, args: '--read-only --tmpfs /tmp -v /tmp/fakebin:/opt/fake:ro -e PATH=/opt/fake:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' }
+          - { name: Alpine (musl), image: 'alpine:3.20', id: alpine, pm: apk, musl: true, prep: 'apk add --no-cache libstdc++ libgcc' }
+    name: Runs on ${{ matrix.name }}
     steps:
       - uses: actions/checkout@v4
-      - run: apk add --no-cache bash curl libstdc++ libgcc unzip
-      - run: curl -fsSL https://bun.sh/install | bash
-      - run: |
-          export PATH="$HOME/.bun/bin:$PATH"
-          bun install --frozen-lockfile
-          bun scripts/compile.ts bun-linux-x64-musl
-          ./release/quadeck-linux-x64-musl version
-          QUADECK_DATA_DIR=/tmp/qd QUADECK_PORT=8484 ./release/quadeck-linux-x64-musl serve &
-          sleep 3
-          curl -fsS http://127.0.0.1:8484/api/health
+      - uses: actions/download-artifact@v4
+        with:
+          name: release-x64
+          path: release
+      - run: chmod +x release/*
+      - name: Stand-in transactional-update
+        run: mkdir -p /tmp/fakebin && printf '#!/bin/sh\necho stand-in\n' > /tmp/fakebin/transactional-update && chmod +x /tmp/fakebin/transactional-update
+      - name: Smoke test
+        run: |
+          bin=quadeck-linux-x64-${{ matrix.musl && 'musl' || 'baseline' }}
+          docker run --rm -v "$PWD:/w:ro" -w /w ${{ matrix.args }} ${{ matrix.image }} \
+            sh -c "${{ matrix.prep || 'true' }} && ./scripts/smoke-distro.sh /w/release/$bin ${{ matrix.id }} ${{ matrix.pm }}"

@@ -27,6 +27,26 @@ else
   asset="quadeck-linux-arm64"
 fi
 
+has_lib() { for d in /usr/lib /lib /usr/lib64 /lib64; do [ -e "$d/$1" ] && return 0; done; return 1; }
+case "$asset" in
+  *-musl)
+    # The musl build links the C++ runtime dynamically (Alpine has it as packages).
+    if ! has_lib libstdc++.so.6 || ! has_lib libgcc_s.so.1; then
+      if command -v apk >/dev/null; then
+        echo "Installing libstdc++ and libgcc (needed by the musl build) …"
+        apk add --no-cache libstdc++ libgcc >/dev/null || die "could not install libstdc++ libgcc (apk add libstdc++ libgcc)"
+      else
+        die "the musl build needs libstdc++ and libgcc; please install them first"
+      fi
+    fi
+    ;;
+  *)
+    # glibc builds need the standard dynamic loader (missing on NixOS without nix-ld).
+    if [ "$arch" = x64 ]; then loader=/lib64/ld-linux-x86-64.so.2; else loader=/lib/ld-linux-aarch64.so.1; fi
+    [ -e "$loader" ] || die "$loader not found – this system can't run standard Linux binaries (NixOS: enable programs.nix-ld)"
+    ;;
+esac
+
 if [ "$VERSION" = latest ]; then
   base="https://github.com/$REPO/releases/latest/download"
 else

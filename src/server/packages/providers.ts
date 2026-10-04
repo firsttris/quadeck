@@ -362,16 +362,16 @@ export class Dnf implements Provider {
 // ---------- zypper (openSUSE, SLES) ----------
 
 export class Zypper implements Provider {
-  id = 'zypper' as const
+  id: ManagerId = 'zypper'
   label = 'zypper'
   canRemove = true
   configFiles = /\.(rpmnew|rpmsave)$/
   get configHint() {
     return msg('packages_configHint_rpmnew')
   }
-  private tumbleweed = (() => {
+  protected tumbleweed = (() => {
     try {
-      return /tumbleweed|microos|slowroll/i.test(readFileSync('/etc/os-release', 'utf8'))
+      return /tumbleweed|microos|slowroll|aeon|kalpa/i.test(readFileSync('/etc/os-release', 'utf8'))
     } catch {
       return false
     }
@@ -425,6 +425,53 @@ export class Zypper implements Provider {
 
   lastUpgrade() {
     return undefined
+  }
+}
+
+// ---------- transactional-update (openSUSE MicroOS, Aeon, Kalpa, SLE Micro) ----------
+
+/** Root file system mounted read-only (/proc/self/mounts). */
+export function rootReadOnly(mounts: string): boolean {
+  const root = mounts.split('\n').find((l) => l.split(' ')[1] === '/')
+  return !!root && (root.split(' ')[3] ?? '').split(',').includes('ro')
+}
+
+/**
+ * A snapshot is waiting for the next boot: btrfs' default subvolume (`btrfs subvolume get-default /`:
+ * "ID 268 gen 1234 top level 257 path @/.snapshots/5/snapshot") differs from the one mounted at /.
+ */
+export function snapshotPending(getDefault: string, mounts: string): boolean {
+  const next = /^ID (\d+)/.exec(getDefault.trim())?.[1]
+  const root = mounts.split('\n').find((l) => l.split(' ')[1] === '/')
+  const now = /(?:^|,)subvolid=(\d+)/.exec(root?.split(' ')[3] ?? '')?.[1]
+  return !!next && !!now && next !== now
+}
+
+/**
+ * zypper on a read-only root: reads as usual, changes go into a new btrfs snapshot that becomes active
+ * after a reboot. --continue builds on a snapshot not booted yet, so several changes stack up instead of
+ * the last one discarding the others.
+ */
+export class TransactionalUpdate extends Zypper {
+  override id: ManagerId = 'transactional-update'
+  override label = 'transactional-update'
+  private tu = ['transactional-update', '--non-interactive', '--continue']
+
+  override upgradeSteps(): Step[] {
+    return [{ argv: [...this.tu, this.tumbleweed ? 'dup' : 'up'] }]
+  }
+
+  override removeSteps(names: string[]): Step[] {
+    return [{ argv: [...this.tu, 'pkg', 'remove', '-u', '--', ...names] }]
+  }
+  override installSteps(names: string[]): Step[] {
+    return [{ argv: [...this.tu, 'pkg', 'install', '--', ...names] }]
+  }
+
+  override async rebootRequired() {
+    if (existsSync('/run/reboot-needed')) return msg('packages_reboot_snapshot')
+    const r = await run(['btrfs', 'subvolume', 'get-default', '/'])
+    return r.code === 0 && snapshotPending(r.stdout, tail('/proc/self/mounts')) ? msg('packages_reboot_snapshot') : undefined
   }
 }
 
@@ -569,6 +616,7 @@ export function detectProvider(): Provider | null {
     if (id === 'apt') return new Apt()
     if (id === 'dnf') return new Dnf(Bun.which('dnf5') ?? Bun.which('dnf') ?? 'dnf')
     if (id === 'zypper') return new Zypper()
+    if (id === 'transactional-update') return new TransactionalUpdate()
     if (id === 'apk') return new Apk()
     return null
   }
@@ -577,7 +625,7 @@ export function detectProvider(): Provider | null {
   if (has('pacman')) return new Pacman()
   if (has('apt-get') && has('dpkg-query')) return new Apt()
   if (has('dnf5') || has('dnf')) return pick('dnf')
-  if (has('zypper')) return new Zypper()
+  if (has('zypper')) return has('transactional-update') && rootReadOnly(tail('/proc/self/mounts')) ? new TransactionalUpdate() : new Zypper()
   if (has('apk')) return new Apk()
   return null
 }
