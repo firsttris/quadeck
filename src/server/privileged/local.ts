@@ -32,6 +32,9 @@ import type { SshChange } from '~/shared/ssh'
 import type { ShareChange, ShareServiceAction } from '~/shared/shares'
 import { HttpError } from '../auth'
 import { runOk } from '../exec'
+import { config } from '../config'
+import { cleanStorage, fixtureApi, readStorage, type PodmanApi, type QuadletRefs } from '../quadlets/storage'
+import { PRUNE_CALENDAR, PRUNE_COMMAND, PRUNE_TIMER, quadletKey, type CleanupKind, type PodmanStorage, type PruneEvery } from '~/shared/podman-storage'
 import { assertContainerId, assertPodmanRead, assertUnitName, type Privileged, type UnitAction } from './actions'
 import { Gate } from './gate'
 
@@ -98,9 +101,62 @@ export class LocalPrivileged implements Privileged {
     await runOk(['busctl', 'call', ...manager, 'Reload'], { timeoutMs: 60_000 })
   }
 
-  private podman(path: string, init: RequestInit = {}) {
+  private podman(path: string, init: RequestInit = {}, timeoutMs = 15_000) {
     if (!existsSync(this.podmanSocket)) throw new HttpError(503, msg('helper_error_podmanSocketMissing', { socket: this.podmanSocket }))
-    return fetch(`http://podman${path}`, { ...init, unix: this.podmanSocket, signal: AbortSignal.timeout(15_000) } as RequestInit)
+    return fetch(`http://podman${path}`, { ...init, unix: this.podmanSocket, signal: AbortSignal.timeout(timeoutMs) } as RequestInit)
+  }
+
+  // ---------- Podman storage ----------
+
+  /** The demo answers from fixtures; system/df walks every volume, so it gets time. */
+  private storageApi(): PodmanApi {
+    const dir = config().fixturesDir
+    return dir ? fixtureApi(dir) : async (path, init) => this.podman(path, init, 180_000)
+  }
+
+  /** Image=, volume and network names from the Quadlet files (they own what they create). */
+  private async quadletRefs(): Promise<QuadletRefs> {
+    const refs: QuadletRefs = { images: [], volumes: [], networks: [] }
+    const files = await this.admin.quadlets().catch(() => [])
+    const read = (name: string) => this.admin.readQuadlet(name).catch(() => '')
+    for (const f of files) {
+      const stem = f.name.replace(/\.[a-z]+$/, '')
+      if (f.type === 'container' || f.type === 'image') {
+        let image = quadletKey(await read(f.name), 'Image')
+        if (f.type === 'container' && image?.endsWith('.image')) image = quadletKey(await read(image), 'Image')
+        if (image) refs.images.push({ file: f.name, image })
+      } else if (f.type === 'volume') refs.volumes.push({ file: f.name, name: quadletKey(await read(f.name), 'VolumeName') ?? `systemd-${stem}` })
+      else if (f.type === 'network') refs.networks.push({ file: f.name, name: quadletKey(await read(f.name), 'NetworkName') ?? `systemd-${stem}` })
+    }
+    return refs
+  }
+
+  async podmanStorage(): Promise<PodmanStorage> {
+    const demo = !!config().fixturesDir
+    const s = await readStorage(this.storageApi(), await this.quadletRefs(), demo ? () => ({ size: 512e9, used: 401e9 }) : undefined)
+    const t = (await this.timers.timersState().catch(() => undefined))?.timers.find((x) => x.name === `${PRUNE_TIMER}.timer`)
+    if (t) s.prune = { every: t.calendars.some((c) => c.includes('-01')) || t.managed?.calendar.includes('-01') ? 'monthly' : 'weekly', ...(t.last ? { last: t.last } : {}), ...(t.next ? { next: t.next } : {}) }
+    return s
+  }
+
+  async cleanPodman(token: string | undefined, items: { kind: CleanupKind; id: string }[]) {
+    this.gate.check(token)
+    return cleanStorage(this.storageApi(), await this.quadletRefs(), items)
+  }
+
+  /** The weekly/monthly cleanup timer (safe part only), or none. */
+  async setPodmanPrune(token: string | undefined, every: PruneEvery | null) {
+    this.gate.check(token)
+    const exists = (await this.timers.timersState()).timers.some((x) => x.name === `${PRUNE_TIMER}.timer`)
+    if (!every) {
+      if (exists) await this.timers.deleteTimer(`${PRUNE_TIMER}.timer`)
+    } else
+      await this.timers.saveTimer(
+        { name: PRUNE_TIMER, description: 'Quadeck: remove stopped containers and old image versions', command: PRUNE_COMMAND, user: '', workingDirectory: '', calendar: PRUNE_CALENDAR[every], persistent: true, randomDelay: 30, lowPriority: true, network: false },
+        exists ? PRUNE_TIMER : undefined,
+        true,
+      )
+    return this.podmanStorage()
   }
 
   async podmanGet<T>(path: string): Promise<T> {

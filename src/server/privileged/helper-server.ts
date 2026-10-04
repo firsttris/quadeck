@@ -2,6 +2,7 @@
 // "quadeck" group can open, offers a fixed list of operations and enforces
 // the unlock gate itself.
 
+import { parseItems } from '~/shared/podman-storage'
 import { msg } from '~/shared/i18n'
 import { chmodSync, chownSync, existsSync, readFileSync, rmSync } from 'node:fs'
 import { HttpError } from '../auth'
@@ -136,6 +137,9 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/timers/schedule': (b, p) => p.setTimerSchedule(str(b.token), str(b.name) ?? '', str(b.calendar) ?? ''),
   '/timers/action': (b, p) => p.timerAction(str(b.token), str(b.name) ?? '', parseTimerAction(b.action)),
   '/network/state': (_b, p) => p.networkState(),
+  '/podman/storage': (_b, p) => p.podmanStorage(),
+  '/podman/clean': (b, p) => p.cleanPodman(str(b.token), parseItems(b.items)),
+  '/podman/prune': (b, p) => p.setPodmanPrune(str(b.token), b.every === 'weekly' || b.every === 'monthly' ? b.every : null),
   '/network/devices': (b, p) => p.scanDevices(b.active === true),
   '/fstab/state': (_b, p) => p.fstabState(),
   '/boot/state': (_b, p) => p.bootState(),

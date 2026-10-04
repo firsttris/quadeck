@@ -135,6 +135,11 @@ describe('helper over a Unix socket', () => {
     expect(passive.devices.length).toBeLessThan(active.devices.length)
   })
 
+  it('removes nothing from Podman and sets no cleanup timer without unlock', async () => {
+    await expect(client.cleanPodman(undefined, [{ kind: 'image', id: 'abc' }])).rejects.toMatchObject({ status: 423 })
+    await expect(client.setPodmanPrune('forged', 'weekly')).rejects.toMatchObject({ status: 423 })
+  })
+
   it('reports a missing helper clearly', async () => {
     await expect(new HelperClient(join(dir, 'missing.sock')).info()).rejects.toMatchObject({ status: 503 })
   })

@@ -70,7 +70,7 @@ a reverse proxy and uninstalling are in the [installation guide](docs/installati
 | | |
 |---|---|
 | 📊 **Overview** | CPU, RAM, temperature, network and GPU with history; failed units with the reason and a restart button; service tiles with health checks |
-| 📦 **Containers & Quadlets** | Units with status and journal, a Quadlet editor (form or text) checked by the real generator, templates, docker-compose import |
+| 📦 **Containers & Quadlets** | Units with status and journal, a Quadlet editor (form or text) checked by the real generator, templates, docker-compose import; images and volumes with what uses them, cleanup with a preview |
 | ⚙️ **systemd & timers** | Edit any unit through overrides, verified before saving; timers with a schedule builder as the cron replacement |
 | ⬆️ **Updates** | pacman (with AUR), apt, dnf, zypper, apk, rpm-ostree and container images as live jobs; reboot hints and Arch news |
 | 🥾 **Boot** | Reboot, boot once into another entry, edit systemd-boot entries in a form with every kernel parameter explained (copy, test once, then make it the default), second kernel on Arch |
