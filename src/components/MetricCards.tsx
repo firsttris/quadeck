@@ -1,3 +1,4 @@
+import { Link } from '@tanstack/react-router'
 import { useState, type ReactNode } from 'react'
 import { useMetricHistory } from '~/lib/history'
 import { bytes, num, rate } from '~/lib/format'
@@ -9,9 +10,9 @@ import { Modal } from './Modal'
 import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
 
-export type MetricCardId = 'cpu' | 'ram' | 'temp' | 'net' | 'gpu'
+export type MetricCardId = 'cpu' | 'ram' | 'temp' | 'net' | 'gpu' | 'power'
 
-type Unit = 'pct' | 'temp' | 'rate'
+type Unit = 'pct' | 'temp' | 'rate' | 'watt'
 
 interface ChartDef {
   title: string
@@ -27,8 +28,9 @@ const FORMAT: Record<Unit, (v: number) => string> = {
   pct: (v) => `${num(v * 100, v < 0.1 ? 1 : 0)} %`,
   temp: (v) => `${num(v, 0)} °C`,
   rate: (v) => rate(v),
+  watt: (v) => `${num(v, 0)} W`,
 }
-const RANGE: Record<Unit, { yMin?: number; yMax?: number }> = { pct: { yMin: 0, yMax: 1 }, temp: {}, rate: { yMin: 0 } }
+const RANGE: Record<Unit, { yMin?: number; yMax?: number }> = { pct: { yMin: 0, yMax: 1 }, temp: {}, rate: { yMin: 0 }, watt: { yMin: 0 } }
 
 const RANGE_LABEL: Record<HistoryRange, () => string> = { "1h": m.overview_metrics_ranges_1h, "6h": m.overview_metrics_ranges_6h, "24h": m.overview_metrics_ranges_24h, "7d": m.overview_metrics_ranges_7d }
 
@@ -51,6 +53,8 @@ function charts(id: MetricCardId, gpuClock: boolean): ChartDef[] {
           ],
         },
       ]
+    case 'power':
+      return [{ title: m.energy_card_chart(), unit: 'watt', series: [{ metric: 'power', label: m.energy_card_server(), color: AMBER }] }]
     case 'gpu':
       return [
         { title: gpuClock ? m.overview_metrics_clockShare() : m.overview_metrics_utilization(), unit: 'pct', series: [{ metric: 'gpu_util', label: gpuClock ? m.overview_metrics_clock() : 'GPU', color: ACCENT }] },
@@ -61,7 +65,7 @@ function charts(id: MetricCardId, gpuClock: boolean): ChartDef[] {
 }
 
 /** Card label (CPU, RAM, CPU-Temp, Netz, GPU). */
-const metricLabel = (id: MetricCardId) => pickMsg({ "services": m.overview_cards_services, "storage": m.overview_cards_storage, "timers": m.overview_cards_timers, "shares": m.overview_cards_shares, "cpu": m.overview_cards_cpu, "ram": m.overview_cards_ram, "temp": m.overview_cards_temp, "net": m.overview_cards_net, "gpu": m.overview_cards_gpu }, id)
+const metricLabel = (id: MetricCardId) => pickMsg({ "services": m.overview_cards_services, "storage": m.overview_cards_storage, "timers": m.overview_cards_timers, "shares": m.overview_cards_shares, "cpu": m.overview_cards_cpu, "ram": m.overview_cards_ram, "temp": m.overview_cards_temp, "net": m.overview_cards_net, "gpu": m.overview_cards_gpu, "power": m.overview_cards_power }, id)
 
 function gauge(id: MetricCardId, snapshot: Snapshot): ReactNode {
   const s = snapshot.system
@@ -85,6 +89,19 @@ function gauge(id: MetricCardId, snapshot: Snapshot): ReactNode {
           p={s ? Math.max(s.net.rx, s.net.tx) / netMax : 0}
           value={s ? `↓ ${rate(s.net.rx)}` : '–'}
           sub={s ? `↑ ${rate(s.net.tx)} · ${s.net.iface}${s.net.speedMbps ? ` · ${s.net.speedMbps >= 1000 ? `${s.net.speedMbps / 1000} GbE` : `${s.net.speedMbps} Mbit`}` : ''}` : ''}
+        />
+      )
+    }
+    case 'power': {
+      const p = snapshot.power
+      return (
+        <Gauge
+          bare
+          id="power"
+          label={m.overview_cards_power()}
+          p={p ? Math.min(1, p.total / 200) : 0}
+          value={p ? `${num(p.total, 0)} W` : '–'}
+          sub={p?.dayKwh !== undefined ? m.energy_card_sub({ kwh: num(p.dayKwh, 1), cost: num(p.monthCost ?? 0, 2) }) : m.energy_estimated()}
         />
       )
     }
@@ -206,6 +223,14 @@ export function MetricDialog({ id, snapshot, onClose }: { id: MetricCardId | nul
     <Modal open={!!id} onClose={onClose} title={title} wide>
       {id && <DetailBody id={id} snapshot={snapshot} />}
       {id === 'gpu' && g?.utilKind === 'clock' && <p className="m-0 text-[12px] text-muted">{m.overview_metrics_intelNote()}</p>}
+      {id === 'power' && (
+        <p className="m-0 text-[13px]">
+          {m.energy_card_note()}{' '}
+          <Link to="/hardware" search={{ tab: 'power' }} onClick={onClose}>
+            {m.energy_card_more()}
+          </Link>
+        </p>
+      )}
       <div className="flex justify-end">
         <button type="button" className="btn" onClick={onClose}>
           {m.common_close()}

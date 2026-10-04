@@ -71,7 +71,7 @@ container is "bad" regardless of the probe.
 
 ## Gauges and history
 
-CPU, RAM, CPU temperature, network and GPU show the current value in a ring and the last hour as
+CPU, RAM, CPU temperature, network, GPU and power (estimated, see [Hardware → Power](hardware.md#power)) show the current value in a ring and the last hour as
 a sparkline. A click opens the detail view with 1 h, 6 h, 24 h or 7 days, values under the mouse
 and min/average/max. Samples are stored every 30 seconds in SQLite and kept for seven days; gaps
 show when Quadeck was not running.

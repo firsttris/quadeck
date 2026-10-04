@@ -2,6 +2,7 @@
 
 A click on the host card at the top of the sidebar (hostname, OS, uptime) opens **Hardware**: a
 spec sheet of the machine, read only. It is also in the command palette (Ctrl+K → Hardware).
+The **Power** tab shows what the server draws and what that costs (see [below](#power)).
 
 ## On one screen
 
@@ -46,3 +47,45 @@ Everything is read from sysfs and procfs – `/sys/bus/pci`, `/sys/bus/usb`, `/s
 `lspci` and `lsusb` are not needed. Device names come from `pci.ids`/`usb.ids` (package `hwdata`)
 when installed, otherwise a built-in list names the usual vendors. Missing sensors usually mean a
 missing kernel module for the board's sensor chip (`nct6775`, `it87`).
+
+## Power
+
+**Hardware → Power**: what the server draws now, per component, and what it used over time. There
+is no meter at the wall socket, so the total is always marked *estimated*; each part says whether
+it is measured or estimated.
+
+- **CPU – measured** from the processor's own energy counter (RAPL, `/sys/class/powercap/intel-rapl:*`,
+  Intel and AMD). Packages plus DRAM where Intel reports it apart; never `psys` (the whole
+  platform) or the core/uncore sub-zones, which are inside the package. The counters are root-only,
+  so the helper reads them every 30 s; watts are the difference over that time, so no short spike is
+  missed. Without readable counters (VMs, ARM boards) the CPU is estimated from its load
+  (4 W idle up to about 34 W) and marked so.
+- **GPU – measured** as the driver reports it (`nvidia-smi power.draw`, amdgpu/i915 hwmon), the
+  same value as on the GPU card. Integrated graphics without a power reading count as 0 W; an AMD
+  APU's reading may include part of the CPU.
+- **Disks – estimated** from type and state, because disks have no power sensor: a spinning hard
+  disk 6 W, in standby 0.8 W (the state comes from `hdparm -C`, which does not wake the disk; disks
+  behind USB are not asked every 30 s – some bridges wake them – and count as spinning), a SATA SSD
+  1.2 W, an NVMe 3 W.
+- **Rest – estimated**: a base value for mainboard, RAM, fans and network (15 W by default) plus the
+  power supply loss (10 % of everything by default).
+
+Below that:
+
+- **Today, this month** (with a projection to the month's end) and **per year**, in kWh and euros
+  from the electricity price you enter.
+- **Usage** as stacked bars per component: 24 hours by the hour, 7 or 30 days by the day, 12 months
+  by the month, with the peak.
+- **Disks in detail**: type, state, estimated watts and standby hours today per disk, and how much
+  disk standby saves a month (standby hours × the difference between spinning and standby), with
+  a link to [the disks' energy saving](disks.md).
+
+**Settings …**: the electricity price (€/kWh), the base value (W) and the power supply loss (%).
+If you once measured the server with a meter at the socket, set the base value so that *Now* matches.
+
+The overview gets a **Power** card (watts, kWh per day, € per month) once the first reading is in;
+like the other cards it keeps a 7-day chart, its dialog links here.
+
+Energy is stored as Wh per hour and component (plus standby seconds per disk) in SQLite and kept
+for two years; the current hour is rewritten every 30 s, so a restart loses nothing. Time when the
+server or Quadeck was off is not counted.

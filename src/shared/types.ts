@@ -28,6 +28,8 @@ export interface SystemMetrics {
   temp?: { celsius: number; sensor: string }
   net: { rx: number; tx: number; iface: string; speedMbps?: number } // bytes/s
   gpus?: GpuMetrics[]
+  /** Estimated power of the whole server, watts (Hardware → Power). */
+  powerW?: number
 }
 
 export interface GpuMetrics {
@@ -45,7 +47,7 @@ export interface GpuMetrics {
 }
 
 /** Stored metrics (metric_samples.metric). */
-export const METRICS = ['cpu', 'ram', 'temp', 'net_rx', 'net_tx', 'gpu_util', 'gpu_mem', 'gpu_temp'] as const
+export const METRICS = ['cpu', 'ram', 'temp', 'net_rx', 'net_tx', 'gpu_util', 'gpu_mem', 'gpu_temp', 'power'] as const
 export type MetricName = (typeof METRICS)[number]
 export const HISTORY_RANGES = { '1h': 3600_000, '6h': 6 * 3600_000, '24h': 24 * 3600_000, '7d': 7 * 24 * 3600_000 } as const
 export type HistoryRange = keyof typeof HISTORY_RANGES
@@ -188,6 +190,8 @@ export interface Snapshot {
   }
   /** Unknown devices that joined the LAN after the first scan (Network → Devices). */
   devices?: { fresh: { key: string; ip: string; name?: string; vendor?: string; mac?: string }[] }
+  /** Estimated power now (Hardware → Power): watts per component, the daily average and a month's cost. */
+  power?: { total: number; cpu: number; gpu: number; disks: number; rest: number; cpuMeasured: boolean; gpuMeasured: boolean; dayKwh?: number; monthCost?: number }
 }
 
 export interface JournalEntry {

@@ -12,6 +12,7 @@ import type { DirListing, FileRoot, TextFile } from '~/shared/files'
 import type { CalendarPreview, TimerAction, TimerSpec, TimersState } from '~/shared/timers'
 import type { UnitDetail, UnitValidateResult, UnitWriteResult } from '~/shared/unit-files'
 import type { ScanResult } from '~/shared/devices'
+import type { PowerSample } from '~/shared/energy'
 import type { CleanupKind, CleanupResult, PodmanStorage, PruneEvery } from '~/shared/podman-storage'
 import type { NetworkState } from '~/shared/network'
 import type { FstabChange, FstabCheck, FstabState } from '~/shared/fstab'
@@ -393,6 +394,9 @@ export class HelperClient implements Privileged {
   }
   backupDump(token: string | undefined, snapshot: string, path: string) {
     return this.stream('/backup/dump', { token, snapshot, path })
+  }
+  powerSample() {
+    return this.call<PowerSample>('POST', '/power/sample', {}, 60_000)
   }
   diskPower() {
     return this.call<PowerState>('POST', '/power/state', {}, 120_000)

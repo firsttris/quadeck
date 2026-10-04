@@ -506,6 +506,9 @@ export class LocalPrivileged implements Privileged {
 
   // ---------- disk energy saving ----------
 
+  powerSample() {
+    return this.power.powerSample()
+  }
   diskPower() {
     return this.power.diskPower()
   }

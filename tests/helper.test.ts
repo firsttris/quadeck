@@ -140,6 +140,12 @@ describe('helper over a Unix socket', () => {
     await expect(client.setPodmanPrune('forged', 'weekly')).rejects.toMatchObject({ status: 423 })
   })
 
+  it('hands out power samples (RAPL and disk states) without unlocking', async () => {
+    const s = await client.powerSample()
+    expect(s.rapl.some((z) => z.name === 'package-0')).toBe(true)
+    expect(s.disks.map((d) => d.kind)).toContain('nvme')
+  })
+
   it('reports a missing helper clearly', async () => {
     await expect(new HelperClient(join(dir, 'missing.sock')).info()).rejects.toMatchObject({ status: 503 })
   })

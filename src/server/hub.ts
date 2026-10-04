@@ -30,6 +30,8 @@ import type { ServiceCandidate } from './providers/types'
 import { localHostSet, mergeServices } from './registry'
 import { notifier } from './notify'
 import { freshDevices, markSwept, recordScan, sweepDue } from './devices'
+import { EnergyMeter, energyHours, energySettings, seedEnergyHistory } from './energy'
+import { dailyAverage } from '~/shared/energy'
 import { bilingual, localize, outsideRequest } from './lang'
 
 type Source = keyof Snapshot['sources']
@@ -177,10 +179,16 @@ export class Hub {
       if (await this.collectDevices()) this.publish()
     })
     setTimeout(() => void devices(), 20_000)
+    // Power: RAPL, GPU and disk states every 30 s, Wh per hour (Hardware → Power).
+    const power = every(30_000, async () => {
+      if (await this.collectPower()) this.publish()
+    })
+    setTimeout(() => void power(), 3_000)
     setTimeout(() => void updates(), 60_000)
     if (this.fixtures) {
       seedFixtureHistory(db())
       seedSpeedHistory()
+      seedEnergyHistory(db())
     }
     // First round right away (timers are already registered, so a failure here
     // does not leave the hub dead).
@@ -207,7 +215,8 @@ export class Hub {
 
   private collectSystem() {
     try {
-      this.system = { ...(this.fixtures ? demoSystemSample() : this.systemCollector.sample()), gpus: this.gpus.length ? this.gpus : undefined }
+      const p = this.energy.now
+      this.system = { ...(this.fixtures ? demoSystemSample() : this.systemCollector.sample()), gpus: this.gpus.length ? this.gpus : undefined, ...(p && Date.now() - p.at < 120_000 ? { powerW: p.total } : {}) }
       this.ok('system')
       if (Date.now() - this.lastSampleAt >= SAMPLE_EVERY_MS && this.system.memTotal) {
         this.lastSampleAt = Date.now()
@@ -302,6 +311,33 @@ export class Hub {
   }
 
   private backup: Snapshot['backup']
+
+  readonly energy = new EnergyMeter()
+  private power: Snapshot['power']
+  private energyAvg = { at: 0, kwh: undefined as number | undefined }
+
+  /** One power sample from the helper; false when it could not be read. */
+  async collectPower(now = Date.now()): Promise<boolean> {
+    try {
+      const sample = await this.priv.powerSample()
+      const p = this.energy.tick(sample, { load: this.system?.cpu ?? 0, gpus: this.gpus })
+      if (now - this.energyAvg.at > 10 * 60_000) this.energyAvg = { at: now, kwh: dailyAverage(energyHours(db(), now - 30 * 86_400_000, now), now) }
+      const price = energySettings().price
+      this.power = {
+        total: p.total,
+        cpu: p.cpu,
+        gpu: p.gpu,
+        disks: p.disks,
+        rest: p.rest,
+        cpuMeasured: p.cpuMeasured,
+        gpuMeasured: p.gpuMeasured,
+        ...(this.energyAvg.kwh !== undefined ? { dayKwh: this.energyAvg.kwh, monthCost: this.energyAvg.kwh * 30.4 * price } : {}),
+      }
+      return true
+    } catch {
+      return false // helper not reachable: next round
+    }
+  }
 
   private devicesReadAt = 0
   /** Passive every 5 min, active when the sweep interval is up; true when something was read. */
@@ -424,6 +460,7 @@ export class Hub {
       speed: speedSnapshot(),
       ...(this.backup ? { backup: this.backup } : {}),
       devices: { fresh: freshDevices() },
+      ...(this.power ? { power: this.power } : {}),
     }
   }
 

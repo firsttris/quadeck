@@ -1,12 +1,16 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useCallback, useEffect, useState, type ReactNode } from 'react'
 import { PageHeader } from '~/components/PageHeader'
+import { PowerUsage } from '~/components/PowerUsage'
 import { useToast } from '~/components/Toast'
 import { num } from '~/lib/format'
 import { gpuQuadletLine, pcieGen, sensorUnit, shortGpuName, type Hardware, type SensorRaw } from '~/shared/hardware'
 import { m } from '~/paraglide/messages'
 
+type Tab = 'overview' | 'power'
+
 export const Route = createFileRoute('/_app/hardware')({
+  validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({ tab: s.tab === 'power' ? 'power' : undefined }),
   head: () => ({ meta: [{ title: 'Hardware · Quadeck' }] }),
   component: HardwarePage,
 })
@@ -60,6 +64,7 @@ function Facts({ rows }: { rows: [string, ReactNode | undefined][] }) {
 }
 
 function HardwarePage() {
+  const { tab = 'overview' } = Route.useSearch()
   const [hw, setHw] = useState<Hardware | null>(null)
   const [error, setError] = useState('')
   const load = useCallback(async () => {
@@ -83,9 +88,22 @@ function HardwarePage() {
   return (
     <>
       <PageHeader title={m.hardware_heading()} subtitle={s ? [s.product ?? s.board ?? s.vendor, s.chassis].filter(Boolean).join(' · ') || m.hardware_subtitle() : m.hardware_subtitle()} />
-      {error && <p className="m-0 text-[13px] text-[#e3b341]">{error}</p>}
-      {!hw && !error && <p className="m-0 text-muted">{m.hardware_reading()}</p>}
-      {hw && (
+      <div role="tablist" aria-label={m.hardware_area()} className="flex flex-wrap gap-1.5">
+        {(
+          [
+            ['overview', m.hardware_tab_overview()],
+            ['power', m.hardware_tab_power()],
+          ] as const
+        ).map(([k, label]) => (
+          <Link key={k} to="/hardware" search={k === 'overview' ? {} : { tab: k }} role="tab" aria-selected={tab === k} className={`seg ${tab === k ? 'on' : ''}`}>
+            {label}
+          </Link>
+        ))}
+      </div>
+      {tab === 'power' && <PowerUsage />}
+      {tab === 'overview' && error && <p className="m-0 text-[13px] text-[#e3b341]">{error}</p>}
+      {tab === 'overview' && !hw && !error && <p className="m-0 text-muted">{m.hardware_reading()}</p>}
+      {tab === 'overview' && hw && (
         <>
           {hw.warnings.length > 0 && (
             <section className="panel flex flex-col gap-1.5 px-[18px] py-4" aria-label={m.hardware_hints()}>
