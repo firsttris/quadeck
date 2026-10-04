@@ -89,3 +89,40 @@ test('podman storage: what uses what, delete one volume, clean up with preview, 
   await expect(page.getByRole('status')).toContainText('Regelmäßiges Aufräumen entfernt')
   await expect(card).not.toContainText('quadeck-podman-prune.timer')
 })
+
+test('podman storage: shows that Podman is working while it deletes', async ({ page }) => {
+  await login(page)
+  // Hold every delete for 1.5 s and answer with the unchanged state, so the demo data stays as it is.
+  let state: unknown
+  await page.route('**/api/podman/storage', async (route) => {
+    if (route.request().method() !== 'POST') return route.continue()
+    await new Promise((r) => setTimeout(r, 1500))
+    await route.fulfill({ json: { results: [], skipped: 0, storage: state } })
+  })
+  await page.goto('/system?tab=podman')
+  state = await (await page.request.get('/api/podman/storage')).json()
+  const card = page.getByRole('region', { name: 'Speicher & Aufräumen' })
+
+  // One image: its button turns into "Lösche …", the other buttons wait
+  const remove = card.getByRole('button', { name: 'docker.io/library/nextcloud:29 löschen' })
+  await remove.click()
+  await unlockIfAsked(page)
+  await expect(remove).toHaveAttribute('aria-busy', 'true')
+  await expect(remove).toContainText('Lösche …')
+  await expect(card.getByRole('button', { name: 'Aufräumen …' })).toBeDisabled()
+  await expect(remove).not.toHaveAttribute('aria-busy', 'true')
+  await expect(remove).toContainText('Löschen')
+
+  // Cleanup: the dialog stays open with a running counter until Podman is done
+  await card.getByRole('button', { name: 'Aufräumen …' }).click()
+  const dialog = page.getByRole('dialog', { name: 'Podman aufräumen' })
+  await dialog.getByRole('checkbox', { name: /^Alle ungenutzten Images/ }).check()
+  await dialog.getByRole('button', { name: /Einträge löschen$/ }).click()
+  await expect(dialog.getByTestId('podstore-progress')).toContainText('Podman löscht')
+  await expect(dialog.getByRole('button', { name: 'Abbrechen' })).toBeDisabled()
+  await expect(dialog.getByRole('checkbox', { name: /^Alle ungenutzten Images/ })).toBeDisabled()
+  await page.keyboard.press('Escape') // doesn't close a running cleanup
+  await expect(dialog).toBeVisible()
+  await expect(dialog).toContainText('freigegeben (0 gelöscht)')
+  await dialog.getByRole('button', { name: 'Schließen' }).click()
+})

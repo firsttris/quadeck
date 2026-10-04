@@ -201,6 +201,11 @@
     opacity: 0.5;
     cursor: not-allowed;
   }
+  /* working, not unavailable: stays readable */
+  .btn[aria-busy='true'] {
+    opacity: 0.85;
+    cursor: progress;
+  }
   .btn.primary {
     background: var(--color-accent);
     border-color: var(--color-accent);
@@ -509,6 +514,23 @@
   }
   to {
     background: transparent;
+  }
+}
+
+/* ---------- busy ---------- */
+.spinner {
+  display: inline-block;
+  flex: none;
+  width: 1em;
+  height: 1em;
+  border: 2px solid currentColor;
+  border-right-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
   }
 }
 

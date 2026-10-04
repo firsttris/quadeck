@@ -2,6 +2,7 @@ import { createContext, useCallback, useContext, useEffect, useRef, useState, ty
 import { api, ApiError } from '~/lib/api'
 import { msg } from '~/shared/i18n'
 import type { JobInfo, JobSpec, JobState } from '~/shared/packages'
+import { Spinner } from './Busy'
 import { Glyph } from './Glyph'
 import { Modal } from './Modal'
 import { Pill } from './Status'
@@ -16,11 +17,13 @@ interface Ctx {
   /** Shows the output of an earlier job. */
   show: (id: string) => void
   running: JobInfo | null
+  /** A job is being started (unlock done, request on its way): job buttons stay disabled. */
+  starting: boolean
   /** Increments whenever a job ends (pages reload their data). */
   finished: number
 }
 
-const JobCtx = createContext<Ctx>({ start: async () => null, show: () => {}, running: null, finished: 0 })
+const JobCtx = createContext<Ctx>({ start: async () => null, show: () => {}, running: null, starting: false, finished: 0 })
 export const useJobs = () => useContext(JobCtx)
 
 /** Job status labels (getters: the language is read on use). Components can also use t.shell.jobs.status. */
@@ -43,6 +46,8 @@ export function JobsProvider({ children }: { children: ReactNode }) {
   const [shown, setShown] = useState<string | null>(null)
   const [running, setRunning] = useState<JobInfo | null>(null)
   const [finished, setFinished] = useState(0)
+  const [starting, setStarting] = useState(false)
+  const startingRef = useRef(false)
 
   // A job that was already running when the page loaded (or in another tab).
   useEffect(() => {
@@ -54,8 +59,11 @@ export function JobsProvider({ children }: { children: ReactNode }) {
 
   const start = useCallback(
     async (spec: JobSpec) => {
+      if (startingRef.current) return null // a double click starts one job
       if (!(await unlock.ensure())) return null
       const call = () => api<JobInfo>('/api/jobs', { body: { spec } })
+      startingRef.current = true
+      setStarting(true)
       try {
         let job: JobInfo
         try {
@@ -72,6 +80,9 @@ export function JobsProvider({ children }: { children: ReactNode }) {
       } catch (e) {
         say((e as Error).message, 'bad')
         return null
+      } finally {
+        startingRef.current = false
+        setStarting(false)
       }
     },
     [unlock, say],
@@ -87,7 +98,7 @@ export function JobsProvider({ children }: { children: ReactNode }) {
   )
 
   return (
-    <JobCtx.Provider value={{ start, show: setShown, running, finished }}>
+    <JobCtx.Provider value={{ start, show: setShown, running, starting, finished }}>
       {children}
       {running && running.id !== shown && <JobWatcher id={running.id} onEnd={onEnd} />}
       <JobDialog id={shown} onClose={() => setShown(null)} onEnd={onEnd} />
@@ -211,8 +222,20 @@ export function JobDialog({ id, onClose, onEnd }: { id: string | null; onClose: 
 
 /** Sidebar hint while a job runs. */
 export function JobChip({ compact = false }: { compact?: boolean }) {
-  const { running, show } = useJobs()
-  if (!running) return null
+  const { running, starting, show } = useJobs()
+  if (!running) {
+    if (!starting) return null
+    return compact ? (
+      <span className="grid h-10 w-10 place-items-center text-accent" aria-live="polite" aria-label={m.shell_jobs_starting()}>
+        <Spinner />
+      </span>
+    ) : (
+      <span className="btn mx-1 justify-start text-[12px]" aria-live="polite">
+        <Spinner className="text-accent" />
+        <span className="grow truncate text-left">{m.shell_jobs_starting()}</span>
+      </span>
+    )
+  }
   if (compact) {
     return (
       <button type="button" className="grid h-10 w-10 place-items-center rounded-lg text-accent hover:bg-[#161c24]" onClick={() => show(running.id)} aria-label={m.shell_jobs_running({ title: running.title })} title={running.title}>
