@@ -7,6 +7,7 @@
 
 import type { CleanupKind, CleanupResult, PodmanStorage, PruneEvery } from '~/shared/podman-storage'
 import type { TerminalInfo } from '~/shared/terminal'
+import type { SecretsState } from '~/shared/secrets'
 import { msg } from '~/shared/i18n'
 import type { JobInfo, JobSpec } from '~/shared/packages'
 import type { Maintenance } from '../packages/maintenance'
@@ -66,6 +67,10 @@ export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAd
   terminalInput(id: string, data: string): Promise<void>
   terminalResize(id: string, cols: number, rows: number): Promise<void>
   terminalClose(id: string): Promise<void>
+  secretsState(): Promise<SecretsState>
+  createSecret(token: string | undefined, name: string, value: string, replace: boolean): Promise<SecretsState>
+  removeSecret(token: string | undefined, name: string): Promise<SecretsState>
+  moveSecret(token: string | undefined, file: string, key: string, name: string, restart: boolean): Promise<{ state: SecretsState; write: WriteResult }>
   cleanPodman(token: string | undefined, items: { kind: CleanupKind; id: string }[]): Promise<{ results: CleanupResult[]; skipped: number }>
   setPodmanPrune(token: string | undefined, every: PruneEvery | null): Promise<PodmanStorage>
   startJob(token: string | undefined, spec: JobSpec): Promise<JobInfo>

@@ -219,6 +219,26 @@ export function fixtureApi(dir: string): PodmanApi {
   return async (path, init) => {
     const p = path.replace(/^\/v[\d.]+\/libpod/, '').split('?')[0]!
     const containers = state.containers as (ListContainer & { Mounts: ContainerInspect['Mounts'] })[]
+    // secrets: names and dates only, the value is dropped (like Podman, it is never shown again)
+    const secrets = (state.secrets ??= []) as { ID: string; Spec: { Name: string }; CreatedAt: string; UpdatedAt: string }[]
+    if (p === '/secrets/json') return json(secrets)
+    if (p === '/secrets/create' && init?.method === 'POST') {
+      const q = new URLSearchParams(path.split('?')[1] ?? '')
+      const name = q.get('name') ?? ''
+      const old = secrets.find((x) => x.Spec.Name === name)
+      if (old && q.get('replace') !== 'true') return json({ message: `secret name in use: ${name}` }, 409)
+      const now = new Date().toISOString()
+      if (old) old.UpdatedAt = now
+      else secrets.push({ ID: crypto.randomUUID().replace(/-/g, '').slice(0, 25), Spec: { Name: name }, CreatedAt: now, UpdatedAt: now })
+      return json({ ID: name })
+    }
+    if (p.startsWith('/secrets/') && init?.method === 'DELETE') {
+      const name = decodeURIComponent(p.slice('/secrets/'.length))
+      const i = secrets.findIndex((x) => x.Spec.Name === name)
+      if (i < 0) return json({ message: 'no such secret' }, 404)
+      secrets.splice(i, 1)
+      return new Response(null, { status: 204 })
+    }
     if (init?.method === 'DELETE') {
       const [, kind, raw] = p.split('/')
       const id = decodeURIComponent(raw ?? '')

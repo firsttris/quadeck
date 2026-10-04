@@ -38,6 +38,9 @@ import { demoSpawner } from '../terminal/demo'
 import { CONTAINER_NAME, type TerminalInfo } from '~/shared/terminal'
 import { hostname, userInfo } from 'node:os'
 import { cleanStorage, fixtureApi, readStorage, type PodmanApi, type QuadletRefs } from '../quadlets/storage'
+import { createSecret, removeSecret, secretsState } from '../quadlets/secrets'
+import { moveToSecret, plainValue, type SecretsState } from '~/shared/secrets'
+import type { WriteResult } from '../quadlets/backend'
 import { PRUNE_CALENDAR, PRUNE_COMMAND, PRUNE_TIMER, quadletKey, type CleanupKind, type PodmanStorage, type PruneEvery } from '~/shared/podman-storage'
 import { assertContainerId, assertPodmanRead, assertUnitName, type Privileged, type UnitAction } from './actions'
 import { Gate } from './gate'
@@ -185,6 +188,51 @@ export class LocalPrivileged implements Privileged {
   }
   async terminalClose(id: string) {
     this.terminal.close(id)
+  }
+
+  // ---------- Podman secrets ----------
+
+  private async quadletTexts() {
+    const files = await this.admin.quadlets().catch(() => [])
+    return Promise.all(files.map(async (f) => ({ name: f.name, content: await this.admin.readQuadlet(f.name).catch(() => '') })))
+  }
+
+  async secretsState(): Promise<SecretsState> {
+    return secretsState(this.storageApi(), await this.quadletTexts())
+  }
+
+  async createSecret(token: string | undefined, name: string, value: string, replace: boolean) {
+    this.gate.check(token)
+    await createSecret(this.storageApi(), name, value, replace)
+    return this.secretsState()
+  }
+
+  /** Only secrets no Quadlet file names: a container would not start without it. */
+  async removeSecret(token: string | undefined, name: string) {
+    this.gate.check(token)
+    const used = (await this.secretsState()).secrets.find((s) => s.name === name)?.usedBy ?? []
+    if (used.length) throw new HttpError(409, msg('secrets_error_inUse', { files: used.join(', ') }))
+    await removeSecret(this.storageApi(), name)
+    return this.secretsState()
+  }
+
+  /** KEY=value from a .container file into a new secret, the line rewritten to Secret=…; undone if the file cannot be saved. */
+  async moveSecret(token: string | undefined, file: string, key: string, name: string, restart: boolean): Promise<{ state: SecretsState; write: WriteResult }> {
+    this.gate.check(token)
+    if (!file.endsWith('.container')) throw new HttpError(400, msg('secrets_error_notContainer'))
+    const content = await this.admin.readQuadlet(file)
+    const value = plainValue(content, key)
+    if (value === undefined) throw new HttpError(404, msg('secrets_error_noKey', { key, file }))
+    const api = this.storageApi()
+    await createSecret(api, name, value)
+    let write: WriteResult
+    try {
+      write = await this.admin.writeQuadlet(file, moveToSecret(content, key, name), restart)
+    } catch (e) {
+      await removeSecret(api, name).catch(() => {})
+      throw e
+    }
+    return { state: await this.secretsState(), write }
   }
 
   async cleanPodman(token: string | undefined, items: { kind: CleanupKind; id: string }[]) {

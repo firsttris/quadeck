@@ -15,6 +15,7 @@ import type { ScanResult } from '~/shared/devices'
 import type { PowerSample } from '~/shared/energy'
 import type { CleanupKind, CleanupResult, PodmanStorage, PruneEvery } from '~/shared/podman-storage'
 import type { TerminalInfo } from '~/shared/terminal'
+import type { SecretsState } from '~/shared/secrets'
 import type { NetworkState } from '~/shared/network'
 import type { FstabChange, FstabCheck, FstabState } from '~/shared/fstab'
 import type { BootEntryChange, BootEntryFile, BootState, EntryProblem } from '~/shared/boot'
@@ -257,6 +258,18 @@ export class HelperClient implements Privileged {
   }
   async terminalClose(id: string) {
     await this.call('POST', '/terminal/close', { id }, 10_000)
+  }
+  secretsState() {
+    return this.call<SecretsState>('POST', '/secrets/state', {}, 60_000)
+  }
+  createSecret(token: string | undefined, name: string, value: string, replace: boolean) {
+    return this.call<SecretsState>('POST', '/secrets/create', { token, name, value, replace }, 60_000)
+  }
+  removeSecret(token: string | undefined, name: string) {
+    return this.call<SecretsState>('POST', '/secrets/remove', { token, name }, 60_000)
+  }
+  moveSecret(token: string | undefined, file: string, key: string, name: string, restart: boolean) {
+    return this.call<{ state: SecretsState; write: WriteResult }>('POST', '/secrets/move', { token, file, key, name, restart }, 120_000)
   }
   podmanStorage() {
     return this.call<PodmanStorage>('POST', '/podman/storage', {}, 200_000)

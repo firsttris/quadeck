@@ -156,6 +156,30 @@ The **Podman** tab on the System page (next to the container image updates):
   `.quadeck-bak`.
 - **`storage.conf`** is shown read-only: changes there can make existing containers unusable.
 
+### Secrets
+
+Passwords and tokens for containers belong in Podman, not in the Quadlet file (which is readable,
+versioned in the editor's history and easily copied). The **Secrets** card on the same tab:
+
+- lists Podman's secrets with the Quadlet files that use them (`Secret=` lines) and when they were
+  last changed – never their values; Podman does not show them again either;
+- **New secret …**: a name and the value (a password field). The value is only handed to Podman's
+  API in the request body – never on a command line, never logged;
+- **Replace …** swaps the value (Podman 4.7 or newer); the container sees it after a restart;
+- **Delete** only for secrets no Quadlet file names, so no container loses its password;
+- **Passwords in plain text**: `Environment=` assignments in `.container` files whose name ends in
+  PASSWORD, PASSWD, PASS, SECRET, TOKEN, API_KEY, PRIVATE_KEY or CREDENTIALS (not `*_FILE`, not
+  `${VAR}`) are listed – with the key, never the value – and the Quadlet editor warns on such
+  lines. **Move to a secret …** creates the secret with that value and rewrites the line:
+  `Environment=DB_USERNAME=immich DB_PASSWORD=…` becomes `Environment=DB_USERNAME=immich` plus
+  `Secret=immich-db-password,type=env,target=DB_PASSWORD`, so the container gets the same
+  variable as before; every other line stays as it was. Optionally the container is restarted. If
+  the file cannot be saved, the secret is removed again. The previous version with the password
+  stays in the editor's history.
+
+In a Quadlet file a secret is used as an environment variable (`Secret=name,type=env,target=VAR`)
+or as a file (`Secret=name` → `/run/secrets/name`); `Secret` is in the editor's form too.
+
 ### Storage & cleanup
 
 What Podman keeps on disk and what uses it, on the same tab:

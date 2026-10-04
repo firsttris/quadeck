@@ -155,6 +155,10 @@ export const HELPER_ROUTES: Record<string, Handler> = {
     await p.terminalClose(str(b.id) ?? '')
     return { ok: true }
   },
+  '/secrets/state': (_b, p) => p.secretsState(),
+  '/secrets/create': (b, p) => p.createSecret(str(b.token), str(b.name) ?? '', typeof b.value === 'string' ? b.value : '', b.replace === true),
+  '/secrets/remove': (b, p) => p.removeSecret(str(b.token), str(b.name) ?? ''),
+  '/secrets/move': (b, p) => p.moveSecret(str(b.token), str(b.file) ?? '', str(b.key) ?? '', str(b.name) ?? '', b.restart !== false),
   '/podman/clean': (b, p) => p.cleanPodman(str(b.token), parseItems(b.items)),
   '/podman/prune': (b, p) => p.setPodmanPrune(str(b.token), b.every === 'weekly' || b.every === 'monthly' ? b.every : null),
   '/network/devices': (b, p) => p.scanDevices(b.active === true),

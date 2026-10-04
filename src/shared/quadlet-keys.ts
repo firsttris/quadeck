@@ -59,7 +59,7 @@ const C: Record<string, KeyDoc> = {
   Memory: k('quadletHelp_container_Memory'),
   PodmanArgs: k('quadletHelp_container_PodmanArgs', { multi: true }),
   ReadOnly: k('quadletHelp_container_ReadOnly'),
-  Secret: k('quadletHelp_container_Secret', { multi: true }),
+  Secret: k('quadletHelp_container_Secret', { multi: true, form: true, placeholder: 'db-password,type=env,target=DB_PASSWORD' }),
   Timezone: k('quadletHelp_container_Timezone', { form: true }),
   Tmpfs: k('quadletHelp_container_Tmpfs', { multi: true }),
   WorkingDir: k('quadletHelp_container_WorkingDir'),
