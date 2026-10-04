@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
 import { useActions } from '~/components/Actions'
+import { BusyButton, useBusy } from '~/components/Busy'
 import { InstallHint } from '~/components/InstallHint'
 import { PageHeader } from '~/components/PageHeader'
 import { Dot, Pill, type Tone } from '~/components/Status'
@@ -78,24 +79,23 @@ function Access({ state, onState }: { state: SshState; onState: (s: SshState) =>
   const say = useToast()
   const guarded = useGuardedApi()
   const { readonly } = useActions()
-  const [busy, setBusy] = useState(false)
+  const work = useBusy<'start' | 'restart' | 'enable'>()
+  const busy = work.busy !== null
   const services = state.services.filter((s) => s.unit.endsWith('.service'))
   const active = state.services.some((s) => s.active)
   const enabled = state.services.some((s) => s.enabled)
-  const act = async (action: 'start' | 'restart' | 'enable') => {
-    setBusy(true)
-    try {
-      const st = await guarded<SshState>('/api/ssh', { body: { service: action } })
-      if (st) {
-        onState(st)
-        say(action === 'enable' ? m.ssh_access_enabled() : action === 'restart' ? m.ssh_access_restarted() : m.ssh_access_started())
+  const act = (action: 'start' | 'restart' | 'enable') =>
+    work.run(action, async () => {
+      try {
+        const st = await guarded<SshState>('/api/ssh', { body: { service: action } })
+        if (st) {
+          onState(st)
+          say(action === 'enable' ? m.ssh_access_enabled() : action === 'restart' ? m.ssh_access_restarted() : m.ssh_access_started())
+        }
+      } catch (e) {
+        say((e as Error).message, 'bad')
       }
-    } catch (e) {
-      say((e as Error).message, 'bad')
-    } finally {
-      setBusy(false)
-    }
-  }
+    })
   return (
     <section className="panel flex flex-col" aria-label={m.ssh_access_title()}>
       <div className="flex flex-wrap items-center gap-2 px-[18px] pt-4 pb-2">
@@ -114,18 +114,18 @@ function Access({ state, onState }: { state: SshState; onState: (s: SshState) =>
         {!readonly && services.length > 0 && (
           <span className="flex gap-1.5">
             {!enabled && (
-              <button type="button" className="btn sm" disabled={busy} onClick={() => act('enable')}>
+              <BusyButton className="btn sm" busy={work.is('enable')} busyLabel={m.common_applying()} disabled={busy} onClick={() => void act('enable')}>
                 {m.ssh_access_enable()}
-              </button>
+              </BusyButton>
             )}
             {active ? (
-              <button type="button" className="btn sm" disabled={busy} onClick={() => act('restart')}>
+              <BusyButton className="btn sm" busy={work.is('restart')} busyLabel={m.common_restarting()} disabled={busy} onClick={() => void act('restart')}>
                 {m.ssh_access_restart()}
-              </button>
+              </BusyButton>
             ) : (
-              <button type="button" className="btn sm primary" disabled={busy} onClick={() => act('start')}>
+              <BusyButton className="btn sm primary" busy={work.is('start')} busyLabel={m.common_starting()} disabled={busy} onClick={() => void act('start')}>
                 {m.ssh_access_start()}
-              </button>
+              </BusyButton>
             )}
           </span>
         )}

@@ -3,6 +3,7 @@ import { api } from '~/lib/api'
 import { relative } from '~/lib/format'
 import { serviceLabels, type DeviceView, type ScanResult } from '~/shared/devices'
 import { useActions } from './Actions'
+import { BusyButton, useBusy } from './Busy'
 import { Modal } from './Modal'
 import { Dot } from './Status'
 import { useToast } from './Toast'
@@ -230,19 +231,23 @@ function DeviceDialog({ d, onClose, post }: { d: DeviceView; onClose: () => void
   const [known, setKnown] = useState(!!d.known)
   const [ports, setPorts] = useState<{ port: number; name: string; open: boolean }[] | null>(null)
   const [checking, setChecking] = useState(false)
+  const work = useBusy<'save' | 'forget' | 'wake'>()
+  const closing = work.is('save') || work.is('forget')
 
-  const save = async () => {
-    if (await post({ action: 'edit', key: d.key, label, note, known })) {
-      say(m.devices_saved({ name: label || title(d) }))
-      onClose()
-    }
-  }
-  const forget = async () => {
-    if (await post({ action: 'forget', key: d.key })) {
-      say(m.devices_forgotten({ name: title(d) }))
-      onClose()
-    }
-  }
+  const save = () =>
+    work.run('save', async () => {
+      if (await post({ action: 'edit', key: d.key, label, note, known })) {
+        say(m.devices_saved({ name: label || title(d) }))
+        onClose()
+      }
+    })
+  const forget = () =>
+    work.run('forget', async () => {
+      if (await post({ action: 'forget', key: d.key })) {
+        say(m.devices_forgotten({ name: title(d) }))
+        onClose()
+      }
+    })
   const checkPorts = async () => {
     setChecking(true)
     try {
@@ -253,20 +258,21 @@ function DeviceDialog({ d, onClose, post }: { d: DeviceView; onClose: () => void
       setChecking(false)
     }
   }
-  const wake = async () => {
-    try {
-      await api('/api/network/devices', {
-        body: { action: 'wake', mac: d.mac },
-      })
-      say(m.devices_woken({ name: title(d) }))
-    } catch (e) {
-      say((e as Error).message, 'bad')
-    }
-  }
+  const wake = () =>
+    work.run('wake', async () => {
+      try {
+        await api('/api/network/devices', {
+          body: { action: 'wake', mac: d.mac },
+        })
+        say(m.devices_woken({ name: title(d) }))
+      } catch (e) {
+        say((e as Error).message, 'bad')
+      }
+    })
   const open = ports?.filter((p) => p.open) ?? []
 
   return (
-    <Modal open title={title(d)} onClose={onClose}>
+    <Modal open title={title(d)} onClose={onClose} busy={closing}>
       <dl className="m-0 grid grid-cols-[auto_1fr] gap-x-4 gap-y-1 text-[13px]">
         <dt className="text-muted">{m.devices_col_ip()}</dt>
         <dd className="m-0 font-mono">{d.ip}</dd>
@@ -318,9 +324,9 @@ function DeviceDialog({ d, onClose, post }: { d: DeviceView; onClose: () => void
             {checking ? m.devices_portsChecking() : m.devices_portsCheck()}
           </button>
           {d.mac && !d.self && !readonly && (
-            <button type="button" className="btn sm" onClick={() => void wake()}>
+            <BusyButton className="btn sm" busy={work.is('wake')} busyLabel={m.common_working()} disabled={work.busy !== null} onClick={() => void wake()}>
               {m.devices_wake()}
-            </button>
+            </BusyButton>
           )}
         </div>
         {ports && open.length === 0 && <p className="m-0 text-[12px] text-muted">{m.devices_portsNone()}</p>}
@@ -337,17 +343,17 @@ function DeviceDialog({ d, onClose, post }: { d: DeviceView; onClose: () => void
       </div>
       <div className="flex flex-wrap justify-end gap-2">
         {!d.self && (
-          <button type="button" className="btn danger" onClick={() => void forget()}>
+          <BusyButton className="btn danger" busy={work.is('forget')} busyLabel={m.common_deleting()} disabled={work.busy !== null} onClick={() => void forget()}>
             {m.devices_forget()}
-          </button>
+          </BusyButton>
         )}
         <span className="grow" />
-        <button type="button" className="btn" onClick={onClose}>
+        <button type="button" className="btn" disabled={closing} onClick={onClose}>
           {m.common_cancel()}
         </button>
-        <button type="button" className="btn primary" onClick={() => void save()}>
+        <BusyButton className="btn primary" busy={work.is('save')} busyLabel={m.common_saving()} disabled={work.busy !== null} onClick={() => void save()}>
           {m.common_save()}
-        </button>
+        </BusyButton>
       </div>
     </Modal>
   )

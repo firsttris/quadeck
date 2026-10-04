@@ -4,6 +4,7 @@ import { api } from '~/lib/api'
 import { num } from '~/lib/format'
 import { COMPONENTS, sumSplit, type Component, type DiskKind, type EnergySettings, type HourEnergy, type PowerNow } from '~/shared/energy'
 import { localeOf } from '~/shared/i18n'
+import { BusyButton, useBusy } from './Busy'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
 import { m } from '~/paraglide/messages'
@@ -256,14 +257,17 @@ function SettingsDialog({ s, onClose, onSaved }: { s: EnergySettings; onClose: (
   const [price, setPrice] = useState(num(s.price, 2))
   const [baseW, setBase] = useState(String(s.baseW))
   const [lossPct, setLoss] = useState(String(s.lossPct))
-  const save = async () => {
-    try {
-      onSaved(await api<Report>('/api/power', { body: { price, baseW, lossPct } }))
-      say(m.energy_saved())
-    } catch (e) {
-      say((e as Error).message, 'bad')
-    }
-  }
+  const work = useBusy()
+  const busy = work.is('save')
+  const save = () =>
+    work.run('save', async () => {
+      try {
+        onSaved(await api<Report>('/api/power', { body: { price, baseW, lossPct } }))
+        say(m.energy_saved())
+      } catch (e) {
+        say((e as Error).message, 'bad')
+      }
+    })
   const field = (labelText: string, value: string, set: (v: string) => void, unit: string, help?: string) => (
     <label className="flex flex-col gap-1.5 text-[13px]">
       {labelText}
@@ -275,18 +279,18 @@ function SettingsDialog({ s, onClose, onSaved }: { s: EnergySettings; onClose: (
     </label>
   )
   return (
-    <Modal open title={m.energy_settingsTitle()} onClose={onClose}>
+    <Modal open title={m.energy_settingsTitle()} onClose={onClose} busy={busy}>
       {field(m.energy_price(), price, setPrice, m.energy_priceUnit())}
       {field(m.energy_base(), baseW, setBase, 'W', m.energy_baseHelp())}
       {field(m.energy_loss(), lossPct, setLoss, '%', m.energy_lossHelp())}
       <p className="m-0 text-[12px] text-muted">{m.energy_calibrate()}</p>
       <div className="flex justify-end gap-2">
-        <button type="button" className="btn" onClick={onClose}>
+        <button type="button" className="btn" disabled={busy} onClick={onClose}>
           {m.common_cancel()}
         </button>
-        <button type="button" className="btn primary" onClick={() => void save()}>
+        <BusyButton className="btn primary" busy={busy} busyLabel={m.common_saving()} onClick={() => void save()}>
           {m.common_save()}
-        </button>
+        </BusyButton>
       </div>
     </Modal>
   )

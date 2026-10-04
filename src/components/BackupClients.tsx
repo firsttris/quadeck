@@ -6,6 +6,7 @@ import { CLIENT_PRESETS, clientCalendar, defaultClientPlan, type ClientPlan, typ
 import { pickMsg } from '~/i18n'
 import { CLIENT_NAME, TARGET_UNIT, clientRepo, staleClients, type BackupClient, type TargetConfig, type TargetState } from '~/shared/backup'
 import { useActions } from './Actions'
+import { BusyButton, Spinner, useBusy } from './Busy'
 import { ConfirmDialog, Modal } from './Modal'
 import { RowMenu } from './RowMenu'
 import { Dot, Pill, unitState, unitTone } from './Status'
@@ -24,6 +25,7 @@ export function BackupClients() {
   const [remove, setRemove] = useState<BackupClient | null>(null)
   const [off, setOff] = useState(false)
   const [measuring, setMeasuring] = useState(false)
+  const rows = useBusy()
   const { readonly } = useActions()
   const guarded = useGuardedApi()
   const say = useToast()
@@ -154,7 +156,7 @@ export function BackupClients() {
                   {state.clients.map((c) => {
                     const late = stale.some((s) => s.name === c.name)
                     return (
-                      <tr key={c.name} data-testid="backup-client">
+                      <tr key={c.name} data-testid="backup-client" className={rows.is(c.name) ? 'opacity-60' : undefined} aria-busy={rows.is(c.name) || undefined}>
                         <td>
                           <span className="font-medium">{c.name}</span> {c.disabled && <Pill tone="idle">{m.backup_clients_disabled()}</Pill>}
                         </td>
@@ -172,27 +174,39 @@ export function BackupClients() {
                         </td>
                         <td className="text-right">
                           {!readonly && (
-                            <RowMenu
-                              label={m.common_actionsFor({ name: c.name })}
-                              items={[
-                                { label: m.backup_clients_edit(), onSelect: () => setEdit(c) },
-                                {
-                                  label: m.backup_clients_renew(),
-                                  onSelect: async () => {
-                                    const r = await call<{ password: string }>({ client: { renew: c.name } })
-                                    if (r) setAccess({ name: c.name, password: r.password })
+                            <span className="inline-flex items-center gap-2">
+                              {rows.is(c.name) && (
+                                <span className="inline-flex items-center gap-1.5 text-[12px] text-muted" aria-live="polite">
+                                  <Spinner />
+                                  {m.common_working()}
+                                </span>
+                              )}
+                              <RowMenu
+                                label={m.common_actionsFor({ name: c.name })}
+                                items={[
+                                  { label: m.backup_clients_edit(), onSelect: () => setEdit(c) },
+                                  {
+                                    label: m.backup_clients_renew(),
+                                    disabled: rows.busy !== null,
+                                    onSelect: () =>
+                                      void rows.run(c.name, async () => {
+                                        const r = await call<{ password: string }>({ client: { renew: c.name } })
+                                        if (r) setAccess({ name: c.name, password: r.password })
+                                      }),
                                   },
-                                },
-                                {
-                                  label: c.disabled ? m.backup_clients_enable() : m.backup_clients_disable(),
-                                  onSelect: async () => {
-                                    const s = await call<TargetState>({ client: { update: { name: c.name, change: { disabled: !c.disabled } } } }, c.disabled ? m.backup_clients_enabled({ name: c.name }) : m.backup_clients_disabledNow({ name: c.name }))
-                                    if (s) setState(s)
+                                  {
+                                    label: c.disabled ? m.backup_clients_enable() : m.backup_clients_disable(),
+                                    disabled: rows.busy !== null,
+                                    onSelect: () =>
+                                      void rows.run(c.name, async () => {
+                                        const s = await call<TargetState>({ client: { update: { name: c.name, change: { disabled: !c.disabled } } } }, c.disabled ? m.backup_clients_enabled({ name: c.name }) : m.backup_clients_disabledNow({ name: c.name }))
+                                        if (s) setState(s)
+                                      }),
                                   },
-                                },
-                                { label: m.common_deleteDots(), danger: true, separator: true, onSelect: () => setRemove(c) },
-                              ]}
-                            />
+                                  { label: m.common_deleteDots(), danger: true, separator: true, disabled: rows.is(c.name), onSelect: () => setRemove(c) },
+                                ]}
+                              />
+                            </span>
                           )}
                         </td>
                       </tr>
@@ -267,6 +281,7 @@ export function BackupClients() {
         title={m.backup_target_offTitle()}
         body={<p className="m-0">{m.backup_target_offText()}</p>}
         confirm={m.backup_target_off()}
+        busyLabel={m.common_applying()}
         danger
         onConfirm={async () => {
           const s = await call<TargetState>({ target: { remove: true } }, m.backup_target_offDone())
@@ -282,7 +297,7 @@ function TargetDialog({ config, host, onClose, onSave }: { config?: TargetConfig
   const [c, setC] = useState<TargetConfig>(config ?? { dataDir: '/srv/backups', port: 8000, appendOnly: false, url: `http://${host || 'server'}:8000` })
   const [busy, setBusy] = useState(false)
   return (
-    <Modal open title={config ? m.backup_target_editTitle() : m.backup_target_setupTitle()} onClose={onClose}>
+    <Modal open title={config ? m.backup_target_editTitle() : m.backup_target_setupTitle()} onClose={onClose} busy={busy}>
       <p className="m-0 text-[13px] text-muted">{m.backup_target_setupText()}</p>
       <label className="flex flex-col gap-1.5 text-[13px]">
         {m.backup_target_dataDir()}
@@ -317,21 +332,21 @@ function TargetDialog({ config, host, onClose, onSave }: { config?: TargetConfig
         </span>
       </label>
       <div className="flex justify-end gap-2">
-        <button type="button" className="btn" onClick={onClose}>
+        <button type="button" className="btn" disabled={busy} onClick={onClose}>
           {m.common_cancel()}
         </button>
-        <button
-          type="button"
+        <BusyButton
           className="btn primary"
-          disabled={busy}
+          busy={busy}
+          busyLabel={config ? m.common_saving() : m.backup_setup_saving()}
           onClick={async () => {
             setBusy(true)
             await onSave(c)
             setBusy(false)
           }}
         >
-          {busy ? m.backup_setup_saving() : config ? m.common_save() : m.backup_setup_create()}
-        </button>
+          {config ? m.common_save() : m.backup_setup_create()}
+        </BusyButton>
       </div>
     </Modal>
   )
@@ -341,9 +356,10 @@ function AddClient({ taken, onClose, onAdd }: { taken: string[]; onClose: () => 
   const [name, setName] = useState('')
   const [warn, setWarn] = useState(true)
   const [days, setDays] = useState(3)
+  const [busy, setBusy] = useState(false)
   const valid = CLIENT_NAME.test(name)
   return (
-    <Modal open title={m.backup_clients_addTitle()} onClose={onClose}>
+    <Modal open title={m.backup_clients_addTitle()} onClose={onClose} busy={busy}>
       <label className="flex flex-col gap-1.5 text-[13px]">
         {m.backup_clients_name()}
         <input className="field font-mono" value={name} placeholder="laptop" autoFocus onChange={(e) => setName(e.target.value.trim().toLowerCase())} />
@@ -352,12 +368,25 @@ function AddClient({ taken, onClose, onAdd }: { taken: string[]; onClose: () => 
       {taken.includes(name) && <p className="m-0 text-[13px] text-[#ff8a80]">{m.backup_error_clientExists({ name })}</p>}
       <WarnInput warn={warn} days={days} onChange={(w, d) => (setWarn(w), setDays(d))} />
       <div className="flex justify-end gap-2">
-        <button type="button" className="btn" onClick={onClose}>
+        <button type="button" className="btn" disabled={busy} onClick={onClose}>
           {m.common_cancel()}
         </button>
-        <button type="button" className="btn primary" disabled={!valid || taken.includes(name)} onClick={() => void onAdd(name, warn ? days : null)}>
+        <BusyButton
+          className="btn primary"
+          busy={busy}
+          busyLabel={m.common_creating()}
+          disabled={!valid || taken.includes(name)}
+          onClick={async () => {
+            setBusy(true)
+            try {
+              await onAdd(name, warn ? days : null)
+            } finally {
+              setBusy(false)
+            }
+          }}
+        >
           {m.backup_clients_create()}
-        </button>
+        </BusyButton>
       </div>
     </Modal>
   )
@@ -376,11 +405,12 @@ function WarnInput({ warn, days, onChange }: { warn: boolean; days: number; onCh
 
 function RemoveClient({ client, dataDir, onClose, onRemove }: { client: BackupClient; dataDir?: string; onClose: () => void; onRemove: (deleteData: boolean) => Promise<void> }) {
   const [data, setData] = useState(false)
+  const [busy, setBusy] = useState(false)
   return (
-    <Modal open title={m.backup_clients_removeTitle({ name: client.name })} onClose={onClose}>
+    <Modal open title={m.backup_clients_removeTitle({ name: client.name })} onClose={onClose} busy={busy}>
       <p className="m-0 text-[13px]">{m.backup_clients_removeText()}</p>
       <label className="flex items-start gap-2.5 text-[13px]">
-        <input type="checkbox" className="mt-0.5" checked={data} onChange={(e) => setData(e.target.checked)} />
+        <input type="checkbox" className="mt-0.5" checked={data} disabled={busy} onChange={(e) => setData(e.target.checked)} />
         <span>
           {m.backup_clients_removeData()}
           {dataDir && <span className="block font-mono text-[12px] text-muted">{`${dataDir}/${client.name}`}</span>}
@@ -388,12 +418,24 @@ function RemoveClient({ client, dataDir, onClose, onRemove }: { client: BackupCl
         </span>
       </label>
       <div className="flex justify-end gap-2">
-        <button type="button" className="btn" onClick={onClose}>
+        <button type="button" className="btn" disabled={busy} onClick={onClose}>
           {m.common_cancel()}
         </button>
-        <button type="button" className="btn danger" onClick={() => void onRemove(data)}>
+        <BusyButton
+          className="btn danger"
+          busy={busy}
+          busyLabel={m.common_deleting()}
+          onClick={async () => {
+            setBusy(true)
+            try {
+              await onRemove(data)
+            } finally {
+              setBusy(false)
+            }
+          }}
+        >
           {m.common_delete()}
-        </button>
+        </BusyButton>
       </div>
     </Modal>
   )
@@ -471,6 +513,7 @@ function ClientDialog({
   const [days, setDays] = useState(client.warnDays ?? 3)
   const [link, setLink] = useState<{ token: string; expires: number } | null>(null)
   const [busy, setBusy] = useState(false)
+  const [linking, setLinking] = useState(false)
   const full: ClientPlan = { ...plan, exclude: { ...plan.exclude, patterns: patterns.split('\n').map((l) => l.trim()).filter(Boolean) } }
   const saved = JSON.stringify(full) === JSON.stringify(client.plan) && (warn ? days : undefined) === client.warnDays
   const set = (p: Partial<ClientPlan>) => setPlan({ ...plan, ...p })
@@ -483,13 +526,19 @@ function ClientDialog({
     return ok
   }
   const makeLink = async () => {
-    if (!saved && !(await save())) return
-    const l = await onLink()
-    if (l) setLink(l)
+    if (linking) return
+    setLinking(true)
+    try {
+      if (!saved && !(await save())) return
+      const l = await onLink()
+      if (l) setLink(l)
+    } finally {
+      setLinking(false)
+    }
   }
 
   return (
-    <Modal open wide title={client.name} onClose={onClose}>
+    <Modal open wide title={client.name} onClose={onClose} busy={busy || linking}>
       <section className="flex flex-col gap-2.5" aria-label={m.backup_client_what()}>
         <h3 className="label-caps m-0 font-normal">{m.backup_client_what()}</h3>
         <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
@@ -601,9 +650,9 @@ function ClientDialog({
             </details>
           </>
         ) : (
-          <button type="button" className="btn primary self-start" disabled={busy || !full.folders.length} onClick={() => void makeLink()}>
+          <BusyButton className="btn primary self-start" busy={linking} busyLabel={busy ? m.common_saving() : m.common_creating()} disabled={busy || !full.folders.length} onClick={() => void makeLink()}>
             {saved ? m.backup_client_makeLink() : m.backup_client_saveAndLink()}
-          </button>
+          </BusyButton>
         )}
         <details className="text-[13px]">
           <summary className="cursor-pointer text-subtle">{m.backup_client_after()}</summary>
@@ -614,12 +663,12 @@ function ClientDialog({
       </section>
 
       <div className="flex justify-end gap-2 border-t border-line pt-4">
-        <button type="button" className="btn" onClick={onClose}>
+        <button type="button" className="btn" disabled={busy || linking} onClick={onClose}>
           {m.common_close()}
         </button>
-        <button type="button" className="btn primary" disabled={busy || saved || !full.folders.length} onClick={() => void save()}>
+        <BusyButton className="btn primary" busy={busy && !linking} busyLabel={m.common_saving()} disabled={busy || linking || saved || !full.folders.length} onClick={() => void save()}>
           {m.common_save()}
-        </button>
+        </BusyButton>
       </div>
     </Modal>
   )

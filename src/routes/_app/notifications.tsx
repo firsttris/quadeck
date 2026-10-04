@@ -1,5 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
+import { BusyButton, Spinner } from '~/components/Busy'
 import { ConfirmDialog, Modal } from '~/components/Modal'
 import { PageHeader } from '~/components/PageHeader'
 import { Pill, type Tone } from '~/components/Status'
@@ -24,6 +25,7 @@ function NotificationsPage() {
   const [editing, setEditing] = useState<Channel | null>(null)
   const [removing, setRemoving] = useState<Channel | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  const [toggling, setToggling] = useState<string | null>(null)
   const say = useToast()
 
   const load = useCallback(async () => {
@@ -98,8 +100,19 @@ function NotificationsPage() {
                     role="switch"
                     aria-label={m.notifications_channels_enabledLabel({ name: c.name })}
                     checked={c.enabled}
-                    onChange={(e) => void save({ ...s, channels: s.channels.map((x) => (x.id === c.id ? { ...x, enabled: e.target.checked } : x)) }, m.notifications_channels_toggled({ name: c.name, on: String(!!e.target.checked) }))}
+                    disabled={toggling !== null}
+                    onChange={(e) => {
+                      if (toggling !== null) return
+                      setToggling(c.id)
+                      void save({ ...s, channels: s.channels.map((x) => (x.id === c.id ? { ...x, enabled: e.target.checked } : x)) }, m.notifications_channels_toggled({ name: c.name, on: String(!!e.target.checked) })).finally(() => setToggling(null))
+                    }}
                   />
+                  {toggling === c.id && (
+                    <span className="inline-flex items-center gap-1.5 text-[12px] text-muted" aria-live="polite">
+                      <Spinner />
+                      {m.common_saving()}
+                    </span>
+                  )}
                   <div className="min-w-0 grow">
                     <div className="flex items-center gap-2">
                       <span className="font-medium">{c.name}</span>
@@ -191,8 +204,9 @@ function NotificationsPage() {
         title={m.notifications_channels_removeTitle({ name: `${removing?.name}` })}
         danger
         confirm={m.notifications_channels_remove()}
+        busyLabel={m.common_deleting()}
         body={<p className="m-0">{m.notifications_channels_removeBody()}</p>}
-        onConfirm={() => s && removing && void save({ ...s, channels: s.channels.filter((c) => c.id !== removing.id) }, m.notifications_channels_removed({ name: removing.name }))}
+        onConfirm={() => s && removing ? save({ ...s, channels: s.channels.filter((c) => c.id !== removing.id) }, m.notifications_channels_removed({ name: removing.name })) : undefined}
         onClose={() => setRemoving(null)}
       />
     </>
@@ -201,6 +215,7 @@ function NotificationsPage() {
 
 function Rules({ settings, onSave }: { settings: NotifySettings; onSave: (s: NotifySettings) => Promise<boolean> }) {
   const [draft, setDraft] = useState(settings)
+  const [saving, setSaving] = useState(false)
   useEffect(() => setDraft(settings), [settings])
   const dirty = JSON.stringify({ ...draft, channels: [] }) !== JSON.stringify({ ...settings, channels: [] })
   return (
@@ -276,13 +291,26 @@ function Rules({ settings, onSave }: { settings: NotifySettings; onSave: (s: Not
       </label>
       <div className="flex justify-end gap-2">
         {dirty && (
-          <button type="button" className="btn sm" onClick={() => setDraft(settings)}>
+          <button type="button" className="btn sm" disabled={saving} onClick={() => setDraft(settings)}>
             {m.notifications_rules_discard()}
           </button>
         )}
-        <button type="button" className="btn primary sm" disabled={!dirty} onClick={() => void onSave({ ...settings, rules: draft.rules, diskThreshold: draft.diskThreshold, recovery: draft.recovery, updatesHour: draft.updatesHour, speedMode: draft.speedMode, speedPercent: draft.speedPercent, speedMbit: draft.speedMbit, backupDays: draft.backupDays })}>
+        <BusyButton
+          className="btn primary sm"
+          busy={saving}
+          busyLabel={m.common_saving()}
+          disabled={!dirty}
+          onClick={async () => {
+            setSaving(true)
+            try {
+              await onSave({ ...settings, rules: draft.rules, diskThreshold: draft.diskThreshold, recovery: draft.recovery, updatesHour: draft.updatesHour, speedMode: draft.speedMode, speedPercent: draft.speedPercent, speedMbit: draft.speedMbit, backupDays: draft.backupDays })
+            } finally {
+              setSaving(false)
+            }
+          }}
+        >
           {m.notifications_rules_save()}
-        </button>
+        </BusyButton>
       </div>
     </section>
   )
@@ -368,7 +396,7 @@ function ChannelDialog({ channel, onClose, onSave }: { channel: Channel; onClose
   const kind = kinds.find((k) => k.kind === c.kind)!
   const tokenLabel = c.kind === 'ntfy' ? m.notifications_dialog_ntfyToken() : c.kind === 'gotify' ? m.notifications_dialog_appToken() : m.notifications_dialog_botToken()
   return (
-    <Modal open onClose={onClose} title={channel.id ? m.notifications_dialog_editTitle({ name: channel.name }) : m.notifications_dialog_newTitle()}>
+    <Modal open onClose={onClose} title={channel.id ? m.notifications_dialog_editTitle({ name: channel.name }) : m.notifications_dialog_newTitle()} busy={busy}>
       {!channel.id && (
         <div role="group" aria-label={m.notifications_dialog_kind()} className="flex flex-wrap gap-1.5">
           {kinds.map((k) => (
@@ -417,13 +445,14 @@ function ChannelDialog({ channel, onClose, onSave }: { channel: Channel; onClose
       )}
       {errors.length > 0 && c.name && <p className="m-0 text-[12px] text-[#e3b341]">{errors.join(' · ')}</p>}
       <div className="flex justify-end gap-2">
-        <button type="button" className="btn" onClick={onClose}>
+        <button type="button" className="btn" disabled={busy} onClick={onClose}>
           {m.common_cancel()}
         </button>
-        <button
-          type="button"
+        <BusyButton
           className="btn primary"
-          disabled={busy || errors.length > 0}
+          busy={busy}
+          busyLabel={m.common_saving()}
+          disabled={errors.length > 0}
           onClick={async () => {
             setBusy(true)
             await onSave(c)
@@ -431,7 +460,7 @@ function ChannelDialog({ channel, onClose, onSave }: { channel: Channel; onClose
           }}
         >
           {m.notifications_dialog_save()}
-        </button>
+        </BusyButton>
       </div>
     </Modal>
   )

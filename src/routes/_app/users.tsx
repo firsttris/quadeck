@@ -1,6 +1,7 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useActions } from '~/components/Actions'
+import { BusyButton } from '~/components/Busy'
 import { Glyph } from '~/components/Glyph'
 import { Modal } from '~/components/Modal'
 import { PageHeader } from '~/components/PageHeader'
@@ -345,7 +346,7 @@ function ConfirmChange({ state, pending, onClose, onConfirm }: { state: UsersSta
   const [busy, setBusy] = useState(false)
   const problem = changeProblem(state, pending.change)
   return (
-    <Modal open onClose={onClose} title={pending.title}>
+    <Modal open onClose={onClose} title={pending.title} busy={busy}>
       <p className="m-0 text-[13px]">{describeChange(pending.change, state.adminGroup)}</p>
       {problem && (
         <p role="alert" className="m-0 rounded-[10px] border border-[rgba(248,81,73,.5)] bg-[rgba(248,81,73,.08)] p-3 text-[13px] text-[#ffb4ab]">
@@ -353,21 +354,23 @@ function ConfirmChange({ state, pending, onClose, onConfirm }: { state: UsersSta
         </p>
       )}
       <div className="flex justify-end gap-2">
-        <button type="button" className="btn" onClick={onClose}>
+        <button type="button" className="btn" disabled={busy} onClick={onClose}>
           {m.common_cancel()}
         </button>
-        <button
-          type="button"
+        <BusyButton
           className={pending.danger ? 'btn danger' : 'btn primary'}
-          disabled={busy || !!problem}
+          busy={busy}
+          busyLabel={pending.change.kind === 'delete' ? m.common_deleting() : pending.change.kind === 'update' ? m.common_saving() : m.common_applying()}
+          disabled={!!problem}
           onClick={async () => {
+            if (busy) return
             setBusy(true)
             await onConfirm(pending.change)
             setBusy(false)
           }}
         >
           {pending.confirm}
-        </button>
+        </BusyButton>
       </div>
     </Modal>
   )
@@ -379,11 +382,12 @@ function PasswordDialog({ name, samba, onClose, onSave }: { name: string; samba:
   const [busy, setBusy] = useState(false)
   const problem = pw ? passwordProblem(pw) : undefined
   return (
-    <Modal open onClose={onClose} title={samba ? m.users_password_sambaTitle({ name }) : m.users_password_title({ name })}>
+    <Modal open onClose={onClose} title={samba ? m.users_password_sambaTitle({ name }) : m.users_password_title({ name })} busy={busy}>
       <form
         className="flex flex-col gap-3"
         onSubmit={async (e) => {
           e.preventDefault()
+          if (busy) return
           setBusy(true)
           await onSave(pw)
           setBusy(false)
@@ -401,12 +405,12 @@ function PasswordDialog({ name, samba, onClose, onSave }: { name: string; samba:
         {problem && <p className="m-0 text-[12px] text-[#e3b341]">{problem}</p>}
         {again && pw !== again && <p className="m-0 text-[12px] text-[#e3b341]">{m.users_password_mismatch()}</p>}
         <div className="flex justify-end gap-2">
-          <button type="button" className="btn" onClick={onClose}>
+          <button type="button" className="btn" disabled={busy} onClick={onClose}>
             {m.common_cancel()}
           </button>
-          <button type="submit" className="btn primary" disabled={busy || !pw || !!problem || pw !== again}>
+          <BusyButton type="submit" className="btn primary" busy={busy} busyLabel={m.common_saving()} disabled={!pw || !!problem || pw !== again}>
             {m.users_password_set()}
-          </button>
+          </BusyButton>
         </div>
       </form>
     </Modal>
@@ -429,11 +433,12 @@ function CreateDialog({ state, onClose, onCreate }: { state: UsersState; onClose
   const ready = !!name && !problem && (!withPassword || (!!pw && pw === again))
   const label = 'flex flex-col gap-1 text-[12px] font-medium text-muted'
   return (
-    <Modal open onClose={onClose} title={m.users_create_title()} wide>
+    <Modal open onClose={onClose} title={m.users_create_title()} wide busy={busy}>
       <form
         className="flex flex-col gap-3"
         onSubmit={async (e) => {
           e.preventDefault()
+          if (busy) return
           setBusy(true)
           await onCreate(change)
           setBusy(false)
@@ -508,12 +513,12 @@ function CreateDialog({ state, onClose, onCreate }: { state: UsersState; onClose
         {problem && <p className="m-0 text-[12px] text-[#e3b341]">{problem}</p>}
         {ready && <p className="m-0 text-[12px] text-muted">{describeChange(change, state.adminGroup)}</p>}
         <div className="flex justify-end gap-2">
-          <button type="button" className="btn" onClick={onClose}>
+          <button type="button" className="btn" disabled={busy} onClick={onClose}>
             {m.common_cancel()}
           </button>
-          <button type="submit" className="btn primary" disabled={!ready || busy}>
+          <BusyButton type="submit" className="btn primary" busy={busy} busyLabel={m.common_creating()} disabled={!ready}>
             {m.users_create_create()}
-          </button>
+          </BusyButton>
         </div>
       </form>
     </Modal>
