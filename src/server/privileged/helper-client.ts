@@ -11,6 +11,7 @@ import type { SelfTestType } from '../smart/backend'
 import type { DirListing, FileRoot, TextFile } from '~/shared/files'
 import type { CalendarPreview, TimerAction, TimerSpec, TimersState } from '~/shared/timers'
 import type { UnitDetail, UnitValidateResult, UnitWriteResult } from '~/shared/unit-files'
+import type { ScanResult } from '~/shared/devices'
 import type { NetworkState } from '~/shared/network'
 import type { FstabChange, FstabCheck, FstabState } from '~/shared/fstab'
 import type { BootEntryChange, BootEntryFile, BootState, EntryProblem } from '~/shared/boot'
@@ -241,6 +242,9 @@ export class HelperClient implements Privileged {
 
   networkState() {
     return this.call<NetworkState>('POST', '/network/state', {}, 60_000)
+  }
+  scanDevices(active: boolean) {
+    return this.call<ScanResult>('POST', '/network/devices', { active }, 120_000)
   }
   unitDetail(unit: string) {
     return this.call<UnitDetail>('POST', '/units/detail', { unit })

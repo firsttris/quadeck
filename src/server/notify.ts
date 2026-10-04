@@ -122,7 +122,8 @@ export class Notifier {
     for (const [k, a] of this.active) {
       if (seen.has(k) || unknown.has(a.rule) || a.rule === 'updates') continue
       this.active.delete(k)
-      if (s.rules[a.rule]) resolved.push(a)
+      // a device marked as known is not "running again"
+      if (s.rules[a.rule] && a.rule !== 'device-new') resolved.push(a)
     }
     if (!fresh.length && !resolved.length) return
     this.persistActive()

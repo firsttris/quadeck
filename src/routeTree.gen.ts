@@ -56,6 +56,7 @@ import { Route as ApiLinksIndexRouteImport } from './routes/api/links/index'
 import { Route as ApiLinksIdRouteImport } from './routes/api/links/$id'
 import { Route as ApiMetricsHistoryRouteImport } from './routes/api/metrics/history'
 import { Route as ApiNetworkIndexRouteImport } from './routes/api/network/index'
+import { Route as ApiNetworkDevicesRouteImport } from './routes/api/network/devices'
 import { Route as ApiNotificationsIndexRouteImport } from './routes/api/notifications/index'
 import { Route as ApiPodmanSettingsRouteImport } from './routes/api/podman/settings'
 import { Route as ApiQuadletsIndexRouteImport } from './routes/api/quadlets/index'
@@ -313,6 +314,11 @@ const ApiNetworkIndexRoute = ApiNetworkIndexRouteImport.update({
   path: '/api/network/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiNetworkDevicesRoute = ApiNetworkDevicesRouteImport.update({
+  id: '/api/network/devices',
+  path: '/api/network/devices',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiNotificationsIndexRoute = ApiNotificationsIndexRouteImport.update({
   id: '/api/notifications/',
   path: '/api/notifications/',
@@ -461,6 +467,7 @@ export interface FileRoutesByFullPath {
   '/api/layout/hidden': typeof ApiLayoutHiddenRoute
   '/api/links/$id': typeof ApiLinksIdRoute
   '/api/metrics/history': typeof ApiMetricsHistoryRoute
+  '/api/network/devices': typeof ApiNetworkDevicesRoute
   '/api/podman/settings': typeof ApiPodmanSettingsRoute
   '/api/quadlets/compose': typeof ApiQuadletsComposeRoute
   '/api/quadlets/file': typeof ApiQuadletsFileRoute
@@ -531,6 +538,7 @@ export interface FileRoutesByTo {
   '/api/layout/hidden': typeof ApiLayoutHiddenRoute
   '/api/links/$id': typeof ApiLinksIdRoute
   '/api/metrics/history': typeof ApiMetricsHistoryRoute
+  '/api/network/devices': typeof ApiNetworkDevicesRoute
   '/api/podman/settings': typeof ApiPodmanSettingsRoute
   '/api/quadlets/compose': typeof ApiQuadletsComposeRoute
   '/api/quadlets/file': typeof ApiQuadletsFileRoute
@@ -603,6 +611,7 @@ export interface FileRoutesById {
   '/api/layout/hidden': typeof ApiLayoutHiddenRoute
   '/api/links/$id': typeof ApiLinksIdRoute
   '/api/metrics/history': typeof ApiMetricsHistoryRoute
+  '/api/network/devices': typeof ApiNetworkDevicesRoute
   '/api/podman/settings': typeof ApiPodmanSettingsRoute
   '/api/quadlets/compose': typeof ApiQuadletsComposeRoute
   '/api/quadlets/file': typeof ApiQuadletsFileRoute
@@ -675,6 +684,7 @@ export interface FileRouteTypes {
     | '/api/layout/hidden'
     | '/api/links/$id'
     | '/api/metrics/history'
+    | '/api/network/devices'
     | '/api/podman/settings'
     | '/api/quadlets/compose'
     | '/api/quadlets/file'
@@ -745,6 +755,7 @@ export interface FileRouteTypes {
     | '/api/layout/hidden'
     | '/api/links/$id'
     | '/api/metrics/history'
+    | '/api/network/devices'
     | '/api/podman/settings'
     | '/api/quadlets/compose'
     | '/api/quadlets/file'
@@ -816,6 +827,7 @@ export interface FileRouteTypes {
     | '/api/layout/hidden'
     | '/api/links/$id'
     | '/api/metrics/history'
+    | '/api/network/devices'
     | '/api/podman/settings'
     | '/api/quadlets/compose'
     | '/api/quadlets/file'
@@ -873,6 +885,7 @@ export interface RootRouteChildren {
   ApiLayoutHiddenRoute: typeof ApiLayoutHiddenRoute
   ApiLinksIdRoute: typeof ApiLinksIdRoute
   ApiMetricsHistoryRoute: typeof ApiMetricsHistoryRoute
+  ApiNetworkDevicesRoute: typeof ApiNetworkDevicesRoute
   ApiPodmanSettingsRoute: typeof ApiPodmanSettingsRoute
   ApiQuadletsComposeRoute: typeof ApiQuadletsComposeRoute
   ApiQuadletsFileRoute: typeof ApiQuadletsFileRoute
@@ -1238,6 +1251,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiNetworkIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/network/devices': {
+      id: '/api/network/devices'
+      path: '/api/network/devices'
+      fullPath: '/api/network/devices'
+      preLoaderRoute: typeof ApiNetworkDevicesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/notifications/': {
       id: '/api/notifications/'
       path: '/api/notifications'
@@ -1456,6 +1476,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiLayoutHiddenRoute: ApiLayoutHiddenRoute,
   ApiLinksIdRoute: ApiLinksIdRoute,
   ApiMetricsHistoryRoute: ApiMetricsHistoryRoute,
+  ApiNetworkDevicesRoute: ApiNetworkDevicesRoute,
   ApiPodmanSettingsRoute: ApiPodmanSettingsRoute,
   ApiQuadletsComposeRoute: ApiQuadletsComposeRoute,
   ApiQuadletsFileRoute: ApiQuadletsFileRoute,

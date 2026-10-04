@@ -136,6 +136,7 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/timers/schedule': (b, p) => p.setTimerSchedule(str(b.token), str(b.name) ?? '', str(b.calendar) ?? ''),
   '/timers/action': (b, p) => p.timerAction(str(b.token), str(b.name) ?? '', parseTimerAction(b.action)),
   '/network/state': (_b, p) => p.networkState(),
+  '/network/devices': (b, p) => p.scanDevices(b.active === true),
   '/fstab/state': (_b, p) => p.fstabState(),
   '/boot/state': (_b, p) => p.bootState(),
   '/boot/entry-preview': (b, p) => p.kernelEntryPreview(str(b.pkg) ?? ''),

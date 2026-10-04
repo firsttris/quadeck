@@ -1,0 +1,17 @@
+[
+  { "ip": "192.168.1.1", "mac": "3c:a6:2f:41:8a:10", "name": "fritz.box", "vendor": "AVM GmbH", "services": ["_http._tcp", "_ftp._tcp"], "rtt": 0.6 },
+  { "ip": "192.168.1.2", "mac": "f0:9f:c2:7e:11:02", "name": "unifi-ap-flur", "vendor": "Ubiquiti Inc", "services": ["_ssh._tcp"], "rtt": 1.2 },
+  { "ip": "192.168.1.10", "mac": "dc:a6:32:5b:90:0a", "name": "homeassistant", "vendor": "Raspberry Pi Trading Ltd", "services": ["_home-assistant._tcp", "_ssh._tcp", "_http._tcp"], "rtt": 0.9 },
+  { "ip": "192.168.1.20", "mac": "d8:5e:d3:1a:4c:02", "name": "nas-01", "services": [] },
+  { "ip": "192.168.1.31", "mac": "a4:83:e7:2c:19:5d", "name": "macbook-anna", "vendor": "Apple, Inc.", "services": ["_ssh._tcp", "_smb._tcp", "_device-info._tcp"], "rtt": 4.8 },
+  { "ip": "192.168.1.32", "mac": "8c:16:45:9e:03:21", "name": "thinkpad", "vendor": "LCFC(Hefei) Electronics Technology co., ltd", "services": ["_workstation._tcp"], "rtt": 2.1 },
+  { "ip": "192.168.1.40", "mac": "30:05:5c:aa:71:0e", "name": "brother-hl-l2350", "vendor": "Brother Industries, LTD.", "services": ["_ipp._tcp", "_printer._tcp", "_pdl-datastream._tcp", "_http._tcp"], "rtt": 3.4 },
+  { "ip": "192.168.1.45", "mac": "48:a6:b8:0d:22:91", "name": "Sonos-Kueche", "vendor": "Sonos, Inc.", "services": ["_sonos._tcp", "_airplay._tcp", "_spotify-connect._tcp"], "rtt": 6.2 },
+  { "ip": "192.168.1.46", "mac": "d8:6c:63:44:7a:b0", "name": "Wohnzimmer-TV", "vendor": "Google, Inc.", "services": ["_googlecast._tcp"], "rtt": 9.5 },
+  { "ip": "192.168.1.50", "mac": "00:17:88:6a:2b:3c", "name": "philips-hue", "vendor": "Signify Netherlands B.V.", "services": ["_hue._tcp", "_hap._tcp"], "rtt": 2.7 },
+  { "ip": "192.168.1.61", "mac": "84:cc:a8:12:5e:77", "name": "esp-balkon", "vendor": "Espressif Inc.", "services": ["_esphomelib._tcp"], "rtt": 18.3 },
+  { "ip": "192.168.1.62", "mac": "c8:2b:96:0f:aa:41", "vendor": "Espressif Inc.", "services": [], "rtt": 24.1 },
+  { "ip": "192.168.1.77", "mac": "5e:21:9a:c4:07:13", "name": "iPhone", "services": [], "rtt": 41.0 },
+  { "ip": "192.168.1.83", "mac": "1a:7b:33:e0:5c:2d", "services": [], "rtt": 35.6 },
+  { "ip": "192.168.1.100", "mac": "52:54:00:8e:12:a4", "name": "vm-test", "vendor": "QEMU virtual NIC", "services": ["_ssh._tcp"], "rtt": 0.3 }
+]
