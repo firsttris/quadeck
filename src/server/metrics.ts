@@ -42,9 +42,11 @@ export const SMART_KEEP_MS = 365 * 24 * 3600_000
 
 export function pruneHistory(d: DB, now = Date.now()) {
   const t = schema.metricSamples
-  // SMART trends and speed tests are kept for a year (below), everything else for KEEP_MS.
-  d.delete(t).where(and(lt(t.ts, now - KEEP_MS), sql`${t.metric} NOT LIKE 'smart:%'`, sql`${t.metric} NOT LIKE 'speed:%'`)).run()
-  d.delete(t).where(lt(t.ts, now - SMART_KEEP_MS)).run()
+  // SMART trends and speed tests are kept for a year, energy for two (below), everything else for KEEP_MS.
+  d.delete(t).where(and(lt(t.ts, now - KEEP_MS), sql`${t.metric} NOT LIKE 'smart:%'`, sql`${t.metric} NOT LIKE 'speed:%'`, sql`${t.metric} NOT LIKE 'energy:%'`)).run()
+  d.delete(t).where(and(lt(t.ts, now - SMART_KEEP_MS), sql`${t.metric} NOT LIKE 'energy:%'`)).run()
+  // energy per hour: two years
+  d.delete(t).where(and(lt(t.ts, now - 2 * SMART_KEEP_MS), sql`${t.metric} LIKE 'energy:%'`)).run()
 }
 
 export const SMART_METRICS = ['temp', 'realloc', 'pending', 'uncorrectable', 'crc', 'wear', 'media', 'startstop'] as const
@@ -93,6 +95,7 @@ export function seedFixtureHistory(d: DB, now = Date.now()) {
       { ts, metric: 'gpu_util', value: Math.min(1, 0.03 + transcode * 1.4 * (0.6 + rnd() * 0.4)) },
       { ts, metric: 'gpu_mem', value: 0.08 + transcode * 0.3 },
       { ts, metric: 'gpu_temp', value: 41 + transcode * 30 + rnd() * 2 },
+      { ts, metric: 'power', value: 46 + cpu * 40 + transcode * 30 + rnd() * 3 },
     )
   }
   d.transaction((tx) => {

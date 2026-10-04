@@ -9,12 +9,15 @@ import { HttpError } from '../auth'
 import { run, type ExecResult } from '../exec'
 import { UnitHistory } from '../systemd/editor'
 import type { Revision } from '~/shared/quadlets'
+import { parseLsblkKinds, type PowerSample, type RaplZone, type SampleDisk } from '~/shared/energy'
 
 export interface PowerAdmin {
   diskPower(): Promise<PowerState>
   /** Processes (and their units) with files open on a disk's mounts: what keeps it awake now. */
   diskUsers(name: string): Promise<DiskUser[]>
   powerHistory(): Promise<Revision[]>
+  /** RAPL counters and every disk with its kind and standby state (Hardware → Power). */
+  powerSample(): Promise<PowerSample>
 }
 
 /** Writes; the caller has checked the unlock. */
@@ -125,6 +128,7 @@ export class SystemPower implements PowerBackend {
     private rulesDir = '/etc/udev/rules.d',
     private hdparmConf = '/etc/hdparm.conf',
     private hdparmBin?: string,
+    private powercap = '/sys/class/powercap',
   ) {
     this.history = new UnitHistory(historyDir)
   }
@@ -180,6 +184,42 @@ export class SystemPower implements PowerBackend {
       disks.push({ ...d, state, ...(apmNow !== undefined ? { apmNow } : {}), ...(d.serial && rules[d.serial] ? { setting: rules[d.serial] } : {}) })
     }
     return { installed: !!hd, rulesPath: this.rulesPath, foreign: this.foreign(), disks }
+  }
+
+  /** intel-rapl:N and intel-rapl:N:M (AMD uses the same names); energy_uj is root-only since 2020. */
+  readRapl(): RaplZone[] {
+    let names: string[] = []
+    try {
+      names = readdirSync(this.powercap).filter((n) => /^intel-rapl:\d+(:\d+)?$/.test(n))
+    } catch {
+      return []
+    }
+    const zones: RaplZone[] = []
+    for (const id of names) {
+      try {
+        const r = (f: string) => readFileSync(join(this.powercap, id, f), 'utf8').trim()
+        const energyUj = Number(r('energy_uj'))
+        const maxUj = Number(r('max_energy_range_uj'))
+        if (Number.isFinite(energyUj) && Number.isFinite(maxUj)) zones.push({ id, name: r('name'), energyUj, maxUj })
+      } catch {
+        // zone without readable counters
+      }
+    }
+    return zones
+  }
+
+  async powerSample(): Promise<PowerSample> {
+    const rapl = this.readRapl()
+    const r = await this.exec(['lsblk', '-J', '-o', 'NAME,TYPE,ROTA,TRAN,MODEL'], { timeoutMs: 10_000 })
+    const hd = this.hdparm()
+    const disks: SampleDisk[] = []
+    for (const d of parseLsblkKinds(r.stdout)) {
+      // -C asks without waking the disk; only spinning disks have a standby worth asking about. Not
+      // through USB bridges every 30 s: some wake the disk on any ATA command (counted as active).
+      const state = d.kind === 'hdd' && !d.usb && hd ? parseHdparmState((await this.exec([hd, '-C', `/dev/${d.name}`], { timeoutMs: 10_000 })).stdout) : 'unknown'
+      disks.push({ ...d, state })
+    }
+    return { at: Date.now(), rapl, disks }
   }
 
   async diskUsers(name: string) {
@@ -244,6 +284,25 @@ export class FixturePower implements PowerBackend {
 
   async powerHistory() {
     return this.hist
+  }
+
+  /** Demo: a CPU around 14 W (more in the afternoon), the four disks above plus an NVMe. */
+  async powerSample(): Promise<PowerSample> {
+    const at = Date.now()
+    const t0 = 1_700_000_000_000
+    const s = (at - t0) / 1000
+    const energyUj = Math.round((s * 14 + Math.sin(s / 900) * 600) * 1e6) % 262_143_328_850
+    return {
+      at,
+      rapl: [
+        { id: 'intel-rapl:0', name: 'package-0', energyUj, maxUj: 262_143_328_850 },
+        { id: 'intel-rapl:0:0', name: 'core', energyUj: Math.round(energyUj * 0.6), maxUj: 262_143_328_850 },
+      ],
+      disks: [
+        ...this.base().map((d) => ({ name: d.name, model: d.model, kind: 'hdd' as const, usb: d.usb, state: d.state })),
+        { name: 'nvme0n1', model: 'Samsung SSD 980 1TB', kind: 'nvme', usb: false, state: 'unknown' },
+      ],
+    }
   }
 
   async setDiskPower(serial: string, setting: PowerSetting | null) {

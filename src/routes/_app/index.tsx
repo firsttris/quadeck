@@ -30,7 +30,7 @@ export const Route = createFileRoute('/_app/')({
 // ---------- card grid (level 1) ----------
 
 // Labels come from t.overview.cards.
-const CARDS = [{ id: 'services' }, { id: 'storage' }, { id: 'timers' }, { id: 'shares' }, { id: 'cpu' }, { id: 'ram' }, { id: 'temp' }, { id: 'net' }, { id: 'gpu' }] as const
+const CARDS = [{ id: 'services' }, { id: 'storage' }, { id: 'timers' }, { id: 'shares' }, { id: 'cpu' }, { id: 'ram' }, { id: 'temp' }, { id: 'net' }, { id: 'gpu' }, { id: 'power' }] as const
 type CardId = (typeof CARDS)[number]['id']
 
 // Gauge + one-hour chart; height follows the content.
@@ -46,6 +46,7 @@ const CARD_DEFAULTS: Record<string, Record<CardId, Omit<DefaultItem, 'i'>>> = {
     net: { x: 9, y: 0, w: 3, ...GAUGE },
     services: { x: 0, y: 8, w: 8, minW: 3, minH: 3 },
     gpu: { x: 8, y: 8, w: 4, ...GAUGE },
+    power: { x: 8, y: 50, w: 4, ...GAUGE },
     storage: { x: 8, y: 100, w: 4, minW: 2, minH: 3 },
     timers: { x: 8, y: 200, w: 4, minW: 2, minH: 3 },
     shares: { x: 8, y: 300, w: 4, minW: 2, minH: 3 },
@@ -56,6 +57,7 @@ const CARD_DEFAULTS: Record<string, Record<CardId, Omit<DefaultItem, 'i'>>> = {
     temp: { x: 4, y: 0, w: 2, ...GAUGE, minW: 1 },
     net: { x: 0, y: 6, w: 3, ...GAUGE, minW: 1 },
     gpu: { x: 3, y: 6, w: 3, ...GAUGE, minW: 1 },
+    power: { x: 3, y: 150, w: 3, ...GAUGE, minW: 1 },
     services: { x: 0, y: 12, w: 6, minW: 2, minH: 3 },
     storage: { x: 0, y: 200, w: 3, minW: 2, minH: 3 },
     timers: { x: 3, y: 200, w: 3, minW: 2, minH: 3 },
@@ -68,6 +70,7 @@ const CARD_DEFAULTS: Record<string, Record<CardId, Omit<DefaultItem, 'i'>>> = {
     temp: { x: 0, y: 108, w: 1, ...GAUGE, minW: 1 },
     net: { x: 0, y: 112, w: 1, ...GAUGE, minW: 1 },
     gpu: { x: 0, y: 116, w: 1, ...GAUGE, minW: 1 },
+    power: { x: 0, y: 120, w: 1, ...GAUGE, minW: 1 },
     storage: { x: 0, y: 200, w: 1, minH: 3 },
     timers: { x: 0, y: 300, w: 1, minH: 3 },
     shares: { x: 0, y: 400, w: 1, minH: 3 },
@@ -93,7 +96,7 @@ function Overview() {
   const [layout, setLayout] = useState<DashboardLayout>(initial)
   const [editing, setEditing] = useState(false)
   const say = useToast()
-  const cardLabel = (id: string) => pickMsg({ "services": m.overview_cards_services, "storage": m.overview_cards_storage, "timers": m.overview_cards_timers, "shares": m.overview_cards_shares, "cpu": m.overview_cards_cpu, "ram": m.overview_cards_ram, "temp": m.overview_cards_temp, "net": m.overview_cards_net, "gpu": m.overview_cards_gpu }, id)
+  const cardLabel = (id: string) => pickMsg({ "services": m.overview_cards_services, "storage": m.overview_cards_storage, "timers": m.overview_cards_timers, "shares": m.overview_cards_shares, "cpu": m.overview_cards_cpu, "ram": m.overview_cards_ram, "temp": m.overview_cards_temp, "net": m.overview_cards_net, "gpu": m.overview_cards_gpu, "power": m.overview_cards_power }, id)
   const failed = snapshot.units.filter((u) => u.active === 'failed')
 
   // "E" toggles edit mode (not while typing or in a dialog).
@@ -137,7 +140,9 @@ function Overview() {
 
   // The GPU card only exists when there is a GPU.
   const hasGpu = !!snapshot.system?.gpus?.length
-  const visible = CARDS.filter((c) => !layout.hidden.includes(c.id) && (c.id !== 'gpu' || hasGpu))
+  // The power card once the server reported power.
+  const hasPower = !!snapshot.power
+  const visible = CARDS.filter((c) => !layout.hidden.includes(c.id) && (c.id !== 'gpu' || hasGpu) && (c.id !== 'power' || hasPower))
   const history = useMetricHistory('1h')
   const [detail, setDetail] = useState<MetricCardId | null>(null)
   const metric = (id: MetricCardId) => <MetricCard id={id} snapshot={snapshot} history={history.series} now={history.now} onOpen={editing ? () => {} : setDetail} />
@@ -157,6 +162,7 @@ function Overview() {
     temp: metric('temp'),
     net: metric('net'),
     gpu: metric('gpu'),
+    power: metric('power'),
   }
 
   return (

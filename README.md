@@ -69,7 +69,7 @@ a reverse proxy and uninstalling are in the [installation guide](docs/installati
 
 | | |
 |---|---|
-| 📊 **Overview** | CPU, RAM, temperature, network and GPU with history; failed units with the reason and a restart button; service tiles with health checks |
+| 📊 **Overview** | CPU, RAM, temperature, network, GPU and power with history; failed units with the reason and a restart button; service tiles with health checks |
 | 📦 **Containers & Quadlets** | Units with status and journal, a Quadlet editor (form or text) checked by the real generator, templates, docker-compose import; images and volumes with what uses them, cleanup with a preview |
 | ⚙️ **systemd & timers** | Edit any unit through overrides, verified before saving; timers with a schedule builder as the cron replacement |
 | ⬆️ **Updates** | pacman (with AUR), apt, dnf, zypper, apk, rpm-ostree and container images as live jobs; reboot hints and Arch news |
@@ -81,7 +81,7 @@ a reverse proxy and uninstalling are in the [installation guide](docs/installati
 | 🔐 **Users, shares & SSH** | Accounts and groups, SMB and NFS shares, SSH keys and hardening with a lock-out guard |
 | 🔔 **Notifications** | ntfy, Gotify, Telegram, e-mail or webhook when something fails, a disk fills up, the internet is slow or updates are waiting |
 
-Plus: hardware details (memory slots, GPU passthrough lines, stable USB paths), a command palette
+Plus: power usage and its cost (CPU and GPU measured, disks estimated from their state), hardware details (memory slots, GPU passthrough lines, stable USB paths), a command palette
 (<kbd>Ctrl</kbd>+<kbd>K</kbd>), English and German, a read-only mode and an unlock that expires after
 15 minutes. Every page is described in the [documentation](docs/README.md).
 

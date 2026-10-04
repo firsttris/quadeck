@@ -60,6 +60,7 @@ import { Route as ApiNetworkDevicesRouteImport } from './routes/api/network/devi
 import { Route as ApiNotificationsIndexRouteImport } from './routes/api/notifications/index'
 import { Route as ApiPodmanSettingsRouteImport } from './routes/api/podman/settings'
 import { Route as ApiPodmanStorageRouteImport } from './routes/api/podman/storage'
+import { Route as ApiPowerIndexRouteImport } from './routes/api/power/index'
 import { Route as ApiQuadletsIndexRouteImport } from './routes/api/quadlets/index'
 import { Route as ApiQuadletsComposeRouteImport } from './routes/api/quadlets/compose'
 import { Route as ApiQuadletsFileRouteImport } from './routes/api/quadlets/file'
@@ -335,6 +336,11 @@ const ApiPodmanStorageRoute = ApiPodmanStorageRouteImport.update({
   path: '/api/podman/storage',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPowerIndexRoute = ApiPowerIndexRouteImport.update({
+  id: '/api/power/',
+  path: '/api/power/',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiQuadletsIndexRoute = ApiQuadletsIndexRouteImport.update({
   id: '/api/quadlets/',
   path: '/api/quadlets/',
@@ -497,6 +503,7 @@ export interface FileRoutesByFullPath {
   '/api/links/': typeof ApiLinksIndexRoute
   '/api/network/': typeof ApiNetworkIndexRoute
   '/api/notifications/': typeof ApiNotificationsIndexRoute
+  '/api/power/': typeof ApiPowerIndexRoute
   '/api/quadlets/': typeof ApiQuadletsIndexRoute
   '/api/shares/': typeof ApiSharesIndexRoute
   '/api/speedtest/': typeof ApiSpeedtestIndexRoute
@@ -569,6 +576,7 @@ export interface FileRoutesByTo {
   '/api/links': typeof ApiLinksIndexRoute
   '/api/network': typeof ApiNetworkIndexRoute
   '/api/notifications': typeof ApiNotificationsIndexRoute
+  '/api/power': typeof ApiPowerIndexRoute
   '/api/quadlets': typeof ApiQuadletsIndexRoute
   '/api/shares': typeof ApiSharesIndexRoute
   '/api/speedtest': typeof ApiSpeedtestIndexRoute
@@ -643,6 +651,7 @@ export interface FileRoutesById {
   '/api/links/': typeof ApiLinksIndexRoute
   '/api/network/': typeof ApiNetworkIndexRoute
   '/api/notifications/': typeof ApiNotificationsIndexRoute
+  '/api/power/': typeof ApiPowerIndexRoute
   '/api/quadlets/': typeof ApiQuadletsIndexRoute
   '/api/shares/': typeof ApiSharesIndexRoute
   '/api/speedtest/': typeof ApiSpeedtestIndexRoute
@@ -717,6 +726,7 @@ export interface FileRouteTypes {
     | '/api/links/'
     | '/api/network/'
     | '/api/notifications/'
+    | '/api/power/'
     | '/api/quadlets/'
     | '/api/shares/'
     | '/api/speedtest/'
@@ -789,6 +799,7 @@ export interface FileRouteTypes {
     | '/api/links'
     | '/api/network'
     | '/api/notifications'
+    | '/api/power'
     | '/api/quadlets'
     | '/api/shares'
     | '/api/speedtest'
@@ -862,6 +873,7 @@ export interface FileRouteTypes {
     | '/api/links/'
     | '/api/network/'
     | '/api/notifications/'
+    | '/api/power/'
     | '/api/quadlets/'
     | '/api/shares/'
     | '/api/speedtest/'
@@ -921,6 +933,7 @@ export interface RootRouteChildren {
   ApiLinksIndexRoute: typeof ApiLinksIndexRoute
   ApiNetworkIndexRoute: typeof ApiNetworkIndexRoute
   ApiNotificationsIndexRoute: typeof ApiNotificationsIndexRoute
+  ApiPowerIndexRoute: typeof ApiPowerIndexRoute
   ApiQuadletsIndexRoute: typeof ApiQuadletsIndexRoute
   ApiSharesIndexRoute: typeof ApiSharesIndexRoute
   ApiSpeedtestIndexRoute: typeof ApiSpeedtestIndexRoute
@@ -1292,6 +1305,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiPodmanStorageRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/power/': {
+      id: '/api/power/'
+      path: '/api/power'
+      fullPath: '/api/power/'
+      preLoaderRoute: typeof ApiPowerIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/quadlets/': {
       id: '/api/quadlets/'
       path: '/api/quadlets'
@@ -1520,6 +1540,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiLinksIndexRoute: ApiLinksIndexRoute,
   ApiNetworkIndexRoute: ApiNetworkIndexRoute,
   ApiNotificationsIndexRoute: ApiNotificationsIndexRoute,
+  ApiPowerIndexRoute: ApiPowerIndexRoute,
   ApiQuadletsIndexRoute: ApiQuadletsIndexRoute,
   ApiSharesIndexRoute: ApiSharesIndexRoute,
   ApiSpeedtestIndexRoute: ApiSpeedtestIndexRoute,

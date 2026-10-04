@@ -8,6 +8,7 @@ export function metricRows(s: SystemMetrics): { ts: number; metric: MetricName; 
     { metric: 'net_rx', value: s.net.rx },
     { metric: 'net_tx', value: s.net.tx },
     { metric: 'temp', value: s.temp?.celsius },
+    { metric: 'power', value: s.powerW },
   ]
   const g = s.gpus?.[0]
   if (g) {
