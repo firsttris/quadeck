@@ -39,9 +39,13 @@ describe('per-container usage', () => {
     expect(u[0]).toMatchObject({ unit: 'jellyfin.service', cpuAvg: 35, cpuMax: 50, memMax: 600 * MB })
     expect(u[0]!.uptime).toBeCloseTo((2 * USAGE_BUCKET_MS) / 86_400_000)
     expect(u[1]).toMatchObject({ cpuAvg: 2, memAvg: 900 * MB })
-    expect(u[0]!.cpu).toHaveLength(2)
+    // over 24 h a chart point spans 15 minutes: the two buckets are one or two points, depending on the clock
+    expect(u[0]!.cpu.length).toBeGreaterThanOrEqual(1)
+    expect(u[0]!.cpu.length).toBeLessThanOrEqual(2)
+    const count = () => db().select().from(schema.metricSamples).all().filter((x) => x.metric.startsWith('ct:')).length
+    const before = count()
     r.flush() // nothing pending: no duplicates
-    expect(queryUsage(db(), '24h')[0]!.cpu).toHaveLength(2)
+    expect(count()).toBe(before)
   })
 
   it('thins 30 days to about 120 points and keeps peaks as peaks', () => {
