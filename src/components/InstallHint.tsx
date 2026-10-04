@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { FEATURES, installCommand, type Feature, type ManagerId } from '~/shared/packages'
 import { useActions } from './Actions'
+import { BusyButton, useBusy } from './Busy'
 import { Glyph } from './Glyph'
 import { useJobs } from './Jobs'
 import { m } from '~/paraglide/messages'
@@ -14,6 +15,7 @@ export function InstallHint({ feature, what, onInstalled }: { feature: Feature; 
   const { readonly } = useActions()
   const [manager, setManager] = useState<ManagerId | null>(null)
   const [jobId, setJobId] = useState<string | null>(null)
+  const work = useBusy()
 
   useEffect(() => {
     fetch('/api/system/overview')
@@ -37,17 +39,20 @@ export function InstallHint({ feature, what, onInstalled }: { feature: Feature; 
       {manager ? (
         <>
           {!readonly && (
-            <button
-              type="button"
+            <BusyButton
               className="btn primary sm self-start"
-              disabled={!!jobs.running}
-              onClick={async () => {
-                const job = await jobs.start({ kind: 'install', feature })
-                if (job) setJobId(job.id)
-              }}
+              busy={work.is('install')}
+              busyLabel={m.common_starting()}
+              disabled={!!jobs.running || jobs.starting}
+              onClick={() =>
+                void work.run('install', async () => {
+                  const job = await jobs.start({ kind: 'install', feature })
+                  if (job) setJobId(job.id)
+                })
+              }
             >
               <Glyph name="download" size={14} /> {m.shell_install_install({ pkgs: (f.packages[manager].join(', ')) })}
-            </button>
+            </BusyButton>
           )}
           <div className="text-[12px] text-muted">
             {m.shell_install_console()}

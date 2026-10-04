@@ -17,6 +17,7 @@ import {
   type KernelFlavor,
 } from '~/shared/boot'
 import { useActions } from './Actions'
+import { BusyButton, useBusy } from './Busy'
 import { Glyph } from './Glyph'
 import { useJobs } from './Jobs'
 import { BootEntryEditor, RenameEntry, type EntryEditorInit } from './BootEntryEditor'
@@ -68,6 +69,7 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
   const [rename, setRename] = useState<string | null>(null)
   const [remove, setRemove] = useState<BootEntry | null>(null)
   const [test, setTest] = useState<BootEntry | null>(null)
+  const rowBusy = useBusy()
   const [waiting, waitForServer] = useComeBack()
 
   const load = useCallback(async () => {
@@ -134,7 +136,6 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
 
   const doReboot = async () => {
     const r = reboot!
-    setReboot(null)
     try {
       const res = await guarded<{ at: number }>('/api/boot', { body: { reboot: { entry: r.entry?.id, firmware: r.firmware } } })
       if (res) waitForServer()
@@ -263,9 +264,9 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
                 <p className="m-0 text-muted">{state.loader === 'grub' ? m.boot_grub() : m.boot_noSystemdBoot()}</p>
               )}
               {sd && !readonly && state.warnings.some((w) => w.text.includes('bootctl update')) && (
-                <button type="button" className="btn sm self-start" disabled={!!busy} onClick={() => void change('update', { update: true }, m.boot_updated())}>
+                <BusyButton className="btn sm self-start" busy={busy === 'update'} busyLabel={m.common_working()} disabled={!!busy} onClick={() => void change('update', { update: true }, m.boot_updated())}>
                   {m.boot_updateLoader()}
-                </button>
+                </BusyButton>
               )}
             </section>
           </div>
@@ -363,27 +364,31 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
                           {!readonly && (
                             <div className="inline-flex gap-1.5">
                               {!k.installed && (
-                                <button type="button" className="btn sm" disabled={!!jobs.running} onClick={() => void jobs.start({ kind: 'kernel-install', flavor: k.pkg })}>
+                                <BusyButton className="btn sm" busy={rowBusy.is(`install:${k.pkg}`)} busyLabel={m.common_starting()} disabled={!!jobs.running || jobs.starting} onClick={() => void rowBusy.run(`install:${k.pkg}`, () => jobs.start({ kind: 'kernel-install', flavor: k.pkg }))}>
                                   {m.boot_install()}
-                                </button>
+                                </BusyButton>
                               )}
                               {k.installed && !k.entries.length && state.canCreateEntries && (
-                                <button
-                                  type="button"
+                                <BusyButton
                                   className="btn sm primary"
-                                  onClick={async () => {
-                                    try {
-                                      const r = await fetch(`/api/boot?entryPreview=${k.pkg}`)
-                                      const d = (await r.json()) as { path: string; content: string; error?: string }
-                                      if (!r.ok) throw new Error(d.error ?? m.common_http({ status: r.status }))
-                                      setEntryPreview({ pkg: k.pkg, ...d })
-                                    } catch (e) {
-                                      say((e as Error).message, 'bad')
-                                    }
-                                  }}
+                                  busy={rowBusy.is(`preview:${k.pkg}`)}
+                                  busyLabel={m.common_loading()}
+                                  disabled={rowBusy.busy !== null}
+                                  onClick={() =>
+                                    void rowBusy.run(`preview:${k.pkg}`, async () => {
+                                      try {
+                                        const r = await fetch(`/api/boot?entryPreview=${k.pkg}`)
+                                        const d = (await r.json()) as { path: string; content: string; error?: string }
+                                        if (!r.ok) throw new Error(d.error ?? m.common_http({ status: r.status }))
+                                        setEntryPreview({ pkg: k.pkg, ...d })
+                                      } catch (e) {
+                                        say((e as Error).message, 'bad')
+                                      }
+                                    })
+                                  }
                                 >
                                   {m.boot_createEntryDots()}
-                                </button>
+                                </BusyButton>
                               )}
                               {k.installed && (
                                 <button type="button" className="btn sm" disabled={!!removeProblem || !!jobs.running} title={removeProblem} onClick={() => setRemoveKernel(k.pkg)} aria-label={m.boot_removeKernel({ pkg: k.pkg })}>
@@ -431,7 +436,7 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
       )}
 
       {entryPreview && (
-        <Modal open onClose={() => setEntryPreview(null)} title={m.boot_createEntryTitle({ pkg: entryPreview.pkg })}>
+        <Modal open onClose={() => setEntryPreview(null)} busy={busy === 'entry'} title={m.boot_createEntryTitle({ pkg: entryPreview.pkg })}>
           <p className="m-0 text-[13px]">
             {m.boot_newFile()} <span className="font-mono">{entryPreview.path}</span>
             {m.boot_newFileText()}
@@ -440,12 +445,13 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
             {entryPreview.content}
           </pre>
           <div className="flex justify-end gap-2">
-            <button type="button" className="btn" onClick={() => setEntryPreview(null)}>
+            <button type="button" className="btn" disabled={busy === 'entry'} onClick={() => setEntryPreview(null)}>
               {m.common_cancel()}
             </button>
-            <button
-              type="button"
+            <BusyButton
               className="btn primary"
+              busy={busy === 'entry'}
+              busyLabel={m.common_creating()}
               disabled={!!busy}
               onClick={async () => {
                 await change('entry', { createEntry: entryPreview.pkg }, m.boot_entryCreated({ pkg: entryPreview.pkg }))
@@ -453,7 +459,7 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
               }}
             >
               {m.common_create()}
-            </button>
+            </BusyButton>
           </div>
         </Modal>
       )}
@@ -491,11 +497,8 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
           body={<p className="m-0 text-[13px]">{m.boot_editor_deleteBody({ path: remove.path ?? remove.id })}</p>}
           confirm={m.common_delete()}
           danger
-          onConfirm={() => {
-            const e = remove
-            setRemove(null)
-            void change('entry', { removeEntry: e.id }, m.boot_entryRemoved({ title: e.title }))
-          }}
+          busyLabel={m.common_deleting()}
+          onConfirm={() => change('entry', { removeEntry: remove.id }, m.boot_entryRemoved({ title: remove.title }))}
           onClose={() => setRemove(null)}
         />
       )}
@@ -528,11 +531,8 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
           body={<p className="m-0 text-[13px]">{m.boot_removeKernelBody({ pkg: removeKernel })}</p>}
           confirm={m.common_remove()}
           danger
-          onConfirm={() => {
-            const flavor = removeKernel
-            setRemoveKernel(null)
-            void jobs.start({ kind: 'kernel-remove', flavor })
-          }}
+          busyLabel={m.common_starting()}
+          onConfirm={() => jobs.start({ kind: 'kernel-remove', flavor: removeKernel })}
           onClose={() => setRemoveKernel(null)}
         />
       )}
@@ -559,7 +559,8 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
           }
           confirm={reboot.firmware ? m.boot_rebootFirmware() : m.boot_rebootNow()}
           danger
-          onConfirm={() => void doReboot()}
+          busyLabel={m.common_restarting()}
+          onConfirm={() => doReboot()}
           onClose={() => setReboot(null)}
         />
       )}

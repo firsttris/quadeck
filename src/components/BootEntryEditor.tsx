@@ -2,6 +2,7 @@ import { useEffect, useId, useState } from 'react'
 import { api } from '~/lib/api'
 import { localeOf } from '~/shared/i18n'
 import { ENTRY_FILE, applyEntryForm, bootFileKinds, entryForm, explainParam, knownParams, parseEntryConf, splitOptions, type BootEntryFile, type BootState, type EntryForm, type EntryProblem } from '~/shared/boot'
+import { BusyButton } from './Busy'
 import { Modal } from './Modal'
 import { DiffView, TextView } from './QuadletEditor'
 import { useGuardedApi } from './Unlock'
@@ -96,7 +97,7 @@ export function BootEntryEditor({ init, onClose, onSaved }: { init: EntryEditorI
 
   if (confirm)
     return (
-      <Modal open wide title={init.kind === 'create' ? m.boot_editor_confirmNew({ id }) : m.boot_editor_confirmEdit({ id })} onClose={onClose}>
+      <Modal open wide title={init.kind === 'create' ? m.boot_editor_confirmNew({ id }) : m.boot_editor_confirmEdit({ id })} onClose={onClose} busy={busy}>
         <p className="m-0 font-mono text-[12px] text-muted">
           {init.dir}/{id}
         </p>
@@ -108,12 +109,12 @@ export function BootEntryEditor({ init, onClose, onSaved }: { init: EntryEditorI
           </p>
         )}
         <div className="flex justify-end gap-2">
-          <button type="button" className="btn" onClick={() => setConfirm(false)}>
+          <button type="button" className="btn" disabled={busy} onClick={() => setConfirm(false)}>
             {m.common_back()}
           </button>
-          <button type="button" className="btn primary" disabled={busy} onClick={() => void save()}>
+          <BusyButton className="btn primary" busy={busy} busyLabel={init.kind === 'create' ? m.common_creating() : m.common_saving()} onClick={() => void save()}>
             {init.kind === 'create' ? m.common_create() : m.common_save()}
-          </button>
+          </BusyButton>
         </div>
       </Modal>
     )
@@ -203,12 +204,12 @@ export function RenameEntry({ id, onClose, onDone }: { id: string; onClose: () =
   const [error, setError] = useState('')
   const ok = ENTRY_FILE.test(name)
   return (
-    <Modal open title={m.boot_editor_renameTitle({ id })} onClose={onClose}>
+    <Modal open title={m.boot_editor_renameTitle({ id })} onClose={onClose} busy={busy}>
       <form
         className="flex flex-col gap-3"
         onSubmit={async (e) => {
           e.preventDefault()
-          if (!ok || name === id) return
+          if (busy || !ok || name === id) return
           setBusy(true)
           setError('')
           try {
@@ -233,12 +234,12 @@ export function RenameEntry({ id, onClose, onDone }: { id: string; onClose: () =
           </p>
         )}
         <div className="flex justify-end gap-2">
-          <button type="button" className="btn" onClick={onClose}>
+          <button type="button" className="btn" disabled={busy} onClick={onClose}>
             {m.common_cancel()}
           </button>
-          <button type="submit" className="btn primary" disabled={busy || !ok || name === id}>
+          <BusyButton type="submit" className="btn primary" busy={busy} busyLabel={m.common_saving()} disabled={!ok || name === id}>
             {m.boot_editor_renameButton()}
-          </button>
+          </BusyButton>
         </div>
       </form>
     </Modal>

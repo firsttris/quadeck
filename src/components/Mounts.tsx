@@ -18,6 +18,7 @@ import {
   type MountView,
 } from '~/shared/fstab'
 import { useActions } from './Actions'
+import { BusyButton } from './Busy'
 import { Glyph } from './Glyph'
 import { ConfirmDialog, Modal } from './Modal'
 import { DiffView, Diagnostics, HistoryDialog } from './QuadletEditor'
@@ -142,6 +143,7 @@ export function MountsView() {
                     e={e}
                     readonly={readonly}
                     busy={busy === e.file}
+                    locked={!!busy}
                     onEdit={() => setEdit({ entry: e })}
                     onMount={(a) => void mount(e, a)}
                     onRemove={() => void review({ kind: 'remove', line: e.line, original: e.raw }, m.disks_mounts_removeTitle({ file: e.file }))}
@@ -243,7 +245,7 @@ export function MountsView() {
   )
 }
 
-function EntryRow({ e, readonly, busy, onEdit, onMount, onRemove }: { e: MountView; readonly: boolean; busy: boolean; onEdit: () => void; onMount: (a: 'mount' | 'unmount') => void; onRemove: () => void }) {
+function EntryRow({ e, readonly, busy, locked, onEdit, onMount, onRemove }: { e: MountView; readonly: boolean; busy: boolean; locked: boolean; onEdit: () => void; onMount: (a: 'mount' | 'unmount') => void; onRemove: () => void }) {
   return (
     <tr data-testid="fstab-entry">
       <td>
@@ -284,14 +286,14 @@ function EntryRow({ e, readonly, busy, onEdit, onMount, onRemove }: { e: MountVi
         {!readonly && (
           <div className="inline-flex gap-1.5">
             {e.mounted ? (
-              <button type="button" className="btn sm" disabled={busy} onClick={() => onMount('unmount')}>
+              <BusyButton className="btn sm" busy={busy} busyLabel={m.common_working()} disabled={locked} onClick={() => onMount('unmount')}>
                 {m.disks_mounts_unmount()}
-              </button>
+              </BusyButton>
             ) : (
               !e.missing && (
-                <button type="button" className="btn sm" disabled={busy} onClick={() => onMount('mount')}>
+                <BusyButton className="btn sm" busy={busy} busyLabel={m.common_working()} disabled={locked} onClick={() => onMount('mount')}>
                   {m.disks_mounts_mount()}
-                </button>
+                </BusyButton>
               )
             )}
             <button type="button" className="btn sm" onClick={onEdit} aria-label={m.disks_mounts_editLabel({ file: e.file })}>
