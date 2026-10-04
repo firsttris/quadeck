@@ -102,7 +102,7 @@ test.describe.serial('Dateien', () => {
     await expect(page.getByRole('region', { name: 'Bereiche' })).toContainText('/mnt/disk1')
     const files = page.getByRole('region', { name: 'Ordnerinhalt' })
     await expect(files.getByTestId('file-row')).toHaveCount(3) // Downloads, Filme, Serien
-    await files.getByRole('button', { name: 'Downloads' }).click()
+    await files.getByRole('button', { name: 'Downloads', exact: true }).click()
     await expect(page).toHaveURL(/path=%2Fmnt%2Fdisk1%2FDownloads/)
     await expect(files.getByTestId('file-row')).toHaveCount(2)
 
@@ -116,7 +116,7 @@ test.describe.serial('Dateien', () => {
     await name.getByRole('button', { name: 'Speichern' }).click()
     await unlock(page)
     await expect(files.getByTestId('file-row').filter({ hasText: 'Archiv' })).toBeVisible()
-    await files.getByRole('button', { name: 'Archiv' }).click()
+    await files.getByRole('button', { name: 'Archiv', exact: true }).click()
     await files.getByRole('button', { name: /Einfügen/ }).click()
     const job = page.getByRole('dialog', { name: /Kopieren: alt.zip/ })
     await expect(job).toContainText('erfolgreich')

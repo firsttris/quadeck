@@ -193,8 +193,28 @@ and symlinks are resolved before the check, so a link cannot lead out of an area
 
 Open folders, path bar, show or hide hidden files, sort by name, date or size. **New folder**
 (owned by the parent folder's owner), **Rename**, **Copy / Cut / Paste**,
-**Delete**, also with Ctrl+C/X/V, Del and F2. Overwriting asks first; copying a folder into
+**Delete**, also with Ctrl+C/X/V, F7, Del and F2. Overwriting asks first; copying a folder into
 itself or deleting an area is refused.
+
+### Two panes
+
+The **Two panes** switch puts two folders side by side, like a two-panel commander (Total or
+Double Commander): each pane has its own area, path and selection. The pane you click or move the
+focus into is the **source** (framed), the other one the **target**; **Copy →** and **Move →**
+between them follow that direction. The same works with the keyboard and the mouse:
+
+| Key | Does |
+|---|---|
+| F5 / F6 | copy / move the selection to the other pane (inside the explorer F5 does not reload the page) |
+| F7 | new folder |
+| Del / F8 | delete |
+| F2 | rename |
+| drag a row onto the other pane | copy; hold Shift to move |
+
+With one pane, **Copy to …** / **Move to …** in a row's **⋯** menu (or F5/F6) opens the second pane
+as the target. Both folders are in the address (`/files?path=…&right=…`), so a reload or a
+bookmark keeps them, and the browser remembers whether two panes were open. On a phone the panes
+become two tabs, **Left** and **Right**.
 
 Copy, move and delete run as [jobs](updates.md#jobs) with live output (`cp -a --reflink=auto`,
 `mv`, `rm -r --one-file-system`), so a large folder blocks nothing and a restart of Quadeck does not
