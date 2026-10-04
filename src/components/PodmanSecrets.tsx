@@ -4,6 +4,7 @@ import { api } from '~/lib/api'
 import { relative } from '~/lib/format'
 import { SECRET_NAME, type PlainSecret, type PodmanSecret, type SecretsState } from '~/shared/secrets'
 import { useActions } from './Actions'
+import { BusyButton, useBusy } from './Busy'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
@@ -19,6 +20,7 @@ export function PodmanSecretsCard() {
   const [s, setS] = useState<SecretsState | null>(null)
   const [error, setError] = useState('')
   const [dialog, setDialog] = useState<Dialog | null>(null)
+  const removing = useBusy()
 
   const load = useCallback(async () => {
     try {
@@ -140,21 +142,24 @@ export function PodmanSecretsCard() {
       {dialog?.kind === 'replace' && <ValueDialog title={m.secrets_replaceTitle({ name: dialog.secret.name })} fixedName={dialog.secret.name} onClose={() => setDialog(null)} onSubmit={(name, value) => post({ action: 'replace', name, value }, m.secrets_replaced({ name }))} note={dialog.secret.usedBy.length ? m.secrets_replaceNote({ files: dialog.secret.usedBy.join(', ') }) : undefined} />}
       {dialog?.kind === 'move' && <MoveDialog plain={dialog.plain} onClose={() => setDialog(null)} onSubmit={(name, restart) => post({ action: 'move', file: dialog.plain.file, key: dialog.plain.key, name, restart }, m.secrets_moved({ key: dialog.plain.key, name }))} />}
       {dialog?.kind === 'remove' && (
-        <Modal open title={m.secrets_removeTitle({ name: dialog.secret.name })} onClose={() => setDialog(null)}>
+        <Modal open title={m.secrets_removeTitle({ name: dialog.secret.name })} onClose={() => setDialog(null)} busy={!!removing.busy}>
           <p className="m-0 text-[13px]">{m.secrets_removeText()}</p>
           <div className="flex justify-end gap-2">
-            <button type="button" className="btn" onClick={() => setDialog(null)}>
+            <button type="button" className="btn" disabled={!!removing.busy} onClick={() => setDialog(null)}>
               {m.common_cancel()}
             </button>
-            <button
-              type="button"
+            <BusyButton
               className="btn danger"
-              onClick={async () => {
-                if (await post({ action: 'remove', name: dialog.secret.name }, m.secrets_removed({ name: dialog.secret.name }))) setDialog(null)
-              }}
+              busy={!!removing.busy}
+              busyLabel={m.common_deleting()}
+              onClick={() =>
+                void removing.run('remove', async () => {
+                  if (await post({ action: 'remove', name: dialog.secret.name }, m.secrets_removed({ name: dialog.secret.name }))) setDialog(null)
+                })
+              }
             >
               {m.secrets_remove()}
-            </button>
+            </BusyButton>
           </div>
         </Modal>
       )}
@@ -169,7 +174,7 @@ function ValueDialog({ title, fixedName, note, onClose, onSubmit }: { title: str
   const [busy, setBusy] = useState(false)
   const validName = SECRET_NAME.test(name)
   return (
-    <Modal open title={title} onClose={onClose}>
+    <Modal open title={title} onClose={onClose} busy={busy}>
       {!fixedName && (
         <label className="flex flex-col gap-1.5 text-[13px]">
           {m.secrets_name()}
@@ -189,14 +194,16 @@ function ValueDialog({ title, fixedName, note, onClose, onSubmit }: { title: str
       </label>
       {note && <p className="m-0 text-[12px] text-[#e3b341]">{note}</p>}
       <div className="flex justify-end gap-2">
-        <button type="button" className="btn" onClick={onClose}>
+        <button type="button" className="btn" disabled={busy} onClick={onClose}>
           {m.common_cancel()}
         </button>
-        <button
-          type="button"
+        <BusyButton
           className="btn primary"
-          disabled={busy || !validName || !value}
+          busy={busy}
+          busyLabel={m.common_saving()}
+          disabled={!validName || !value}
           onClick={async () => {
+            if (busy) return
             setBusy(true)
             const ok = await onSubmit(name, value)
             setBusy(false)
@@ -204,7 +211,7 @@ function ValueDialog({ title, fixedName, note, onClose, onSubmit }: { title: str
           }}
         >
           {m.common_save()}
-        </button>
+        </BusyButton>
       </div>
     </Modal>
   )
@@ -216,7 +223,7 @@ function MoveDialog({ plain, onClose, onSubmit }: { plain: PlainSecret; onClose:
   const [busy, setBusy] = useState(false)
   const valid = SECRET_NAME.test(name)
   return (
-    <Modal open title={m.secrets_moveTitle({ key: plain.key })} onClose={onClose}>
+    <Modal open title={m.secrets_moveTitle({ key: plain.key })} onClose={onClose} busy={busy}>
       <p className="m-0 text-[13px]">{m.secrets_moveText({ file: plain.file })}</p>
       <label className="flex flex-col gap-1.5 text-[13px]">
         {m.secrets_name()}
@@ -235,14 +242,16 @@ function MoveDialog({ plain, onClose, onSubmit }: { plain: PlainSecret; onClose:
       </label>
       <p className="m-0 text-[12px] text-muted">{m.secrets_moveNote()}</p>
       <div className="flex justify-end gap-2">
-        <button type="button" className="btn" onClick={onClose}>
+        <button type="button" className="btn" disabled={busy} onClick={onClose}>
           {m.common_cancel()}
         </button>
-        <button
-          type="button"
+        <BusyButton
           className="btn primary"
-          disabled={busy || !valid}
+          busy={busy}
+          busyLabel={m.common_applying()}
+          disabled={!valid}
           onClick={async () => {
+            if (busy) return
             setBusy(true)
             const ok = await onSubmit(name, restart)
             setBusy(false)
@@ -250,7 +259,7 @@ function MoveDialog({ plain, onClose, onSubmit }: { plain: PlainSecret; onClose:
           }}
         >
           {m.secrets_moveRun()}
-        </button>
+        </BusyButton>
       </div>
     </Modal>
   )

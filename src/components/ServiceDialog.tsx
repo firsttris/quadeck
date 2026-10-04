@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api } from '~/lib/api'
 import type { Service } from '~/shared/types'
+import { BusyButton, useBusy } from './Busy'
 import { Glyph } from './Glyph'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
@@ -86,6 +87,7 @@ export function ServiceDialog({ service, groups, onClose }: { service: Service |
   const say = useToast()
   const [error, setError] = useState('')
   const [icon, setIcon] = useState('')
+  const work = useBusy<'save' | 'reset'>()
   const s = service
   const manual = s?.manualId !== undefined
   useEffect(() => {
@@ -94,39 +96,41 @@ export function ServiceDialog({ service, groups, onClose }: { service: Service |
   }, [s, manual])
   if (!s) return null
 
-  const submit = async (f: FormData) => {
-    setError('')
-    try {
-      if (manual) {
-        await api(`/api/links/${s.manualId}`, {
-          method: 'PUT',
-          body: { name: f.get('name'), url: f.get('url'), group: f.get('group'), icon, healthCheck: f.get('health') === 'on' },
-        })
-      } else {
-        await api('/api/services/override', {
-          body: { key: s.key, name: f.get('name'), group: f.get('group'), url: f.get('url'), icon, pinned: f.get('pinned') === 'on', hidden: f.get('hidden') === 'on' },
-        })
+  const submit = (f: FormData) =>
+    work.run('save', async () => {
+      setError('')
+      try {
+        if (manual) {
+          await api(`/api/links/${s.manualId}`, {
+            method: 'PUT',
+            body: { name: f.get('name'), url: f.get('url'), group: f.get('group'), icon, healthCheck: f.get('health') === 'on' },
+          })
+        } else {
+          await api('/api/services/override', {
+            body: { key: s.key, name: f.get('name'), group: f.get('group'), url: f.get('url'), icon, pinned: f.get('pinned') === 'on', hidden: f.get('hidden') === 'on' },
+          })
+        }
+        say(m.overview_dialog_saved({ name: (String(f.get('name') || s.name)) }))
+        onClose()
+      } catch (e) {
+        setError((e as Error).message)
       }
-      say(m.overview_dialog_saved({ name: (String(f.get('name') || s.name)) }))
-      onClose()
-    } catch (e) {
-      setError((e as Error).message)
-    }
-  }
+    })
 
-  const reset = async () => {
-    try {
-      await api('/api/services/override', { method: 'DELETE', body: { key: s.key } })
-      say(m.overview_dialog_automaticAgain({ name: s.name }))
-      onClose()
-    } catch (e) {
-      setError((e as Error).message)
-    }
-  }
+  const reset = () =>
+    work.run('reset', async () => {
+      try {
+        await api('/api/services/override', { method: 'DELETE', body: { key: s.key } })
+        say(m.overview_dialog_automaticAgain({ name: s.name }))
+        onClose()
+      } catch (e) {
+        setError((e as Error).message)
+      }
+    })
 
   const o = s.overridden ?? {}
   return (
-    <Modal open onClose={onClose} title={manual ? m.overview_dialog_editLink({ name: s.name }) : m.overview_dialog_editService({ name: s.name })}>
+    <Modal open onClose={onClose} title={manual ? m.overview_dialog_editLink({ name: s.name }) : m.overview_dialog_editService({ name: s.name })} busy={!!work.busy}>
       <form
         key={s.key}
         className="flex flex-col gap-3"
@@ -187,16 +191,16 @@ export function ServiceDialog({ service, groups, onClose }: { service: Service |
         )}
         <div className="flex flex-wrap justify-end gap-2">
           {!manual && (s.overridden || s.pinned) && (
-            <button type="button" className="btn mr-auto" onClick={reset}>
+            <BusyButton className="btn mr-auto" busy={work.is('reset')} busyLabel={m.common_working()} disabled={!!work.busy} onClick={() => void reset()}>
               <Glyph name="restart" size={14} /> {m.overview_dialog_resetAuto()}
-            </button>
+            </BusyButton>
           )}
-          <button type="button" className="btn" onClick={onClose}>
+          <button type="button" className="btn" disabled={!!work.busy} onClick={onClose}>
             {m.common_cancel()}
           </button>
-          <button type="submit" className="btn primary">
+          <BusyButton type="submit" className="btn primary" busy={work.is('save')} busyLabel={m.common_saving()} disabled={!!work.busy}>
             {m.common_save()}
-          </button>
+          </BusyButton>
         </div>
       </form>
     </Modal>

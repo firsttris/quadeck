@@ -1,6 +1,7 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { useActions } from '~/components/Actions'
+import { actionBusyLabel, useActions } from '~/components/Actions'
+import { BusyButton, useBusy } from '~/components/Busy'
 import { AddLinkDialog } from '~/components/AddLinkDialog'
 import { EditableGrid, recentlyDragged, type DefaultItem, type GridSpec } from '~/components/EditableGrid'
 import { MetricCard, MetricDialog, type MetricCardId } from '~/components/MetricCards'
@@ -128,15 +129,17 @@ function Overview() {
     api('/api/layout/hidden', { body: { id, hidden } }).catch((e) => say((e as Error).message, 'bad'))
   }
 
-  const reset = async () => {
-    try {
-      await api('/api/layout', { method: 'DELETE' })
-      setLayout({ layouts: { page: {}, tiles: {} }, hidden: [] })
-      say(m.overview_edit_layoutReset())
-    } catch (e) {
-      say((e as Error).message, 'bad')
-    }
-  }
+  const resetting = useBusy()
+  const reset = () =>
+    resetting.run('reset', async () => {
+      try {
+        await api('/api/layout', { method: 'DELETE' })
+        setLayout({ layouts: { page: {}, tiles: {} }, hidden: [] })
+        say(m.overview_edit_layoutReset())
+      } catch (e) {
+        say((e as Error).message, 'bad')
+      }
+    })
 
   // The GPU card only exists when there is a GPU.
   const hasGpu = !!snapshot.system?.gpus?.length
@@ -204,9 +207,9 @@ function Overview() {
               ))}
             </span>
           )}
-          <button type="button" className="btn sm" onClick={reset}>
+          <BusyButton className="btn sm" busy={!!resetting.busy} busyLabel={m.common_working()} onClick={() => void reset()}>
             {m.overview_edit_resetLayout()}
-          </button>
+          </BusyButton>
         </div>
       )}
       {failed.map((u) => (
@@ -243,7 +246,7 @@ function Overview() {
 // ---------- alarm card ----------
 
 function AlertCard({ unit, snapshot }: { unit: Unit; snapshot: Snapshot }) {
-  const { run, busy, readonly } = useActions()
+  const { run, busy, busyAction, readonly } = useActions()
   const reason = failureReason(unit)
   const container = snapshot.containers.find((c) => c.unit === unit.name)
   return (
@@ -263,9 +266,9 @@ function AlertCard({ unit, snapshot }: { unit: Unit; snapshot: Snapshot }) {
           {m.overview_alert_showJournal()}
         </Link>
         {!readonly && (
-          <button type="button" className="btn sm primary" disabled={busy === unit.name} onClick={() => run('restart', { kind: 'unit', name: unit.name })}>
+          <BusyButton className="btn sm primary" busy={busy === unit.name} busyLabel={actionBusyLabel(busyAction ?? 'restart')} onClick={() => run('restart', { kind: 'unit', name: unit.name })}>
             {m.common_restart()}
-          </button>
+          </BusyButton>
         )}
         {container && <span className="self-center text-[12px] text-muted">{m.overview_alert_container({ name: container.name })}</span>}
       </div>
@@ -364,6 +367,7 @@ function Services({ groups, editing, saved, onSave }: { groups: ServiceGroup[]; 
         body={<p className="m-0">{m.overview_services_removeBody()}</p>}
         confirm={m.common_remove()}
         danger
+        busyLabel={m.common_deleting()}
         onClose={() => setRemoving(null)}
         onConfirm={async () => {
           if (!removing) return

@@ -1,6 +1,7 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useActions } from '~/components/Actions'
+import { Spinner, useBusy } from '~/components/Busy'
 import { ConfirmDialog, Modal } from '~/components/Modal'
 import { PageHeader } from '~/components/PageHeader'
 import { Diagnostics, DiffView, Field, HistoryDialog, TextView } from '~/components/QuadletEditor'
@@ -52,6 +53,7 @@ function UnitView({ unit }: { unit: string }) {
   const { readonly } = useActions()
   const guarded = useGuardedApi()
   const say = useToast()
+  const boot = useBusy()
 
   const load = useCallback(
     async (keep?: string) => {
@@ -73,17 +75,18 @@ function UnitView({ unit }: { unit: string }) {
     void load()
   }, [load])
 
-  const toggleEnabled = async (enabled: boolean) => {
-    try {
-      const r = await guarded('/api/systemd', { body: { enable: { unit, enabled } } })
-      if (r) {
-        say(enabled ? m.systemd_unit_bootOn({ unit }) : m.systemd_unit_bootOff({ unit }))
-        void load(sel?.part.path)
+  const toggleEnabled = (enabled: boolean) =>
+    boot.run('boot', async () => {
+      try {
+        const r = await guarded('/api/systemd', { body: { enable: { unit, enabled } } })
+        if (r) {
+          say(enabled ? m.systemd_unit_bootOn({ unit }) : m.systemd_unit_bootOff({ unit }))
+          void load(sel?.part.path)
+        }
+      } catch (e) {
+        say((e as Error).message, 'bad')
       }
-    } catch (e) {
-      say((e as Error).message, 'bad')
-    }
-  }
+    })
 
   const d = detail
   const editableState = d?.unitFileState === 'enabled' || d?.unitFileState === 'disabled'
@@ -110,8 +113,14 @@ function UnitView({ unit }: { unit: string }) {
             {d.unitFileState && <span className="chip">{d.unitFileState}</span>}
             {editableState && !d.readonly && (
               <label className="flex items-center gap-2">
-                <input type="checkbox" role="switch" aria-label={m.systemd_unit_startAtBoot()} checked={d.unitFileState === 'enabled'} disabled={readonly} onChange={(e) => void toggleEnabled(e.target.checked)} />
+                <input type="checkbox" role="switch" aria-label={m.systemd_unit_startAtBoot()} checked={d.unitFileState === 'enabled'} disabled={readonly || !!boot.busy} onChange={(e) => void toggleEnabled(e.target.checked)} />
                 {m.systemd_unit_startAtBoot()}
+                {boot.busy && (
+                  <span className="inline-flex items-center gap-1.5 text-[12px] text-muted" aria-live="polite">
+                    <Spinner />
+                    {m.common_saving()}
+                  </span>
+                )}
               </label>
             )}
           </div>
@@ -452,7 +461,8 @@ function PartEditor({
             {m.systemd_editor_keptInHistory()}
           </p>
         }
-        onConfirm={() => void remove()}
+        busyLabel={part.kind === 'dropin' ? m.common_working() : m.common_deleting()}
+        onConfirm={() => remove()}
         onClose={() => setConfirmDelete(false)}
       />
     </section>

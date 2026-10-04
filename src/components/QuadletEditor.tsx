@@ -5,6 +5,7 @@ import { relative } from '~/lib/format'
 import { getValues, lintQuadlet, parseIni, setValues } from '~/shared/ini'
 import { QUADLET_KEYS, QUADLET_SECTION, SYSTEMD_KEYS, type KeyDoc } from '~/shared/quadlet-keys'
 import { quadletType, quadletUnit, type Diagnostic, type RemovalPlan, type Revision, type ValidateResult } from '~/shared/quadlets'
+import { BusyButton } from './Busy'
 import { Glyph } from './Glyph'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
@@ -368,6 +369,7 @@ export function RemoveQuadletDialog({ open, name, onClose, onRemoved }: { open: 
 
   const own = plan?.volumes.filter((v) => !v.shared) ?? []
   const remove = async () => {
+    if (busy) return
     setBusy(true)
     try {
       const r = await guarded<{ warnings?: string[] }>('/api/quadlets/file', { method: 'DELETE', body: { name, image, volumes } })
@@ -384,7 +386,7 @@ export function RemoveQuadletDialog({ open, name, onClose, onRemoved }: { open: 
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={m.quadlets_editor_deleteTitle({ name })}>
+    <Modal open={open} onClose={onClose} title={m.quadlets_editor_deleteTitle({ name })} busy={busy}>
       <p className="m-0">{m.quadlets_editor_deleteBody({ unit })}</p>
       {container && !plan && <p className="m-0 text-[13px] text-muted">{m.quadlets_remove_loading()}</p>}
       {plan?.image &&
@@ -432,12 +434,12 @@ export function RemoveQuadletDialog({ open, name, onClose, onRemoved }: { open: 
         </div>
       )}
       <div className="flex justify-end gap-2">
-        <button type="button" className="btn" onClick={onClose}>
+        <button type="button" className="btn" disabled={busy} onClick={onClose}>
           {m.common_cancel()}
         </button>
-        <button type="button" className="btn danger" autoFocus disabled={busy || (container && !plan)} onClick={() => void remove()}>
+        <BusyButton className="btn danger" autoFocus busy={busy} busyLabel={m.common_deleting()} disabled={container && !plan} onClick={() => void remove()}>
           {m.common_delete()}
-        </button>
+        </BusyButton>
       </div>
     </Modal>
   )
