@@ -58,6 +58,7 @@ import { Route as ApiMetricsHistoryRouteImport } from './routes/api/metrics/hist
 import { Route as ApiNetworkIndexRouteImport } from './routes/api/network/index'
 import { Route as ApiNetworkDevicesRouteImport } from './routes/api/network/devices'
 import { Route as ApiNotificationsIndexRouteImport } from './routes/api/notifications/index'
+import { Route as ApiPodmanSecretsRouteImport } from './routes/api/podman/secrets'
 import { Route as ApiPodmanSettingsRouteImport } from './routes/api/podman/settings'
 import { Route as ApiPodmanStorageRouteImport } from './routes/api/podman/storage'
 import { Route as ApiPowerIndexRouteImport } from './routes/api/power/index'
@@ -326,6 +327,11 @@ const ApiNotificationsIndexRoute = ApiNotificationsIndexRouteImport.update({
   path: '/api/notifications/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiPodmanSecretsRoute = ApiPodmanSecretsRouteImport.update({
+  id: '/api/podman/secrets',
+  path: '/api/podman/secrets',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiPodmanSettingsRoute = ApiPodmanSettingsRouteImport.update({
   id: '/api/podman/settings',
   path: '/api/podman/settings',
@@ -480,6 +486,7 @@ export interface FileRoutesByFullPath {
   '/api/links/$id': typeof ApiLinksIdRoute
   '/api/metrics/history': typeof ApiMetricsHistoryRoute
   '/api/network/devices': typeof ApiNetworkDevicesRoute
+  '/api/podman/secrets': typeof ApiPodmanSecretsRoute
   '/api/podman/settings': typeof ApiPodmanSettingsRoute
   '/api/podman/storage': typeof ApiPodmanStorageRoute
   '/api/quadlets/compose': typeof ApiQuadletsComposeRoute
@@ -553,6 +560,7 @@ export interface FileRoutesByTo {
   '/api/links/$id': typeof ApiLinksIdRoute
   '/api/metrics/history': typeof ApiMetricsHistoryRoute
   '/api/network/devices': typeof ApiNetworkDevicesRoute
+  '/api/podman/secrets': typeof ApiPodmanSecretsRoute
   '/api/podman/settings': typeof ApiPodmanSettingsRoute
   '/api/podman/storage': typeof ApiPodmanStorageRoute
   '/api/quadlets/compose': typeof ApiQuadletsComposeRoute
@@ -628,6 +636,7 @@ export interface FileRoutesById {
   '/api/links/$id': typeof ApiLinksIdRoute
   '/api/metrics/history': typeof ApiMetricsHistoryRoute
   '/api/network/devices': typeof ApiNetworkDevicesRoute
+  '/api/podman/secrets': typeof ApiPodmanSecretsRoute
   '/api/podman/settings': typeof ApiPodmanSettingsRoute
   '/api/podman/storage': typeof ApiPodmanStorageRoute
   '/api/quadlets/compose': typeof ApiQuadletsComposeRoute
@@ -703,6 +712,7 @@ export interface FileRouteTypes {
     | '/api/links/$id'
     | '/api/metrics/history'
     | '/api/network/devices'
+    | '/api/podman/secrets'
     | '/api/podman/settings'
     | '/api/podman/storage'
     | '/api/quadlets/compose'
@@ -776,6 +786,7 @@ export interface FileRouteTypes {
     | '/api/links/$id'
     | '/api/metrics/history'
     | '/api/network/devices'
+    | '/api/podman/secrets'
     | '/api/podman/settings'
     | '/api/podman/storage'
     | '/api/quadlets/compose'
@@ -850,6 +861,7 @@ export interface FileRouteTypes {
     | '/api/links/$id'
     | '/api/metrics/history'
     | '/api/network/devices'
+    | '/api/podman/secrets'
     | '/api/podman/settings'
     | '/api/podman/storage'
     | '/api/quadlets/compose'
@@ -910,6 +922,7 @@ export interface RootRouteChildren {
   ApiLinksIdRoute: typeof ApiLinksIdRoute
   ApiMetricsHistoryRoute: typeof ApiMetricsHistoryRoute
   ApiNetworkDevicesRoute: typeof ApiNetworkDevicesRoute
+  ApiPodmanSecretsRoute: typeof ApiPodmanSecretsRoute
   ApiPodmanSettingsRoute: typeof ApiPodmanSettingsRoute
   ApiPodmanStorageRoute: typeof ApiPodmanStorageRoute
   ApiQuadletsComposeRoute: typeof ApiQuadletsComposeRoute
@@ -1291,6 +1304,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiNotificationsIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/podman/secrets': {
+      id: '/api/podman/secrets'
+      path: '/api/podman/secrets'
+      fullPath: '/api/podman/secrets'
+      preLoaderRoute: typeof ApiPodmanSecretsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/podman/settings': {
       id: '/api/podman/settings'
       path: '/api/podman/settings'
@@ -1517,6 +1537,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiLinksIdRoute: ApiLinksIdRoute,
   ApiMetricsHistoryRoute: ApiMetricsHistoryRoute,
   ApiNetworkDevicesRoute: ApiNetworkDevicesRoute,
+  ApiPodmanSecretsRoute: ApiPodmanSecretsRoute,
   ApiPodmanSettingsRoute: ApiPodmanSettingsRoute,
   ApiPodmanStorageRoute: ApiPodmanStorageRoute,
   ApiQuadletsComposeRoute: ApiQuadletsComposeRoute,

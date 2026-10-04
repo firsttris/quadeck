@@ -11,6 +11,7 @@ Network=immich.network
 PublishPort=2283:2283
 Volume=/srv/immich/upload:/usr/src/app/upload:Z
 EnvironmentFile=/etc/immich/immich.env
+Environment=DB_USERNAME=immich DB_PASSWORD=immich-demo-1234
 
 [Service]
 Restart=always

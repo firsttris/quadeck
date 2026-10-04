@@ -616,5 +616,18 @@
   {
    "name": "test-net"
   }
+ ],
+ "secrets": [
+  {
+   "ID": "5f1c2a9e0b7d4e3f8a6b1c2d",
+   "Spec": {
+    "Name": "paperless-db-password",
+    "Driver": {
+     "Name": "file"
+    }
+   },
+   "CreatedAt": "2026-08-02T10:12:00Z",
+   "UpdatedAt": "2026-08-02T10:12:00Z"
+  }
  ]
 }

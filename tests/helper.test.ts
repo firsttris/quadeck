@@ -146,6 +146,12 @@ describe('helper over a Unix socket', () => {
     expect(s.disks.map((d) => d.kind)).toContain('nvme')
   })
 
+  it('creates, removes or moves no secret without unlock', async () => {
+    await expect(client.createSecret(undefined, 'x', 'v', false)).rejects.toMatchObject({ status: 423 })
+    await expect(client.removeSecret('forged', 'x')).rejects.toMatchObject({ status: 423 })
+    await expect(client.moveSecret(undefined, 'immich.container', 'DB_PASSWORD', 'x', true)).rejects.toMatchObject({ status: 423 })
+  })
+
   it('reports a missing helper clearly', async () => {
     await expect(new HelperClient(join(dir, 'missing.sock')).info()).rejects.toMatchObject({ status: 503 })
   })

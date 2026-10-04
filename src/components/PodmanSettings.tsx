@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { PodmanStorageCard } from './PodmanStorage'
+import { PodmanSecretsCard } from './PodmanSecrets'
 import { relative } from '~/lib/format'
 import { getToml, setToml, type TomlValue } from '~/shared/toml-edit'
 import type { PodmanConfigFile, PodmanSettings } from '~/shared/quadlets'
@@ -264,6 +265,7 @@ export function PodmanSettingsView() {
       </section>
 
       <PodmanStorageCard />
+      <PodmanSecretsCard />
 
       {s.files.map((f) => (
         <ConfigCard key={f.name} file={f} readonly={readonly} onSaved={setS} />
