@@ -28,6 +28,7 @@ import { SystemUnitEditor } from './server/systemd/editor'
 import { SystemNetwork } from './server/network/collect'
 import { CaddyManager, SystemCaddyHost } from './server/caddy/backend'
 import { SystemBackup, quadletContents } from './server/backup/backend'
+import { SystemPower } from './server/smart/power'
 import { selfArgv } from './server/packages/jobs'
 
 export interface StartServer {
@@ -204,6 +205,7 @@ export async function main(argv: string[], opts: MainOptions) {
           new SystemHardware(),
           new CaddyManager(new SystemCaddyHost()),
           new SystemBackup({ self: selfArgv(), quadlets: quadletContents(podman) }),
+          new SystemPower(),
         ),
       )
       return

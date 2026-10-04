@@ -12,6 +12,8 @@ export function smartSamples(d: SmartDisk): { key: string; value: number }[] {
     { key: 'crc', value: attr(199) ? rawCount(attr(199)!.raw) : undefined },
     { key: 'wear', value: d.wearLevel },
     { key: 'media', value: d.errorMedium },
+    // Spin-ups (Start_Stop_Count): how often the disk wakes from standby.
+    { key: 'startstop', value: attr(4) ? rawCount(attr(4)!.raw) : undefined },
   ]
   return rows.filter((r): r is { key: string; value: number } => r.value !== undefined && Number.isFinite(r.value))
 }

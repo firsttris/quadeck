@@ -19,6 +19,7 @@ import { FixtureUsers, SystemUsers } from '../users/backend'
 import { FixtureHardware, SystemHardware } from '../hardware/collect'
 import { CaddyManager, FixtureCaddyHost, SystemCaddyHost } from '../caddy/backend'
 import { FixtureBackup, SystemBackup, quadletContents } from '../backup/backend'
+import { FixturePower, SystemPower } from '../smart/power'
 import { selfArgv } from '../packages/jobs'
 import { bilingual } from '../lang'
 
@@ -70,6 +71,7 @@ export function privileged(): Privileged {
             fixtures ? new FixtureHardware(fixtures) : new SystemHardware(),
           new CaddyManager(fixtures ? new FixtureCaddyHost(fixtures) : new SystemCaddyHost()),
             fixtures ? new FixtureBackup(quadletContents(podman)) : new SystemBackup({ self: selfArgv(), quadlets: quadletContents(podman) }),
+            fixtures ? new FixturePower() : new SystemPower(),
           ),
         )
       : new HelperClient(config().helperSocket)

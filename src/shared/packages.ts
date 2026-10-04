@@ -200,7 +200,7 @@ export const REBOOT_PACKAGES = /^(linux(-lts|-zen|-hardened)?|linux-image-.*|ker
  * Tools Quadeck pages need, installable with one click. Only these – never
  * arbitrary package names from the browser.
  */
-export type Feature = 'smart' | 'samba' | 'nfs' | 'ssh' | 'restic'
+export type Feature = 'smart' | 'samba' | 'nfs' | 'ssh' | 'restic' | 'hdparm'
 
 /** `label` is a getter: read in the viewer's language. */
 export const FEATURES: Record<Feature, { label: string; packages: Record<ManagerId, string[]>; service?: Record<ManagerId, string> }> = {
@@ -227,6 +227,10 @@ export const FEATURES: Record<Feature, { label: string; packages: Record<Manager
       return msg('packages_feature_openssh')
     },
     packages: { pacman: ['openssh'], apt: ['openssh-server'], dnf: ['openssh-server'], zypper: ['openssh-server'], apk: ['openssh'], 'rpm-ostree': ['openssh-server'] },
+  },
+  hdparm: {
+    label: 'hdparm',
+    packages: { pacman: ['hdparm'], apt: ['hdparm'], dnf: ['hdparm'], zypper: ['hdparm'], apk: ['hdparm'], 'rpm-ostree': ['hdparm'] },
   },
   restic: {
     label: 'restic',

@@ -40,6 +40,7 @@ import { Route as ApiAuthSetupRouteImport } from './routes/api/auth/setup'
 import { Route as ApiBackupIndexRouteImport } from './routes/api/backup/index'
 import { Route as ApiBootIndexRouteImport } from './routes/api/boot/index'
 import { Route as ApiCaddyIndexRouteImport } from './routes/api/caddy/index'
+import { Route as ApiDisksPowerRouteImport } from './routes/api/disks/power'
 import { Route as ApiDisksSmartRouteImport } from './routes/api/disks/smart'
 import { Route as ApiFaviconKeyRouteImport } from './routes/api/favicon/$key'
 import { Route as ApiFilesIndexRouteImport } from './routes/api/files/index'
@@ -230,6 +231,11 @@ const ApiBootIndexRoute = ApiBootIndexRouteImport.update({
 const ApiCaddyIndexRoute = ApiCaddyIndexRouteImport.update({
   id: '/api/caddy/',
   path: '/api/caddy/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiDisksPowerRoute = ApiDisksPowerRouteImport.update({
+  id: '/api/disks/power',
+  path: '/api/disks/power',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiDisksSmartRoute = ApiDisksSmartRouteImport.update({
@@ -446,6 +452,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/setup': typeof ApiAuthSetupRoute
+  '/api/disks/power': typeof ApiDisksPowerRoute
   '/api/disks/smart': typeof ApiDisksSmartRoute
   '/api/favicon/$key': typeof ApiFaviconKeyRoute
   '/api/icons/$slug': typeof ApiIconsSlugRoute
@@ -515,6 +522,7 @@ export interface FileRoutesByTo {
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/setup': typeof ApiAuthSetupRoute
+  '/api/disks/power': typeof ApiDisksPowerRoute
   '/api/disks/smart': typeof ApiDisksSmartRoute
   '/api/favicon/$key': typeof ApiFaviconKeyRoute
   '/api/icons/$slug': typeof ApiIconsSlugRoute
@@ -586,6 +594,7 @@ export interface FileRoutesById {
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
   '/api/auth/setup': typeof ApiAuthSetupRoute
+  '/api/disks/power': typeof ApiDisksPowerRoute
   '/api/disks/smart': typeof ApiDisksSmartRoute
   '/api/favicon/$key': typeof ApiFaviconKeyRoute
   '/api/icons/$slug': typeof ApiIconsSlugRoute
@@ -657,6 +666,7 @@ export interface FileRouteTypes {
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/setup'
+    | '/api/disks/power'
     | '/api/disks/smart'
     | '/api/favicon/$key'
     | '/api/icons/$slug'
@@ -726,6 +736,7 @@ export interface FileRouteTypes {
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/setup'
+    | '/api/disks/power'
     | '/api/disks/smart'
     | '/api/favicon/$key'
     | '/api/icons/$slug'
@@ -796,6 +807,7 @@ export interface FileRouteTypes {
     | '/api/auth/login'
     | '/api/auth/logout'
     | '/api/auth/setup'
+    | '/api/disks/power'
     | '/api/disks/smart'
     | '/api/favicon/$key'
     | '/api/icons/$slug'
@@ -852,6 +864,7 @@ export interface RootRouteChildren {
   ApiAuthLoginRoute: typeof ApiAuthLoginRoute
   ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
   ApiAuthSetupRoute: typeof ApiAuthSetupRoute
+  ApiDisksPowerRoute: typeof ApiDisksPowerRoute
   ApiDisksSmartRoute: typeof ApiDisksSmartRoute
   ApiFaviconKeyRoute: typeof ApiFaviconKeyRoute
   ApiIconsSlugRoute: typeof ApiIconsSlugRoute
@@ -1111,6 +1124,13 @@ declare module '@tanstack/react-router' {
       path: '/api/caddy'
       fullPath: '/api/caddy/'
       preLoaderRoute: typeof ApiCaddyIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/disks/power': {
+      id: '/api/disks/power'
+      path: '/api/disks/power'
+      fullPath: '/api/disks/power'
+      preLoaderRoute: typeof ApiDisksPowerRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/disks/smart': {
@@ -1427,6 +1447,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiAuthLoginRoute: ApiAuthLoginRoute,
   ApiAuthLogoutRoute: ApiAuthLogoutRoute,
   ApiAuthSetupRoute: ApiAuthSetupRoute,
+  ApiDisksPowerRoute: ApiDisksPowerRoute,
   ApiDisksSmartRoute: ApiDisksSmartRoute,
   ApiFaviconKeyRoute: ApiFaviconKeyRoute,
   ApiIconsSlugRoute: ApiIconsSlugRoute,

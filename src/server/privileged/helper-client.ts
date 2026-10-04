@@ -20,6 +20,8 @@ import type { CaddyChange, CaddyResult, CaddyState } from '~/shared/caddy'
 import type { ConfigAction, ConfigFileInfo } from '~/shared/configfiles'
 import type { UnlockInfo } from './gate'
 import type { ClientPlan } from '~/shared/backup-client'
+import type { PowerSetting, PowerState } from '~/shared/power'
+import type { DiskUser } from '../smart/power'
 import type { BackupPlan, BackupSizes, BackupState, BackupSuggestion, LsEntry, TargetConfig, TargetState } from '~/shared/backup'
 
 /** Privileged over the root helper's Unix socket. */
@@ -377,6 +379,18 @@ export class HelperClient implements Privileged {
   }
   backupDump(token: string | undefined, snapshot: string, path: string) {
     return this.stream('/backup/dump', { token, snapshot, path })
+  }
+  diskPower() {
+    return this.call<PowerState>('POST', '/power/state', {}, 120_000)
+  }
+  async diskUsers(name: string) {
+    return (await this.call<{ data: DiskUser[] }>('POST', '/power/users', { name }, 60_000)).data
+  }
+  async powerHistory() {
+    return (await this.call<{ data: Revision[] }>('POST', '/power/history', {})).data
+  }
+  setDiskPower(token: string | undefined, serial: string, setting: PowerSetting | null) {
+    return this.call<PowerState>('POST', '/power/set', { token, serial, setting }, 120_000)
   }
   targetState(refresh?: boolean) {
     return this.call<TargetState>('POST', '/backup/target/state', { refresh: refresh === true }, 900_000)

@@ -120,6 +120,7 @@ describe('SMART history', () => {
       { key: 'pending', value: 2 },
       { key: 'uncorrectable', value: 0 },
       { key: 'crc', value: 0 },
+      { key: 'startstop', value: 2210 }, // spin-ups, for the energy-saving view
     ])
     const rows = [now - 100 * 24 * 3600_000, now - 3600_000].flatMap((ts, i) => smartSamples(disk).map((s) => ({ ts, metric: `smart:${disk.id}:${s.key}`, value: i === 0 && s.key === 'realloc' ? 0 : s.value })))
     rows.push({ ts: now - 30 * 24 * 3600_000, metric: 'cpu', value: 0.5 }, { ts: now - 380 * 24 * 3600_000, metric: `smart:${disk.id}:temp`, value: 30 })
@@ -130,7 +131,7 @@ describe('SMART history', () => {
     pruneHistory(db, now)
     const left = db.select().from(schema.metricSamples).all()
     expect(left.some((r) => r.metric === 'cpu')).toBe(false) // older than 7 days
-    expect(left.filter((r) => r.metric.startsWith('smart:')).length).toBe(10) // within a year
+    expect(left.filter((r) => r.metric.startsWith('smart:')).length).toBe(12) // within a year: 6 values twice
   })
 })
 

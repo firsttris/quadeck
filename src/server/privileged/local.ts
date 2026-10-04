@@ -19,6 +19,8 @@ import type { UsersBackend } from '../users/backend'
 import type { HardwareAdmin } from '../hardware/collect'
 import type { CaddyBackend } from '../caddy/backend'
 import type { BackupBackend } from '../backup/backend'
+import type { PowerBackend } from '../smart/power'
+import type { PowerSetting } from '~/shared/power'
 import { TARGET_QUADLET, type BackupPlan, type TargetConfig } from '~/shared/backup'
 import type { ClientPlan } from '~/shared/backup-client'
 import type { CaddyChange } from '~/shared/caddy'
@@ -62,6 +64,7 @@ export class LocalPrivileged implements Privileged {
     private hw: HardwareAdmin,
     private caddy: CaddyBackend,
     private backup: BackupBackend,
+    private power: PowerBackend,
   ) {}
 
   async info() {
@@ -440,6 +443,22 @@ export class LocalPrivileged implements Privileged {
   async setCaddyPath(token: string | undefined, path: string | null) {
     this.gate.check(token)
     return this.caddy.setCaddyPath(path)
+  }
+
+  // ---------- disk energy saving ----------
+
+  diskPower() {
+    return this.power.diskPower()
+  }
+  diskUsers(name: string) {
+    return this.power.diskUsers(name)
+  }
+  powerHistory() {
+    return this.power.powerHistory()
+  }
+  async setDiskPower(token: string | undefined, serial: string, setting: PowerSetting | null) {
+    this.gate.check(token)
+    return this.power.setDiskPower(serial, setting)
   }
 
   // ---------- backups (restic) ----------

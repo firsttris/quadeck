@@ -15,6 +15,7 @@ import { parseSave, parseTimerAction } from '../timers/backend'
 import { parseFstabChange } from '../fstab/parse'
 import { parseCaddyChange } from '~/shared/caddy'
 import { QUADECK_URL, parseClientPlan } from '~/shared/backup-client'
+import { parsePowerSetting } from '~/shared/power'
 import { parseBackupPlan, parseClientChange, parseSecrets, parseTargetConfig, parseWarnDays } from '~/shared/backup'
 import { parseBootEntryChange } from '~/shared/boot'
 import { parseUserChange } from '../users/parse'
@@ -154,6 +155,14 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/caddy/state': (_b, p) => p.caddyState(),
   '/caddy/revision': async (b, p) => ({ data: await p.caddyRevision(str(b.id) ?? '') }),
   '/caddy/apply': (b, p) => p.applyCaddy(str(b.token), parseCaddyChange(b.change), str(b.expected)),
+  '/power/state': (_b, p) => p.diskPower(),
+  '/power/users': async (b, p) => ({ data: await p.diskUsers(str(b.name) ?? '') }),
+  '/power/history': async (_b, p) => ({ data: await p.powerHistory() }),
+  '/power/set': (b, p) => {
+    const setting = b.setting === null ? null : parsePowerSetting(b.setting)
+    if (setting === undefined) throw new HttpError(400, msg('power_error_setting'))
+    return p.setDiskPower(str(b.token), str(b.serial) ?? '', setting)
+  },
   '/backup/state': (b, p) => p.backupState(b.refresh === true),
   '/backup/suggest': (_b, p) => p.backupSuggest(),
   '/backup/sizes': (b, p) => p.backupSizes(strs(b.paths), strs(b.excludes)),
