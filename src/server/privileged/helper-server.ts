@@ -138,6 +138,23 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/timers/action': (b, p) => p.timerAction(str(b.token), str(b.name) ?? '', parseTimerAction(b.action)),
   '/network/state': (_b, p) => p.networkState(),
   '/podman/storage': (_b, p) => p.podmanStorage(),
+  '/terminal/open': (b, p) => {
+    const t = (b.target ?? {}) as Record<string, unknown>
+    return p.terminalOpen(str(b.token), t.kind === 'container' ? { kind: 'container', name: str(t.name) ?? '' } : { kind: 'shell' }, Number(b.cols), Number(b.rows), Number(b.idleMinutes) || 15)
+  },
+  '/terminal/stream': async (b, p) => p.terminalStream(str(b.id) ?? ''),
+  '/terminal/input': async (b, p) => {
+    await p.terminalInput(str(b.id) ?? '', str(b.data) ?? '')
+    return { ok: true }
+  },
+  '/terminal/resize': async (b, p) => {
+    await p.terminalResize(str(b.id) ?? '', Number(b.cols), Number(b.rows))
+    return { ok: true }
+  },
+  '/terminal/close': async (b, p) => {
+    await p.terminalClose(str(b.id) ?? '')
+    return { ok: true }
+  },
   '/secrets/state': (_b, p) => p.secretsState(),
   '/secrets/create': (b, p) => p.createSecret(str(b.token), str(b.name) ?? '', typeof b.value === 'string' ? b.value : '', b.replace === true),
   '/secrets/remove': (b, p) => p.removeSecret(str(b.token), str(b.name) ?? ''),

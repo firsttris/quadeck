@@ -25,7 +25,9 @@ export class LockedError extends HttpError {
 const randomToken = () => Buffer.from(crypto.getRandomValues(new Uint8Array(32))).toString('base64url')
 
 export class Gate {
-  private tokens = new Map<string, number>()
+  /** token → expiry and the account that unlocked (the terminal runs as that user). */
+  private tokens = new Map<string, { exp: number; user: string }>()
+  private lockListeners: ((token: string) => void)[] = []
   private failures = 0
   private blockedUntil = 0
 
@@ -69,25 +71,39 @@ export class Gate {
     this.blockedUntil = 0
     const token = randomToken()
     const expiresAt = now + this.minutes * 60_000
-    this.tokens.set(token, expiresAt)
-    for (const [t, exp] of this.tokens) if (exp < now) this.tokens.delete(t)
+    this.tokens.set(token, { exp: expiresAt, user: this.mode === 'system' ? user.trim() : this.info().suggestedUser })
+    for (const [t, v] of this.tokens) if (v.exp < now) this.tokens.delete(t)
     return { token, expiresAt }
   }
 
   lock(token: string | undefined) {
-    if (token) this.tokens.delete(token)
+    if (!token) return
+    this.tokens.delete(token)
+    for (const f of this.lockListeners) f(token)
+  }
+
+  /** Called with the token when someone locks (ends that unlock's terminal sessions). */
+  onLock(f: (token: string) => void) {
+    this.lockListeners.push(f)
+  }
+
+  /** The account behind a valid token (in other modes: the suggested admin account). */
+  userOf(token: string | undefined): string | undefined {
+    if (this.mode === 'none') return this.info().suggestedUser
+    if (this.unlockedUntil(token) === null) return undefined
+    return this.tokens.get(token!)?.user
   }
 
   /** Expiry of a valid token, else null. */
   unlockedUntil(token: string | undefined): number | null {
     if (this.mode === 'none') return Number.MAX_SAFE_INTEGER
     if (!token) return null
-    const exp = this.tokens.get(token)
-    if (!exp || exp < Date.now()) {
+    const v = this.tokens.get(token)
+    if (!v || v.exp < Date.now()) {
       this.tokens.delete(token)
       return null
     }
-    return exp
+    return v.exp
   }
 
   check(token: string | undefined) {

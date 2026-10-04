@@ -33,6 +33,10 @@ import type { ShareChange, ShareServiceAction } from '~/shared/shares'
 import { HttpError } from '../auth'
 import { runOk } from '../exec'
 import { config } from '../config'
+import { TerminalManager, ptySpawner } from '../terminal/sessions'
+import { demoSpawner } from '../terminal/demo'
+import { CONTAINER_NAME, type TerminalInfo } from '~/shared/terminal'
+import { hostname, userInfo } from 'node:os'
 import { cleanStorage, fixtureApi, readStorage, type PodmanApi, type QuadletRefs } from '../quadlets/storage'
 import { createSecret, removeSecret, secretsState } from '../quadlets/secrets'
 import { moveToSecret, plainValue, type SecretsState } from '~/shared/secrets'
@@ -72,6 +76,17 @@ export class LocalPrivileged implements Privileged {
     private backup: BackupBackend,
     private power: PowerBackend,
   ) {}
+
+  /** Shells and `podman exec` in pseudo terminals; the demo gets a pretend shell, never a real one. */
+  private terminalManager?: TerminalManager
+  private get terminal() {
+    if (!this.terminalManager) {
+      const t = new TerminalManager(undefined, config().fixturesDir ? demoSpawner : ptySpawner)
+      this.gate.onLock((token) => t.closeOwner(token))
+      this.terminalManager = t
+    }
+    return this.terminalManager
+  }
 
   async info() {
     return this.gate.info()
@@ -140,6 +155,39 @@ export class LocalPrivileged implements Privileged {
     const t = (await this.timers.timersState().catch(() => undefined))?.timers.find((x) => x.name === `${PRUNE_TIMER}.timer`)
     if (t) s.prune = { every: t.calendars.some((c) => c.includes('-01')) || t.managed?.calendar.includes('-01') ? 'monthly' : 'weekly', ...(t.last ? { last: t.last } : {}), ...(t.next ? { next: t.next } : {}) }
     return s
+  }
+
+  // ---------- terminal ----------
+
+  /** A shell as the account that unlocked (root only via sudo), or a shell inside a running container. */
+  async terminalOpen(token: string | undefined, target: { kind: 'shell' } | { kind: 'container'; name: string }, cols: number, rows: number, idleMinutes: number): Promise<TerminalInfo> {
+    this.gate.check(token)
+    const isRoot = process.getuid?.() === 0
+    const demo = !!config().fixturesDir
+    const user = demo || isRoot ? (this.gate.userOf(token) ?? 'root') : userInfo().username
+    const idleMs = Math.min(240, Math.max(1, idleMinutes)) * 60_000
+    const env = { PATH: process.env.PATH ?? '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin', LANG: process.env.LANG ?? 'C.UTF-8' }
+    if (target.kind === 'container') {
+      if (!CONTAINER_NAME.test(target.name)) throw new HttpError(400, msg('terminal_error_container'))
+      // --detach-keys= : Ctrl-P Ctrl-Q stays with the program inside
+      const argv = ['podman', 'exec', '-it', '--detach-keys=', target.name, 'sh', '-c', 'if command -v bash >/dev/null 2>&1; then exec bash; else exec sh; fi']
+      return this.terminal.open({ argv, env, cols, rows, owner: token ?? 'none', label: target.name, kind: 'container', user: 'root', idleMs })
+    }
+    // runuser -l: the user's own login shell and environment, as after an SSH login
+    const argv = !isRoot ? [process.env.SHELL || 'bash', '-l'] : user === 'root' ? ['su', '-l', 'root'] : ['runuser', '-l', user]
+    return this.terminal.open({ argv, env: { ...env, ...(isRoot ? {} : { HOME: process.env.HOME ?? '/' }) }, cols, rows, owner: token ?? 'none', label: `${user}@${hostname()}`, kind: 'shell', user, idleMs })
+  }
+  terminalStream(id: string) {
+    return this.terminal.stream(id)
+  }
+  async terminalInput(id: string, data: string) {
+    this.terminal.input(id, data)
+  }
+  async terminalResize(id: string, cols: number, rows: number) {
+    this.terminal.resize(id, cols, rows)
+  }
+  async terminalClose(id: string) {
+    this.terminal.close(id)
   }
 
   // ---------- Podman secrets ----------

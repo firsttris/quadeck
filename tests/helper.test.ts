@@ -146,6 +146,13 @@ describe('helper over a Unix socket', () => {
     expect(s.disks.map((d) => d.kind)).toContain('nvme')
   })
 
+  it('opens no terminal without unlock; unknown sessions are refused', async () => {
+    await expect(client.terminalOpen(undefined, { kind: 'shell' }, 80, 24, 15)).rejects.toMatchObject({ status: 423 })
+    await expect(client.terminalOpen('forged', { kind: 'container', name: 'jellyfin' }, 80, 24, 15)).rejects.toMatchObject({ status: 423 })
+    await expect(client.terminalInput('nope', 'ls\r')).rejects.toMatchObject({ status: 404 })
+    await expect(client.terminalStream('nope')).rejects.toMatchObject({ status: 404 })
+  })
+
   it('creates, removes or moves no secret without unlock', async () => {
     await expect(client.createSecret(undefined, 'x', 'v', false)).rejects.toMatchObject({ status: 423 })
     await expect(client.removeSecret('forged', 'x')).rejects.toMatchObject({ status: 423 })
