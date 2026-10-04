@@ -15,6 +15,8 @@ import { diskSize, num, relative } from '~/lib/format'
 import { msg } from '~/shared/i18n'
 import { assessSmart, attributeLevel, describeNote, describeReason, hintText, smartHints, type SmartAssessment, type SmartBaseline, type SmartDisk, type SmartLevel, type SmartReport, type TempSensorGap } from '~/shared/smart'
 import { m } from '~/paraglide/messages'
+import { PowerDialog, PowerRow, type PowerInfo } from '~/components/DiskPower'
+import { dailyWakes, type DiskPower } from '~/shared/power'
 import { pickMsg } from '~/i18n'
 
 export const Route = createFileRoute('/_app/disks')({
@@ -65,6 +67,8 @@ function Smart() {
   const [error, setError] = useState('')
   const [reading, setReading] = useState(false)
   const [detail, setDetail] = useState<SmartDisk | null>(null)
+  const [power, setPower] = useState<PowerInfo | null>(null)
+  const [powerDisk, setPowerDisk] = useState<string | null>(null)
 
   const load = useCallback(async () => {
     try {
@@ -79,6 +83,9 @@ function Smart() {
   }, [])
   useEffect(() => {
     void load()
+    api<PowerInfo>('/api/disks/power', { method: 'GET' })
+      .then(setPower)
+      .catch(() => {})
   }, [load])
 
   const readNow = async () => {
@@ -133,7 +140,7 @@ function Smart() {
         <>
           <div className="grid grid-cols-1 gap-[18px] xl:grid-cols-2">
             {assessed.map(({ disk, a }) => (
-              <DiskCard key={disk.name} disk={disk} a={a} onDetail={() => setDetail(disk)} onReport={setReport} />
+              <DiskCard key={disk.name} disk={disk} a={a} onDetail={() => setDetail(disk)} onReport={setReport} power={power?.disks.find((p) => p.name === disk.name)} wakes={power?.wakes[disk.name]} onPower={() => setPowerDisk(disk.name)} />
             ))}
           </div>
           <p className="m-0 text-[12px] text-muted" suppressHydrationWarning>
@@ -141,6 +148,12 @@ function Smart() {
           </p>
         </>
       )}
+      {power && !power.installed && power.disks.length > 0 && (
+        <section className="panel" aria-label={m.power_install()}>
+          <InstallHint feature="hdparm" what={m.power_installWhat()} onInstalled={() => void api<PowerInfo>('/api/disks/power', { method: 'GET' }).then(setPower)} />
+        </section>
+      )}
+      {power && powerDisk && power.disks.find((d) => d.name === powerDisk) && <PowerDialog disk={power.disks.find((d) => d.name === powerDisk)!} info={power} onClose={() => setPowerDisk(null)} onSaved={setPower} />}
       <DetailDialog disk={detail} baseline={detail ? report?.baselines?.[detail.id] : undefined} onClose={() => setDetail(null)} />
     </>
   )
@@ -156,7 +169,7 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: Ton
   )
 }
 
-function DiskCard({ disk: d, a, onDetail, onReport }: { disk: SmartDisk; a: SmartAssessment; onDetail: () => void; onReport: (r: SmartReport) => void }) {
+function DiskCard({ disk: d, a, onDetail, onReport, power, wakes, onPower }: { disk: SmartDisk; a: SmartAssessment; onDetail: () => void; onReport: (r: SmartReport) => void; power?: DiskPower; wakes?: number; onPower: () => void }) {
   const say = useToast()
   const guarded = useGuardedApi()
   const { readonly } = useActions()
@@ -225,6 +238,7 @@ function DiskCard({ disk: d, a, onDetail, onReport }: { disk: SmartDisk; a: Smar
         </ul>
       )}
       {(!d.supported || d.standby) && <p className="m-0 text-[12px] text-muted">{d.standby ? m.disks_card_standbyText() : m.disks_card_unsupportedText({ msg: d.message ?? m.disks_card_noSmartCap() })}</p>}
+      {power && <PowerRow disk={power} wakes={wakes} onEdit={onPower} />}
       {d.supported && !d.standby && !readonly && (
         <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3 text-[12px] text-muted">
           <span className="grow">{d.selfTests[0] ? m.disks_card_lastTest({ type: d.selfTests[0].type, status: d.selfTests[0].status }) : m.disks_card_noTest()}</span>
@@ -240,7 +254,7 @@ function DiskCard({ disk: d, a, onDetail, onReport }: { disk: SmartDisk; a: Smar
   )
 }
 
-type Trends = Partial<Record<'temp' | 'realloc' | 'pending' | 'uncorrectable' | 'crc' | 'wear' | 'media', [number, number][]>>
+type Trends = Partial<Record<'temp' | 'realloc' | 'pending' | 'uncorrectable' | 'crc' | 'wear' | 'media' | 'startstop', [number, number][]>>
 
 function DetailDialog({ disk: d, baseline, onClose }: { disk: SmartDisk | null; baseline?: SmartBaseline; onClose: () => void }) {
   const [days, setDays] = useState(90)
@@ -311,6 +325,21 @@ function DetailDialog({ disk: d, baseline, onClose }: { disk: SmartDisk | null; 
                 now={now}
                 format={(v) => `${Math.round(v)} °C`}
                 height={110}
+              />
+            </section>
+          )}
+          {!!trends?.startstop && dailyWakes(trends.startstop).length > 1 && (
+            <section aria-label={m.power_wakesHistory()} className="pb-5">
+              <h3 className="m-0 mb-1 text-[13px] font-semibold">{m.power_wakesHistory()}</h3>
+              <HistoryChart
+                detailed
+                label={`${d.name} ${m.power_wakesHistory()}`}
+                series={[{ label: m.power_wakesHistory(), color: '#7cc4b8', points: dailyWakes(trends.startstop) }]}
+                span={span}
+                now={now}
+                format={(v) => String(Math.round(v))}
+                yMin={0}
+                height={90}
               />
             </section>
           )}

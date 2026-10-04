@@ -47,7 +47,7 @@ export function pruneHistory(d: DB, now = Date.now()) {
   d.delete(t).where(lt(t.ts, now - SMART_KEEP_MS)).run()
 }
 
-export const SMART_METRICS = ['temp', 'realloc', 'pending', 'uncorrectable', 'crc', 'wear', 'media'] as const
+export const SMART_METRICS = ['temp', 'realloc', 'pending', 'uncorrectable', 'crc', 'wear', 'media', 'startstop'] as const
 export type SmartMetric = (typeof SMART_METRICS)[number]
 
 /** One disk's SMART trends ([ts, value] per metric), daily averages beyond 30 days. */
@@ -147,7 +147,9 @@ export function seedSmartHistory(d: DB, disks: { id: string; samples: { key: str
       const hour = new Date(ts).getHours()
       for (const s of disk.samples) {
         let v = s.value
-        if (s.key === 'temp') v = s.value - 3 + 4 * Math.max(0, Math.sin(((hour - 8) / 24) * 2 * Math.PI)) + ((h * 7919) % 10) / 10
+        // Spin-ups: a steady few per day (differs per disk), up to today's count.
+        if (s.key === 'startstop') v = Math.max(0, s.value - Math.round((h / 24) * (4 + (disk.id.length * 7) % 23)))
+        else if (s.key === 'temp') v = s.value - 3 + 4 * Math.max(0, Math.sin(((hour - 8) / 24) * 2 * Math.PI)) + ((h * 7919) % 10) / 10
         // Counters grew over time to today's value (the interesting part of the demo).
         else if (s.value > 0) v = Math.floor(s.value * Math.min(1, Math.max(0, (age - 0.4) / 0.6)) ** 0.7)
         rows.push({ ts, metric: `smart:${disk.id}:${s.key}`, value: v })

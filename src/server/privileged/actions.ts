@@ -24,6 +24,8 @@ import type { UsersAdmin } from '../users/backend'
 import type { HardwareAdmin } from '../hardware/collect'
 import type { CaddyAdmin } from '../caddy/backend'
 import type { BackupAdmin } from '../backup/backend'
+import type { PowerAdmin } from '../smart/power'
+import type { PowerSetting, PowerState } from '~/shared/power'
 import type { BackupPlan, BackupState, TargetConfig, TargetState } from '~/shared/backup'
 import type { ClientPlan } from '~/shared/backup-client'
 import type { CaddyChange, CaddyResult, CaddyState } from '~/shared/caddy'
@@ -42,7 +44,7 @@ export type UnitAction = 'start' | 'stop' | 'restart'
 export const UNIT_ACTIONS: readonly UnitAction[] = ['start', 'stop', 'restart']
 
 /** Package/image reads need no unlock (they change nothing); jobs do. */
-export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAdmin, SmartAdmin, FilesAdmin, TimersAdmin, UnitEditorAdmin, NetworkAdmin, FstabAdmin, BootAdmin, UsersAdmin, HardwareAdmin, CaddyAdmin, BackupAdmin {
+export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAdmin, SmartAdmin, FilesAdmin, TimersAdmin, UnitEditorAdmin, NetworkAdmin, FstabAdmin, BootAdmin, UsersAdmin, HardwareAdmin, CaddyAdmin, BackupAdmin, PowerAdmin {
   readonly kind: 'local' | 'helper'
   info(): Promise<UnlockInfo>
   unlock(user: string, password: string): Promise<{ token: string; expiresAt: number }>
@@ -103,6 +105,8 @@ export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAd
   backupDump(token: string | undefined, snapshot: string, path: string): Promise<Response>
   /** Backup target for clients: the rest-server Quadlet plus its data folder. */
   setupTarget(token: string | undefined, config: TargetConfig): Promise<TargetState>
+  /** Standby time and APM of a disk (by serial); null removes Quadeck's rule. */
+  setDiskPower(token: string | undefined, serial: string, setting: PowerSetting | null): Promise<PowerState>
   removeTarget(token: string | undefined): Promise<TargetState>
   addBackupClient(token: string | undefined, name: string, warnDays: number | undefined): Promise<{ password: string }>
   updateBackupClient(token: string | undefined, name: string, change: { warnDays?: number | null; disabled?: boolean }): Promise<TargetState>

@@ -61,6 +61,45 @@ reallocated sector that has been there for a year is not. The history opens per 
 **Short test** (a few minutes) and **Long test** (hours, the whole surface) start through the
 helper and need the [unlock](security.md#unlock). Progress and the test log are shown on the disk.
 
+### Energy saving (standby)
+
+Every hard disk card has a **Standby** line: whether the disk is awake or asleep (`hdparm -C`, which
+does not wake it), Quadeck's standby setting, and how often the disk spun up per day over the last
+week. The rate comes from the SMART Start/Stop counter, which is now kept in the history too. SSDs
+and NVMe disks manage their power themselves and have no such line.
+
+**Energy saving …** opens a dialog per disk:
+
+- **Standby after**: never, 10, 20 or 30 minutes, 1 or 2 hours (`hdparm -S`). For data and media
+  disks 20–30 minutes is a good value. A shorter time means more spin-ups, and every spin-up wears
+  the motor and heads. Above 24 spin-ups a day the line turns yellow and the dialog suggests a
+  longer time.
+- **The disk's own power management (APM)** (`hdparm -B`):
+  - *let the disk decide*: the default, nothing is set;
+  - *save power* (127): the disk may park its heads and spin down by itself;
+  - *performance* (254): it never spins down by itself, against constant head parking.
+
+  The current APM level is shown when the disk is awake. Reading it while the disk sleeps could
+  wake it.
+- **What keeps it awake?** lists the programs with files open on the disk's mounts right now,
+  with their systemd unit. Whatever wakes a disk only briefly (media scans, logs, indexers) does not
+  always show up there.
+- Not offered: the system disk (`/`, `/boot`, `/var`, `/usr`, `/home`), members of an md RAID (the
+  array decides), and disks without a serial number.
+- USB enclosures often do not pass the standby command on. The dialog then points to `hd-idle`.
+
+Saving needs the unlock. It writes one line per disk into
+`/etc/udev/rules.d/69-quadeck-power.rules`, matched by the **serial number**, never by `/dev/sdX`,
+with a history in `/var/lib/quadeck-helper/power-history`. Then it reloads udev and applies the
+setting right away. The rule runs again whenever the disk appears, after a reboot or replugging.
+**Remove setting** deletes the line and switches the disk's standby timer off (`-S 0`).
+
+The standby time a disk uses cannot be read back from the disk. Quadeck shows what its own rule
+says, and lists other places that also set standby (own udev rules with `hdparm -S`,
+`spindown_time` in `/etc/hdparm.conf`, `hd-idle`) instead of overwriting them.
+
+Without hdparm the page offers to install it.
+
 ### On the overview
 
 The storage card shows a SMART dot per disk; the sidebar badge counts disks with a finding. Both

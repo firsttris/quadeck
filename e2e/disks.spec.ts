@@ -60,6 +60,42 @@ test.describe.serial('Festplatten', () => {
 })
 
 test.describe.serial('Dateien', () => {
+  test('energy saving: standby per disk, spin-ups, what keeps it awake', async ({ page }) => {
+    await login(page)
+    await page.goto('/disks')
+    const sda = page.getByRole('region', { name: 'Platte sda' })
+    await expect(sda.getByTestId('disk-power')).toContainText('nach 20 min')
+    await expect(sda.getByTestId('disk-power')).toContainText(/pro Tag angelaufen/)
+    // The disk that sleeps: no SMART values, but its standby line.
+    await expect(page.getByRole('region', { name: 'Platte sdd' }).getByTestId('disk-power')).toContainText('schläft')
+    await expect(page.getByRole('region', { name: 'Platte nvme0n1' }).getByTestId('disk-power')).toHaveCount(0) // SSDs manage themselves
+
+    const sdb = page.getByRole('region', { name: 'Platte sdb' })
+    await expect(sdb.getByTestId('disk-power')).toContainText('Standby nicht eingestellt')
+    await sdb.getByRole('button', { name: 'Energiesparen für sdb' }).click()
+    const dlg = page.getByRole('dialog', { name: /Energiesparen – sdb/ })
+    await expect(dlg).toContainText('APM jetzt: off')
+    await dlg.getByRole('button', { name: 'Nachsehen' }).click()
+    await expect(dlg.getByRole('list', { name: 'Was hält sie wach?' })).toContainText('jellyfin.service')
+    await dlg.getByLabel('Standby nach').selectOption('30')
+    await dlg.getByRole('radio', { name: /Leistung \(254\)/ }).check()
+    await dlg.getByRole('button', { name: 'Speichern' }).click()
+    await unlock(page)
+    await expect(page.getByRole('status')).toContainText('sdb: Standby nach 30 min')
+    await expect(sdb.getByTestId('disk-power')).toContainText('nach 30 min')
+
+    // USB enclosure: a hint about hd-idle.
+    await page.getByRole('region', { name: 'Platte sdd' }).getByRole('button', { name: 'Energiesparen für sdd' }).click()
+    const usb = page.getByRole('dialog', { name: /Energiesparen – sdd/ })
+    await expect(usb).toContainText('hd-idle')
+    await usb.getByRole('button', { name: 'Einstellung entfernen' }).click()
+    await expect(page.getByRole('status')).toContainText('sdd: Quadecks Einstellung entfernt')
+
+    // Spin-ups over time in the details.
+    await sda.getByRole('button', { name: 'Details zu sda' }).click()
+    await expect(page.getByRole('region', { name: 'Anläufe pro Tag' })).toBeVisible()
+  })
+
   test('browse, new folder, copy and paste, rename, delete', async ({ page }) => {
     await login(page)
     await page.goto('/files')

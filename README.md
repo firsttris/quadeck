@@ -75,7 +75,7 @@ a reverse proxy and uninstalling are in the [installation guide](docs/installati
 | ⬆️ **Updates** | pacman (with AUR), apt, dnf, zypper, apk, rpm-ostree and container images as live jobs; reboot hints and Arch news |
 | 🥾 **Boot** | Reboot, boot once into another entry, edit systemd-boot entries in a form with every kernel parameter explained (copy, test once, then make it the default), second kernel on Arch |
 | 🛟 **Backups** | restic to a second disk, NAS, B2/S3 or a REST server; what to back up suggested from the Quadlets, databases stopped meanwhile, snapshots to browse and restore; a rest-server as backup target for the other Linux computers, set up with a one-line script and a warning when one falls behind |
-| 💽 **Disks & files** | SMART health with plain advice and a year of history, an fstab editor that checks every change; a file explorer that edits text files and opens photos, PDFs and videos in the browser |
+| 💽 **Disks & files** | SMART health with plain advice and a year of history, standby time per disk with spin-ups per day, an fstab editor that checks every change; a file explorer that edits text files and opens photos, PDFs and videos in the browser |
 | 🌐 **Network & reverse proxy** | Interfaces, ports with the container behind them, firewall; Caddy domains in a dialog (home network only, password, compression …) |
 | 🚀 **Speed test** | This device ↔ server and server ↔ internet (Cloudflare) with a live gauge in Mbit/s and MB/s; optional daily runs with a graph and an alert when the line gets slow |
 | 🔐 **Users, shares & SSH** | Accounts and groups, SMB and NFS shares, SSH keys and hardening with a lock-out guard |
