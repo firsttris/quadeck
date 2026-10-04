@@ -54,6 +54,7 @@ import { Route as ApiLayoutIndexRouteImport } from './routes/api/layout/index'
 import { Route as ApiLayoutHiddenRouteImport } from './routes/api/layout/hidden'
 import { Route as ApiLinksIndexRouteImport } from './routes/api/links/index'
 import { Route as ApiLinksIdRouteImport } from './routes/api/links/$id'
+import { Route as ApiMetricsContainersRouteImport } from './routes/api/metrics/containers'
 import { Route as ApiMetricsHistoryRouteImport } from './routes/api/metrics/history'
 import { Route as ApiNetworkIndexRouteImport } from './routes/api/network/index'
 import { Route as ApiNetworkDevicesRouteImport } from './routes/api/network/devices'
@@ -306,6 +307,11 @@ const ApiLinksIdRoute = ApiLinksIdRouteImport.update({
   path: '/api/links/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiMetricsContainersRoute = ApiMetricsContainersRouteImport.update({
+  id: '/api/metrics/containers',
+  path: '/api/metrics/containers',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiMetricsHistoryRoute = ApiMetricsHistoryRouteImport.update({
   id: '/api/metrics/history',
   path: '/api/metrics/history',
@@ -478,6 +484,7 @@ export interface FileRoutesByFullPath {
   '/api/jobs/$id': typeof ApiJobsIdRoute
   '/api/layout/hidden': typeof ApiLayoutHiddenRoute
   '/api/links/$id': typeof ApiLinksIdRoute
+  '/api/metrics/containers': typeof ApiMetricsContainersRoute
   '/api/metrics/history': typeof ApiMetricsHistoryRoute
   '/api/network/devices': typeof ApiNetworkDevicesRoute
   '/api/podman/settings': typeof ApiPodmanSettingsRoute
@@ -551,6 +558,7 @@ export interface FileRoutesByTo {
   '/api/jobs/$id': typeof ApiJobsIdRoute
   '/api/layout/hidden': typeof ApiLayoutHiddenRoute
   '/api/links/$id': typeof ApiLinksIdRoute
+  '/api/metrics/containers': typeof ApiMetricsContainersRoute
   '/api/metrics/history': typeof ApiMetricsHistoryRoute
   '/api/network/devices': typeof ApiNetworkDevicesRoute
   '/api/podman/settings': typeof ApiPodmanSettingsRoute
@@ -626,6 +634,7 @@ export interface FileRoutesById {
   '/api/jobs/$id': typeof ApiJobsIdRoute
   '/api/layout/hidden': typeof ApiLayoutHiddenRoute
   '/api/links/$id': typeof ApiLinksIdRoute
+  '/api/metrics/containers': typeof ApiMetricsContainersRoute
   '/api/metrics/history': typeof ApiMetricsHistoryRoute
   '/api/network/devices': typeof ApiNetworkDevicesRoute
   '/api/podman/settings': typeof ApiPodmanSettingsRoute
@@ -701,6 +710,7 @@ export interface FileRouteTypes {
     | '/api/jobs/$id'
     | '/api/layout/hidden'
     | '/api/links/$id'
+    | '/api/metrics/containers'
     | '/api/metrics/history'
     | '/api/network/devices'
     | '/api/podman/settings'
@@ -774,6 +784,7 @@ export interface FileRouteTypes {
     | '/api/jobs/$id'
     | '/api/layout/hidden'
     | '/api/links/$id'
+    | '/api/metrics/containers'
     | '/api/metrics/history'
     | '/api/network/devices'
     | '/api/podman/settings'
@@ -848,6 +859,7 @@ export interface FileRouteTypes {
     | '/api/jobs/$id'
     | '/api/layout/hidden'
     | '/api/links/$id'
+    | '/api/metrics/containers'
     | '/api/metrics/history'
     | '/api/network/devices'
     | '/api/podman/settings'
@@ -908,6 +920,7 @@ export interface RootRouteChildren {
   ApiJobsIdRoute: typeof ApiJobsIdRoute
   ApiLayoutHiddenRoute: typeof ApiLayoutHiddenRoute
   ApiLinksIdRoute: typeof ApiLinksIdRoute
+  ApiMetricsContainersRoute: typeof ApiMetricsContainersRoute
   ApiMetricsHistoryRoute: typeof ApiMetricsHistoryRoute
   ApiNetworkDevicesRoute: typeof ApiNetworkDevicesRoute
   ApiPodmanSettingsRoute: typeof ApiPodmanSettingsRoute
@@ -1263,6 +1276,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiLinksIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/metrics/containers': {
+      id: '/api/metrics/containers'
+      path: '/api/metrics/containers'
+      fullPath: '/api/metrics/containers'
+      preLoaderRoute: typeof ApiMetricsContainersRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/metrics/history': {
       id: '/api/metrics/history'
       path: '/api/metrics/history'
@@ -1515,6 +1535,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiJobsIdRoute: ApiJobsIdRoute,
   ApiLayoutHiddenRoute: ApiLayoutHiddenRoute,
   ApiLinksIdRoute: ApiLinksIdRoute,
+  ApiMetricsContainersRoute: ApiMetricsContainersRoute,
   ApiMetricsHistoryRoute: ApiMetricsHistoryRoute,
   ApiNetworkDevicesRoute: ApiNetworkDevicesRoute,
   ApiPodmanSettingsRoute: ApiPodmanSettingsRoute,

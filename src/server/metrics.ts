@@ -43,8 +43,10 @@ export const SMART_KEEP_MS = 365 * 24 * 3600_000
 export function pruneHistory(d: DB, now = Date.now()) {
   const t = schema.metricSamples
   // SMART trends and speed tests are kept for a year, energy for two (below), everything else for KEEP_MS.
-  d.delete(t).where(and(lt(t.ts, now - KEEP_MS), sql`${t.metric} NOT LIKE 'smart:%'`, sql`${t.metric} NOT LIKE 'speed:%'`, sql`${t.metric} NOT LIKE 'energy:%'`)).run()
+  d.delete(t).where(and(lt(t.ts, now - KEEP_MS), sql`${t.metric} NOT LIKE 'smart:%'`, sql`${t.metric} NOT LIKE 'speed:%'`, sql`${t.metric} NOT LIKE 'energy:%'`, sql`${t.metric} NOT LIKE 'ct:%'`)).run()
   d.delete(t).where(and(lt(t.ts, now - SMART_KEEP_MS), sql`${t.metric} NOT LIKE 'energy:%'`)).run()
+  // per container: 30 days
+  d.delete(t).where(and(lt(t.ts, now - 30 * 86_400_000), sql`${t.metric} LIKE 'ct:%'`)).run()
   // energy per hour: two years
   d.delete(t).where(and(lt(t.ts, now - 2 * SMART_KEEP_MS), sql`${t.metric} LIKE 'energy:%'`)).run()
 }

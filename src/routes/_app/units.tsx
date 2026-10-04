@@ -8,6 +8,7 @@ import { useToast } from '~/components/Toast'
 import { useGuardedApi } from '~/components/Unlock'
 import { Sparkline } from '~/components/Sparkline'
 import { TimersView } from '~/components/Timers'
+import { ContainerUsageView } from '~/components/ContainerUsage'
 import { containerState, Pill, unitState, unitTone, type Tone } from '~/components/Status'
 import { age, bytes, num } from '~/lib/format'
 import { useLive } from '~/lib/live'
@@ -16,8 +17,10 @@ import { buildRows, FILTER_KEYS, failed, filters, matches, type Filter, type Row
 import { m } from '~/paraglide/messages'
 
 export const Route = createFileRoute('/_app/units')({
-  validateSearch: (s: Record<string, unknown>): { filter?: Filter } => ({
+  validateSearch: (s: Record<string, unknown>): { filter?: Filter; view?: 'usage'; container?: string } => ({
     filter: FILTER_KEYS.some((k) => k === s.filter) ? (s.filter as Filter) : undefined,
+    view: s.view === 'usage' ? 'usage' : undefined,
+    container: typeof s.container === 'string' && /^[\w.-]{1,128}$/.test(s.container) ? s.container : undefined,
   }),
   head: () => ({ meta: [{ title: 'Units · Quadeck' }] }),
   component: Units,
@@ -48,7 +51,7 @@ function Units() {
   const { snapshot } = useLive()
   const rows = buildRows(snapshot.units, snapshot.containers)
   const hasContainers = rows.some((r) => matches(r, 'container'))
-  const { filter = hasContainers ? 'container' : 'all' } = Route.useSearch()
+  const { filter = hasContainers ? 'container' : 'all', view, container } = Route.useSearch()
   const { run, busy, readonly } = useActions()
   const shown = rows.filter((r) => matches(r, filter))
   // Failed first, then containers, then by name.
@@ -71,13 +74,21 @@ function Units() {
           {m.units_quadletFiles()}
         </Link>
       </PageHeader>
-      <div role="group" aria-label={m.units_filter()} className="flex flex-wrap gap-1.5">
-        {filters().map(([k, label]) => (
-          <Link key={k} to="/units" search={{ filter: k }} className={`seg ${filter === k ? 'on' : ''}`} aria-current={filter === k ? 'true' : undefined}>
-            {label}
-            <span className="opacity-60">{counts[k]}</span>
+      <div className="flex flex-wrap items-center gap-1.5">
+        <div role="group" aria-label={m.units_filter()} className="flex flex-wrap gap-1.5">
+          {filters().map(([k, label]) => (
+            <Link key={k} to="/units" search={{ filter: k }} className={`seg ${filter === k && view !== 'usage' ? 'on' : ''}`} aria-current={filter === k && view !== 'usage' ? 'true' : undefined}>
+              {label}
+              <span className="opacity-60">{counts[k]}</span>
+            </Link>
+          ))}
+        </div>
+        <span className="grow" />
+        {hasContainers && (
+          <Link to="/units" search={{ view: 'usage' }} className={`seg ${view === 'usage' ? 'on' : ''}`} aria-current={view === 'usage' ? 'true' : undefined}>
+            {m.usage_tab()}
           </Link>
-        ))}
+        )}
       </div>
       {snapshot.sources.systemd.error && (
         <p className="m-0 text-[13px] text-[#e3b341]">
@@ -89,7 +100,9 @@ function Units() {
           {m.units_podmanDown()} {snapshot.sources.podman.error}
         </p>
       )}
-      {filter === 'timer' ? (
+      {view === 'usage' ? (
+        <ContainerUsageView open={container} />
+      ) : filter === 'timer' ? (
         <TimersView />
       ) : (
         <div className="panel relative overflow-x-auto">
@@ -154,6 +167,7 @@ function UnitRow({ row, run, busy, readonly }: { row: Row; run: ReturnType<typeo
   }
   const items: MenuItem[] = [
     ...(u ? [{ label: m.common_journal(), onSelect: () => void navigate({ to: '/journal', search: { unit: u.name } }) }] : []),
+    ...(c ? [{ label: m.usage_menu(), onSelect: () => void navigate({ to: '/units', search: { view: 'usage', container: c.name } }) }] : []),
     ...(u?.quadlet
       ? [{ label: m.units_editQuadlet(), onSelect: () => void navigate({ to: '/quadlets', search: { file: u.quadlet!.file } }) }]
       : u
