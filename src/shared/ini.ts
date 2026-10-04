@@ -2,6 +2,7 @@
 // keys keeps every other line (comments, unknown keys, order) unchanged, so
 // the form and the text view can work on the same file.
 
+import { isSensitive, splitEnvironment } from './secrets'
 import { msg } from './i18n'
 import { QUADLET_KEYS, QUADLET_SECTION } from './quadlet-keys'
 import type { Diagnostic, QuadletType } from './quadlets'
@@ -134,6 +135,7 @@ export function lintQuadlet(text: string, type: QuadletType): Diagnostic[] {
     }
     if (!doc.multi && seen.has(e.key!)) diags.push({ line, severity: 'warning', message: msg('ini_lint_duplicateKey', { key: e.key ?? '', line }) })
     seen.set(e.key!, line)
+    if (e.key === 'Environment' && e.value) for (const a of splitEnvironment(e.value)) if (isSensitive(a.key) && a.value && !/^\$\{?\w+\}?$/.test(a.value)) diags.push({ line, severity: 'warning', message: msg('ini_lint_plainSecret', { key: a.key }) })
     if (doc.options && e.value && !doc.options.includes(e.value)) diags.push({ line, severity: 'warning', message: msg('ini_lint_unexpectedValue', { key: e.key ?? '', value: e.value, list: doc.options.filter(Boolean).join(', ') }) })
   }
   if (!entries.some((e) => e.kind === 'section' && e.section === main)) diags.push({ severity: 'error', message: msg('ini_lint_sectionMissing', { main }) })
