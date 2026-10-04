@@ -7,9 +7,10 @@ import { privileged } from '~/server/privileged'
 import { unlockToken } from '~/server/unlock-sessions'
 
 // GET: roots, ?path=… the folder content, ?read=… a text file, ?raw=…[&download=1] the file itself
-// for the browser (Range for video; keys and secrets only when unlocked).
+// for the browser (Range for video; keys and secrets only when unlocked), ?archive=…&toDir=… what
+// unpacking would do (checked), ?tools zip/unzip installed.
 // POST { mkdir: path } | { rename: { path, name } } | { write: { path, content, expected } } (unlock).
-// Copy/move/delete run as jobs (/api/jobs).
+// Copy/move/delete, unpacking and packing run as jobs (/api/jobs).
 export const Route = createFileRoute('/api/files/')({
   server: {
     handlers: {
@@ -19,6 +20,9 @@ export const Route = createFileRoute('/api/files/')({
         const p = privileged()
         const raw = q.get('raw')
         if (raw !== null) return p.fileResponse(unlockToken(session.id), raw, { range: request.headers.get('range'), download: q.get('download') === '1' })
+        const archive = q.get('archive')
+        if (archive !== null) return Response.json(await p.archivePreview(unlockToken(session.id), archive, q.get('toDir') ?? ''))
+        if (q.get('tools') !== null) return Response.json(await p.archiveTools())
         const read = q.get('read')
         if (read !== null) return Response.json(await p.readTextFile(unlockToken(session.id), read))
         if (path === null) return Response.json({ roots: await p.fileRoots() })

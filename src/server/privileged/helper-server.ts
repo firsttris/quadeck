@@ -115,6 +115,8 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/files/roots': async (_b, p) => ({ data: await p.fileRoots() }),
   '/files/list': (b, p) => p.listDir(str(b.path) ?? ''),
   '/files/read': (b, p) => p.readTextFile(str(b.token), str(b.path) ?? ''),
+  '/files/archive': (b, p) => p.archivePreview(str(b.token), str(b.archive) ?? '', str(b.toDir) ?? ''),
+  '/files/archive-tools': (_b, p) => p.archiveTools(),
   // A Response: streamed as it is (see handleHelperRequest).
   '/files/raw': (b, p) => p.fileResponse(str(b.token), str(b.path) ?? '', { range: str(b.range), download: b.download === true }),
   '/files/write': (b, p) => p.writeTextFile(str(b.token), str(b.path) ?? '', str(b.content) ?? '', str(b.expected) ?? ''),

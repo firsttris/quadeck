@@ -9,6 +9,8 @@ import { join } from 'node:path'
 import { HttpError } from '../auth'
 import { msg } from '~/shared/i18n'
 import type { FsOps } from './transfer'
+import { preparePack, previewExtract, systemArchiveHost, type ArchiveHost, type ExtractJob, type PackJob, assertExtractable } from './archives'
+import { normEntry, type ArchiveEntry, type ArchivePreview } from '~/shared/archives'
 import type { OpenedFile } from './serve'
 import { baseName, isSensitivePath, joinPath, looksLikeText, MAX_ENTRIES, parentOf, TEXT_MAX, validateName, validatePath, type DirListing, type FileEntry, type FileRoot, type TextFile } from '~/shared/files'
 
@@ -26,6 +28,10 @@ export interface FilesBackend extends FilesAdmin {
   writeTextFile(path: string, content: string, expected: string): Promise<TextFile>
   /** A file for the browser (new tab or download); same rules as readTextFile. */
   openFile(path: string, allowSensitive: boolean): Promise<OpenedFile>
+  /** What unpacking `archive` into `toDir` would do, with the safety checks (same rules as readTextFile). */
+  archivePreview(archive: string, toDir: string, allowSensitive: boolean): Promise<ArchivePreview>
+  /** zip and unzip installed (for the pack dialog). */
+  archiveTools(): Promise<{ zip: boolean }>
 }
 
 /** Checks shared by the real machine and the demo, before a text file is shown. */
@@ -138,6 +144,16 @@ export function entryFrom(name: string, st: Stats, users: Map<number, string>, g
 
 export class SystemFiles implements FilesBackend {
   constructor(private rootsFn: () => string[] = () => fileRootPaths()) {}
+
+  async archivePreview(archive: string, toDir: string, allowSensitive: boolean) {
+    const host = systemArchiveHost(this.rootsFn())
+    assertReadable(archive, host.file(archive), allowSensitive)
+    return previewExtract(archive, toDir, host)
+  }
+
+  async archiveTools() {
+    return { zip: !!Bun.which('zip') && !!Bun.which('unzip') }
+  }
 
   async fileRoots(): Promise<FileRoot[]> {
     return this.rootsFn().map((path) => {
@@ -276,6 +292,8 @@ interface Node {
 /** Demo tree in memory; copy/move/delete are applied by the fixture job runner. */
 export class FixtureFiles implements FilesBackend {
   private tree = new Map<string, Node>()
+  /** Contents of the demo archives (the files themselves are just sizes). */
+  private archives = new Map<string, ArchiveEntry[]>()
 
   constructor(private fixtureDir = 'fixtures/demo') {
     const now = Date.now()
@@ -290,7 +308,25 @@ export class FixtureFiles implements FilesBackend {
       }),
     )
     const sample = (name: string, days = 30): Node => ({ type: 'file', size: statSync(join(this.fixtureDir, 'files', name)).size, mtime: now - 86_400_000 * days, owner: 'tristan', source: join(this.fixtureDir, 'files', name) })
-    this.tree.set('/mnt/disk2', dir('root', { Fotos: dir('tristan', { '2024': dir('tristan', { 'IMG_0001.jpg': sample('photo.jpg', 300), 'IMG_0002.jpg': file(3_900_000, 300) }) }), Backup: dir('root') }))
+    const archive = (size: number, entries: ArchiveEntry[]) => (path: string) => {
+      this.archives.set(path, entries)
+      return file(size, 120)
+    }
+    const fotos2019 = archive(48_000_000, [
+      { path: 'fotos-2019/', type: 'dir', size: 0 },
+      { path: 'fotos-2019/urlaub/', type: 'dir', size: 0 },
+      { path: 'fotos-2019/urlaub/IMG_2019_001.jpg', type: 'file', size: 4_100_000 },
+      { path: 'fotos-2019/urlaub/IMG_2019_002.jpg', type: 'file', size: 3_800_000 },
+      { path: 'fotos-2019/weihnachten.jpg', type: 'file', size: 5_200_000 },
+    ])
+    // a crafted archive: paths leaving the target, a link to /root, a setuid file
+    const fremd = archive(20_000, [
+      { path: 'readme.txt', type: 'file', size: 120 },
+      { path: '../../etc/cron.d/backdoor', type: 'file', size: 64 },
+      { path: 'home', type: 'link', size: 0, target: '/root' },
+      { path: 'tool', type: 'file', size: 9000, special: true },
+    ])
+    this.tree.set('/mnt/disk2', dir('root', { Archiv: dir('tristan', { 'fotos-2019.tar.gz': fotos2019('/mnt/disk2/Archiv/fotos-2019.tar.gz'), 'fremd.tar.gz': fremd('/mnt/disk2/Archiv/fremd.tar.gz') }), Fotos: dir('tristan', { '2024': dir('tristan', { 'IMG_0001.jpg': sample('photo.jpg', 300), 'IMG_0002.jpg': file(3_900_000, 300) }) }), Backup: dir('root') }))
     const text = (content: string, days = 5): Node => ({ type: 'file', size: new TextEncoder().encode(content).length, mtime: now - 86_400_000 * days, owner: 'tristan', content })
     this.tree.set(
       '/srv',
@@ -400,6 +436,81 @@ export class FixtureFiles implements FilesBackend {
     if (parent.children!.has(newName)) throw new HttpError(409, msg('files_error_renameExists', { newName }))
     parent.children!.delete(baseName(path))
     parent.children!.set(newName, n)
+  }
+
+  archiveHost(): ArchiveHost {
+    const node = (p: string) => this.node(p)
+    return {
+      file: (p) => {
+        this.rootOf(p)
+        const n = node(p)
+        if (!n) throw new HttpError(404, msg('files_error_notFound', { path: p }))
+        if (n.type !== 'file') throw new HttpError(400, msg('files_error_notAFile', { path: p }))
+        return p
+      },
+      dir: (p) => {
+        this.rootOf(p)
+        const n = node(p)
+        if (n) {
+          if (n.type !== 'dir') throw new HttpError(400, msg('files_error_transferNotFolder', { path: p }))
+          return { real: p, exists: true }
+        }
+        const bad = validateName(baseName(p))
+        if (bad) throw new HttpError(400, bad)
+        if (node(parentOf(p))?.type !== 'dir') throw new HttpError(404, msg('files_error_notFound', { path: parentOf(p) }))
+        return { real: p, exists: false }
+      },
+      exists: (p) => !!node(p),
+      isLink: () => false,
+      free: () => 3_200_000_000_000,
+      list: async (real) => structuredClone(this.archives.get(real) ?? []),
+    }
+  }
+
+  async archivePreview(archive: string, toDir: string, allowSensitive: boolean) {
+    assertReadable(archive, archive, allowSensitive)
+    return previewExtract(archive, toDir, this.archiveHost())
+  }
+
+  async archiveTools() {
+    return { zip: true }
+  }
+
+  /** Runs an extract job on the demo tree; returns the lines tar -v would print. */
+  async extract(spec: ExtractJob): Promise<string[]> {
+    const p = await assertExtractable(spec, this.archiveHost())
+    const owner = this.node(p.create ? parentOf(p.toDir) : p.toDir)!.owner
+    if (p.create) this.node(parentOf(p.toDir))!.children!.set(baseName(p.toDir), { type: 'dir', size: 0, mtime: Date.now(), owner, children: new Map() })
+    const lines: string[] = []
+    for (const e of this.archives.get(spec.archive) ?? []) {
+      const parts = normEntry(e.path).split('/')
+      let n = this.node(p.toDir)!
+      for (const [i, part] of parts.entries()) {
+        const last = i === parts.length - 1
+        if (last && e.type !== 'dir') n.children!.set(part, { type: 'file', size: e.size, mtime: Date.now(), owner })
+        else {
+          if (!n.children!.has(part)) n.children!.set(part, { type: 'dir', size: 0, mtime: Date.now(), owner, children: new Map() })
+          n = n.children!.get(part)!
+        }
+      }
+      lines.push(e.path)
+    }
+    return lines
+  }
+
+  /** Runs a pack job on the demo tree: the new archive lists what it contains. */
+  async pack(spec: PackJob): Promise<string[]> {
+    const { dir, names, out } = preparePack(spec, this.archiveHost())
+    const entries: ArchiveEntry[] = []
+    const walk = (n: Node, path: string) => {
+      entries.push({ path: n.type === 'dir' ? `${path}/` : path, type: n.type, size: n.type === 'file' ? n.size : 0 })
+      for (const [name, c] of n.children ?? []) walk(c, `${path}/${name}`)
+    }
+    for (const name of names) walk(this.node(joinPath(dir, name))!, name)
+    const size = entries.reduce((a, e) => a + e.size, 0)
+    this.node(dir)!.children!.set(baseName(out), { type: 'file', size: Math.max(1, Math.round(size * 0.7)), mtime: Date.now(), owner: this.node(dir)!.owner })
+    this.archives.set(out, entries)
+    return entries.map((e) => `a ${e.path}`)
   }
 
   /** Applies a copy/move/delete job; returns the lines a real run would print. */

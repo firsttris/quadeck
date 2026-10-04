@@ -8,6 +8,8 @@ import { useJobs } from './Jobs'
 import { ConfirmDialog, Modal } from './Modal'
 import { useToast } from './Toast'
 import { TextFileEditor } from './TextFileEditor'
+import { PackDialog, UnpackDialog } from './ArchiveDialogs'
+import { archiveFormat } from '~/shared/archives'
 import { RowMenu } from './RowMenu'
 import { useGuardedApi, useUnlock } from './Unlock'
 import { localeOf } from '~/shared/i18n'
@@ -120,6 +122,8 @@ export function FileExplorer({ path, right, onNavigate, onTwoPanes }: { path?: s
   const [active, setActive] = useState<Side>('left')
   const [hint, setHint] = useState<Mode | null>(null)
   const [dropOn, setDropOn] = useState<Side | null>(null)
+  const [archive, setArchive] = useState<null | { kind: 'unpack'; archive: string; here: string; other?: string } | { kind: 'pack'; dir: string; paths: string[] }>(null)
+  const unpack = (s: Side, path: string) => setArchive({ kind: 'unpack', archive: path, here: panes[s].cur, other: two ? panes[other(s)].cur : undefined })
   const unlock = useUnlock()
   const two = right !== undefined && !!onTwoPanes
   const panes: Record<Side, Pane> = {
@@ -282,6 +286,7 @@ export function FileExplorer({ path, right, onNavigate, onTwoPanes }: { path?: s
         onOpenText={setOpen}
         onOpenRaw={(to, download) => void openRaw(to, download)}
         onSendTo={(mode, name) => sendTo(mode, s, name)}
+        onUnpack={(path) => unpack(s, path)}
         onDragStart={(e, name) => {
           const names = p.selected.has(name) ? [...p.selected] : [name]
           if (!p.selected.has(name)) p.setSelected(new Set([name]))
@@ -406,6 +411,9 @@ export function FileExplorer({ path, right, onNavigate, onTwoPanes }: { path?: s
             <button type="button" className="btn sm" disabled={pane.selected.size !== 1} onClick={renameSelected}>
               {m.files_explorer_rename()}
             </button>
+            <button type="button" className="btn sm" disabled={!pane.selected.size || busyJobs} onClick={() => setArchive({ kind: 'pack', dir: pane.cur, paths: pane.selPaths })}>
+              {m.files_pack_button()}
+            </button>
             <button type="button" className="btn sm danger" disabled={!pane.selected.size || busyJobs} onClick={() => setDialog({ kind: 'delete' })}>
               <Glyph name="trash" size={13} /> {m.common_delete()}
             </button>
@@ -459,6 +467,7 @@ export function FileExplorer({ path, right, onNavigate, onTwoPanes }: { path?: s
             onOpenText={setOpen}
             onOpenRaw={(to, download) => void openRaw(to, download)}
             onSendTo={(mode, name) => sendTo(mode, 'left', name)}
+            onUnpack={(path) => unpack('left', path)}
           />
         )}
         <div className={`border-t border-line px-[18px] py-2 text-[12px] text-muted ${two ? 'hidden sm:block' : ''}`}>
@@ -471,6 +480,8 @@ export function FileExplorer({ path, right, onNavigate, onTwoPanes }: { path?: s
       </section>
 
       {open && <TextFileEditor path={open} onClose={() => setOpen(null)} onSaved={() => void pane.load()} />}
+      {archive?.kind === 'unpack' && <UnpackDialog archive={archive.archive} here={archive.here} other={archive.other} onClose={() => setArchive(null)} />}
+      {archive?.kind === 'pack' && <PackDialog dir={archive.dir} paths={archive.paths} onClose={() => setArchive(null)} />}
       <NameDialog
         open={dialog?.kind === 'mkdir' || dialog?.kind === 'rename'}
         title={dialog?.kind === 'rename' ? m.files_explorer_renameTitle({ name: dialog.entry.name }) : m.files_explorer_newFolder()}
@@ -564,6 +575,7 @@ function PaneView(props: {
   onOpenText: (p: string) => void
   onOpenRaw: (p: string, download: boolean) => void
   onSendTo: (mode: Mode, name: string) => void
+  onUnpack: (path: string) => void
   onDragStart: (e: React.DragEvent, name: string) => void
   onDragOver: (e: React.DragEvent) => void
   onDragLeave: () => void
@@ -608,6 +620,7 @@ function PaneView(props: {
         onOpenText={props.onOpenText}
         onOpenRaw={props.onOpenRaw}
         onSendTo={props.onSendTo}
+        onUnpack={props.onUnpack}
         onDragStart={props.onDragStart}
       />
       <div className="mt-auto flex justify-between gap-2 border-t border-line px-3 py-1.5 text-[11px] text-muted">
@@ -633,6 +646,7 @@ function PaneTable(props: {
   onOpenText: (p: string) => void
   onOpenRaw: (p: string, download: boolean) => void
   onSendTo: (mode: Mode, name: string) => void
+  onUnpack: (path: string) => void
   onDragStart?: (e: React.DragEvent, name: string) => void
 }) {
   const { pane, compact, clip } = props
@@ -670,6 +684,7 @@ function PaneTable(props: {
               ...(e.type === 'file' && ['text', 'unknown'].includes(kind) ? [{ label: m.files_open_editor(), onSelect: () => props.onOpenText(path) }] : []),
               ...(e.type === 'file' && ['text', 'browser'].includes(kind) ? [{ label: m.files_open_tab(), onSelect: () => props.onOpenRaw(path, false) }] : []),
               ...(e.type === 'file' ? [{ label: m.files_open_download(), onSelect: () => props.onOpenRaw(path, true) }] : []),
+              ...(e.type === 'file' && !props.readonly && archiveFormat(e.name) ? [{ label: m.files_menu_unpack(), onSelect: () => props.onUnpack(path), separator: true }] : []),
               ...(send ? [{ label: m.files_menu_copyTo(), onSelect: () => props.onSendTo('copy', e.name), separator: e.type === 'file' }, { label: m.files_menu_moveTo(), onSelect: () => props.onSendTo('move', e.name) }] : []),
             ]
             return (

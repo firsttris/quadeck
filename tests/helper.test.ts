@@ -153,6 +153,14 @@ describe('helper over a Unix socket', () => {
     await expect(client.terminalStream('nope')).rejects.toMatchObject({ status: 404 })
   })
 
+  it('previews archives without unlock, but not keys and secrets', async () => {
+    const p = await client.archivePreview(undefined, '/mnt/disk2/Archiv/fotos-2019.tar.gz', '/mnt/disk2/Archiv/fotos-2019')
+    expect(p).toMatchObject({ format: 'tar.gz', create: true, files: 3, problems: [] })
+    await expect(client.archivePreview(undefined, '/srv/scripts/.env', '/srv/scripts/x')).rejects.toMatchObject({ status: 423 })
+    await expect(client.archivePreview(undefined, '/mnt/disk2/Archiv/fotos-2019.tar.gz', '/etc/x')).rejects.toMatchObject({ status: 403 })
+    expect(await client.archiveTools()).toEqual({ zip: true })
+  })
+
   it('creates, removes or moves no secret without unlock', async () => {
     await expect(client.createSecret(undefined, 'x', 'v', false)).rejects.toMatchObject({ status: 423 })
     await expect(client.removeSecret('forged', 'x')).rejects.toMatchObject({ status: 423 })

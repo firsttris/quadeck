@@ -38,6 +38,8 @@ const DATA: RegExp[] = [
   /^(CPU-Lüfter|Gehäuse vorne|Gehäuse hinten|Temperatur 1|Leistung 1)$/,
   // Share names, app group label and host names of the demo server
   /\b(Medien|Fotos)\b|fotos\.home\.example/i,
+  // The demo's archive disk (/mnt/archiv, LABEL=Archiv) and archive folder (/mnt/disk2/Archiv)
+  /\barchiv\b/i,
   // An SSH key comment, a demo timer description, a demo /etc/passwd line
   /altes-handy|^- anna:x:|macbook-anna/,
   // A bcrypt hash in the Caddyfile (random letters)

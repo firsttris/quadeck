@@ -9,6 +9,7 @@ import type { SshChange, SshPreview, SshState } from '~/shared/ssh'
 import type { SmartReport } from '~/shared/smart'
 import type { SelfTestType } from '../smart/backend'
 import type { DirListing, FileRoot, TextFile } from '~/shared/files'
+import type { ArchivePreview } from '~/shared/archives'
 import type { CalendarPreview, TimerAction, TimerSpec, TimersState } from '~/shared/timers'
 import type { UnitDetail, UnitValidateResult, UnitWriteResult } from '~/shared/unit-files'
 import type { ScanResult } from '~/shared/devices'
@@ -193,6 +194,12 @@ export class HelperClient implements Privileged {
   }
   readTextFile(token: string | undefined, path: string) {
     return this.call<TextFile>('POST', '/files/read', { token, path }, 60_000)
+  }
+  archivePreview(token: string | undefined, archive: string, toDir: string) {
+    return this.call<ArchivePreview>('POST', '/files/archive', { token, archive, toDir }, 120_000)
+  }
+  archiveTools() {
+    return this.call<{ zip: boolean }>('GET', '/files/archive-tools')
   }
   fileResponse(token: string | undefined, path: string, opts: { range?: string | null; download?: boolean }) {
     return this.stream('/files/raw', { token, path, range: opts.range ?? undefined, download: opts.download === true })
