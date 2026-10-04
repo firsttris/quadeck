@@ -17,8 +17,10 @@ export function isMusl(): boolean {
   }
 }
 
+/** Release binary for this machine. Bun builds only exist for x64 and arm64 (no 32-bit ARM, no riscv). */
 export function assetName(arch: string = process.arch, musl = isMusl()): string {
-  const a = arch === 'arm64' ? 'arm64' : 'x64'
+  if (arch !== 'x64' && arch !== 'arm64') throw new Error(`No Quadeck build for this architecture (${arch}); supported: x64, arm64`)
+  const a = arch
   if (musl) return `quadeck-linux-${a}-musl`
   return a === 'x64' ? 'quadeck-linux-x64-baseline' : 'quadeck-linux-arm64'
 }
@@ -35,6 +37,7 @@ export function newer(latest: string, current: string): boolean {
 }
 
 export async function selfUpdate(current: string, force = false) {
+  const name = assetName()
   const res = await fetch(`https://api.github.com/repos/${REPO}/releases/latest`, { headers: { accept: 'application/vnd.github+json' } })
   if (!res.ok) throw new Error(`GitHub: HTTP ${res.status}`)
   const rel = (await res.json()) as { tag_name: string; assets: { name: string; browser_download_url: string }[] }
@@ -42,7 +45,6 @@ export async function selfUpdate(current: string, force = false) {
     console.log(`Quadeck ${current} is up to date.`)
     return
   }
-  const name = assetName()
   const bin = rel.assets.find((a) => a.name === name)
   const sums = rel.assets.find((a) => a.name === 'SHA256SUMS')
   if (!bin || !sums) throw new Error(`Release ${rel.tag_name} has no ${name} or SHA256SUMS`)

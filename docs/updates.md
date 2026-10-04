@@ -10,7 +10,8 @@ the containers. Quadeck detects the package manager; `QUADECK_PACKAGE_MANAGER` f
 | `pacman` | Arch, Manjaro, EndeavourOS | ✅ + AUR | ✅ | Arch news, `.pacnew` files |
 | `apt` | Debian, Ubuntu, Raspberry Pi OS | ✅ | ✅ | `.dpkg-dist` files |
 | `dnf` | Fedora, RHEL, Rocky, Alma | ✅ | ✅ | `.rpmnew` files |
-| `zypper` | openSUSE | ✅ | ✅ | |
+| `zypper` | openSUSE Tumbleweed, Leap | ✅ | ✅ | `dup` on Tumbleweed |
+| `transactional-update` | openSUSE MicroOS, Aeon, Kalpa | ✅ | ✅ | new snapshot per change (`--continue` stacks them), reboot to apply; picked when `/` is read-only |
 | `apk` | Alpine | ✅ | ✅ | |
 | `rpm-ostree` | Fedora CoreOS, Silverblue, IoT | ✅ | install only, no removal | staged deployment, reboot to apply |
 

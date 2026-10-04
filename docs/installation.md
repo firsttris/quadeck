@@ -7,14 +7,60 @@ container more access than the two hardened services get.
 
 ## Requirements
 
-- Linux with **systemd** (Fedora, Arch, Debian, Ubuntu, openSUSE, …). Without systemd (Alpine, Void)
-  the dashboard runs, but the unit, timer and Quadlet parts stay empty.
+- Linux on **x64 or arm64**, glibc 2.17+ or musl (Alpine needs `libstdc++` and `libgcc`; the
+  install script adds them).
+- **systemd** for services, timers, the journal and Quadlets. Without systemd (Alpine, Void,
+  Devuan) the dashboard runs, but those parts stay empty and the install script sets up no service.
 - **Podman** with its API socket for the container view: `systemctl enable --now podman.socket`.
-  Quadeck works without it, you just do not see containers.
+  Quadeck works without it, you just do not see containers. **Quadlets need Podman 4.4** or newer.
 - Optional: **Caddy** for automatic service URLs, **smartmontools** for SMART, **Samba** and the
   **NFS server** for shares, **OpenSSH** for the SSH page. The pages show an install button with
   the command for your distribution when a tool is missing.
-- x64 or arm64, glibc or musl.
+
+## Supported distributions
+
+| | Distribution | Package manager | What differs |
+| --- | --- | --- | --- |
+| ✅ | Arch Linux, Manjaro, EndeavourOS | pacman (+ AUR helper) | nothing – kernel install and removal are Arch-only |
+| ✅ | Fedora 39+ | dnf5 / dnf | no kernel management |
+| ✅ | RHEL, AlmaLinux, Rocky Linux 9.2+ | dnf | no kernel management |
+| ✅ | Debian 13, Ubuntu 24.04+ | apt | no kernel management |
+| ✅ | openSUSE Tumbleweed, Slowroll | zypper (`dup`) | no kernel management |
+| 🟡 | Debian 12, Ubuntu 22.04, Raspberry Pi OS 64-bit | apt | Podman 4.3 / 3.4: containers are shown, Quadlets are not generated (needs 4.4) |
+| 🟡 | Fedora Atomic: Silverblue, Kinoite, CoreOS, uCore | rpm-ostree | packages are layered and active after a reboot; packages can't be removed |
+| 🟡 | openSUSE MicroOS, Aeon, Kalpa | transactional-update | installs, removals and upgrades go into a new snapshot, active after a reboot |
+| 🟡 | Alpine, Void, Devuan, other systems without systemd | apk / – | no units, timers, journal or Quadlets; the file explorer copies without reflink |
+| ❌ | NixOS | – | the binary needs the standard loader (`programs.nix-ld.enable`), `/etc` and packages are declarative |
+| ❌ | 32-bit ARM, RISC-V, others | – | Bun has no build for them |
+
+✅ full feature set (start-up tested in CI), 🟡 runs with the limits shown, ❌ not supported.
+
+Limits on every distribution:
+
+- **Rootful Podman only.** Quadeck talks to the system socket `/run/podman/podman.sock` and edits
+  Quadlets in `/etc/containers/systemd`. Rootless containers and user Quadlets
+  (`~/.config/containers/systemd`) are not shown.
+- **Boot entries need systemd-boot.** With GRUB the boot tab shows the reboot and the kernel
+  parameters only.
+- The package manager is detected from the installed tools; `QUADECK_PACKAGE_MANAGER` (`pacman`,
+  `apt`, `dnf`, `zypper`, `transactional-update`, `apk`, `rpm-ostree`) overrides it.
+
+`quadeck doctor` prints what Quadeck finds and what that means:
+
+```text
+$ quadeck doctor
+System:          Debian GNU/Linux 12 (bookworm)
+Architecture:    x64 (glibc)
+Package manager: apt
+Init:            systemd
+Podman:          4.3.1  – Quadlets need Podman 4.4 or newer
+Coreutils:       gnu
+Boot loader:     other  – boot entries need systemd-boot (reboot and kernel parameters work)
+```
+
+CI starts the release binary in a bare container of Fedora, Debian 12 and 13, Ubuntu 22.04 and
+24.04, Arch, openSUSE Tumbleweed, Rocky Linux 9, a simulated MicroOS and Alpine, and checks that it
+finds the distribution and package manager and serves the web app.
 
 ## Install script
 
@@ -76,6 +122,7 @@ quadeck helper                  start the root helper (as root, Unix socket)
 quadeck setup-token             print the token for the first setup
 quadeck passwd                  reset the admin password; set a new one via /setup
 quadeck update [--force]        download the newest release, verify, swap in, restart
+quadeck doctor [--json]         show what Quadeck finds: distribution, package manager, Podman, init, boot loader
 quadeck print-unit web|helper   print a systemd unit (used by install.sh)
 quadeck version
 quadeck help
@@ -131,7 +178,7 @@ Put them in `/etc/quadeck/quadeck.env`, one `KEY=value` per line, then
 |---|---|---|
 | `QUADECK_UNLOCK` | `system` | `system`: Linux admin password · `none`: no unlock · `quadeck`: the Quadeck password (only when everything runs as root in one process) |
 | `QUADECK_UNLOCK_MINUTES` | `15` | how long an unlock lasts |
-| `QUADECK_PACKAGE_MANAGER` | detected | force `pacman`, `apt`, `dnf`, `zypper`, `apk` or `rpm-ostree` |
+| `QUADECK_PACKAGE_MANAGER` | detected | force `pacman`, `apt`, `dnf`, `zypper`, `transactional-update`, `apk` or `rpm-ostree` |
 | `QUADECK_AUR_USER` | first member of `wheel`/`sudo` | user that runs `yay`/`paru` |
 | `QUADECK_QUADLET_DIR` | `/etc/containers/systemd` | Quadlet files |
 | `QUADECK_UNIT_DIR` | `/etc/systemd/system` | where own units, timers and overrides are written |

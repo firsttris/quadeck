@@ -44,6 +44,9 @@ describe('self update', () => {
     expect(assetName('arm64', false)).toBe('quadeck-linux-arm64')
     expect(assetName('x64', true)).toBe('quadeck-linux-x64-musl')
     expect(assetName('arm64', true)).toBe('quadeck-linux-arm64-musl')
+    // never an x64 binary for a 32-bit ARM board
+    expect(() => assetName('arm', false)).toThrow(/architecture \(arm\)/)
+    expect(() => assetName('riscv64', true)).toThrow(/x64, arm64/)
   })
   it('compares versions', () => {
     expect(newer('v0.2.0', '0.1.9')).toBe(true)

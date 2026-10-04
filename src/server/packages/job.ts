@@ -10,7 +10,7 @@ import { assertUnitName } from '../privileged/actions'
 import { FEATURES, PACKAGE_NAME, PROTECTED_PACKAGES, type Feature, type JobSpec } from '~/shared/packages'
 import { aurHelper, aurUser, runAurUpgrade } from './aur'
 import { fileRootPaths } from '../files/backend'
-import { fsJobSteps, prepareFsJob, systemFsOps } from '../files/transfer'
+import { assertNoMountsInside, fsJobSteps, gnuCoreutils, prepareFsJob, systemFsOps } from '../files/transfer'
 import { baseName, validatePath } from '~/shared/files'
 import { imageUpdates } from './images'
 import { detectProvider, type Step } from './providers'
@@ -179,7 +179,9 @@ async function execute(spec: JobSpec): Promise<number> {
     case 'fs-delete': {
       // Checked again here, where root acts.
       const prepared = prepareFsJob(spec, systemFsOps(fileRootPaths()))
-      for (const argv of fsJobSteps(spec, prepared)) {
+      const gnu = gnuCoreutils()
+      if (!gnu && spec.kind === 'fs-delete') assertNoMountsInside(prepared.sources)
+      for (const argv of fsJobSteps(spec, prepared, gnu)) {
         const code = await exec(argv)
         if (code !== 0) return code
       }
