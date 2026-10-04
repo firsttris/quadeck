@@ -6,6 +6,7 @@
 // Both enforce the unlock gate where the root actions actually run.
 
 import type { CleanupKind, CleanupResult, PodmanStorage, PruneEvery } from '~/shared/podman-storage'
+import type { TerminalInfo } from '~/shared/terminal'
 import { msg } from '~/shared/i18n'
 import type { JobInfo, JobSpec } from '~/shared/packages'
 import type { Maintenance } from '../packages/maintenance'
@@ -59,6 +60,12 @@ export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAd
   podmanGet<T>(path: string): Promise<T>
   podmanContainer(token: string | undefined, id: string, action: UnitAction): Promise<void>
   podmanStorage(): Promise<PodmanStorage>
+  terminalOpen(token: string | undefined, target: { kind: 'shell' } | { kind: 'container'; name: string }, cols: number, rows: number, idleMinutes: number): Promise<TerminalInfo>
+  /** Server-sent events: output (base64), `exit`, pings. */
+  terminalStream(id: string): Response | Promise<Response>
+  terminalInput(id: string, data: string): Promise<void>
+  terminalResize(id: string, cols: number, rows: number): Promise<void>
+  terminalClose(id: string): Promise<void>
   cleanPodman(token: string | undefined, items: { kind: CleanupKind; id: string }[]): Promise<{ results: CleanupResult[]; skipped: number }>
   setPodmanPrune(token: string | undefined, every: PruneEvery | null): Promise<PodmanStorage>
   startJob(token: string | undefined, spec: JobSpec): Promise<JobInfo>

@@ -138,6 +138,23 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/timers/action': (b, p) => p.timerAction(str(b.token), str(b.name) ?? '', parseTimerAction(b.action)),
   '/network/state': (_b, p) => p.networkState(),
   '/podman/storage': (_b, p) => p.podmanStorage(),
+  '/terminal/open': (b, p) => {
+    const t = (b.target ?? {}) as Record<string, unknown>
+    return p.terminalOpen(str(b.token), t.kind === 'container' ? { kind: 'container', name: str(t.name) ?? '' } : { kind: 'shell' }, Number(b.cols), Number(b.rows), Number(b.idleMinutes) || 15)
+  },
+  '/terminal/stream': async (b, p) => p.terminalStream(str(b.id) ?? ''),
+  '/terminal/input': async (b, p) => {
+    await p.terminalInput(str(b.id) ?? '', str(b.data) ?? '')
+    return { ok: true }
+  },
+  '/terminal/resize': async (b, p) => {
+    await p.terminalResize(str(b.id) ?? '', Number(b.cols), Number(b.rows))
+    return { ok: true }
+  },
+  '/terminal/close': async (b, p) => {
+    await p.terminalClose(str(b.id) ?? '')
+    return { ok: true }
+  },
   '/podman/clean': (b, p) => p.cleanPodman(str(b.token), parseItems(b.items)),
   '/podman/prune': (b, p) => p.setPodmanPrune(str(b.token), b.every === 'weekly' || b.every === 'monthly' ? b.every : null),
   '/network/devices': (b, p) => p.scanDevices(b.active === true),

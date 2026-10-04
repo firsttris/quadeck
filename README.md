@@ -79,6 +79,7 @@ a reverse proxy and uninstalling are in the [installation guide](docs/installati
 | 🌐 **Network & reverse proxy** | Interfaces, devices in the LAN (name, vendor, services, Wake-on-LAN, alert on new ones), ports with the container behind them, firewall; Caddy domains in a dialog (home network only, password, compression …) |
 | 🚀 **Speed test** | This device ↔ server and server ↔ internet (Cloudflare) with a live gauge in Mbit/s and MB/s; optional daily runs with a graph and an alert when the line gets slow |
 | 🔐 **Users, shares & SSH** | Accounts and groups, SMB and NFS shares, SSH keys and hardening with a lock-out guard |
+| 🖥️ **Terminal** | A shell on the server and inside containers in the browser – off by default, bound to the unlock, home network only |
 | 🔔 **Notifications** | ntfy, Gotify, Telegram, e-mail or webhook when something fails, a disk fills up, the internet is slow or updates are waiting |
 
 Plus: power usage and its cost (CPU and GPU measured, disks estimated from their state), hardware details (memory slots, GPU passthrough lines, stable USB paths), a command palette

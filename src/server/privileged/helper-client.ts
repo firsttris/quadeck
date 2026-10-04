@@ -14,6 +14,7 @@ import type { UnitDetail, UnitValidateResult, UnitWriteResult } from '~/shared/u
 import type { ScanResult } from '~/shared/devices'
 import type { PowerSample } from '~/shared/energy'
 import type { CleanupKind, CleanupResult, PodmanStorage, PruneEvery } from '~/shared/podman-storage'
+import type { TerminalInfo } from '~/shared/terminal'
 import type { NetworkState } from '~/shared/network'
 import type { FstabChange, FstabCheck, FstabState } from '~/shared/fstab'
 import type { BootEntryChange, BootEntryFile, BootState, EntryProblem } from '~/shared/boot'
@@ -242,6 +243,21 @@ export class HelperClient implements Privileged {
     return this.call<TimersState>('POST', '/timers/action', { token, name, action }, 120_000)
   }
 
+  terminalOpen(token: string | undefined, target: { kind: 'shell' } | { kind: 'container'; name: string }, cols: number, rows: number, idleMinutes: number) {
+    return this.call<TerminalInfo>('POST', '/terminal/open', { token, target, cols, rows, idleMinutes }, 30_000)
+  }
+  terminalStream(id: string) {
+    return this.stream('/terminal/stream', { id })
+  }
+  async terminalInput(id: string, data: string) {
+    await this.call('POST', '/terminal/input', { id, data }, 10_000)
+  }
+  async terminalResize(id: string, cols: number, rows: number) {
+    await this.call('POST', '/terminal/resize', { id, cols, rows }, 10_000)
+  }
+  async terminalClose(id: string) {
+    await this.call('POST', '/terminal/close', { id }, 10_000)
+  }
   podmanStorage() {
     return this.call<PodmanStorage>('POST', '/podman/storage', {}, 200_000)
   }

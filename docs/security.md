@@ -92,6 +92,13 @@ Nothing is written outside these places. Quadeck's own units are read-only in th
 - Notification tokens are returned masked by the API and never logged. The backup password is
   shown only after the unlock; the target's credentials never leave the helper.
 
+## Terminal
+
+The [terminal](terminal.md) is off by default. Opening a session needs the unlock; the shell runs as
+the account that unlocked (root only through `sudo`); *home network only* refuses public addresses;
+sessions end after a time without input and when locking; only the opening login session can use a
+session. The journal records who opened a terminal, never what is typed. Read-only mode refuses it.
+
 ## Read-only mode
 
 `QUADECK_READONLY=true` refuses every change on the server in the web app before anything reaches

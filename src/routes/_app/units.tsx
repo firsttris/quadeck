@@ -167,6 +167,7 @@ function UnitRow({ row, run, busy, readonly }: { row: Row; run: ReturnType<typeo
   }
   const items: MenuItem[] = [
     ...(u ? [{ label: m.common_journal(), onSelect: () => void navigate({ to: '/journal', search: { unit: u.name } }) }] : []),
+    ...(c && c.state === 'running' ? [{ label: m.terminal_menu(), onSelect: () => void navigate({ to: '/terminal', search: { container: c.name } }) }] : []),
     ...(c ? [{ label: m.usage_menu(), onSelect: () => void navigate({ to: '/units', search: { view: 'usage', container: c.name } }) }] : []),
     ...(u?.quadlet
       ? [{ label: m.units_editQuadlet(), onSelect: () => void navigate({ to: '/quadlets', search: { file: u.quadlet!.file } }) }]

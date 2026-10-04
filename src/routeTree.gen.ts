@@ -25,6 +25,7 @@ import { Route as AppSharesRouteImport } from './routes/_app/shares'
 import { Route as AppSshRouteImport } from './routes/_app/ssh'
 import { Route as AppSystemRouteImport } from './routes/_app/system'
 import { Route as AppSystemdRouteImport } from './routes/_app/systemd'
+import { Route as AppTerminalRouteImport } from './routes/_app/terminal'
 import { Route as AppUnitsRouteImport } from './routes/_app/units'
 import { Route as AppUsersRouteImport } from './routes/_app/users'
 import { Route as ApiContainersRouteImport } from './routes/api/containers'
@@ -77,6 +78,8 @@ import { Route as ApiSystemOverviewRouteImport } from './routes/api/system/overv
 import { Route as ApiSystemRemovePreviewRouteImport } from './routes/api/system/remove-preview'
 import { Route as ApiSystemUpdatesRouteImport } from './routes/api/system/updates'
 import { Route as ApiSystemdIndexRouteImport } from './routes/api/systemd/index'
+import { Route as ApiTerminalIndexRouteImport } from './routes/api/terminal/index'
+import { Route as ApiTerminalStreamRouteImport } from './routes/api/terminal/stream'
 import { Route as ApiTimersIndexRouteImport } from './routes/api/timers/index'
 import { Route as ApiUsersIndexRouteImport } from './routes/api/users/index'
 import { Route as ApiBackupScriptTokenRouteImport } from './routes/api/backup/script/$token'
@@ -160,6 +163,11 @@ const AppSystemRoute = AppSystemRouteImport.update({
 const AppSystemdRoute = AppSystemdRouteImport.update({
   id: '/systemd',
   path: '/systemd',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTerminalRoute = AppTerminalRouteImport.update({
+  id: '/terminal',
+  path: '/terminal',
   getParentRoute: () => AppRoute,
 } as any)
 const AppUnitsRoute = AppUnitsRouteImport.update({
@@ -422,6 +430,16 @@ const ApiSystemdIndexRoute = ApiSystemdIndexRouteImport.update({
   path: '/api/systemd/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiTerminalIndexRoute = ApiTerminalIndexRouteImport.update({
+  id: '/api/terminal/',
+  path: '/api/terminal/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiTerminalStreamRoute = ApiTerminalStreamRouteImport.update({
+  id: '/api/terminal/stream',
+  path: '/api/terminal/stream',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiTimersIndexRoute = ApiTimersIndexRouteImport.update({
   id: '/api/timers/',
   path: '/api/timers/',
@@ -464,6 +482,7 @@ export interface FileRoutesByFullPath {
   '/ssh': typeof AppSshRoute
   '/system': typeof AppSystemRoute
   '/systemd': typeof AppSystemdRoute
+  '/terminal': typeof AppTerminalRoute
   '/units': typeof AppUnitsRoute
   '/users': typeof AppUsersRoute
   '/api/containers': typeof ApiContainersRoute
@@ -499,6 +518,7 @@ export interface FileRoutesByFullPath {
   '/api/system/overview': typeof ApiSystemOverviewRoute
   '/api/system/remove-preview': typeof ApiSystemRemovePreviewRoute
   '/api/system/updates': typeof ApiSystemUpdatesRoute
+  '/api/terminal/stream': typeof ApiTerminalStreamRoute
   '/api/backup/': typeof ApiBackupIndexRoute
   '/api/boot/': typeof ApiBootIndexRoute
   '/api/caddy/': typeof ApiCaddyIndexRoute
@@ -516,6 +536,7 @@ export interface FileRoutesByFullPath {
   '/api/speedtest/': typeof ApiSpeedtestIndexRoute
   '/api/ssh/': typeof ApiSshIndexRoute
   '/api/systemd/': typeof ApiSystemdIndexRoute
+  '/api/terminal/': typeof ApiTerminalIndexRoute
   '/api/timers/': typeof ApiTimersIndexRoute
   '/api/users/': typeof ApiUsersIndexRoute
   '/api/backup/script/$token': typeof ApiBackupScriptTokenRoute
@@ -537,6 +558,7 @@ export interface FileRoutesByTo {
   '/ssh': typeof AppSshRoute
   '/system': typeof AppSystemRoute
   '/systemd': typeof AppSystemdRoute
+  '/terminal': typeof AppTerminalRoute
   '/units': typeof AppUnitsRoute
   '/users': typeof AppUsersRoute
   '/api/containers': typeof ApiContainersRoute
@@ -573,6 +595,7 @@ export interface FileRoutesByTo {
   '/api/system/overview': typeof ApiSystemOverviewRoute
   '/api/system/remove-preview': typeof ApiSystemRemovePreviewRoute
   '/api/system/updates': typeof ApiSystemUpdatesRoute
+  '/api/terminal/stream': typeof ApiTerminalStreamRoute
   '/api/backup': typeof ApiBackupIndexRoute
   '/api/boot': typeof ApiBootIndexRoute
   '/api/caddy': typeof ApiCaddyIndexRoute
@@ -590,6 +613,7 @@ export interface FileRoutesByTo {
   '/api/speedtest': typeof ApiSpeedtestIndexRoute
   '/api/ssh': typeof ApiSshIndexRoute
   '/api/systemd': typeof ApiSystemdIndexRoute
+  '/api/terminal': typeof ApiTerminalIndexRoute
   '/api/timers': typeof ApiTimersIndexRoute
   '/api/users': typeof ApiUsersIndexRoute
   '/api/backup/script/$token': typeof ApiBackupScriptTokenRoute
@@ -613,6 +637,7 @@ export interface FileRoutesById {
   '/_app/ssh': typeof AppSshRoute
   '/_app/system': typeof AppSystemRoute
   '/_app/systemd': typeof AppSystemdRoute
+  '/_app/terminal': typeof AppTerminalRoute
   '/_app/units': typeof AppUnitsRoute
   '/_app/users': typeof AppUsersRoute
   '/api/containers': typeof ApiContainersRoute
@@ -649,6 +674,7 @@ export interface FileRoutesById {
   '/api/system/overview': typeof ApiSystemOverviewRoute
   '/api/system/remove-preview': typeof ApiSystemRemovePreviewRoute
   '/api/system/updates': typeof ApiSystemUpdatesRoute
+  '/api/terminal/stream': typeof ApiTerminalStreamRoute
   '/api/backup/': typeof ApiBackupIndexRoute
   '/api/boot/': typeof ApiBootIndexRoute
   '/api/caddy/': typeof ApiCaddyIndexRoute
@@ -666,6 +692,7 @@ export interface FileRoutesById {
   '/api/speedtest/': typeof ApiSpeedtestIndexRoute
   '/api/ssh/': typeof ApiSshIndexRoute
   '/api/systemd/': typeof ApiSystemdIndexRoute
+  '/api/terminal/': typeof ApiTerminalIndexRoute
   '/api/timers/': typeof ApiTimersIndexRoute
   '/api/users/': typeof ApiUsersIndexRoute
   '/api/backup/script/$token': typeof ApiBackupScriptTokenRoute
@@ -690,6 +717,7 @@ export interface FileRouteTypes {
     | '/ssh'
     | '/system'
     | '/systemd'
+    | '/terminal'
     | '/units'
     | '/users'
     | '/api/containers'
@@ -725,6 +753,7 @@ export interface FileRouteTypes {
     | '/api/system/overview'
     | '/api/system/remove-preview'
     | '/api/system/updates'
+    | '/api/terminal/stream'
     | '/api/backup/'
     | '/api/boot/'
     | '/api/caddy/'
@@ -742,6 +771,7 @@ export interface FileRouteTypes {
     | '/api/speedtest/'
     | '/api/ssh/'
     | '/api/systemd/'
+    | '/api/terminal/'
     | '/api/timers/'
     | '/api/users/'
     | '/api/backup/script/$token'
@@ -763,6 +793,7 @@ export interface FileRouteTypes {
     | '/ssh'
     | '/system'
     | '/systemd'
+    | '/terminal'
     | '/units'
     | '/users'
     | '/api/containers'
@@ -799,6 +830,7 @@ export interface FileRouteTypes {
     | '/api/system/overview'
     | '/api/system/remove-preview'
     | '/api/system/updates'
+    | '/api/terminal/stream'
     | '/api/backup'
     | '/api/boot'
     | '/api/caddy'
@@ -816,6 +848,7 @@ export interface FileRouteTypes {
     | '/api/speedtest'
     | '/api/ssh'
     | '/api/systemd'
+    | '/api/terminal'
     | '/api/timers'
     | '/api/users'
     | '/api/backup/script/$token'
@@ -838,6 +871,7 @@ export interface FileRouteTypes {
     | '/_app/ssh'
     | '/_app/system'
     | '/_app/systemd'
+    | '/_app/terminal'
     | '/_app/units'
     | '/_app/users'
     | '/api/containers'
@@ -874,6 +908,7 @@ export interface FileRouteTypes {
     | '/api/system/overview'
     | '/api/system/remove-preview'
     | '/api/system/updates'
+    | '/api/terminal/stream'
     | '/api/backup/'
     | '/api/boot/'
     | '/api/caddy/'
@@ -891,6 +926,7 @@ export interface FileRouteTypes {
     | '/api/speedtest/'
     | '/api/ssh/'
     | '/api/systemd/'
+    | '/api/terminal/'
     | '/api/timers/'
     | '/api/users/'
     | '/api/backup/script/$token'
@@ -935,6 +971,7 @@ export interface RootRouteChildren {
   ApiSystemOverviewRoute: typeof ApiSystemOverviewRoute
   ApiSystemRemovePreviewRoute: typeof ApiSystemRemovePreviewRoute
   ApiSystemUpdatesRoute: typeof ApiSystemUpdatesRoute
+  ApiTerminalStreamRoute: typeof ApiTerminalStreamRoute
   ApiBackupIndexRoute: typeof ApiBackupIndexRoute
   ApiBootIndexRoute: typeof ApiBootIndexRoute
   ApiCaddyIndexRoute: typeof ApiCaddyIndexRoute
@@ -952,6 +989,7 @@ export interface RootRouteChildren {
   ApiSpeedtestIndexRoute: typeof ApiSpeedtestIndexRoute
   ApiSshIndexRoute: typeof ApiSshIndexRoute
   ApiSystemdIndexRoute: typeof ApiSystemdIndexRoute
+  ApiTerminalIndexRoute: typeof ApiTerminalIndexRoute
   ApiTimersIndexRoute: typeof ApiTimersIndexRoute
   ApiUsersIndexRoute: typeof ApiUsersIndexRoute
   ApiBackupScriptTokenRoute: typeof ApiBackupScriptTokenRoute
@@ -1071,6 +1109,13 @@ declare module '@tanstack/react-router' {
       path: '/systemd'
       fullPath: '/systemd'
       preLoaderRoute: typeof AppSystemdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/terminal': {
+      id: '/_app/terminal'
+      path: '/terminal'
+      fullPath: '/terminal'
+      preLoaderRoute: typeof AppTerminalRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/units': {
@@ -1437,6 +1482,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSystemdIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/terminal/': {
+      id: '/api/terminal/'
+      path: '/api/terminal'
+      fullPath: '/api/terminal/'
+      preLoaderRoute: typeof ApiTerminalIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/terminal/stream': {
+      id: '/api/terminal/stream'
+      path: '/api/terminal/stream'
+      fullPath: '/api/terminal/stream'
+      preLoaderRoute: typeof ApiTerminalStreamRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/timers/': {
       id: '/api/timers/'
       path: '/api/timers'
@@ -1488,6 +1547,7 @@ interface AppRouteChildren {
   AppSshRoute: typeof AppSshRoute
   AppSystemRoute: typeof AppSystemRoute
   AppSystemdRoute: typeof AppSystemdRoute
+  AppTerminalRoute: typeof AppTerminalRoute
   AppUnitsRoute: typeof AppUnitsRoute
   AppUsersRoute: typeof AppUsersRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -1506,6 +1566,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppSshRoute: AppSshRoute,
   AppSystemRoute: AppSystemRoute,
   AppSystemdRoute: AppSystemdRoute,
+  AppTerminalRoute: AppTerminalRoute,
   AppUnitsRoute: AppUnitsRoute,
   AppUsersRoute: AppUsersRoute,
   AppIndexRoute: AppIndexRoute,
@@ -1550,6 +1611,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSystemOverviewRoute: ApiSystemOverviewRoute,
   ApiSystemRemovePreviewRoute: ApiSystemRemovePreviewRoute,
   ApiSystemUpdatesRoute: ApiSystemUpdatesRoute,
+  ApiTerminalStreamRoute: ApiTerminalStreamRoute,
   ApiBackupIndexRoute: ApiBackupIndexRoute,
   ApiBootIndexRoute: ApiBootIndexRoute,
   ApiCaddyIndexRoute: ApiCaddyIndexRoute,
@@ -1567,6 +1629,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiSpeedtestIndexRoute: ApiSpeedtestIndexRoute,
   ApiSshIndexRoute: ApiSshIndexRoute,
   ApiSystemdIndexRoute: ApiSystemdIndexRoute,
+  ApiTerminalIndexRoute: ApiTerminalIndexRoute,
   ApiTimersIndexRoute: ApiTimersIndexRoute,
   ApiUsersIndexRoute: ApiUsersIndexRoute,
   ApiBackupScriptTokenRoute: ApiBackupScriptTokenRoute,

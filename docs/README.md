@@ -17,6 +17,7 @@ disks, shares and the host itself, with the actions you need day to day.
 | [Backups](backups.md) | restic: targets, what is suggested from the Quadlets, exclusions, stopping databases, schedule and retention, the password, browsing and restoring; the rest-server as backup target for clients |
 | [Shares](shares.md) | SMB shares, NFS exports, services, what is checked, what is never touched |
 | [SSH](ssh.md) | keys, hardening, lock-out guard, logins, connecting a new device |
+| [Terminal](terminal.md) | shell on the server and in containers in the browser, off by default, home network only, what is logged |
 | [Network](network.md) | interfaces, ports, firewall verdicts, routes and DNS, reverse proxy (Caddy), speed test |
 | [Notifications](notifications.md) | channels, rules, how spam is avoided, retries |
 | [Security](security.md) | the two processes, unlock, authentication, hardening, data and secrets |
