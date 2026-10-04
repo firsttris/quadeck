@@ -1,6 +1,7 @@
 import { Link, createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
 import { useActions } from '~/components/Actions'
+import { BusyButton } from '~/components/Busy'
 import { Glyph } from '~/components/Glyph'
 import { Modal } from '~/components/Modal'
 import { PageHeader } from '~/components/PageHeader'
@@ -272,16 +273,20 @@ function ComposeDialog({ open, existing, onClose, onDone }: { open: boolean; exi
   }, [open])
 
   const convert = async () => {
+    if (busy) return
     setError('')
+    setBusy(true)
     try {
       setResult(await api<ComposeResult>('/api/quadlets/compose', { body: { yaml, project } }))
     } catch (e) {
       setError((e as Error).message)
+    } finally {
+      setBusy(false)
     }
   }
 
   const create = async () => {
-    if (!result) return
+    if (!result || busy) return
     setBusy(true)
     try {
       // Networks and volumes first, so the containers find them.
@@ -302,7 +307,7 @@ function ComposeDialog({ open, existing, onClose, onDone }: { open: boolean; exi
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={m.quadlets_compose_title()} wide>
+    <Modal open={open} onClose={onClose} title={m.quadlets_compose_title()} wide busy={busy}>
       {!result ? (
         <>
           <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
@@ -345,17 +350,17 @@ function ComposeDialog({ open, existing, onClose, onDone }: { open: boolean; exi
         </p>
       )}
       <div className="flex justify-end gap-2">
-        <button type="button" className="btn" onClick={result ? () => setResult(null) : onClose}>
+        <button type="button" className="btn" disabled={busy} onClick={result ? () => setResult(null) : onClose}>
           {result ? m.common_back() : m.common_cancel()}
         </button>
         {!result ? (
-          <button type="button" className="btn primary" disabled={!yaml.trim()} onClick={convert}>
+          <BusyButton className="btn primary" busy={busy} busyLabel={m.common_working()} disabled={!yaml.trim()} onClick={() => void convert()}>
             {m.quadlets_compose_convert()}
-          </button>
+          </BusyButton>
         ) : (
-          <button type="button" className="btn primary" disabled={busy || !result.files.length} onClick={create}>
-            {busy ? m.quadlets_compose_creating() : m.quadlets_compose_createN({ n: result.files.length })}
-          </button>
+          <BusyButton className="btn primary" busy={busy} busyLabel={m.quadlets_compose_creating()} disabled={!result.files.length} onClick={() => void create()}>
+            {m.quadlets_compose_createN({ n: result.files.length })}
+          </BusyButton>
         )}
       </div>
     </Modal>

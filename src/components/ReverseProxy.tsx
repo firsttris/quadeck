@@ -3,6 +3,7 @@ import { localeOf } from '~/shared/i18n'
 import { applyCaddyChange, NO_OPTIONS, type CaddyBlock, type CaddyChange, type CaddyResult, type CaddyState, type SiteOptions } from '~/shared/caddy'
 import { useLive } from '~/lib/live'
 import { useActions } from './Actions'
+import { BusyButton, useBusy } from './Busy'
 import { Modal } from './Modal'
 import { DiffView, TextView } from './QuadletEditor'
 import { Pill } from './Status'
@@ -32,6 +33,7 @@ export function ReverseProxy() {
   const [pick, setPick] = useState<string | null>(null)
   const [block, setBlock] = useState<{ address: string; text: string; error?: string } | null>(null)
   const [pending, setPending] = useState<Pending | null>(null)
+  const work = useBusy<'auto' | 'pick'>()
 
   const load = useCallback(async () => {
     try {
@@ -106,9 +108,9 @@ export function ReverseProxy() {
                     {m.proxy_pick_title()} …
                   </button>
                   {state.manual && (
-                    <button type="button" className="btn sm" onClick={() => void choosePath(null)}>
+                    <BusyButton className="btn sm" busy={work.is('auto')} busyLabel={m.common_applying()} disabled={work.busy !== null} onClick={() => void choosePath(null)}>
                       {m.proxy_actions_automatic()}
-                    </button>
+                    </BusyButton>
                   )}
                 </span>
               )}
@@ -126,9 +128,9 @@ export function ReverseProxy() {
                 {m.proxy_actions_text()}
               </button>
               {state.manual && src?.how === 'manual' && (
-                <button type="button" className="btn" onClick={() => void choosePath(null)}>
+                <BusyButton className="btn" busy={work.is('auto')} busyLabel={m.common_applying()} disabled={work.busy !== null} onClick={() => void choosePath(null)}>
                   {m.proxy_actions_automatic()}
-                </button>
+                </BusyButton>
               )}
             </div>
           )}
@@ -227,7 +229,7 @@ export function ReverseProxy() {
           </div>
         </Modal>
       )}
-      {pick !== null && <PickDialog init={pick} onClose={() => setPick(null)} onPick={(p) => void choosePath(p)} />}
+      {pick !== null && <PickDialog init={pick} busy={work.is('pick')} onClose={() => setPick(null)} onPick={(p) => void choosePath(p)} />}
       {pending && state && (
         <ConfirmChange
           pending={pending}
@@ -247,16 +249,18 @@ export function ReverseProxy() {
     </section>
   )
 
-  async function choosePath(path: string | null) {
-    try {
-      const r = await guarded<CaddyState>('/api/caddy', { body: { path } })
-      if (!r) return
-      setState(r)
-      setPick(null)
-      say(path === null ? m.proxy_done_automatic() : m.proxy_done_path())
-    } catch (e) {
-      say((e as Error).message, 'bad')
-    }
+  function choosePath(path: string | null) {
+    return work.run(path === null ? 'auto' : 'pick', async () => {
+      try {
+        const r = await guarded<CaddyState>('/api/caddy', { body: { path } })
+        if (!r) return
+        setState(r)
+        setPick(null)
+        say(path === null ? m.proxy_done_automatic() : m.proxy_done_path())
+      } catch (e) {
+        say((e as Error).message, 'bad')
+      }
+    })
   }
 
   async function viewRevision(id: string, date: number) {
@@ -457,14 +461,15 @@ function SiteDialog({ init, onClose, onNext }: { init: SiteInit; onClose: () => 
   )
 }
 
-function PickDialog({ init, onClose, onPick }: { init: string; onClose: () => void; onPick: (path: string) => void }) {
+function PickDialog({ init, busy, onClose, onPick }: { init: string; busy: boolean; onClose: () => void; onPick: (path: string) => void }) {
   const [path, setPath] = useState(init)
   return (
-    <Modal open title={m.proxy_pick_title()} onClose={onClose}>
+    <Modal open title={m.proxy_pick_title()} onClose={onClose} busy={busy}>
       <form
         className="flex flex-col gap-3"
         onSubmit={(e) => {
           e.preventDefault()
+          if (busy) return
           onPick(path.trim())
         }}
       >
@@ -474,12 +479,12 @@ function PickDialog({ init, onClose, onPick }: { init: string; onClose: () => vo
           <span className="font-normal">{m.proxy_pick_hint()}</span>
         </label>
         <div className="flex justify-end gap-2">
-          <button type="button" className="btn" onClick={onClose}>
+          <button type="button" className="btn" disabled={busy} onClick={onClose}>
             {m.common_cancel()}
           </button>
-          <button type="submit" className="btn primary">
+          <BusyButton type="submit" className="btn primary" busy={busy} busyLabel={m.common_applying()}>
             {m.proxy_pick_apply()}
-          </button>
+          </BusyButton>
         </div>
       </form>
     </Modal>

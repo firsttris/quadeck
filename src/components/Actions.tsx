@@ -12,10 +12,15 @@ type Target = { kind: 'unit'; name: string } | { kind: 'container'; name: string
 interface Ctx {
   run: (action: Action, target: Target) => void | Promise<void>
   busy: string | null
+  /** Which action runs on `busy` (for the spinner label on the clicked button). */
+  busyAction: Action | null
   readonly: boolean
 }
 
-const ActionCtx = createContext<Ctx>({ run: () => {}, busy: null, readonly: false })
+const ActionCtx = createContext<Ctx>({ run: () => {}, busy: null, busyAction: null, readonly: false })
+
+/** The "…ing" label for an action (for BusyButton). */
+export const actionBusyLabel = (action: Action) => pickMsg({ "start": m.common_starting, "stop": m.common_stopping, "restart": m.common_restarting }, action)
 
 /**
  * Unit/container actions with confirmation for the dangerous ones (stop,
@@ -25,11 +30,13 @@ export function ActionsProvider({ readonly, children }: { readonly: boolean; chi
   const say = useToast()
   const unlock = useUnlock()
   const [busy, setBusy] = useState<string | null>(null)
+  const [busyAction, setBusyAction] = useState<Action | null>(null)
   const [pending, setPending] = useState<{ action: Action; target: Target } | null>(null)
 
   const exec = useCallback(
     async (action: Action, target: Target) => {
       setBusy(target.name)
+      setBusyAction(action)
       const call = () => api<{ via: string }>(target.kind === 'unit' ? '/api/units' : '/api/containers', { body: { action, name: target.name } })
       try {
         let r
@@ -48,6 +55,7 @@ export function ActionsProvider({ readonly, children }: { readonly: boolean; chi
         say((e as Error).message, 'bad')
       } finally {
         setBusy(null)
+        setBusyAction(null)
       }
     },
     [say, unlock],
@@ -65,20 +73,21 @@ export function ActionsProvider({ readonly, children }: { readonly: boolean; chi
   const p = pending
   const via = p && (p.target.kind === 'unit' ? `systemctl ${p.action} ${p.target.name}` : p.target.unit ? `systemctl ${p.action} ${p.target.unit}` : `Podman-API: ${p.action} ${p.target.name}`)
   return (
-    <ActionCtx.Provider value={{ run, busy, readonly }}>
+    <ActionCtx.Provider value={{ run, busy, busyAction, readonly }}>
       {children}
       <ConfirmDialog
         open={!!p}
         title={p ? m.shell_actions_confirmTitle({ name: p.target.name, action: pickMsg({ "start": m.shell_actions_label_start, "stop": m.shell_actions_label_stop, "restart": m.shell_actions_label_restart }, p.action), actionLower: (pickMsg({ "start": m.shell_actions_label_start, "stop": m.shell_actions_label_stop, "restart": m.shell_actions_label_restart }, p.action)).toLowerCase() }) : ''}
         danger={p?.action === 'stop'}
         confirm={p ? pickMsg({ "start": m.shell_actions_label_start, "stop": m.shell_actions_label_stop, "restart": m.shell_actions_label_restart }, p.action) : ''}
+        busyLabel={p ? actionBusyLabel(p.action) : undefined}
         body={
           <p className="m-0">
             {m.shell_actions_runs()}
             <span className="rounded bg-[#0e1319] px-1.5 py-0.5 font-mono text-[12px]">{via}</span>.{p?.action === 'stop' && m.shell_actions_stopHint()}
           </p>
         }
-        onConfirm={() => p && void exec(p.action, p.target)}
+        onConfirm={() => (p ? exec(p.action, p.target) : undefined)}
         onClose={() => setPending(null)}
       />
     </ActionCtx.Provider>

@@ -4,6 +4,7 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, csrfHeaders } from '~/lib/api'
 import { IDLE_MINUTES, KEYS, ctrlKey, type IdleMinutes, type TerminalInfo, type TerminalSettings } from '~/shared/terminal'
 import { useActions } from './Actions'
+import { BusyButton, useBusy } from './Busy'
 import { Modal } from './Modal'
 import { PageHeader } from './PageHeader'
 import { useToast } from './Toast'
@@ -29,6 +30,8 @@ export function TerminalPage({ container }: { container?: string }) {
   const [font, setFont] = useState(13)
   const [full, setFull] = useState(false)
   const opened = useRef<string | null>(null)
+  const opening = useBusy<'new' | 'empty' | 'container'>()
+  const run = opening.run
 
   const load = useCallback(async () => {
     try {
@@ -46,24 +49,25 @@ export function TerminalPage({ container }: { container?: string }) {
   }, [load])
 
   const open = useCallback(
-    async (target: { kind: 'shell' } | { kind: 'container'; name: string }) => {
-      try {
-        const info = await guarded<TerminalInfo>('/api/terminal', { body: { action: 'open', target, cols: 100, rows: 30 } })
-        if (!info) return
-        setTabs((t) => [...t, info])
-        setActive(info.id)
-      } catch (e) {
-        say((e as Error).message, 'bad')
-      }
-    },
-    [guarded, say],
+    (target: { kind: 'shell' } | { kind: 'container'; name: string }, key: 'new' | 'empty' | 'container') =>
+      run(key, async () => {
+        try {
+          const info = await guarded<TerminalInfo>('/api/terminal', { body: { action: 'open', target, cols: 100, rows: 30 } })
+          if (!info) return
+          setTabs((t) => [...t, info])
+          setActive(info.id)
+        } catch (e) {
+          say((e as Error).message, 'bad')
+        }
+      }),
+    [guarded, say, run],
   )
 
   // Units → "Shell in container" lands here with ?container=…
   useEffect(() => {
     if (!container || !state?.settings.enabled || opened.current === container) return
     opened.current = container
-    void open({ kind: 'container', name: container }).then(() => navigate({ to: '/terminal', search: {}, replace: true }))
+    void open({ kind: 'container', name: container }, 'container').then(() => navigate({ to: '/terminal', search: {}, replace: true }))
   }, [container, state, open, navigate])
 
   const closeTab = async (id: string) => {
@@ -104,9 +108,9 @@ export function TerminalPage({ container }: { container?: string }) {
               </div>
             ))}
             {!readonly && (
-              <button type="button" className="px-2.5 py-1.5 text-[13px] text-accent" onClick={() => void open({ kind: 'shell' })}>
+              <BusyButton className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[13px] text-accent" busy={opening.busy === 'new' || opening.busy === 'container'} busyLabel={m.common_opening()} disabled={!!opening.busy} onClick={() => void open({ kind: 'shell' }, 'new')}>
                 {m.terminal_new()}
-              </button>
+              </BusyButton>
             )}
             <span className="grow" />
             <div className="mb-1.5 flex gap-1.5">
@@ -125,9 +129,9 @@ export function TerminalPage({ container }: { container?: string }) {
             <div className="flex flex-col items-start gap-3 rounded-b-[10px] border border-t-0 border-edge p-6">
               <p className="m-0 text-[13px] text-muted">{m.terminal_empty()}</p>
               {!readonly && (
-                <button type="button" className="btn primary" onClick={() => void open({ kind: 'shell' })}>
+                <BusyButton className="btn primary" busy={opening.is('empty')} busyLabel={m.common_opening()} disabled={!!opening.busy} onClick={() => void open({ kind: 'shell' }, 'empty')}>
                   {m.terminal_openShell()}
-                </button>
+                </BusyButton>
               )}
             </div>
           ) : (
@@ -351,22 +355,25 @@ function SettingsFields({ s, set }: { s: TerminalSettings; set: (s: TerminalSett
 function useSave(onSaved: (s: State) => void) {
   const guarded = useGuardedApi()
   const say = useToast()
-  return async (s: TerminalSettings) => {
-    try {
-      const r = await guarded<State>('/api/terminal', { body: { action: 'settings', ...s } })
-      if (r) {
-        say(r.settings.enabled ? m.terminal_savedOn() : m.terminal_savedOff())
-        onSaved(r)
+  const saving = useBusy()
+  const save = (s: TerminalSettings) =>
+    saving.run('save', async () => {
+      try {
+        const r = await guarded<State>('/api/terminal', { body: { action: 'settings', ...s } })
+        if (r) {
+          say(r.settings.enabled ? m.terminal_savedOn() : m.terminal_savedOff())
+          onSaved(r)
+        }
+      } catch (e) {
+        say((e as Error).message, 'bad')
       }
-    } catch (e) {
-      say((e as Error).message, 'bad')
-    }
-  }
+    })
+  return { save, busy: !!saving.busy }
 }
 
 function SettingsCard({ settings, readonly, onSaved }: { settings: TerminalSettings; readonly: boolean; onSaved: (s: State) => void }) {
   const [s, set] = useState(settings)
-  const save = useSave(onSaved)
+  const { save, busy } = useSave(onSaved)
   return (
     <section className="panel flex flex-col gap-3 p-[18px]" aria-label={m.terminal_settingsTitle()}>
       <h2 className="h2">{m.terminal_settingsTitle()}</h2>
@@ -374,9 +381,9 @@ function SettingsCard({ settings, readonly, onSaved }: { settings: TerminalSetti
       <SettingsFields s={s} set={set} />
       {!readonly && (
         <div className="flex justify-end">
-          <button type="button" className="btn primary" onClick={() => void save(s)}>
+          <BusyButton className="btn primary" busy={busy} busyLabel={m.common_saving()} onClick={() => void save(s)}>
             {m.common_save()}
-          </button>
+          </BusyButton>
         </div>
       )}
     </section>
@@ -385,17 +392,17 @@ function SettingsCard({ settings, readonly, onSaved }: { settings: TerminalSetti
 
 function SettingsDialog({ settings, onClose, onSaved }: { settings: TerminalSettings; onClose: () => void; onSaved: (s: State) => void }) {
   const [s, set] = useState(settings)
-  const save = useSave(onSaved)
+  const { save, busy } = useSave(onSaved)
   return (
-    <Modal open title={m.terminal_settingsTitle()} onClose={onClose}>
+    <Modal open title={m.terminal_settingsTitle()} onClose={onClose} busy={busy}>
       <SettingsFields s={s} set={set} />
       <div className="flex justify-end gap-2">
-        <button type="button" className="btn" onClick={onClose}>
+        <button type="button" className="btn" disabled={busy} onClick={onClose}>
           {m.common_cancel()}
         </button>
-        <button type="button" className="btn primary" onClick={() => void save(s)}>
+        <BusyButton className="btn primary" busy={busy} busyLabel={m.common_saving()} onClick={() => void save(s)}>
           {m.common_save()}
-        </button>
+        </BusyButton>
       </div>
     </Modal>
   )

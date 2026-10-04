@@ -5,6 +5,7 @@ import { relative } from '~/lib/format'
 import { getToml, setToml, type TomlValue } from '~/shared/toml-edit'
 import type { PodmanConfigFile, PodmanSettings } from '~/shared/quadlets'
 import { useActions } from './Actions'
+import { BusyButton, Spinner, useBusy } from './Busy'
 import { DiffView } from './QuadletEditor'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
@@ -41,6 +42,7 @@ function ConfigCard({ file, readonly, onSaved }: { file: PodmanConfigFile; reado
   const [text, setText] = useState(file.content)
   const [review, setReview] = useState(false)
   const [error, setError] = useState('')
+  const saving = useBusy()
   useEffect(() => setText(file.content), [file.content])
   const form = FORMS[file.name] ?? []
   const dirty = text !== file.content
@@ -60,19 +62,20 @@ function ConfigCard({ file, readonly, onSaved }: { file: PodmanConfigFile; reado
     setText(setToml(text, f.section, f.key, v))
   }
 
-  const save = async () => {
-    setError('')
-    try {
-      const s = await guarded<PodmanSettings>('/api/podman/settings', { body: { config: { name: file.name, content: text } } })
-      if (!s) return
-      setReview(false)
-      say(m.podman_config_saved({ path: file.path, name: file.name }))
-      onSaved(s)
-    } catch (e) {
-      setError((e as Error).message)
-      setReview(false)
-    }
-  }
+  const save = () =>
+    saving.run('save', async () => {
+      setError('')
+      try {
+        const s = await guarded<PodmanSettings>('/api/podman/settings', { body: { config: { name: file.name, content: text } } })
+        if (!s) return
+        setReview(false)
+        say(m.podman_config_saved({ path: file.path, name: file.name }))
+        onSaved(s)
+      } catch (e) {
+        setError((e as Error).message)
+        setReview(false)
+      }
+    })
 
   return (
     <section className="panel flex flex-col gap-3 p-[18px]" aria-label={file.name}>
@@ -127,16 +130,16 @@ function ConfigCard({ file, readonly, onSaved }: { file: PodmanConfigFile; reado
           </button>
         </div>
       )}
-      <Modal open={review} onClose={() => setReview(false)} title={m.podman_config_saveTitle({ name: file.name })} wide>
+      <Modal open={review} onClose={() => setReview(false)} title={m.podman_config_saveTitle({ name: file.name })} wide busy={!!saving.busy}>
         <DiffView before={file.content} after={text} />
         <p className="m-0 text-[12px] text-muted">{m.podman_config_saveNote()}</p>
         <div className="flex justify-end gap-2">
-          <button type="button" className="btn" onClick={() => setReview(false)}>
+          <button type="button" className="btn" disabled={!!saving.busy} onClick={() => setReview(false)}>
             {m.common_cancel()}
           </button>
-          <button type="button" className="btn primary" onClick={save}>
+          <BusyButton className="btn primary" busy={!!saving.busy} busyLabel={m.common_saving()} onClick={() => void save()}>
             {m.common_save()}
-          </button>
+          </BusyButton>
         </div>
       </Modal>
     </section>
@@ -150,7 +153,8 @@ export function PodmanSettingsView() {
   const [s, setS] = useState<PodmanSettings | null>(null)
   const [error, setError] = useState('')
   const [calendar, setCalendar] = useState('')
-  const [busy, setBusy] = useState(false)
+  const work = useBusy<'timer' | 'schedule' | 'default'>()
+  const busy = !!work.busy
 
   useEffect(() => {
     fetch('/api/podman/settings')
@@ -163,20 +167,25 @@ export function PodmanSettingsView() {
       .catch((e: Error) => setError(e.message))
   }, [])
 
-  const apply = async (body: unknown, done: string) => {
-    setBusy(true)
-    try {
-      const r = await guarded<PodmanSettings>('/api/podman/settings', { body })
-      if (r) {
-        setS(r)
-        say(done)
+  const apply = (key: 'timer' | 'schedule' | 'default', body: unknown, done: string) =>
+    work.run(key, async () => {
+      try {
+        const r = await guarded<PodmanSettings>('/api/podman/settings', { body })
+        if (r) {
+          setS(r)
+          say(done)
+        }
+      } catch (e) {
+        say((e as Error).message, 'bad')
       }
-    } catch (e) {
-      say((e as Error).message, 'bad')
-    } finally {
-      setBusy(false)
-    }
-  }
+    })
+  const saving = (key: 'timer' | 'default') =>
+    work.is(key) && (
+      <span className="inline-flex items-center gap-1.5 text-[12px] text-muted" aria-live="polite">
+        <Spinner />
+        {m.common_saving()}
+      </span>
+    )
 
   if (error) return <p className="m-0 text-[13px] text-[#e3b341]">{error}</p>
   if (!s) return <p className="m-0 text-muted">{m.podman_updates_loading()}</p>
@@ -206,9 +215,10 @@ export function PodmanSettingsView() {
                 aria-label={m.podman_updates_timerActive()}
                 checked={t.enabled}
                 disabled={readonly || busy}
-                onChange={(e) => void apply({ timer: { enabled: e.target.checked, calendar } }, e.target.checked ? m.podman_updates_timerOn() : m.podman_updates_timerOff())}
+                onChange={(e) => void apply('timer', { timer: { enabled: e.target.checked, calendar } }, e.target.checked ? m.podman_updates_timerOn() : m.podman_updates_timerOff())}
               />
               {m.podman_updates_timerActive()}
+              {saving('timer')}
             </label>
             <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
               {m.podman_updates_schedule()}
@@ -222,14 +232,15 @@ export function PodmanSettingsView() {
               </datalist>
             </label>
             {!readonly && (
-              <button
-                type="button"
+              <BusyButton
                 className="btn sm"
+                busy={work.is('schedule')}
+                busyLabel={m.common_applying()}
                 disabled={busy || calendar === (t.custom ? t.calendar : '')}
-                onClick={() => void apply({ timer: { enabled: t.enabled, calendar } }, calendar ? m.podman_updates_scheduleSet({ cal: calendar }) : m.podman_updates_scheduleDefault())}
+                onClick={() => void apply('schedule', { timer: { enabled: t.enabled, calendar } }, calendar ? m.podman_updates_scheduleSet({ cal: calendar }) : m.podman_updates_scheduleDefault())}
               >
                 {m.podman_updates_applySchedule()}
-              </button>
+              </BusyButton>
             )}
           </div>
         )}
@@ -246,12 +257,13 @@ export function PodmanSettingsView() {
                 aria-label={m.podman_all_aria()}
                 checked={s.autoUpdateDefault.enabled}
                 disabled={readonly || busy}
-                onChange={(e) => void apply({ autoUpdateDefault: e.target.checked }, e.target.checked ? m.podman_all_on() : m.podman_all_off())}
+                onChange={(e) => void apply('default', { autoUpdateDefault: e.target.checked }, e.target.checked ? m.podman_all_on() : m.podman_all_off())}
               />
               <span>
                 <span className="font-mono">AutoUpdate=registry</span>
                 {m.podman_all_label()}
               </span>
+              {saving('default')}
             </label>
             <p className="m-0 text-[12px] text-muted">
               {m.podman_all_noteBefore()}

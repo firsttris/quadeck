@@ -4,6 +4,7 @@ import { bytes } from '~/lib/format'
 import { baseName, type TextFile } from '~/shared/files'
 import { localeOf } from '~/shared/i18n'
 import { useActions } from './Actions'
+import { BusyButton } from './Busy'
 import { ConfirmDialog, Modal } from './Modal'
 import { DiffView, TextView } from './QuadletEditor'
 import { useToast } from './Toast'
@@ -76,7 +77,7 @@ export function TextFileEditor({ path, onClose, onSaved }: { path: string; onClo
 
   if (confirm && file)
     return (
-      <Modal open wide title={m.files_editor_confirmTitle({ name })} onClose={() => setConfirm(false)}>
+      <Modal open wide title={m.files_editor_confirmTitle({ name })} onClose={() => setConfirm(false)} busy={busy}>
         <p className="m-0 font-mono text-[12px] text-muted">{path}</p>
         <DiffView before={file.content} after={text} />
         <p className="m-0 text-[13px] text-muted">{m.files_editor_confirmText()}</p>
@@ -86,12 +87,12 @@ export function TextFileEditor({ path, onClose, onSaved }: { path: string; onClo
           </p>
         )}
         <div className="flex justify-end gap-2">
-          <button type="button" className="btn" onClick={() => setConfirm(false)}>
+          <button type="button" className="btn" disabled={busy} onClick={() => setConfirm(false)}>
             {m.common_back()}
           </button>
-          <button type="button" className="btn primary" disabled={busy} onClick={() => void save()}>
+          <BusyButton className="btn primary" busy={busy} busyLabel={m.common_saving()} onClick={() => void save()}>
             {m.common_save()}
-          </button>
+          </BusyButton>
         </div>
       </Modal>
     )

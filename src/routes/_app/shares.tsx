@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
 import { useActions } from '~/components/Actions'
+import { BusyButton, useBusy } from '~/components/Busy'
 import { Glyph } from '~/components/Glyph'
 import { InstallHint } from '~/components/InstallHint'
 import { Modal } from '~/components/Modal'
@@ -118,24 +119,23 @@ function Services({ kind, services, onState }: { kind: 'smb' | 'nfs'; services: 
   const say = useToast()
   const guarded = useGuardedApi()
   const { readonly } = useActions()
-  const [busy, setBusy] = useState(false)
+  const work = useBusy<ShareServiceAction>()
+  const busy = work.busy !== null
   if (!services.length) return null
   const active = services.every((s) => s.active)
   const enabled = services.every((s) => s.enabled)
-  const act = async (action: ShareServiceAction) => {
-    setBusy(true)
-    try {
-      const st = await guarded<SharesState>('/api/shares', { body: { service: { kind, action } } })
-      if (st) {
-        onState(st)
-        say(`${services.map((s) => s.unit).join(', ')}: ${pickMsg({ stop: m.shares_services_done_stop, enable: m.shares_services_done_enable, restart: m.shares_services_done_restart, start: m.shares_services_done_start }, action)}`)
+  const act = (action: ShareServiceAction) =>
+    work.run(action, async () => {
+      try {
+        const st = await guarded<SharesState>('/api/shares', { body: { service: { kind, action } } })
+        if (st) {
+          onState(st)
+          say(`${services.map((s) => s.unit).join(', ')}: ${pickMsg({ stop: m.shares_services_done_stop, enable: m.shares_services_done_enable, restart: m.shares_services_done_restart, start: m.shares_services_done_start }, action)}`)
+        }
+      } catch (e) {
+        say((e as Error).message, 'bad')
       }
-    } catch (e) {
-      say((e as Error).message, 'bad')
-    } finally {
-      setBusy(false)
-    }
-  }
+    })
   return (
     <div className="flex flex-wrap items-center gap-2 border-t border-line px-[18px] py-2.5 text-[12px]">
       {services.map((s) => (
@@ -147,23 +147,23 @@ function Services({ kind, services, onState }: { kind: 'smb' | 'nfs'; services: 
       {!readonly && (
         <span className="ml-auto flex gap-1.5">
           {!enabled && (
-            <button type="button" className="btn sm" disabled={busy} onClick={() => act('enable')}>
+            <BusyButton className="btn sm" busy={work.is('enable')} busyLabel={m.common_applying()} disabled={busy} onClick={() => void act('enable')}>
               {m.shares_services_enable()}
-            </button>
+            </BusyButton>
           )}
           {active ? (
             <>
-              <button type="button" className="btn sm" disabled={busy} onClick={() => act('restart')}>
+              <BusyButton className="btn sm" busy={work.is('restart')} busyLabel={m.common_restarting()} disabled={busy} onClick={() => void act('restart')}>
                 {m.common_restart()}
-              </button>
-              <button type="button" className="btn sm danger" disabled={busy} onClick={() => act('stop')}>
+              </BusyButton>
+              <BusyButton className="btn sm danger" busy={work.is('stop')} busyLabel={m.common_stopping()} disabled={busy} onClick={() => void act('stop')}>
                 {m.common_stop()}
-              </button>
+              </BusyButton>
             </>
           ) : (
-            <button type="button" className="btn sm primary" disabled={busy} onClick={() => act('start')}>
+            <BusyButton className="btn sm primary" busy={work.is('start')} busyLabel={m.common_starting()} disabled={busy} onClick={() => void act('start')}>
               {m.common_start()}
-            </button>
+            </BusyButton>
           )}
         </span>
       )}

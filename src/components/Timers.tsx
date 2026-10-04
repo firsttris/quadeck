@@ -5,6 +5,7 @@
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useActions } from './Actions'
+import { BusyButton, Spinner, useBusy } from './Busy'
 import { ConfirmDialog, Modal } from './Modal'
 import { RowMenu } from './RowMenu'
 import { Pill, type Tone } from './Status'
@@ -80,6 +81,7 @@ export function TimersView() {
   const [scheduling, setScheduling] = useState<TimerEntry | null>(null)
   const [files, setFiles] = useState<{ timer: TimerEntry; text: string } | null>(null)
   const [busy, setBusy] = useState<string | null>(null)
+  const [busyAction, setBusyAction] = useState<TimerAction | null>(null)
   const { readonly } = useActions()
   const guarded = useGuardedApi()
   const say = useToast()
@@ -103,6 +105,7 @@ export function TimersView() {
 
   const act = async (t: TimerEntry, action: TimerAction) => {
     setBusy(t.name)
+    setBusyAction(action)
     try {
       const r = await guarded<TimersState>('/api/timers', {
         body: { action: { name: t.name, action } },
@@ -115,6 +118,7 @@ export function TimersView() {
       say((e as Error).message, 'bad')
     } finally {
       setBusy(null)
+      setBusyAction(null)
     }
   }
 
@@ -220,13 +224,21 @@ export function TimersView() {
                       title={t.unitFileState === 'static' ? m.timers_list_static() : undefined}
                       onChange={(e) => void act(t, e.target.checked ? 'enable' : 'disable')}
                     />
+                    <span className="ml-1.5 inline-flex items-center gap-1 align-middle text-[11px] text-muted" aria-live="polite">
+                      {busy === t.name && busyAction !== 'run' && (
+                        <>
+                          <Spinner />
+                          {m.common_applying()}
+                        </>
+                      )}
+                    </span>
                   </td>
                   <td>
                     <div className="flex justify-end gap-1.5">
                       {!readonly && t.service && (
-                        <button type="button" className="btn sm" disabled={busy === t.name} onClick={() => void act(t, 'run')} aria-label={m.timers_list_runNowAria({ name: t.name })}>
+                        <BusyButton className="btn sm" busy={busy === t.name && busyAction === 'run'} busyLabel={m.common_starting()} disabled={busy === t.name} onClick={() => void act(t, 'run')} aria-label={m.timers_list_runNowAria({ name: t.name })}>
                           {m.timers_list_runNow()}
-                        </button>
+                        </BusyButton>
                       )}
                       <RowMenu
                         label={m.common_actionsFor({ name: t.name })}
@@ -704,7 +716,8 @@ function TimerEditor({ initial, previous, enabled: initialEnabled, existing, onC
         danger
         confirm={m.common_delete()}
         body={<p className="m-0">{m.timers_editor_deleteBody()}</p>}
-        onConfirm={() => void remove()}
+        busyLabel={m.common_deleting()}
+        onConfirm={() => remove()}
         onClose={() => setConfirmDelete(false)}
       />
     </Modal>
@@ -716,6 +729,7 @@ function TimerEditor({ initial, previous, enabled: initialEnabled, existing, onC
 function ScheduleDialog({ timer, onClose, onSaved }: { timer: TimerEntry; onClose: () => void; onSaved: (s: TimersState) => void }) {
   const [calendar, setCalendar] = useState(timer.override ?? timer.calendars[0] ?? '*-*-* 03:00:00')
   const [busy, setBusy] = useState(false)
+  const work = useBusy<'apply' | 'restore'>()
   const guarded = useGuardedApi()
   const say = useToast()
   const apply = async (cal: string) => {
@@ -736,7 +750,7 @@ function ScheduleDialog({ timer, onClose, onSaved }: { timer: TimerEntry; onClos
     }
   }
   return (
-    <Modal open onClose={onClose} title={m.timers_schedule_title({ name: timer.name })} wide>
+    <Modal open onClose={onClose} title={m.timers_schedule_title({ name: timer.name })} wide busy={busy}>
       <p className="m-0 text-[13px] text-muted">
         {timer.vendor ? m.timers_schedule_vendor() : ''}
         {m.timers_schedule_dropInBefore()}
@@ -748,16 +762,16 @@ function ScheduleDialog({ timer, onClose, onSaved }: { timer: TimerEntry; onClos
       <ScheduleField value={calendar} onChange={setCalendar} />
       <div className="flex flex-wrap justify-end gap-2">
         {timer.override && (
-          <button type="button" className="btn mr-auto" disabled={busy} onClick={() => void apply('')}>
+          <BusyButton className="btn mr-auto" busy={work.is('restore')} busyLabel={m.common_applying()} disabled={busy} onClick={() => void work.run('restore', () => apply(''))}>
             {m.timers_schedule_restore()}
-          </button>
+          </BusyButton>
         )}
-        <button type="button" className="btn" onClick={onClose}>
+        <button type="button" className="btn" disabled={busy} onClick={onClose}>
           {m.common_cancel()}
         </button>
-        <button type="button" className="btn primary" disabled={busy || !calendar.trim()} onClick={() => void apply(calendar.trim())}>
+        <BusyButton className="btn primary" busy={work.is('apply')} busyLabel={m.common_applying()} disabled={busy || !calendar.trim()} onClick={() => void work.run('apply', () => apply(calendar.trim()))}>
           {m.common_apply()}
-        </button>
+        </BusyButton>
       </div>
     </Modal>
   )

@@ -2,6 +2,7 @@ import { Link, createFileRoute, redirect } from '@tanstack/react-router'
 import { MountsView } from '~/components/Mounts'
 import { useCallback, useEffect, useState } from 'react'
 import { useActions } from '~/components/Actions'
+import { BusyButton, useBusy } from '~/components/Busy'
 import { Glyph } from '~/components/Glyph'
 import { HistoryChart } from '~/components/HistoryChart'
 import { InstallHint } from '~/components/InstallHint'
@@ -181,6 +182,7 @@ function DiskCard({ disk: d, a, onDetail, onReport, power, wakes, onPower }: { d
     : d.standby
       ? { tone: 'idle' as Tone, label: m.disks_card_asleep() }
       : { tone: LEVEL_TONE[a.level], label: pickMsg({ ok: m.disks_level_ok, warning: m.disks_level_warning, critical: m.disks_level_critical }, a.level) }
+  const testing = useBusy<'short' | 'long'>()
   const test = async (type: 'short' | 'long') => {
     try {
       const r = await guarded<SmartReport>('/api/disks/smart', { body: { selftest: { disk: d.name, type } } })
@@ -242,12 +244,12 @@ function DiskCard({ disk: d, a, onDetail, onReport, power, wakes, onPower }: { d
       {d.supported && !d.standby && !readonly && (
         <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3 text-[12px] text-muted">
           <span className="grow">{d.selfTests[0] ? m.disks_card_lastTest({ type: d.selfTests[0].type, status: d.selfTests[0].status }) : m.disks_card_noTest()}</span>
-          <button type="button" className="btn sm" disabled={d.testRunning !== undefined} onClick={() => test('short')}>
+          <BusyButton className="btn sm" busy={testing.is('short')} busyLabel={m.common_starting()} disabled={d.testRunning !== undefined || testing.busy !== null} onClick={() => void testing.run('short', () => test('short'))}>
             {m.disks_card_shortTest()}
-          </button>
-          <button type="button" className="btn sm" disabled={d.testRunning !== undefined} onClick={() => test('long')}>
+          </BusyButton>
+          <BusyButton className="btn sm" busy={testing.is('long')} busyLabel={m.common_starting()} disabled={d.testRunning !== undefined || testing.busy !== null} onClick={() => void testing.run('long', () => test('long'))}>
             {m.disks_card_longTest()}
-          </button>
+          </BusyButton>
         </div>
       )}
     </section>

@@ -1,6 +1,7 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useActions } from '~/components/Actions'
+import { BusyButton, useBusy } from '~/components/Busy'
 import { Glyph } from '~/components/Glyph'
 import { STATUS_LABEL, statusTone, useJobs } from '~/components/Jobs'
 import { ConfirmDialog, Modal } from '~/components/Modal'
@@ -98,7 +99,8 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
   const [checking, setChecking] = useState(false)
   const [confirm, setConfirm] = useState<null | 'upgrade' | 'aur' | 'images'>(null)
   const u = updates.data
-  const busy = !!jobs.running
+  const busy = !!jobs.running || jobs.starting
+  const imageStart = useBusy()
 
   const check = async () => {
     setChecking(true)
@@ -219,9 +221,9 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
                     </td>
                     <td className="text-right">
                       {canAct && i.updated === 'pending' && (
-                        <button type="button" className="btn sm" disabled={busy} onClick={() => void jobs.start({ kind: 'image-update', unit: i.unit })} aria-label={m.system_updates_updateOne({ name: i.container })}>
+                        <BusyButton className="btn sm" busy={imageStart.is(i.unit)} busyLabel={m.common_starting()} disabled={busy} onClick={() => void imageStart.run(i.unit, () => jobs.start({ kind: 'image-update', unit: i.unit }))} aria-label={m.system_updates_updateOne({ name: i.container })}>
                           {m.system_updates_update()}
-                        </button>
+                        </BusyButton>
                       )}
                     </td>
                   </tr>
@@ -264,7 +266,8 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
             {rebootPkgs.length > 0 && m.system_updates_rebootAfterShort()}
           </p>
         }
-        onConfirm={() => void jobs.start({ kind: 'upgrade' })}
+        onConfirm={() => jobs.start({ kind: 'upgrade' })}
+        busyLabel={m.common_starting()}
         onClose={() => setConfirm(null)}
       />
       <ConfirmDialog
@@ -272,7 +275,8 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
         title={m.system_updates_aurTitle()}
         confirm={m.system_updates_update()}
         body={<p className="m-0">{m.system_updates_aurBody({ helper: o?.aur?.helper ?? '', n: u?.aur.length ?? 0, user: o?.aur?.user ?? '' })}</p>}
-        onConfirm={() => void jobs.start({ kind: 'aur-upgrade' })}
+        onConfirm={() => jobs.start({ kind: 'aur-upgrade' })}
+        busyLabel={m.common_starting()}
         onClose={() => setConfirm(null)}
       />
       <ConfirmDialog
@@ -280,7 +284,8 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
         title={m.system_updates_imagesTitle()}
         confirm={m.system_updates_update()}
         body={<p className="m-0">{m.system_updates_imagesBody({ names: (pendingImages.map((i) => i.container).join(', ')) })}</p>}
-        onConfirm={() => void jobs.start({ kind: 'images-update' })}
+        onConfirm={() => jobs.start({ kind: 'images-update' })}
+        busyLabel={m.common_starting()}
         onClose={() => setConfirm(null)}
       />
     </>
@@ -615,7 +620,7 @@ function RemoveDialog({ names, onClose, onStarted }: { names: string[] | null; o
   }, [names])
   const ok = preview && !preview.error && preview.blocked.length === 0 && preview.packages.length > 0
   return (
-    <Modal open={!!names} onClose={onClose} title={names?.length === 1 ? m.system_packages_removeOne({ name: (names[0]!) }) : m.system_packages_removeMany({ n: (names?.length ?? 0) })}>
+    <Modal open={!!names} onClose={onClose} busy={jobs.starting} title={names?.length === 1 ? m.system_packages_removeOne({ name: (names[0]!) }) : m.system_packages_removeMany({ n: (names?.length ?? 0) })}>
       {!preview && !error && <p className="m-0 text-muted">{m.system_packages_previewing()}</p>}
       {(error || preview?.error) && (
         <pre role="alert" className="joblog !min-h-0 text-[#ff8a80]">
@@ -641,12 +646,13 @@ function RemoveDialog({ names, onClose, onStarted }: { names: string[] | null; o
         </>
       )}
       <div className="flex justify-end gap-2">
-        <button type="button" className="btn" onClick={onClose}>
+        <button type="button" className="btn" disabled={jobs.starting} onClick={onClose}>
           {m.common_cancel()}
         </button>
-        <button
-          type="button"
+        <BusyButton
           className="btn danger"
+          busy={jobs.starting}
+          busyLabel={m.common_starting()}
           disabled={!ok || !!jobs.running}
           onClick={async () => {
             const job = await jobs.start({ kind: 'remove', names: names! })
@@ -657,7 +663,7 @@ function RemoveDialog({ names, onClose, onStarted }: { names: string[] | null; o
           }}
         >
           {preview ? m.system_packages_removeN({ n: preview.packages.length }) : m.common_remove()}
-        </button>
+        </BusyButton>
       </div>
     </Modal>
   )

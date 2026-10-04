@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useActions } from '~/components/Actions'
+import { actionBusyLabel, useActions } from '~/components/Actions'
+import { BusyButton, Spinner, useBusy } from '~/components/Busy'
 import { PageHeader } from '~/components/PageHeader'
 import { RemoveQuadletDialog } from '~/components/QuadletEditor'
 import { RowMenu, type MenuItem } from '~/components/RowMenu'
@@ -52,7 +53,7 @@ function Units() {
   const rows = buildRows(snapshot.units, snapshot.containers)
   const hasContainers = rows.some((r) => matches(r, 'container'))
   const { filter = hasContainers ? 'container' : 'all', view, container } = Route.useSearch()
-  const { run, busy, readonly } = useActions()
+  const { run, busy, busyAction, readonly } = useActions()
   const shown = rows.filter((r) => matches(r, filter))
   // Failed first, then containers, then by name.
   shown.sort((a, b) => Number(!!failed(b)) - Number(!!failed(a)) || Number(!!b.container) - Number(!!a.container) || (a.unit?.name ?? a.container!.name).localeCompare(b.unit?.name ?? b.container!.name))
@@ -130,7 +131,7 @@ function Units() {
                 </tr>
               )}
               {shown.map((r) => (
-                <UnitRow key={r.key} row={r} run={run} busy={busy} readonly={readonly} />
+                <UnitRow key={r.key} row={r} run={run} busy={busy} busyAction={busyAction} readonly={readonly} />
               ))}
             </tbody>
           </table>
@@ -140,11 +141,12 @@ function Units() {
   )
 }
 
-function UnitRow({ row, run, busy, readonly }: { row: Row; run: ReturnType<typeof useActions>['run']; busy: string | null; readonly: boolean }) {
+function UnitRow({ row, run, busy, busyAction, readonly }: { row: Row; run: ReturnType<typeof useActions>['run']; busy: string | null; busyAction: ReturnType<typeof useActions>['busyAction']; readonly: boolean }) {
   const navigate = useNavigate()
   const guarded = useGuardedApi()
   const say = useToast()
   const [removing, setRemoving] = useState(false)
+  const boot = useBusy()
   const { unit: u, container: c } = row
   const name = u?.name ?? c!.name
   const st = status(row)
@@ -157,14 +159,15 @@ function UnitRow({ row, run, busy, readonly }: { row: Row; run: ReturnType<typeo
   // One button for what is usually wanted; everything else in the menu.
   const primary: 'restart' | 'start' = active || u?.active === 'failed' ? 'restart' : 'start'
   const bootable = u && (u.unitFileState === 'enabled' || u.unitFileState === 'disabled')
-  const setBoot = async (enabled: boolean) => {
-    try {
-      const r = await guarded('/api/systemd', { body: { enable: { unit: u!.name, enabled } } })
-      if (r) say(enabled ? m.units_bootOn({ name: u!.name }) : m.units_bootOff({ name: u!.name }))
-    } catch (e) {
-      say((e as Error).message, 'bad')
-    }
-  }
+  const setBoot = (enabled: boolean) =>
+    boot.run('boot', async () => {
+      try {
+        const r = await guarded('/api/systemd', { body: { enable: { unit: u!.name, enabled } } })
+        if (r) say(enabled ? m.units_bootOn({ name: u!.name }) : m.units_bootOff({ name: u!.name }))
+      } catch (e) {
+        say((e as Error).message, 'bad')
+      }
+    })
   const items: MenuItem[] = [
     ...(u ? [{ label: m.common_journal(), onSelect: () => void navigate({ to: '/journal', search: { unit: u.name } }) }] : []),
     ...(c && c.state === 'running' ? [{ label: m.terminal_menu(), onSelect: () => void navigate({ to: '/terminal', search: { container: c.name } }) }] : []),
@@ -178,7 +181,7 @@ function UnitRow({ row, run, busy, readonly }: { row: Row; run: ReturnType<typeo
       ? []
       : [
           ...(active ? [{ label: m.units_stopDots(), onSelect: () => run('stop', target), danger: true, disabled: busy === name, separator: true }] : []),
-          ...(bootable ? [{ label: m.units_startAtBoot(), checked: u!.unitFileState === 'enabled', onSelect: () => void setBoot(u!.unitFileState !== 'enabled'), separator: true }] : []),
+          ...(bootable ? [{ label: m.units_startAtBoot(), checked: u!.unitFileState === 'enabled', onSelect: () => void setBoot(u!.unitFileState !== 'enabled'), disabled: !!boot.busy, separator: true }] : []),
           ...(u?.quadlet ? [{ label: m.units_deleteQuadlet(), onSelect: () => setRemoving(true), danger: true, separator: !active || !!bootable }] : []),
         ]),
   ]
@@ -227,9 +230,15 @@ function UnitRow({ row, run, busy, readonly }: { row: Row; run: ReturnType<typeo
       <td>
         <div className="flex justify-end gap-1.5">
           {!readonly && (
-            <button type="button" className="btn sm" disabled={busy === name} onClick={() => run(primary, target)} aria-label={primary === 'restart' ? m.units_restartAria({ name }) : m.units_startAria({ name })}>
+            <BusyButton className="btn sm" busy={busy === name} busyLabel={actionBusyLabel(busyAction ?? primary)} onClick={() => run(primary, target)} aria-label={primary === 'restart' ? m.units_restartAria({ name }) : m.units_startAria({ name })}>
               {primary === 'restart' ? m.units_restart() : m.units_start()}
-            </button>
+            </BusyButton>
+          )}
+          {boot.busy && (
+            <span className="inline-flex items-center gap-1.5 text-[12px] text-muted" aria-live="polite">
+              <Spinner />
+              {m.common_applying()}
+            </span>
           )}
           {items.length > 0 && <RowMenu label={m.common_actionsFor({ name })} items={items} />}
           {u?.quadlet && <RemoveQuadletDialog open={removing} name={u.quadlet.file} onClose={() => setRemoving(false)} onRemoved={() => {}} />}

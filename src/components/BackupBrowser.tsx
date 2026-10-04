@@ -4,6 +4,7 @@ import { bytes } from '~/lib/format'
 import { localeOf } from '~/shared/i18n'
 import type { BackupState, BackupSuggestion, LsEntry } from '~/shared/backup'
 import { useActions } from './Actions'
+import { BusyButton, useBusy } from './Busy'
 import { useJobs } from './Jobs'
 import { ConfirmDialog } from './Modal'
 import { useToast } from './Toast'
@@ -61,6 +62,7 @@ export function BackupBrowser({ state, snapshot, dir, onNavigate }: { state: Bac
     if (!(await unlock.ensure())) return
     window.location.href = `/api/backup?snapshot=${encodeURIComponent(snapshot)}&path=${encodeURIComponent(e.path)}`
   }
+  const restoring = useBusy()
   const restore = async () => {
     const job = await jobs.start({ kind: 'backup-restore', snapshot, paths: selected, stop: where === 'inplace' ? stop : [], ...(where === 'new' ? { target } : {}) })
     if (job) setSelected([])
@@ -185,9 +187,9 @@ export function BackupBrowser({ state, snapshot, dir, onNavigate }: { state: Bac
                     <span className="block text-[12px] text-[#e3b341]">{stop.length ? m.backup_restore_inPlaceStop({ units: stop.join(', ') }) : m.backup_restore_inPlaceWarn()}</span>
                   </span>
                 </label>
-                <button type="button" className="btn primary self-start" disabled={!!jobs.running || (where === 'new' && !target.startsWith('/'))} onClick={() => (where === 'inplace' ? setConfirm(true) : void restore())}>
+                <BusyButton className="btn primary self-start" busy={restoring.is('new')} busyLabel={m.common_starting()} disabled={!!jobs.running || jobs.starting || (where === 'new' && !target.startsWith('/'))} onClick={() => (where === 'inplace' ? setConfirm(true) : void restoring.run('new', restore))}>
                   {m.backup_restore_start()}
-                </button>
+                </BusyButton>
                 <p className="m-0 text-[12px] text-muted">{m.backup_restore_job()}</p>
               </>
             )}
@@ -200,7 +202,8 @@ export function BackupBrowser({ state, snapshot, dir, onNavigate }: { state: Bac
         body={<p className="m-0">{m.backup_restore_confirmText({ n: selected.length, when: snap ? dateTime(snap.time) : snapshot })}</p>}
         confirm={m.backup_restore_start()}
         danger
-        onConfirm={() => void restore().catch((e: Error) => say(e.message, 'bad'))}
+        busyLabel={m.common_starting()}
+        onConfirm={() => restore().catch((e: Error) => say(e.message, 'bad'))}
         onClose={() => setConfirm(false)}
       />
     </>

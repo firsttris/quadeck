@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react'
 import { bytes, diskSize } from '~/lib/format'
 import { baseName, fileKind, isSensitivePath, joinPath, parentOf, validateName, type DirListing, type FileEntry, type FileRoot } from '~/shared/files'
 import { useActions } from './Actions'
+import { BusyButton, useBusy } from './Busy'
 import { Glyph } from './Glyph'
 import { useJobs } from './Jobs'
 import { ConfirmDialog, Modal } from './Modal'
@@ -112,12 +113,13 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
     if (job && clip.mode === 'cut') setClip(null)
   }
 
+  const pasting = useBusy()
   const startPaste = () => {
-    if (!clip) return
+    if (!clip || jobs.starting) return
     const here = new Set(listing?.entries.map((e) => e.name))
     const names = clip.paths.map(baseName).filter((n) => here.has(n))
     if (names.length) setDialog({ kind: 'overwrite', names })
-    else void paste(false)
+    else void pasting.run('paste', () => paste(false))
   }
 
   const onKey = (e: React.KeyboardEvent) => {
@@ -193,14 +195,14 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
             <button type="button" className="btn sm" disabled={!selected.size} onClick={() => setClip({ mode: 'cut', paths: selPaths })}>
               {m.files_explorer_cut()}
             </button>
-            <button type="button" className="btn sm" disabled={!clip || !!jobs.running} onClick={startPaste}>
+            <BusyButton className="btn sm" busy={pasting.is('paste')} busyLabel={m.common_starting()} disabled={!clip || !!jobs.running || jobs.starting} onClick={startPaste}>
               {m.files_explorer_paste()}
               {clip ? ` (${clip.paths.length})` : ''}
-            </button>
+            </BusyButton>
             <button type="button" className="btn sm" disabled={selected.size !== 1} onClick={() => setDialog({ kind: 'rename', entry: listing!.entries.find((x) => x.name === [...selected][0])! })}>
               {m.files_explorer_rename()}
             </button>
-            <button type="button" className="btn sm danger" disabled={!selected.size || !!jobs.running} onClick={() => setDialog({ kind: 'delete' })}>
+            <button type="button" className="btn sm danger" disabled={!selected.size || !!jobs.running || jobs.starting} onClick={() => setDialog({ kind: 'delete' })}>
               <Glyph name="trash" size={13} /> {m.common_delete()}
             </button>
             {clip && (
@@ -317,6 +319,7 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
         title={dialog?.kind === 'rename' ? m.files_explorer_renameTitle({ name: dialog.entry.name }) : m.files_explorer_newFolder()}
         initial={dialog?.kind === 'rename' ? dialog.entry.name : ''}
         taken={new Set(listing?.entries.map((e) => e.name))}
+        busyLabel={dialog?.kind === 'rename' ? m.common_saving() : m.common_creating()}
         onClose={() => setDialog(null)}
         onSubmit={async (name) => {
           const body = dialog?.kind === 'rename' ? { rename: { path: joinPath(cur, dialog.entry.name), name } } : { mkdir: joinPath(cur, name) }
@@ -347,9 +350,8 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
             </ul>
           </div>
         }
-        onConfirm={() => {
-          void jobs.start({ kind: 'fs-delete', paths: selPaths }).then((j) => j && setSelected(new Set()))
-        }}
+        busyLabel={m.common_starting()}
+        onConfirm={() => jobs.start({ kind: 'fs-delete', paths: selPaths }).then((j) => j && setSelected(new Set()))}
         onClose={() => setDialog(null)}
       />
       <ConfirmDialog
@@ -364,24 +366,27 @@ export function FileExplorer({ path, onNavigate }: { path?: string; onNavigate: 
             {m.files_explorer_existsAfter()}
           </p>
         }
-        onConfirm={() => void paste(true)}
+        busyLabel={m.common_starting()}
+        onConfirm={() => paste(true)}
         onClose={() => setDialog(null)}
       />
     </div>
   )
 }
 
-function NameDialog({ open, title, initial, taken, onClose, onSubmit }: { open: boolean; title: string; initial: string; taken: Set<string>; onClose: () => void; onSubmit: (name: string) => void }) {
+function NameDialog({ open, title, initial, taken, busyLabel, onClose, onSubmit }: { open: boolean; title: string; initial: string; taken: Set<string>; busyLabel: string; onClose: () => void; onSubmit: (name: string) => Promise<unknown> }) {
   const [name, setName] = useState(initial)
+  const work = useBusy()
+  const busy = work.busy !== null
   useEffect(() => setName(initial), [initial, open])
   const err = name && name !== initial ? (validateName(name) ?? (taken.has(name) ? m.files_explorer_exists({ name }) : undefined)) : undefined
   return (
-    <Modal open={open} onClose={onClose} title={title}>
+    <Modal open={open} onClose={onClose} title={title} busy={busy}>
       <form
         className="flex flex-col gap-3"
         onSubmit={(e) => {
           e.preventDefault()
-          if (name && name !== initial && !err) onSubmit(name)
+          if (name && name !== initial && !err) void work.run('submit', () => onSubmit(name))
         }}
       >
         <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
@@ -390,12 +395,12 @@ function NameDialog({ open, title, initial, taken, onClose, onSubmit }: { open: 
         </label>
         {err && <p className="m-0 text-[13px] text-[#ff8a80]">{err}</p>}
         <div className="flex justify-end gap-2">
-          <button type="button" className="btn" onClick={onClose}>
+          <button type="button" className="btn" disabled={busy} onClick={onClose}>
             {m.common_cancel()}
           </button>
-          <button type="submit" className="btn primary" disabled={!name || name === initial || !!err}>
+          <BusyButton type="submit" className="btn primary" busy={busy} busyLabel={busyLabel} disabled={!name || name === initial || !!err}>
             {m.common_save()}
-          </button>
+          </BusyButton>
         </div>
       </form>
     </Modal>

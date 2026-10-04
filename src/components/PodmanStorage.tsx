@@ -20,6 +20,7 @@ import {
   type PruneEvery,
 } from '~/shared/podman-storage'
 import { useActions } from './Actions'
+import { BusyButton, Spinner, useBusy } from './Busy'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
@@ -40,7 +41,9 @@ export function PodmanStorageCard() {
   const [error, setError] = useState('')
   const [tab, setTab] = useState<Tab>('images')
   const [cleaning, setCleaning] = useState(false)
-  const [busy, setBusy] = useState(false)
+  /** "kind:id" of the item being removed, "clean" for the cleanup dialog, "prune", "reload". */
+  const work = useBusy()
+  const busy = work.busy !== null
 
   const load = useCallback(async () => {
     try {
@@ -55,34 +58,33 @@ export function PodmanStorageCard() {
   }, [load])
 
   /** Removes items; returns the result for the dialog, or undefined (locked, error). */
-  const remove = async (items: CleanupItem[]): Promise<Cleaned | undefined> => {
-    setBusy(true)
-    try {
-      const r = await guarded<Cleaned>('/api/podman/storage', { body: { items: items.map((i) => ({ kind: i.kind, id: i.id })) } })
-      if (!r) return undefined
-      setS(r.storage)
-      const ok = r.results.filter((x) => x.ok)
-      const failed = r.results.length - ok.length
-      say(m.podstore_freed({ size: bytes(planSize(ok.map((x) => x.item))), n: ok.length }), failed || r.skipped ? 'bad' : undefined)
-      return r
-    } catch (e) {
-      say((e as Error).message, 'bad')
-      return undefined
-    } finally {
-      setBusy(false)
-    }
-  }
-  const setPrune = async (every: PruneEvery | null) => {
-    try {
-      const r = await guarded<PodmanStorage>('/api/podman/storage', { body: { prune: every } })
-      if (r) {
-        setS(r)
-        say(every ? m.podstore_prune_on() : m.podstore_prune_off())
+  const remove = (items: CleanupItem[], key = items.length === 1 ? `${items[0]!.kind}:${items[0]!.id}` : 'clean'): Promise<Cleaned | undefined> =>
+    work.run(key, async () => {
+      try {
+        const r = await guarded<Cleaned>('/api/podman/storage', { body: { items: items.map((i) => ({ kind: i.kind, id: i.id })) } })
+        if (!r) return undefined
+        setS(r.storage)
+        const ok = r.results.filter((x) => x.ok)
+        const failed = r.results.length - ok.length
+        say(m.podstore_freed({ size: bytes(planSize(ok.map((x) => x.item))), n: ok.length }), failed || r.skipped ? 'bad' : undefined)
+        return r
+      } catch (e) {
+        say((e as Error).message, 'bad')
+        return undefined
       }
-    } catch (e) {
-      say((e as Error).message, 'bad')
-    }
-  }
+    })
+  const setPrune = (every: PruneEvery | null) =>
+    work.run('prune', async () => {
+      try {
+        const r = await guarded<PodmanStorage>('/api/podman/storage', { body: { prune: every } })
+        if (r) {
+          setS(r)
+          say(every ? m.podstore_prune_on() : m.podstore_prune_off())
+        }
+      } catch (e) {
+        say((e as Error).message, 'bad')
+      }
+    })
 
   const sum = useMemo(() => (s ? storageSummary(s) : undefined), [s])
   if (error)
@@ -117,13 +119,13 @@ export function PodmanStorageCard() {
             {s.disk ? ` · ${m.podstore_disk({ percent: pct(s.disk.used / s.disk.size) })}` : ''}
           </span>
         </div>
-        <button type="button" className="btn sm" onClick={() => void load()}>
+        <BusyButton className="btn sm" busy={work.is('reload')} busyLabel={m.podstore_reloading()} disabled={busy} onClick={() => void work.run('reload', load)}>
           {m.podstore_reload()}
-        </button>
+        </BusyButton>
         {!readonly && (
-          <button type="button" className="btn primary sm" disabled={busy} onClick={() => setCleaning(true)}>
+          <BusyButton className="btn primary sm" busy={work.is('clean')} busyLabel={m.podstore_cleaning()} disabled={busy} onClick={() => setCleaning(true)}>
             {m.podstore_clean()}
-          </button>
+          </BusyButton>
         )}
       </div>
 
@@ -154,8 +156,8 @@ export function PodmanStorageCard() {
       </div>
 
       <div className="overflow-x-auto">
-        {tab === 'images' && <ImagesTable s={s} busy={busy || readonly} onRemove={(i) => void remove([i])} />}
-        {tab === 'volumes' && <VolumesTable s={s} busy={busy || readonly} onRemove={(i) => void remove([i])} />}
+        {tab === 'images' && <ImagesTable s={s} busy={busy || readonly} removing={work.busy} onRemove={(i) => void remove([i])} />}
+        {tab === 'volumes' && <VolumesTable s={s} busy={busy || readonly} removing={work.busy} onRemove={(i) => remove([i])} />}
         {tab === 'containers' && (
           <table className="tbl">
             <thead>
@@ -178,7 +180,7 @@ export function PodmanStorageCard() {
                 </tr>
               )}
               {stopped.map((c) => (
-                <tr key={c.id} data-testid="podstore-row">
+                <tr key={c.id} data-testid="podstore-row" className={work.is(`container:${c.id}`) ? 'opacity-60' : undefined}>
                   <td>
                     <span className="font-mono">{containerLabel(c)}</span>
                     {c.unit && <span className="block text-[12px] text-muted">{c.unit}</span>}
@@ -192,9 +194,16 @@ export function PodmanStorageCard() {
                   <td>{bytes(c.size)}</td>
                   <td className="text-right">
                     {removableContainer(c) ? (
-                      <button type="button" className="btn sm danger" disabled={busy || readonly} onClick={() => void remove([{ kind: 'container', id: c.id, label: containerLabel(c), size: c.size }])} aria-label={m.podstore_removeFor({ name: containerLabel(c) })}>
+                      <BusyButton
+                        className="btn sm danger"
+                        busy={work.is(`container:${c.id}`)}
+                        busyLabel={m.podstore_removing()}
+                        disabled={busy || readonly}
+                        onClick={() => void remove([{ kind: 'container', id: c.id, label: containerLabel(c), size: c.size }])}
+                        aria-label={m.podstore_removeFor({ name: containerLabel(c) })}
+                      >
                         {m.podstore_remove()}
-                      </button>
+                      </BusyButton>
                     ) : (
                       <span className="text-[12px] text-muted">{c.unit ? m.podstore_byQuadlet() : m.podstore_inPod()}</span>
                     )}
@@ -206,7 +215,7 @@ export function PodmanStorageCard() {
         )}
       </div>
 
-      <PruneRow s={s} readonly={readonly} onChange={(e) => void setPrune(e)} />
+      <PruneRow s={s} readonly={readonly} saving={work.is('prune')} disabled={busy} onChange={(e) => void setPrune(e)} />
       {cleaning && <CleanupDialog s={s} onClose={() => setCleaning(false)} remove={remove} />}
     </section>
   )
@@ -219,7 +228,7 @@ function usedByNames(s: PodmanStorage, ids: string[]) {
   })
 }
 
-function ImagesTable({ s, busy, onRemove }: { s: PodmanStorage; busy: boolean; onRemove: (i: CleanupItem) => void }) {
+function ImagesTable({ s, busy, removing, onRemove }: { s: PodmanStorage; busy: boolean; removing: string | null; onRemove: (i: CleanupItem) => void }) {
   // Unused first, then by size.
   const rows = [...s.images].sort((a, b) => Number(a.usedBy.length > 0 || a.quadlets.length > 0) - Number(b.usedBy.length > 0 || b.quadlets.length > 0) || b.size - a.size)
   return (
@@ -240,7 +249,7 @@ function ImagesTable({ s, busy, onRemove }: { s: PodmanStorage; busy: boolean; o
           const users = usedByNames(s, i.usedBy)
           const unused = !users.length && !i.quadlets.length
           return (
-            <tr key={i.id} data-testid="podstore-row" className={unused ? 'bg-[#d29922]/[0.06]' : undefined}>
+            <tr key={i.id} data-testid="podstore-row" className={removing === `image:${i.id}` ? 'opacity-60' : unused ? 'bg-[#d29922]/[0.06]' : undefined}>
               <td>
                 <span className="font-mono text-[13px]">{i.names[0] ?? m.podstore_untagged({ id: shortId(i.id) })}</span>
                 {i.names.length > 1 && <span className="block font-mono text-[11px] text-muted">{i.names.slice(1).join(', ')}</span>}
@@ -251,9 +260,16 @@ function ImagesTable({ s, busy, onRemove }: { s: PodmanStorage; busy: boolean; o
               <td className="text-[13px]">{users.length ? users.join(', ') : i.quadlets.length ? m.podstore_quadletStopped({ files: i.quadlets.join(', ') }) : <span className="text-[#e3b341]">{m.podstore_nobody()}</span>}</td>
               <td className="text-right">
                 {unused ? (
-                  <button type="button" className="btn sm danger" disabled={busy} onClick={() => onRemove({ kind: 'image', id: i.id, label: imageLabel(i), size: i.size })} aria-label={m.podstore_removeFor({ name: imageLabel(i) })}>
+                  <BusyButton
+                    className="btn sm danger"
+                    busy={removing === `image:${i.id}`}
+                    busyLabel={m.podstore_removing()}
+                    disabled={busy}
+                    onClick={() => onRemove({ kind: 'image', id: i.id, label: imageLabel(i), size: i.size })}
+                    aria-label={m.podstore_removeFor({ name: imageLabel(i) })}
+                  >
                     {m.podstore_remove()}
-                  </button>
+                  </BusyButton>
                 ) : (
                   <span className="text-[12px] text-muted">{m.podstore_inUse()}</span>
                 )}
@@ -266,7 +282,7 @@ function ImagesTable({ s, busy, onRemove }: { s: PodmanStorage; busy: boolean; o
   )
 }
 
-function VolumesTable({ s, busy, onRemove }: { s: PodmanStorage; busy: boolean; onRemove: (i: CleanupItem) => void }) {
+function VolumesTable({ s, busy, removing, onRemove }: { s: PodmanStorage; busy: boolean; removing: string | null; onRemove: (i: CleanupItem) => Promise<unknown> }) {
   const [confirm, setConfirm] = useState<PodmanVolume | null>(null)
   const rows = [...s.volumes].sort((a, b) => Number(a.usedBy.length > 0) - Number(b.usedBy.length > 0) || (b.size ?? 0) - (a.size ?? 0))
   return (
@@ -288,7 +304,7 @@ function VolumesTable({ s, busy, onRemove }: { s: PodmanStorage; busy: boolean; 
             const users = usedByNames(s, v.usedBy)
             const orphan = !users.length
             return (
-              <tr key={v.name} data-testid="podstore-row" className={orphan ? 'bg-[#d29922]/[0.06]' : undefined}>
+              <tr key={v.name} data-testid="podstore-row" className={removing === `volume:${v.name}` ? 'opacity-60' : orphan ? 'bg-[#d29922]/[0.06]' : undefined}>
                 <td>
                   <span className="font-mono text-[13px]">{v.anonymous ? `${shortId(v.name)}…` : v.name}</span>
                   <span className="block text-[12px] text-muted">
@@ -301,9 +317,9 @@ function VolumesTable({ s, busy, onRemove }: { s: PodmanStorage; busy: boolean; 
                 <td className="text-[13px]">{users.length ? users.join(', ') : <span className="text-[#e3b341]">{m.podstore_nobody()}</span>}</td>
                 <td className="text-right">
                   {orphan && !v.quadlet ? (
-                    <button type="button" className="btn sm danger" disabled={busy} onClick={() => setConfirm(v)} aria-label={m.podstore_removeFor({ name: v.name })}>
+                    <BusyButton className="btn sm danger" busy={removing === `volume:${v.name}`} busyLabel={m.podstore_removing()} disabled={busy} onClick={() => setConfirm(v)} aria-label={m.podstore_removeFor({ name: v.name })}>
                       {m.podstore_removeDots()}
-                    </button>
+                    </BusyButton>
                   ) : (
                     <span className="text-[12px] text-muted">{orphan ? m.podstore_viaQuadlet() : m.podstore_inUse()}</span>
                   )}
@@ -314,26 +330,28 @@ function VolumesTable({ s, busy, onRemove }: { s: PodmanStorage; busy: boolean; 
         </tbody>
       </table>
       {confirm && (
-        <Modal open title={m.podstore_volumeConfirmTitle({ name: confirm.name })} onClose={() => setConfirm(null)}>
+        <Modal open title={m.podstore_volumeConfirmTitle({ name: confirm.name })} onClose={() => setConfirm(null)} busy={removing === `volume:${confirm.name}`}>
           <p className="m-0 text-[13px]">{m.podstore_volumeWarning()}</p>
           <p className="m-0 text-[13px] text-muted">
             {bytes(confirm.size)}
             {confirm.mountpoint ? ` · ${confirm.mountpoint}` : ''}
           </p>
           <div className="flex justify-end gap-2">
-            <button type="button" className="btn" onClick={() => setConfirm(null)}>
+            <button type="button" className="btn" disabled={removing === `volume:${confirm.name}`} onClick={() => setConfirm(null)}>
               {m.common_cancel()}
             </button>
-            <button
-              type="button"
+            {/* stays open while Podman deletes, closes when done */}
+            <BusyButton
               className="btn danger"
-              onClick={() => {
-                onRemove({ kind: 'volume', id: confirm.name, label: confirm.name, size: confirm.size })
+              busy={removing === `volume:${confirm.name}`}
+              busyLabel={m.podstore_removing()}
+              onClick={async () => {
+                await onRemove({ kind: 'volume', id: confirm.name, label: confirm.name, size: confirm.size })
                 setConfirm(null)
               }}
             >
               {m.podstore_volumeDelete()}
-            </button>
+            </BusyButton>
           </div>
         </Modal>
       )}
@@ -346,6 +364,8 @@ function CleanupDialog({ s, onClose, remove }: { s: PodmanStorage; onClose: () =
   const [volumesOn, setVolumesOn] = useState(false)
   const [done, setDone] = useState<Cleaned | null>(null)
   const [busy, setBusy] = useState(false)
+  const [started, setStarted] = useState(0)
+  const elapsed = useElapsed(busy ? started : 0)
   const orphans = cleanupPlan(s, { containers: sel.containers, dangling: false, unusedImages: false, networks: false, volumes: s.volumes.map((v) => v.name) }).filter((i) => i.kind === 'volume')
   const effective = { ...sel, volumes: volumesOn ? sel.volumes : [] }
   const plan = cleanupPlan(s, effective)
@@ -354,6 +374,7 @@ function CleanupDialog({ s, onClose, remove }: { s: PodmanStorage; onClose: () =
   const toggle = (k: keyof Omit<CleanupSelection, 'volumes'>) => setSel({ ...sel, [k]: !sel[k] })
   const run = async () => {
     setBusy(true)
+    setStarted(Date.now())
     const r = await remove(plan)
     setBusy(false)
     if (r) setDone(r)
@@ -386,7 +407,7 @@ function CleanupDialog({ s, onClose, remove }: { s: PodmanStorage; onClose: () =
 
   const row = ({ k, label, help, list }: { k: keyof Omit<CleanupSelection, 'volumes'>; label: string; help: string; list: CleanupItem[] }) => (
     <label key={k} className="flex items-start gap-2.5 text-[13px]">
-      <input type="checkbox" className="mt-0.5" checked={sel[k]} onChange={() => toggle(k)} />
+      <input type="checkbox" className="mt-0.5" checked={sel[k]} disabled={busy} onChange={() => toggle(k)} />
       <span className="grow">
         {label}
         <span className="block text-[12px] text-muted">{help}</span>
@@ -396,7 +417,7 @@ function CleanupDialog({ s, onClose, remove }: { s: PodmanStorage; onClose: () =
   )
 
   return (
-    <Modal open title={m.podstore_cleanTitle()} onClose={onClose}>
+    <Modal open title={m.podstore_cleanTitle()} onClose={onClose} busy={busy}>
       <p className="m-0 text-[13px] text-muted">{m.podstore_cleanIntro()}</p>
       <fieldset className="m-0 flex flex-col gap-2.5 border-0 p-0">
         <legend className="label-caps mb-1.5 p-0">{m.podstore_safe()}</legend>
@@ -411,7 +432,7 @@ function CleanupDialog({ s, onClose, remove }: { s: PodmanStorage; onClose: () =
       {orphans.length > 0 && (
         <div className="flex flex-col gap-2 rounded-[10px] border border-[#5b2a2a] bg-[#f85149]/[0.06] p-3">
           <label className="flex items-start gap-2.5 text-[13px]">
-            <input type="checkbox" className="mt-0.5" checked={volumesOn} onChange={(e) => setVolumesOn(e.target.checked)} />
+            <input type="checkbox" className="mt-0.5" checked={volumesOn} disabled={busy} onChange={(e) => setVolumesOn(e.target.checked)} />
             <span className="grow">
               <span className="font-medium text-[#f85149]">{m.podstore_sel_volumes()}</span>
               <span className="block text-[12px]">{m.podstore_volumeWarning()}</span>
@@ -422,7 +443,7 @@ function CleanupDialog({ s, onClose, remove }: { s: PodmanStorage; onClose: () =
             <fieldset className="m-0 flex flex-col gap-1.5 border-0 py-0 pr-0 pl-6" aria-label={m.podstore_sel_volumes()}>
               {orphans.map((v) => (
                 <label key={v.id} className="flex items-center gap-2 text-[13px]">
-                  <input type="checkbox" checked={sel.volumes.includes(v.id)} onChange={(e) => setSel({ ...sel, volumes: e.target.checked ? [...sel.volumes, v.id] : sel.volumes.filter((x) => x !== v.id) })} />
+                  <input type="checkbox" checked={sel.volumes.includes(v.id)} disabled={busy} onChange={(e) => setSel({ ...sel, volumes: e.target.checked ? [...sel.volumes, v.id] : sel.volumes.filter((x) => x !== v.id) })} />
                   <span className="grow font-mono">{v.label}</span>
                   <span className="text-subtle">{bytes(v.size)}</span>
                 </label>
@@ -446,36 +467,49 @@ function CleanupDialog({ s, onClose, remove }: { s: PodmanStorage; onClose: () =
           </ul>
         )}
       </div>
-      <p className="m-0 text-[12px] text-muted">{m.podstore_cleanSafety()}</p>
+      {busy ? (
+        <p className="m-0 flex items-center gap-2 text-[13px] text-accent" aria-live="polite" data-testid="podstore-progress">
+          <Spinner />
+          {m.podstore_cleaningStatus({ n: plan.length, seconds: elapsed })}
+        </p>
+      ) : (
+        <p className="m-0 text-[12px] text-muted">{m.podstore_cleanSafety()}</p>
+      )}
       <div className="flex justify-end gap-2">
-        <button type="button" className="btn" onClick={onClose}>
+        <button type="button" className="btn" disabled={busy} onClick={onClose}>
           {m.common_cancel()}
         </button>
-        <button type="button" className="btn danger" disabled={busy || plan.length === 0} onClick={() => void run()}>
+        <BusyButton className="btn danger" busy={busy} busyLabel={m.podstore_cleaning()} disabled={plan.length === 0} onClick={() => void run()}>
           {m.podstore_cleanRun({ n: plan.length })}
-        </button>
+        </BusyButton>
       </div>
     </Modal>
   )
 }
 
-function PruneRow({ s, readonly, onChange }: { s: PodmanStorage; readonly: boolean; onChange: (e: PruneEvery | null) => void }) {
+function PruneRow({ s, readonly, saving, disabled, onChange }: { s: PodmanStorage; readonly: boolean; saving: boolean; disabled: boolean; onChange: (e: PruneEvery | null) => void }) {
   const p = s.prune
   return (
     <div className="flex flex-col gap-2 border-t border-line pt-3">
       <div className="flex flex-wrap items-center gap-3">
         <label className="flex grow items-start gap-2.5 text-[13px]">
-          <input type="checkbox" className="mt-0.5" checked={!!p} disabled={readonly} onChange={(e) => onChange(e.target.checked ? 'weekly' : null)} />
+          <input type="checkbox" className="mt-0.5" checked={!!p} disabled={readonly || disabled} onChange={(e) => onChange(e.target.checked ? 'weekly' : null)} />
           <span>
             {m.podstore_prune()}
             <span className="block text-[12px] text-muted">{m.podstore_pruneHelp()}</span>
           </span>
         </label>
         {p && (
-          <select className="field sm" aria-label={m.podstore_pruneEvery()} value={p.every} disabled={readonly} onChange={(e) => onChange(e.target.value as PruneEvery)}>
+          <select className="field sm" aria-label={m.podstore_pruneEvery()} value={p.every} disabled={readonly || disabled} onChange={(e) => onChange(e.target.value as PruneEvery)}>
             <option value="weekly">{m.podstore_prune_weekly()}</option>
             <option value="monthly">{m.podstore_prune_monthly()}</option>
           </select>
+        )}
+        {saving && (
+          <span className="flex items-center gap-1.5 text-[12px] text-accent" aria-live="polite">
+            <Spinner />
+            {m.common_saving()}
+          </span>
         )}
       </div>
       {p && (
@@ -488,4 +522,16 @@ function PruneRow({ s, readonly, onChange }: { s: PodmanStorage; readonly: boole
       )}
     </div>
   )
+}
+
+/** Whole seconds since `since` (0 = not running), ticking once a second. */
+function useElapsed(since: number) {
+  const [now, setNow] = useState(Date.now())
+  useEffect(() => {
+    if (!since) return
+    setNow(Date.now())
+    const t = setInterval(() => setNow(Date.now()), 1000)
+    return () => clearInterval(t)
+  }, [since])
+  return since ? Math.max(0, Math.floor((now - since) / 1000)) : 0
 }

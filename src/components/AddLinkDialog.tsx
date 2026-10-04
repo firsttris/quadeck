@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react'
 import { api } from '~/lib/api'
+import { BusyButton } from './Busy'
 import { Modal } from './Modal'
 import { IconPicker } from './ServiceDialog'
 import { useToast } from './Toast'
@@ -15,11 +16,12 @@ export function AddLinkDialog({ open, onClose, groups }: { open: boolean; onClos
     if (open) setIcon('')
   }, [open])
   return (
-    <Modal open={open} onClose={onClose} title={m.overview_dialog_addLink()}>
+    <Modal open={open} onClose={onClose} title={m.overview_dialog_addLink()} busy={saving}>
       <form
         className="flex flex-col gap-3"
         onSubmit={async (e) => {
           e.preventDefault()
+          if (saving) return
           const f = new FormData(e.currentTarget)
           setSaving(true)
           setError('')
@@ -66,12 +68,12 @@ export function AddLinkDialog({ open, onClose, groups }: { open: boolean; onClos
           </p>
         )}
         <div className="flex justify-end gap-2">
-          <button type="button" className="btn" onClick={onClose}>
+          <button type="button" className="btn" disabled={saving} onClick={onClose}>
             {m.common_cancel()}
           </button>
-          <button type="submit" className="btn primary" disabled={saving}>
+          <BusyButton type="submit" className="btn primary" busy={saving} busyLabel={m.common_saving()}>
             {m.common_add()}
-          </button>
+          </BusyButton>
         </div>
       </form>
     </Modal>

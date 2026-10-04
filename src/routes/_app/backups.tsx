@@ -4,6 +4,7 @@ import { useActions } from '~/components/Actions'
 import { BackupBrowser } from '~/components/BackupBrowser'
 import { BackupSetup } from '~/components/BackupSetup'
 import { BackupClients } from '~/components/BackupClients'
+import { BusyButton, useBusy } from '~/components/Busy'
 import { InstallHint } from '~/components/InstallHint'
 import { ConfirmDialog, Modal } from '~/components/Modal'
 import { PageHeader } from '~/components/PageHeader'
@@ -128,28 +129,31 @@ function Overview({ state, onState, onEdit, onRefresh }: { state: BackupState; o
   const [password, setPassword] = useState<string | null>(null)
   const [disable, setDisable] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
+  const work = useBusy<'backup' | 'check' | 'password' | 'saved'>()
   const backups = state.runs.filter((r) => r.kind === 'backup')
   const last = backups[0]
   const lastCheck = state.runs.find((r) => r.kind === 'check')
 
-  const start = async (kind: 'backup' | 'check') => {
-    try {
-      const r = await guarded('/api/backup', { body: { start: kind } })
-      if (!r) return
-      say(kind === 'backup' ? m.backup_started() : m.backup_checkStarted())
-      onState({ ...state, running: kind })
-    } catch (e) {
-      say((e as Error).message, 'bad')
-    }
-  }
-  const showPassword = async () => {
-    try {
-      const r = await guarded<{ password: string }>('/api/backup', { body: { password: true } })
-      if (r) setPassword(r.password)
-    } catch (e) {
-      say((e as Error).message, 'bad')
-    }
-  }
+  const start = (kind: 'backup' | 'check') =>
+    work.run(kind, async () => {
+      try {
+        const r = await guarded('/api/backup', { body: { start: kind } })
+        if (!r) return
+        say(kind === 'backup' ? m.backup_started() : m.backup_checkStarted())
+        onState({ ...state, running: kind })
+      } catch (e) {
+        say((e as Error).message, 'bad')
+      }
+    })
+  const showPassword = () =>
+    work.run('password', async () => {
+      try {
+        const r = await guarded<{ password: string }>('/api/backup', { body: { password: true } })
+        if (r) setPassword(r.password)
+      } catch (e) {
+        say((e as Error).message, 'bad')
+      }
+    })
   const switchOff = async () => {
     try {
       const s = await guarded<BackupState>('/api/backup', { body: { disable: true } })
@@ -179,9 +183,9 @@ function Overview({ state, onState, onEdit, onRefresh }: { state: BackupState; o
         <section className="flex flex-wrap items-center gap-3 rounded-[12px] border border-[rgba(210,153,34,.35)] bg-[rgba(210,153,34,.08)] px-4 py-3 text-[13px]" aria-label={m.backup_password_label()}>
           <span className="grow">{m.backup_password_warn()}</span>
           {!readonly && (
-            <button type="button" className="btn sm" onClick={() => void showPassword()}>
+            <BusyButton className="btn sm" busy={work.is('password')} busyLabel={m.common_opening()} disabled={work.busy !== null} onClick={() => void showPassword()}>
               {m.backup_password_show()}
-            </button>
+            </BusyButton>
           )}
         </section>
       )}
@@ -222,18 +226,18 @@ function Overview({ state, onState, onEdit, onRefresh }: { state: BackupState; o
 
       {!readonly && (
         <div className="flex flex-wrap items-center gap-2">
-          <button type="button" className="btn primary" disabled={!!state.running} onClick={() => void start('backup')}>
+          <BusyButton className="btn primary" busy={work.is('backup')} busyLabel={m.common_starting()} disabled={!!state.running || work.busy !== null} onClick={() => void start('backup')}>
             {m.backup_runNow()}
-          </button>
-          <button type="button" className="btn" disabled={!!state.running} onClick={() => void start('check')}>
+          </BusyButton>
+          <BusyButton className="btn" busy={work.is('check')} busyLabel={m.common_starting()} disabled={!!state.running || work.busy !== null} onClick={() => void start('check')}>
             {m.backup_checkNow()}
-          </button>
+          </BusyButton>
           <button type="button" className="btn" onClick={onEdit}>
             {m.backup_edit()}
           </button>
-          <button type="button" className="btn" onClick={() => void showPassword()}>
+          <BusyButton className="btn" busy={work.is('password')} busyLabel={m.common_opening()} disabled={work.busy !== null} onClick={() => void showPassword()}>
             {m.backup_password_show()}
-          </button>
+          </BusyButton>
           <span className="grow" />
           <button type="button" className="btn danger" onClick={() => setDisable(true)}>
             {m.backup_disable()}
@@ -303,7 +307,7 @@ function Overview({ state, onState, onEdit, onRefresh }: { state: BackupState; o
         )}
       </section>
 
-      <Modal open={password !== null} onClose={() => setPassword(null)} title={m.backup_password_title()}>
+      <Modal open={password !== null} onClose={() => setPassword(null)} title={m.backup_password_title()} busy={work.is('saved')}>
         <p className="m-0 text-[13px] text-muted">{m.backup_password_text()}</p>
         <code className="block rounded-lg border border-edge bg-[#070a0e] px-3 py-2 font-mono text-[13px] break-all select-all" data-testid="backup-password">
           {password}
@@ -313,28 +317,31 @@ function Overview({ state, onState, onEdit, onRefresh }: { state: BackupState; o
             {m.backup_password_download()}
           </a>
           {!plan.passwordSaved && !readonly && (
-            <button
-              type="button"
+            <BusyButton
               className="btn primary"
-              onClick={async () => {
-                try {
-                  const s = await guarded<BackupState>('/api/backup', { body: { save: { plan: { ...plan, passwordSaved: true }, secrets: {} } } })
-                  if (s) onState(s)
-                  setPassword(null)
-                } catch (e) {
-                  say((e as Error).message, 'bad')
-                }
-              }}
+              busy={work.is('saved')}
+              busyLabel={m.common_saving()}
+              onClick={() =>
+                void work.run('saved', async () => {
+                  try {
+                    const s = await guarded<BackupState>('/api/backup', { body: { save: { plan: { ...plan, passwordSaved: true }, secrets: {} } } })
+                    if (s) onState(s)
+                    setPassword(null)
+                  } catch (e) {
+                    say((e as Error).message, 'bad')
+                  }
+                })
+              }
             >
               {m.backup_password_saved()}
-            </button>
+            </BusyButton>
           )}
-          <button type="button" className="btn" onClick={() => setPassword(null)}>
+          <button type="button" className="btn" disabled={work.is('saved')} onClick={() => setPassword(null)}>
             {m.common_close()}
           </button>
         </div>
       </Modal>
-      <ConfirmDialog open={disable} title={m.backup_disable_title()} body={<p className="m-0">{m.backup_disable_text()}</p>} confirm={m.backup_disable()} danger onConfirm={() => void switchOff()} onClose={() => setDisable(false)} />
+      <ConfirmDialog open={disable} title={m.backup_disable_title()} body={<p className="m-0">{m.backup_disable_text()}</p>} confirm={m.backup_disable()} danger busyLabel={m.common_applying()} onConfirm={() => switchOff()} onClose={() => setDisable(false)} />
     </>
   )
 }

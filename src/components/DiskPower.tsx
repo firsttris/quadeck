@@ -3,6 +3,7 @@ import { api } from '~/lib/api'
 import { num } from '~/lib/format'
 import { STANDBY_MINUTES, WAKE_WARN_PER_DAY, type ApmMode, type DiskPower, type PowerSetting, type PowerState, type StandbyMinutes } from '~/shared/power'
 import { useActions } from './Actions'
+import { BusyButton, useBusy } from './Busy'
 import { Modal } from './Modal'
 import { Dot } from './Status'
 import { useToast } from './Toast'
@@ -45,12 +46,12 @@ export function PowerDialog({ disk, info, onClose, onSaved }: { disk: DiskPower;
   const { readonly } = useActions()
   const [setting, setSetting] = useState<PowerSetting>(disk.setting ?? { minutes: 20, apm: 'disk' })
   const [users, setUsers] = useState<{ command: string; unit?: string; files: number }[] | null>(null)
-  const [busy, setBusy] = useState(false)
+  const work = useBusy<'save' | 'remove' | 'look'>()
+  const busy = work.is('save') || work.is('remove')
   const wakes = info.wakes[disk.name]
   const blocked = disk.system ? m.power_blockedSystem() : disk.raid ? m.power_blockedRaid() : !disk.serial ? m.power_blockedSerial() : undefined
 
   const save = async (s: PowerSetting | null) => {
-    setBusy(true)
     try {
       const r = await guarded<PowerState>('/api/disks/power', { body: { serial: disk.serial, setting: s } })
       if (r) {
@@ -60,8 +61,6 @@ export function PowerDialog({ disk, info, onClose, onSaved }: { disk: DiskPower;
       }
     } catch (e) {
       say((e as Error).message, 'bad')
-    } finally {
-      setBusy(false)
     }
   }
   const lookUsers = async () => {
@@ -73,7 +72,7 @@ export function PowerDialog({ disk, info, onClose, onSaved }: { disk: DiskPower;
   }
 
   return (
-    <Modal open title={m.power_dialogTitle({ name: disk.name, model: disk.model ?? '' })} onClose={onClose}>
+    <Modal open title={m.power_dialogTitle({ name: disk.name, model: disk.model ?? '' })} onClose={onClose} busy={busy}>
       <p className="m-0 text-[13px] text-muted">
         {pickMsg({ active: m.power_state_active, standby: m.power_state_standby, unknown: m.power_state_unknown }, disk.state)}
         {disk.apmNow !== undefined ? ` · ${m.power_apmNow({ value: String(disk.apmNow) })}` : ''}
@@ -114,9 +113,9 @@ export function PowerDialog({ disk, info, onClose, onSaved }: { disk: DiskPower;
       <div className="flex flex-col gap-2 border-t border-line pt-3">
         <div className="flex items-center gap-2">
           <span className="grow text-[13px]">{m.power_awake()}</span>
-          <button type="button" className="btn sm" onClick={() => void lookUsers()}>
+          <BusyButton className="btn sm" busy={work.is('look')} busyLabel={m.common_loading()} disabled={work.busy !== null} onClick={() => void work.run('look', lookUsers)}>
             {m.power_look()}
-          </button>
+          </BusyButton>
         </div>
         {users && users.length === 0 && <p className="m-0 text-[12px] text-muted">{m.power_noUsers()}</p>}
         {users && users.length > 0 && (
@@ -135,18 +134,18 @@ export function PowerDialog({ disk, info, onClose, onSaved }: { disk: DiskPower;
       </div>
       <div className="flex flex-wrap justify-end gap-2">
         {disk.setting && !readonly && (
-          <button type="button" className="btn danger" disabled={busy} onClick={() => void save(null)}>
+          <BusyButton className="btn danger" busy={work.is('remove')} busyLabel={m.common_deleting()} disabled={work.busy !== null} onClick={() => void work.run('remove', () => save(null))}>
             {m.power_remove()}
-          </button>
+          </BusyButton>
         )}
         <span className="grow" />
-        <button type="button" className="btn" onClick={onClose}>
+        <button type="button" className="btn" disabled={busy} onClick={onClose}>
           {m.common_cancel()}
         </button>
         {!blocked && !readonly && (
-          <button type="button" className="btn primary" disabled={busy || !info.installed} onClick={() => void save(setting)}>
+          <BusyButton className="btn primary" busy={work.is('save')} busyLabel={m.common_saving()} disabled={work.busy !== null || !info.installed} onClick={() => void work.run('save', () => save(setting))}>
             {m.common_save()}
-          </button>
+          </BusyButton>
         )}
       </div>
       <p className="m-0 font-mono text-[11px] text-muted">{info.rulesPath}</p>
