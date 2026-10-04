@@ -127,6 +127,14 @@ describe('helper over a Unix socket', () => {
     await client.lock(token)
   })
 
+  it('scans the LAN through the helper (active only when asked for)', async () => {
+    const active = await client.scanDevices(true)
+    const passive = await client.scanDevices(false)
+    expect(active).toMatchObject({ active: true, subnets: ['192.168.1.0/24'], selfIps: ['192.168.1.20'] })
+    expect(passive.active).toBe(false)
+    expect(passive.devices.length).toBeLessThan(active.devices.length)
+  })
+
   it('reports a missing helper clearly', async () => {
     await expect(new HelperClient(join(dir, 'missing.sock')).info()).rejects.toMatchObject({ status: 503 })
   })

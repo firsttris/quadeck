@@ -2,8 +2,9 @@
 
 The **Network** page shows the network side of the server: interfaces, listening ports with who
 is behind them, the firewall's view on those ports, routes and DNS. It answers "why can't I reach
-it?" and "what is listening on 8080?" without a terminal. Five tabs: **Interfaces**
-(interfaces, routes and DNS), **Ports** and **Firewall** only show; **Reverse proxy** edits the
+it?" and "what is listening on 8080?" without a terminal. Six tabs: **Interfaces**
+(interfaces, routes and DNS), **Devices** (who else is in the LAN, see [below](#devices)),
+**Ports** and **Firewall** only show; **Reverse proxy** edits the
 Caddyfile (see [below](#reverse-proxy)); **Speed test** measures the connection (see
 [below](#speed-test)).
 
@@ -17,6 +18,41 @@ received and sent since boot. Loopback and container-side veth interfaces are hi
 a checkbox shows them.
 
 Source: `ip -j -d addr`, `/sys/class/net`; without iproute2, Node's own interface list.
+
+## Devices
+
+Every device in the home network: IP and MAC address, name, vendor and the services it
+announces, when it was first and last seen. Give a device your own name and a note, mark it as
+known – or let Quadeck tell you when an unknown one turns up.
+
+- **Scan**: the root helper pings every address of the server's own private IPv4 subnets
+  (10/8, 172.16/12, 192.168/16 on LAN, Wi-Fi, bridge and bond interfaces – never VPN or
+  container networks, never the internet). A subnet wider than /22 is narrowed to the /24 around
+  the server's address, so a scan is at most 1022 pings. `fping` is used when installed (a
+  second), otherwise `ping` 64 at a time. The kernel's neighbour table (`ip neigh`) then has the
+  MAC addresses; devices that block ping still show up there when they answer ARP.
+- **Automatic**: the neighbour table is read every 5 minutes (no traffic at all), a ping sweep
+  runs every 30 minutes (15 min to 6 h, or off – *Scan automatically*). *Scan now* sweeps at once.
+  A device is *online* when it was seen in the last 10 minutes.
+- **Names** from reverse DNS (the router knows the DHCP names, e.g. `laptop.fritz.box`) and from
+  mDNS; **services** from mDNS (`avahi-browse`, package `avahi-utils`): printers, scanners,
+  AirPlay, Chromecast, Spotify Connect, HomeKit, Matter, SSH, SMB, Home Assistant, ESPHome …
+- **Vendor** from the IEEE OUI list the system already has (`hwdata`, `ieee-data` or nmap's
+  list); without one, a short built-in list of common home network vendors (AVM, Raspberry Pi,
+  Espressif, Ubiquiti, Synology, Sonos, Apple …). Phones and laptops use a *random MAC* per Wi-Fi
+  network: no vendor, and a reset makes them a new device.
+- **Details**: your own name and note (also searchable), *Mark as known*, **Check ports** – 17
+  common TCP ports (SSH, DNS, HTTP(S), SMB, AFP, IPP, MQTT, RDP, VNC, Home Assistant, Plex, RAW
+  printing …), only on request and only for addresses in the own subnets – and **Wake up**
+  (Wake-on-LAN: the magic packet to UDP port 9 on the subnet's broadcast address; off in
+  read-only mode). *Forget* removes a device; unnamed devices not seen for 90 days are forgotten
+  by themselves.
+- **New device** notification ([Notifications](notifications.md), off by default): an unknown
+  device that turns up after the first scan. Naming it or marking it as known ends the alert.
+
+What Quadeck stores (MAC, IP, names, first/last seen, your notes) stays in its own database.
+Ping, port checks and Wake-on-LAN need no extra rights; the scan runs in the root helper because
+the web app's service may not be allowed to send ICMP.
 
 ## Ports
 

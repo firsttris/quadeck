@@ -186,6 +186,8 @@ export interface Snapshot {
     /** Clients of the backup target that are overdue. */
     stale?: { name: string; days: number; never: boolean }[]
   }
+  /** Unknown devices that joined the LAN after the first scan (Network → Devices). */
+  devices?: { fresh: { key: string; ip: string; name?: string; vendor?: string; mac?: string }[] }
 }
 
 export interface JournalEntry {

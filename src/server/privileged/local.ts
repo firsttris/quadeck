@@ -311,6 +311,9 @@ export class LocalPrivileged implements Privileged {
   networkState() {
     return this.network.networkState()
   }
+  scanDevices(active: boolean) {
+    return this.network.scanDevices(active)
+  }
 
   unitDetail(unit: string) {
     return this.editor.unitDetail(unit)

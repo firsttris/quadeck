@@ -31,7 +31,7 @@ export interface Channel {
   to?: string
 }
 
-export type RuleKey = 'unit-failed' | 'service-down' | 'container-unhealthy' | 'smart' | 'disk-full' | 'updates' | 'internet' | 'backup'
+export type RuleKey = 'unit-failed' | 'service-down' | 'container-unhealthy' | 'smart' | 'disk-full' | 'updates' | 'internet' | 'backup' | 'device-new'
 
 export interface NotifySettings {
   channels: Channel[]
@@ -83,7 +83,7 @@ export interface NotifyState {
 
 export const MASK = '••••••••'
 
-export const RULE_KEYS: RuleKey[] = ['unit-failed', 'service-down', 'container-unhealthy', 'smart', 'disk-full', 'updates', 'internet', 'backup']
+export const RULE_KEYS: RuleKey[] = ['unit-failed', 'service-down', 'container-unhealthy', 'smart', 'disk-full', 'updates', 'internet', 'backup', 'device-new']
 
 export const rules = (): { key: RuleKey; label: string; help: string }[] => [
   {
@@ -105,6 +105,7 @@ export const rules = (): { key: RuleKey; label: string; help: string }[] => [
   { key: 'disk-full', label: msg('notify_rule_diskFull'), help: msg('notify_rule_diskFullHelp') },
   { key: 'internet', label: msg('notify_rule_internet'), help: msg('notify_rule_internetHelp') },
   { key: 'backup', label: msg('notify_rule_backup'), help: msg('notify_rule_backupHelp') },
+  { key: 'device-new', label: msg('notify_rule_deviceNew'), help: msg('notify_rule_deviceNewHelp') },
   {
     key: 'updates',
     label: msg('notify_rule_updates'),
@@ -160,7 +161,7 @@ export const recipients = (to: string | undefined) =>
 
 export const defaultSettings = (): NotifySettings => ({
   channels: [],
-  rules: { 'unit-failed': true, 'service-down': true, 'container-unhealthy': true, smart: true, 'disk-full': true, updates: true, internet: false, backup: true },
+  rules: { 'unit-failed': true, 'service-down': true, 'container-unhealthy': true, smart: true, 'disk-full': true, updates: true, internet: false, backup: true, 'device-new': false },
   diskThreshold: 90,
   recovery: true,
   updatesHour: 9,
@@ -171,7 +172,7 @@ export const defaultSettings = (): NotifySettings => ({
 })
 
 /** How long a problem must persist before it is reported. */
-export const DELAY_MS: Record<RuleKey, number> = { 'unit-failed': 0, 'service-down': 120_000, 'container-unhealthy': 120_000, smart: 0, 'disk-full': 0, updates: 0, internet: 0, backup: 0 }
+export const DELAY_MS: Record<RuleKey, number> = { 'unit-failed': 0, 'service-down': 120_000, 'container-unhealthy': 120_000, smart: 0, 'disk-full': 0, updates: 0, internet: 0, backup: 0, 'device-new': 0 }
 
 // ---------- validation ----------
 
@@ -239,8 +240,8 @@ export function parseSettings(v: unknown, previous: NotifySettings): NotifySetti
     return ch
   })
   const r = (o.rules ?? {}) as Record<string, unknown>
-  // New rules that cost something (the internet one measures) start switched off.
-  const rules = Object.fromEntries(RULE_KEYS.map((key) => [key, key === 'internet' ? r[key] === true : r[key] !== false])) as Record<RuleKey, boolean>
+  // New rules that cost something (the internet one measures) or are chatty (new devices) start switched off.
+  const rules = Object.fromEntries(RULE_KEYS.map((key) => [key, key === 'internet' || key === 'device-new' ? r[key] === true : r[key] !== false])) as Record<RuleKey, boolean>
   const threshold = Number(o.diskThreshold)
   const hour = Number(o.updatesHour)
   const percent = Number(o.speedPercent)
@@ -346,6 +347,16 @@ export function currentAlerts(snap: Snapshot, s: NotifySettings, active: Set<str
     if (b.lastStatus === 'failed') alerts.push({ key: 'backup', rule: 'backup', severity: 'warning', title: msg('backup_alert_failed', { message: b.lastMessage ?? '' }), subject: msg('notify_subject_backup') })
     else if (age >= s.backupDays) alerts.push({ key: 'backup', rule: 'backup', severity: 'warning', title: b.lastOkAt ? msg('backup_alert_old', { days: Math.floor(age) }) : msg('backup_alert_never'), subject: msg('notify_subject_backup') })
   }
+  if (on('device-new'))
+    for (const d of snap.devices?.fresh ?? [])
+      alerts.push({
+        key: `device:${d.key}`,
+        rule: 'device-new',
+        severity: 'warning',
+        title: msg('devices_alert_new', { name: d.name ?? d.ip }),
+        subject: d.name ?? d.ip,
+        detail: [d.ip, d.mac, d.vendor].filter(Boolean).join(' · '),
+      })
   return { alerts, unknown }
 }
 

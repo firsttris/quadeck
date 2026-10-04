@@ -29,6 +29,7 @@ import { CaddyProvider, candidatesFromCaddyfile, candidatesFromConfig } from './
 import type { ServiceCandidate } from './providers/types'
 import { localHostSet, mergeServices } from './registry'
 import { notifier } from './notify'
+import { freshDevices, markSwept, recordScan, sweepDue } from './devices'
 import { bilingual, localize, outsideRequest } from './lang'
 
 type Source = keyof Snapshot['sources']
@@ -171,6 +172,11 @@ export class Hub {
       this.publish()
     })
     setTimeout(() => void backup(), 10_000)
+    // Devices in the LAN: the neighbour table every 5 min, a ping sweep when due (Network → Devices).
+    const devices = every(60_000, async () => {
+      if (await this.collectDevices()) this.publish()
+    })
+    setTimeout(() => void devices(), 20_000)
     setTimeout(() => void updates(), 60_000)
     if (this.fixtures) {
       seedFixtureHistory(db())
@@ -297,6 +303,29 @@ export class Hub {
 
   private backup: Snapshot['backup']
 
+  private devicesReadAt = 0
+  /** Passive every 5 min, active when the sweep interval is up; true when something was read. */
+  async collectDevices(now = Date.now()): Promise<boolean> {
+    const active = sweepDue(now)
+    if (!active && now - this.devicesReadAt < 5 * 60_000 - 1000) return false
+    this.devicesReadAt = now
+    try {
+      if (active) markSwept(now)
+      recordScan(await this.priv.scanDevices(active), now)
+      return true
+    } catch {
+      return false // helper not reachable: next round
+    }
+  }
+
+  /** "Scan now" on the page. */
+  async scanDevicesNow() {
+    markSwept()
+    recordScan(await this.priv.scanDevices(true))
+    this.devicesReadAt = Date.now()
+    this.publish()
+  }
+
   async collectBackup() {
     try {
       const [st, target] = await Promise.all([this.priv.backupState(), this.priv.targetState()])
@@ -394,6 +423,7 @@ export class Hub {
       readonly: config().readonly,
       speed: speedSnapshot(),
       ...(this.backup ? { backup: this.backup } : {}),
+      devices: { fresh: freshDevices() },
     }
   }
 

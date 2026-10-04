@@ -7,10 +7,14 @@ import { hostname, networkInterfaces } from 'node:os'
 import { join } from 'node:path'
 import { run } from '../exec'
 import { msg } from '~/shared/i18n'
+import type { ScanResult, SeenDevice } from '~/shared/devices'
+import { scanLan } from './devices'
 import { firewallVerdict, scopeOf, type FirewallInfo, type IfaceKind, type ListeningPort, type NetInterface, type NetRoute, type NetworkState } from '~/shared/network'
 
 export interface NetworkAdmin {
   networkState(): Promise<NetworkState>
+  /** Devices in the LAN; active pings the own subnets first. */
+  scanDevices(active: boolean): Promise<ScanResult>
 }
 
 const read = (p: string) => {
@@ -264,6 +268,11 @@ export class SystemNetwork implements NetworkAdmin {
     for (const p of ports) p.firewall = firewallVerdict(p, fw)
     return { hostname: hostname(), interfaces, routes, dns, ports, firewall: fw, checkedAt: Date.now(), error: errors.join(' · ') || undefined }
   }
+
+  async scanDevices(active: boolean): Promise<ScanResult> {
+    const addr = await run(['ip', '-j', '-d', 'addr', 'show'])
+    return scanLan(addr.code === 0 ? parseIpAddr(addr.stdout) : fallbackInterfaces(), active)
+  }
 }
 
 export class FixtureNetwork implements NetworkAdmin {
@@ -273,5 +282,11 @@ export class FixtureNetwork implements NetworkAdmin {
     const s = JSON.parse(readFileSync(join(this.dir, 'network.json'), 'utf8')) as NetworkState
     for (const p of s.ports) p.firewall = firewallVerdict(p, s.firewall)
     return { ...s, checkedAt: Date.now() }
+  }
+
+  async scanDevices(active: boolean): Promise<ScanResult> {
+    const devices = JSON.parse(readFileSync(join(this.dir, 'devices.json'), 'utf8')) as SeenDevice[]
+    // Passive: the neighbour table holds the devices that talked lately (not the sleeping ones).
+    return { at: Date.now(), subnets: ['192.168.1.0/24'], devices: active ? devices : devices.filter((d) => d.rtt !== undefined && d.rtt < 20), missing: [], selfIps: ['192.168.1.20'], active }
   }
 }

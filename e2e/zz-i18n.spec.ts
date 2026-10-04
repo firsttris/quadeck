@@ -39,7 +39,7 @@ const DATA: RegExp[] = [
   // Share names, app group label and host names of the demo server
   /\b(Medien|Fotos)\b|fotos\.home\.example/i,
   // An SSH key comment, a demo timer description, a demo /etc/passwd line
-  /altes-handy|^- anna:x:/,
+  /altes-handy|^- anna:x:|macbook-anna/,
   // A bcrypt hash in the Caddyfile (random letters)
   /\$2[aby]\$\d\d\$/,
   // A bcrypt hash in the Caddyfile (random letters)
