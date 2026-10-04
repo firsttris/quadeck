@@ -31,6 +31,7 @@ import { localHostSet, mergeServices } from './registry'
 import { notifier } from './notify'
 import { freshDevices, markSwept, recordScan, sweepDue } from './devices'
 import { EnergyMeter, energyHours, energySettings, seedEnergyHistory } from './energy'
+import { UsageRecorder, seedUsageHistory } from './container-usage'
 import { dailyAverage } from '~/shared/energy'
 import { bilingual, localize, outsideRequest } from './lang'
 
@@ -189,6 +190,7 @@ export class Hub {
       seedFixtureHistory(db())
       seedSpeedHistory()
       seedEnergyHistory(db())
+      seedUsageHistory(db(), this.fixtures.containers ?? [])
     }
     // First round right away (timers are already registered, so a failure here
     // does not leave the hub dead).
@@ -199,6 +201,7 @@ export class Hub {
   }
 
   stop() {
+    this.usage.flush()
     for (const t of this.timers) clearInterval(t)
     this.timers = []
   }
@@ -244,6 +247,7 @@ export class Hub {
     try {
       this.containers = this.fixtures ? (this.fixtures.containers ?? []) : await this.podman.collect()
       this.ok('podman')
+      this.usage.record(this.containers)
     } catch (e) {
       this.fail('podman', e)
     }
@@ -313,6 +317,8 @@ export class Hub {
   private backup: Snapshot['backup']
 
   readonly energy = new EnergyMeter()
+  /** CPU and RAM per container in 5-minute buckets (Units → Usage). */
+  readonly usage = new UsageRecorder(db)
   private power: Snapshot['power']
   private energyAvg = { at: 0, kwh: undefined as number | undefined }
 

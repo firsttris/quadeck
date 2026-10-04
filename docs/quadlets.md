@@ -38,6 +38,21 @@ the journal and the unit files.
 Unit names are validated before anything is sent to systemd, and only units Quadeck has seen in
 its own list can be acted on.
 
+### Usage over time
+
+**Usage over time** (next to the filters) answers "which container eats my CPU and RAM?" over the
+last 24 hours, 7 or 30 days:
+
+- one row per container with average and peak CPU, average and peak RAM, how much of the range it
+  was running and a CPU sparkline; sorted by CPU or RAM, with a bar relative to the top one;
+- **History** (also in a container row's **⋯** menu as *Usage over time*) opens charts of CPU
+  (average and peak) and RAM for the chosen range.
+
+The Podman collector's 5-second samples are averaged into 5-minute buckets, with the peak kept
+alongside, and stored per container name for 30 days (a Quadlet keeps its container name when the
+container is re-created, so the history continues). CPU is in percent of one core, as
+`podman stats` reports it; averages only cover the time the container ran.
+
 ## Quadlet editor
 
 The Quadlet editor is not a menu entry of its own; like the [systemd editor](systemd.md) it is
