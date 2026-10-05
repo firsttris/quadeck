@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useId, useMemo, useState } from 'react'
 import { applyCaddyChange, NO_OPTIONS, type CaddyBlock, type CaddyChange, type CaddyResult, type CaddyState, type SiteOptions } from '~/shared/caddy'
-import { useLive } from '~/lib/live'
+import { useLiveState } from '~/lib/live'
 import { useActions } from './Actions'
 import { BusyButton, useBusy } from './Busy'
 import { Modal } from './Modal'
@@ -357,7 +357,7 @@ function Option({ checked, onChange, label, help, children }: { checked: boolean
 
 /** One entry: domains, targets and the options; lines the dialog does not know stay in "other lines". */
 function SiteDialog({ init, onClose, onNext }: { init: SiteInit; onClose: () => void; onNext: (change: CaddyChange) => string | undefined }) {
-  const { snapshot } = useLive()
+  const { snapshot } = useLiveState()
   const [addresses, setAddresses] = useState(init.addresses)
   const [upstreams, setUpstreams] = useState(init.upstreams)
   const [o, setO] = useState<SiteOptions>(init.options)

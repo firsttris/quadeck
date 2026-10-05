@@ -20,7 +20,7 @@ import { PowerDialog, PowerRow, type PowerInfo } from '~/components/DiskPower'
 import { dailyWakes, type DiskPower } from '~/shared/power'
 import { pickMsg } from '~/i18n'
 import { DiskUsage } from '~/components/DiskUsage'
-import { useLive } from '~/lib/live'
+import { useLiveState } from '~/lib/live'
 import type { Disk } from '~/shared/types'
 
 export const Route = createFileRoute('/_app/disks')({
@@ -67,7 +67,7 @@ function DisksPage() {
 }
 
 function Smart() {
-  const { snapshot } = useLive()
+  const { snapshot } = useLiveState()
   const [report, setReport] = useState<SmartReport | null>(null)
   const [error, setError] = useState('')
   const [reading, setReading] = useState(false)
