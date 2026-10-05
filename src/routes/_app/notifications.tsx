@@ -6,6 +6,7 @@ import { PageHeader } from '~/components/PageHeader'
 import { Pill, type Tone } from '~/components/Status'
 import { useToast } from '~/components/Toast'
 import { api } from '~/lib/api'
+import { useDraft } from '~/lib/draft'
 import { relative } from '~/lib/format'
 import { msg } from '~/shared/i18n'
 import { channelKinds, rules as ruleList, smtpPresets, channelErrors, channelTarget, type Channel, type ChannelKind, type NotifySettings, type NotifyState, type SentNotice, type Severity } from '~/shared/notify'
@@ -213,11 +214,13 @@ function NotificationsPage() {
   )
 }
 
+const sameRules = (a: NotifySettings, b: NotifySettings) => JSON.stringify({ ...a, channels: [] }) === JSON.stringify({ ...b, channels: [] })
+
 function Rules({ settings, onSave }: { settings: NotifySettings; onSave: (s: NotifySettings) => Promise<boolean> }) {
-  const [draft, setDraft] = useState(settings)
+  // channels are edited elsewhere on the page and saved from settings, not from this draft
+  const [draft, setDraft] = useDraft(settings, sameRules)
   const [saving, setSaving] = useState(false)
-  useEffect(() => setDraft(settings), [settings])
-  const dirty = JSON.stringify({ ...draft, channels: [] }) !== JSON.stringify({ ...settings, channels: [] })
+  const dirty = !sameRules(draft, settings)
   return (
     <section className="panel flex flex-col gap-3 p-[18px]" aria-label={m.notifications_rules_label()}>
       <h2 className="h2">{m.notifications_rules_title()}</h2>
