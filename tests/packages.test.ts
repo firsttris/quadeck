@@ -6,6 +6,7 @@ import { decodeSpec, encodeSpec, parseJobSpec } from '~/server/packages/job'
 import { JobManager, lineSplitter, type JobSink } from '~/server/packages/jobs'
 import { FixtureMaintenance, SystemMaintenance, findConfigFiles } from '~/server/packages/maintenance'
 import * as p from '~/server/packages/parse'
+import { kernelReplaced } from '~/server/packages/providers'
 
 const PACMAN_QI = `Name            : bash
 Version         : 5.2.026-2
@@ -209,6 +210,24 @@ describe('jobs', () => {
     s.push('gress 10%\rprogress 100%\nend')
     s.flush()
     expect(got).toEqual(['ab', 'progress 100%', 'end'])
+  })
+
+  it('reboot after a kernel update: only when the modules of the running kernel are really gone', () => {
+    const view = (...kernels: string[]) => {
+      const root = mkdtempSync(join(tmpdir(), 'qd-mod-'))
+      mkdirSync(join(root, 'usr/lib/modules'), { recursive: true })
+      for (const k of kernels) mkdirSync(join(root, 'usr/lib/modules', k))
+      return root
+    }
+    // LTS running, a newer "linux" installed next to it: no reboot needed
+    expect(kernelReplaced('6.18.55-1-lts', [view('6.18.55-1-lts', '7.2.8-arch1-2')])).toBeUndefined()
+    // the running kernel was replaced by an update
+    expect(kernelReplaced('6.18.55-1-lts', [view('6.18.56-1-lts', '7.2.8-arch1-2')])).toBe('Kernel aktualisiert (läuft noch 6.18.55-1-lts)')
+    // inside the helper's sandbox (ProtectKernelModules=yes) the folder is empty: the host's view counts
+    const sandbox = view()
+    expect(kernelReplaced('6.18.55-1-lts', [view('6.18.55-1-lts'), sandbox])).toBeUndefined()
+    // only the empty sandbox view (or nothing readable): no false alarm
+    expect(kernelReplaced('6.18.55-1-lts', ['/nonexistent', sandbox])).toBeUndefined()
   })
 
   it('drops lines that are only progress control codes and collapses empty lines', () => {
