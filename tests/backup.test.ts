@@ -336,6 +336,24 @@ describe.skipIf(!hasRestic)('SystemBackup with restic', () => {
     expect(readFileSync(join(root, 'repo/config'))).toEqual(before)
   }, 60_000)
 
+  it('keeps working credentials when new ones do not open the repository', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'qd-backup-creds-'))
+    const dir = join(root, 'state')
+    const seen: (string | undefined)[] = []
+    const exec = async (argv: string[], opts?: { env?: Record<string, string> }) => {
+      if (argv[0] !== 'restic') return { code: 0, stdout: '', stderr: '' }
+      seen.push(opts?.env?.AWS_ACCESS_KEY_ID)
+      return opts?.env?.AWS_ACCESS_KEY_ID === 'good' ? { code: 0, stdout: '{}', stderr: '' } : { code: 1, stdout: '', stderr: 'Fatal: unable to open config file: 403 Forbidden' }
+    }
+    const b = new SystemBackup({ dir, unitDir: join(root, 'units'), self: ['/usr/local/bin/quadeck'], exec, log: () => {} })
+    mkdirSync(join(root, 'units'))
+    const s3 = plan({ repo: { kind: 's3', location: 's3.example.com/bucket/restic' } })
+    await b.saveBackupPlan(s3, { AWS_ACCESS_KEY_ID: 'good', AWS_SECRET_ACCESS_KEY: 'secret' })
+    await expect(b.saveBackupPlan(s3, { AWS_ACCESS_KEY_ID: 'typo' })).rejects.toMatchObject({ status: 422 })
+    expect(seen.at(-1)).toBe('typo') // the check used the new key …
+    expect(readFileSync(join(dir, 'env'), 'utf8')).toContain('AWS_ACCESS_KEY_ID=good') // … but it was not stored
+  })
+
   it('refuses a target on a disk that is not there', async () => {
     const { root, b, p } = setup()
     await expect(b.saveBackupPlan({ ...p, repo: { kind: 'local', location: join(root, 'not-mounted/restic') } }, {})).rejects.toMatchObject({ status: 422 })
