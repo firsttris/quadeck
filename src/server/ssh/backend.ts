@@ -2,9 +2,9 @@
 // service, host keys, recent logins. SystemSsh runs where root is;
 // FixtureSsh keeps demo data in memory.
 
-import { chmodSync, chownSync, existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { closeSync, constants, existsSync, fchmodSync, fchownSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs'
 import { hostname } from 'node:os'
-import { join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import { HttpError } from '../auth'
 import { run } from '../exec'
 import { msg } from '~/shared/i18n'
@@ -85,6 +85,70 @@ const read = (p: string) => {
   }
 }
 
+/*
+ * A user's ~/.ssh is under the user's control: they can swap .ssh or the files in it for symlinks
+ * (to /etc, /root/.ssh …) at any moment. Root therefore never follows a link there: .ssh is opened
+ * once with O_NOFOLLOW and every later read, write and rename goes through that open directory
+ * (/proc/self/fd/N/…), so a swap after the check changes nothing.
+ */
+const unsafe = (path: string) => new HttpError(409, msg(m.ssh_error_notFollowed, { path }))
+const errno = (e: unknown) => (e as NodeJS.ErrnoException).code
+
+/** ~/.ssh opened without following a link; undefined when it does not exist. */
+function openSshDir(dir: string): number | undefined {
+  try {
+    return openSync(dir, constants.O_RDONLY | constants.O_DIRECTORY | constants.O_NOFOLLOW)
+  } catch (e) {
+    if (errno(e) === 'ENOENT') return undefined
+    if (errno(e) === 'ELOOP' || errno(e) === 'ENOTDIR') throw unsafe(dir)
+    throw e
+  }
+}
+
+const inDir = (dfd: number, name: string) => `/proc/self/fd/${dfd}/${name}`
+
+/** A regular file in the opened directory, never through a link; undefined when missing. */
+function readInDir(dfd: number, name: string, shown: string): Buffer | undefined {
+  let fd: number
+  try {
+    fd = openSync(inDir(dfd, name), constants.O_RDONLY | constants.O_NOFOLLOW | constants.O_NONBLOCK)
+  } catch (e) {
+    if (errno(e) === 'ENOENT') return undefined
+    if (errno(e) === 'ELOOP') throw unsafe(shown)
+    throw e
+  }
+  try {
+    if (!fstatSync(fd).isFile()) throw unsafe(shown)
+    return readFileSync(fd)
+  } finally {
+    closeSync(fd)
+  }
+}
+
+/** authorized_keys of a user, read without following links; undefined when missing. */
+export function readKeysFile(file: string): string | undefined {
+  const dfd = openSshDir(dirname(file))
+  if (dfd === undefined) return undefined
+  try {
+    return readInDir(dfd, basename(file), file)?.toString('utf8')
+  } finally {
+    closeSync(dfd)
+  }
+}
+
+/** Creates name in the opened directory (replacing a link or file there, never its target). */
+function createInDir(dfd: number, name: string, data: string | Uint8Array, owner?: { uid: number; gid: number }) {
+  const path = inDir(dfd, name)
+  rmSync(path, { force: true })
+  const fd = openSync(path, 'wx', 0o600)
+  try {
+    writeSync(fd, typeof data === 'string' ? new TextEncoder().encode(data) : data)
+    if (owner) fchownSync(fd, owner.uid, owner.gid)
+  } finally {
+    closeSync(fd)
+  }
+}
+
 interface PasswdUser {
   name: string
   uid: number
@@ -131,7 +195,12 @@ export class SystemSsh implements SshBackend {
     return loginUsers(read(this.passwd) ?? '').map((u) => {
       const problems: string[] = []
       const file = this.keysFile(u.home)
-      const text = read(file)
+      let text: string | undefined
+      try {
+        text = readKeysFile(file)
+      } catch (e) {
+        problems.push((e as Error).message)
+      }
       if (text !== undefined) {
         // StrictModes: sshd ignores keys if these are writable by others or owned by someone else.
         for (const [p, what] of [
@@ -235,7 +304,7 @@ export class SystemSsh implements SshBackend {
     const u = users.find((x) => x.name === change.user)
     if (!u) throw new HttpError(404, msg(m.ssh_error_noLoginAccount, { user: change.user }))
     const file = this.keysFile(u.home)
-    const before = read(file) ?? ''
+    const before = readKeysFile(file) ?? ''
     if (change.kind === 'add-key') {
       try {
         const after = addKey(before, change.key)
@@ -259,19 +328,30 @@ export class SystemSsh implements SshBackend {
     return { file: p.file, before: p.before, after: p.after, warnings: p.warnings, blocked: p.blocked }
   }
 
+  /** Writes ~/.ssh/authorized_keys as root without following anything the user controls (see openSshDir). */
   private writeOwned(file: string, content: string, uid: number, gid: number) {
-    const dir = join(file, '..')
-    if (!existsSync(dir)) mkdirSync(dir, { mode: 0o700 })
-    chmodSync(dir, 0o700)
-    if (existsSync(file)) writeFileSync(`${file}.quadeck-bak`, readFileSync(file), { mode: 0o600 })
-    const tmp = `${file}.quadeck-tmp`
-    writeFileSync(tmp, content, { mode: 0o600 })
-    if (this.live) {
-      chownSync(dir, uid, gid)
-      chownSync(tmp, uid, gid)
-      if (existsSync(`${file}.quadeck-bak`)) chownSync(`${file}.quadeck-bak`, uid, gid)
+    const dir = dirname(file)
+    const name = basename(file)
+    try {
+      mkdirSync(dir, { mode: 0o700 })
+    } catch (e) {
+      if (errno(e) !== 'EEXIST') throw e
     }
-    renameSync(tmp, file)
+    const dfd = openSshDir(dir)
+    if (dfd === undefined) throw unsafe(dir)
+    try {
+      const st = fstatSync(dfd)
+      if (this.live && st.uid !== uid && st.uid !== 0) throw unsafe(dir)
+      const owner = this.live ? { uid, gid } : undefined
+      const old = readInDir(dfd, name, file)
+      if (old) createInDir(dfd, `${name}.quadeck-bak`, old, owner)
+      createInDir(dfd, `${name}.quadeck-tmp`, content, owner)
+      renameSync(inDir(dfd, `${name}.quadeck-tmp`), inDir(dfd, name))
+      fchmodSync(dfd, 0o700)
+      if (owner) fchownSync(dfd, uid, gid)
+    } finally {
+      closeSync(dfd)
+    }
   }
 
   private async reload() {

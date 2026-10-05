@@ -2705,6 +2705,7 @@
   "ssh_label_homeDirectory": "Home directory",
   "ssh_problem_notOwned": "{what} is not owned by {user}",
   "ssh_problem_writableByOthers": "{what} is writable by others – sshd ignores the keys",
+  "ssh_error_notFollowed": "{path} is a symbolic link or not a regular file – Quadeck does not follow links in a user's home directory",
   "ssh_error_sshdNotInstalled": "sshd is not installed",
   "ssh_error_noLoginAccount": "User {user} cannot log in via SSH (no login account)",
   "ssh_error_keyNotFound": "Key not found",
