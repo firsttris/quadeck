@@ -2,7 +2,7 @@ import { mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { CaddyManager, FixtureCaddyHost, SystemCaddyHost, type CaddyHost } from '~/server/caddy/backend'
+import { CaddyManager, FixtureCaddyHost, readOnlyMount, SystemCaddyHost, type CaddyHost } from '~/server/caddy/backend'
 import { applyCaddyChange, NO_OPTIONS, renderSite, siteForm, caddyFromQuadlet, configFromCommand, contentHash, isCaddyImage, manualPathProblem, parseCaddyfile, parseCaddyChange } from '~/shared/caddy'
 
 const FILE = `# My proxy
@@ -296,5 +296,15 @@ describe('SystemCaddyHost', () => {
     new SystemCaddyHost('http://127.0.0.1:1', dir, join(dir, 'state.json'), join(dir, 'hist')).write(f, 'short\n')
     expect(statSync(f).ino).toBe(ino)
     expect(readFileSync(f, 'utf8')).toBe('short\n')
+  })
+})
+
+describe('validation run of a Caddyfile in the image', () => {
+  it('mounts every volume of the real container read-only', () => {
+    expect(readOnlyMount('caddy-data:/data')).toBe('caddy-data:/data:ro')
+    expect(readOnlyMount('/srv/caddy/Caddyfile:/etc/caddy/Caddyfile:Z')).toBe('/srv/caddy/Caddyfile:/etc/caddy/Caddyfile:ro')
+    expect(readOnlyMount('/srv/site:/srv:rw,z')).toBe('/srv/site:/srv:ro')
+    expect(readOnlyMount('/data:/data:U,idmap')).toBe('/data:/data:ro')
+    expect(readOnlyMount('/config')).toBe('/config') // anonymous: an empty new volume
   })
 })

@@ -3,7 +3,8 @@
 // every other timer via drop-in. SystemTimers runs where root is,
 // FixtureTimers keeps demo data in memory.
 
-import { existsSync, mkdirSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
@@ -110,6 +111,26 @@ const atomicWrite = (path: string, content: string) => {
   const tmp = `${path}.quadeck-tmp`
   writeFileSync(tmp, content, { mode: 0o644 })
   renameSync(tmp, path)
+}
+
+/**
+ * `systemd-analyze verify` on copies in a temp folder (its directory joins the unit search path,
+ * so the timer finds its service): the real folder only gets units that passed. Returns the
+ * complaints about these units; none when systemd-analyze is missing.
+ */
+export async function verifyUnits(files: { name: string; content: string }[]): Promise<string[]> {
+  const tmp = mkdtempSync(join(tmpdir(), 'quadeck-timer-'))
+  try {
+    for (const f of files) writeFileSync(join(tmp, f.name), f.content)
+    const verify = await run(['systemd-analyze', 'verify', '--', ...files.map((f) => join(tmp, f.name))], { timeoutMs: 60_000 })
+    if (verify.code === 0 || verify.code === 127) return []
+    return `${verify.stdout}\n${verify.stderr}`
+      .split('\n')
+      .filter((l) => files.some((f) => l.includes(f.name)))
+      .map((l) => l.replaceAll(`${tmp}/`, ''))
+  } finally {
+    rmSync(tmp, { recursive: true, force: true })
+  }
 }
 
 const read = (path: string) => {
@@ -269,19 +290,14 @@ export class SystemTimers implements TimersBackend {
     }
     const svcPath = join(this.dir, `${spec.name}.service`)
     const tmrPath = join(this.dir, `${spec.name}.timer`)
-    const before = { svc: read(svcPath), tmr: read(tmrPath) }
-    atomicWrite(svcPath, renderService(spec))
-    atomicWrite(tmrPath, renderTimer(spec))
-    const verify = await run(['systemd-analyze', 'verify', '--', svcPath, tmrPath], { timeoutMs: 60_000 })
-    const ours = `${verify.stdout}\n${verify.stderr}`.split('\n').filter((l) => l.includes(`${spec.name}.service`) || l.includes(`${spec.name}.timer`))
-    if (verify.code !== 0 && verify.code !== 127 && ours.length) {
-      for (const [p, c] of [
-        [svcPath, before.svc],
-        [tmrPath, before.tmr],
-      ] as const)
-        c === undefined ? rmSync(p, { force: true }) : atomicWrite(p, c)
-      throw new HttpError(422, msg(m.timers_error_unitRejected, { list: ours.join(' · ') }))
-    }
+    const units = [
+      { name: `${spec.name}.service`, content: renderService(spec) },
+      { name: `${spec.name}.timer`, content: renderTimer(spec) },
+    ]
+    const complaints = await verifyUnits(units)
+    if (complaints.length) throw new HttpError(422, msg(m.timers_error_unitRejected, { list: complaints.join(' · ') }))
+    atomicWrite(svcPath, units[0]!.content)
+    atomicWrite(tmrPath, units[1]!.content)
     if (previous && previous !== spec.name) {
       await run(['systemctl', 'disable', '--now', '--', `${previous}.timer`], {
         timeoutMs: 60_000,

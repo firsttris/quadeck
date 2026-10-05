@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { buildCalendar, cronToCalendar, describeCalendar, emptySpec, execQuote, execUnquote, parseCalendar, parseSpec, renderService, renderTimer, specErrors, specFromService, type TimerSpec } from '~/shared/timers'
-import { FixtureTimers, calendarsOf, execOf, monotonicOf, parseCalendarOutput, parseSave } from '~/server/timers/backend'
+import { FixtureTimers, calendarsOf, execOf, monotonicOf, parseCalendarOutput, parseSave, verifyUnits } from '~/server/timers/backend'
 import { calendarLabel } from '~/lib/format'
 
 const spec = (o: Partial<TimerSpec> = {}): TimerSpec => ({ ...emptySpec(), name: 'backup', description: 'Backup', command: '/usr/local/bin/backup.sh', ...o })
@@ -12,6 +12,16 @@ describe('ExecStart quoting', () => {
     const q = execQuote(cmd)
     expect(q).toBe('"echo \\"hi $$HOME\\" 100%% \\\\ok\\nfor f in *; do echo $$f; done\\tx"')
     expect(execUnquote(q)).toBe(cmd)
+  })
+})
+
+describe('timer units are checked before they are written', () => {
+  it.skipIf(!Bun.which('systemd-analyze'))('reports what systemd-analyze refuses, with plain file names', async () => {
+    const service = { name: 'qd-check.service', content: '[Unit]\nDescription=x\n[Service]\nType=oneshot\nExecStart=/bin/true\n' }
+    expect(await verifyUnits([service, { name: 'qd-check.timer', content: '[Timer]\nOnCalendar=daily\n[Install]\nWantedBy=timers.target\n' }])).toEqual([])
+    const bad = await verifyUnits([service, { name: 'qd-check.timer', content: '[Timer]\nOnCalendar=garbage\n' }])
+    expect(bad.join('\n')).toContain('qd-check.timer')
+    expect(bad.join('\n')).not.toContain('quadeck-timer-')
   })
 })
 

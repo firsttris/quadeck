@@ -328,8 +328,15 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
     const history = await this.ensureRepo()
     const unit = quadletUnit(name)
     // With clean-up the container has to be gone first: systemctl waits, StopUnit only queues the job.
-    if (plan) await this.exec(['systemctl', 'stop', unit], { timeoutMs: 120_000 })
-    else await this.manager('StopUnit', 'ss', unit, 'replace').catch(() => {})
+    if (plan) {
+      const stop = await this.exec(['systemctl', 'stop', unit], { timeoutMs: 120_000 })
+      // A unit that never loaded (broken file) may go; one that still runs must not lose its
+      // file: the container would keep running without a unit and its volumes stay in use.
+      if (stop.code !== 0) {
+        const state = (await this.exec(['systemctl', 'is-active', unit])).stdout.trim()
+        if (['active', 'activating', 'deactivating', 'reloading', 'refreshing'].includes(state)) throw new HttpError(409, msg(m.quadlets_error_stillRunning, { unit, error: (stop.stderr || stop.stdout).trim() || state }))
+      }
+    } else await this.manager('StopUnit', 'ss', unit, 'replace').catch(() => {})
     rmSync(path)
     const volumes = also.volumes ? (plan?.volumes.filter((v) => !v.shared) ?? []) : []
     for (const v of volumes) {
