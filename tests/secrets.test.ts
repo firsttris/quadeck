@@ -116,3 +116,12 @@ describe('secrets through the Podman API', () => {
     expect((await secretsState(spy, quadlets)).secrets).toHaveLength(1)
   })
 })
+
+describe('one INI reader for secrets', () => {
+  it('sees and moves a password behind a continuation line', () => {
+    const file = '[Container]\nImage=x\nEnvironment=TZ=UTC \\\n  DB_PASSWORD=hunter2\nVolume=/a:/b\n'
+    expect(findPlain('app.container', file).map((p) => p.key)).toEqual(['DB_PASSWORD'])
+    expect(plainValue(file, 'DB_PASSWORD')).toBe('hunter2')
+    expect(moveToSecret(file, 'DB_PASSWORD', 'app-db')).toBe('[Container]\nImage=x\nEnvironment=TZ=UTC\nSecret=app-db,type=env,target=DB_PASSWORD\nVolume=/a:/b\n')
+  })
+})

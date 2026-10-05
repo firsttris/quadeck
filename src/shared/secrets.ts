@@ -2,6 +2,8 @@
 // plain text in Environment= lines and rewriting such a line into Secret=…,type=env,target=…
 // No I/O here; secret values never pass through these functions except the one being moved.
 
+import { parseIni } from './ini-parse'
+
 export const SECRET_NAME = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$/
 export const MAX_SECRET_BYTES = 64 * 1024
 
@@ -71,26 +73,16 @@ export function splitEnvironment(value: string): { raw: string; key: string; val
 }
 
 interface Line {
+  /** First and last line of the entry (a value can go on over "\\" continuation lines). */
   index: number
+  end: number
   section: string
   key: string
   value: string
 }
 
 function lines(content: string): Line[] {
-  let section = ''
-  return content.split('\n').flatMap((l, index) => {
-    const t = l.trim()
-    const s = /^\[([^\]]+)\]$/.exec(t)
-    if (s) {
-      section = s[1]!
-      return []
-    }
-    if (!t || t.startsWith('#') || t.startsWith(';')) return []
-    const eq = t.indexOf('=')
-    if (eq < 1) return []
-    return [{ index, section, key: t.slice(0, eq).trim(), value: t.slice(eq + 1).trim() }]
-  })
+  return parseIni(content).flatMap((e) => (e.kind === 'kv' ? [{ index: e.start, end: e.end, section: e.section, key: e.key!, value: e.value! }] : []))
 }
 
 /** Secret=<name>[,opts] in [Container] (and [Pod]/[Kube] don't take secrets). */
@@ -150,6 +142,6 @@ export function moveToSecret(content: string, key: string, name: string): string
     return eq <= 0 || w.text.slice(0, eq) !== key
   })
   const secret = `Secret=${name},type=env,target=${key}`
-  all.splice(hit.index, 1, ...(rest.length ? [`Environment=${rest.map((w) => w.raw).join(' ')}`, secret] : [secret]))
+  all.splice(hit.index, hit.end - hit.index + 1, ...(rest.length ? [`Environment=${rest.map((w) => w.raw).join(' ')}`, secret] : [secret]))
   return all.join('\n')
 }

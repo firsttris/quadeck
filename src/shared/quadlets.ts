@@ -1,6 +1,7 @@
 // Quadlet files and Podman settings: types shared by the editor UI, the web
 // app and the root helper.
 
+import { getValues } from './ini-parse'
 import { msg } from './i18n'
 import { m } from '~/paraglide/messages'
 
@@ -95,21 +96,6 @@ const QUADLET_SECTION_OF: Partial<Record<QuadletType, string>> = { container: 'C
 const VOLUME_NAME = /^[A-Za-z0-9][A-Za-z0-9_.-]*$/
 const IMAGE_NAME = /^[A-Za-z0-9][A-Za-z0-9._/:@-]*$/
 
-function iniValues(text: string, section: string, key: string): string[] {
-  let current = ''
-  const out: string[] = []
-  for (const raw of text.split('\n')) {
-    const t = raw.trim()
-    const sec = /^\[([^\]]+)\]$/.exec(t)
-    if (sec) current = sec[1]!
-    else if (current === section) {
-      const kv = /^([A-Za-z0-9_.-]+)\s*=\s?(.*)$/.exec(t)
-      if (kv && kv[1] === key) out.push(kv[2]!.trim())
-    }
-  }
-  return out
-}
-
 /** One Volume= line: a host path or a podman volume (with the .volume file that creates it). */
 export interface QuadletMount {
   kind: 'bind' | 'volume'
@@ -125,7 +111,7 @@ export interface QuadletMount {
 /** The Volume= lines of a Quadlet; anonymous volumes are left out. */
 export function quadletMounts(content: string, section: string, files: { name: string; content: string }[]): QuadletMount[] {
   const out: QuadletMount[] = []
-  for (const v of iniValues(content, section, 'Volume')) {
+  for (const v of getValues(content, section, 'Volume')) {
     const parts = v.split(':')
     if (parts.length < 2) continue // anonymous volume
     const src = parts[0]!
@@ -134,7 +120,7 @@ export function quadletMounts(content: string, section: string, files: { name: s
     if (/^[/.~%]/.test(src)) out.push({ kind: 'bind', source: src, dest, readOnly })
     else if (src.endsWith('.volume')) {
       const file = files.find((f) => f.name.split('/').pop() === src)
-      const name = (file && iniValues(file.content, 'Volume', 'VolumeName')[0]) || `systemd-${src.replace(/\.volume$/, '')}`
+      const name = (file && getValues(file.content, 'Volume', 'VolumeName')[0]) || `systemd-${src.replace(/\.volume$/, '')}`
       out.push({ kind: 'volume', source: name, file: file?.name, dest, readOnly })
     } else out.push({ kind: 'volume', source: src, dest, readOnly })
   }
@@ -151,7 +137,7 @@ function mounts(content: string, section: string, files: { name: string; content
 
 /** Value of Key= lines in [section], continuation lines not joined. */
 export function quadletValues(content: string, section: string, key: string): string[] {
-  return iniValues(content, section, key)
+  return getValues(content, section, key)
 }
 
 /** files: every Quadlet file with its content, the one being deleted included. */
@@ -159,9 +145,9 @@ export function removalPlan(name: string, files: { name: string; content: string
   const self = files.find((f) => f.name === name)
   if (!self || quadletType(name) !== 'container') return { volumes: [], binds: [] }
   const others = files.filter((f) => f.name !== name && (quadletType(f.name) === 'container' || quadletType(f.name) === 'pod'))
-  const otherImages = new Set(others.flatMap((f) => iniValues(f.content, 'Container', 'Image')))
+  const otherImages = new Set(others.flatMap((f) => getValues(f.content, 'Container', 'Image')))
   const otherVolumes = new Set(others.flatMap((f) => mounts(f.content, QUADLET_SECTION_OF[quadletType(f.name)]!, files).named.map((v) => v.name)))
-  const image = iniValues(self.content, 'Container', 'Image')[0]
+  const image = getValues(self.content, 'Container', 'Image')[0]
   const { named, binds } = mounts(self.content, 'Container', files)
   const seen = new Set<string>()
   return {

@@ -2,6 +2,8 @@
 // what a cleanup would remove. Pure: the root helper reads the Podman API, the page computes the
 // preview with the same functions the helper uses to decide what it actually deletes.
 
+import { getValue } from './ini-parse'
+
 export interface PodmanImage {
   id: string
   names: string[]
@@ -166,9 +168,15 @@ export function normalizeImage(ref: string): string {
   return r
 }
 
-/** Image= of a .container file, Volume name of a .volume file, Network name of a .network file. */
+const KEY_SECTIONS = { Image: ['Container', 'Image'], VolumeName: ['Volume'], NetworkName: ['Network'] } as const
+
+/** Image= of a .container/.image file, Volume name of a .volume file, Network name of a .network file (the last one wins, as in systemd). */
 export function quadletKey(content: string, key: 'Image' | 'VolumeName' | 'NetworkName'): string | undefined {
-  return new RegExp(`^\\s*${key}\\s*=\\s*(\\S.*?)\\s*$`, 'm').exec(content)?.[1]
+  for (const section of KEY_SECTIONS[key]) {
+    const v = getValue(content, section, key)
+    if (v) return v
+  }
+  return undefined
 }
 
 export const PRUNE_TIMER = 'quadeck-podman-prune'
