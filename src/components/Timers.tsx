@@ -34,6 +34,7 @@ import {
 } from '~/shared/timers'
 import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
+import { usePolling } from '~/lib/polling'
 
 const two = (n: number) => String(n).padStart(2, '0')
 
@@ -97,11 +98,7 @@ export function TimersView() {
       setError((e as Error).message)
     }
   }, [])
-  useEffect(() => {
-    void load()
-    const t = setInterval(load, 30_000)
-    return () => clearInterval(t)
-  }, [load])
+  usePolling(load, 30_000)
 
   const act = async (t: TimerEntry, action: TimerAction) => {
     setBusy(t.name)

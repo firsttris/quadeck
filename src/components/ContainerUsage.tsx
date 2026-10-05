@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { api } from '~/lib/api'
 import { bytes, num, pct } from '~/lib/format'
 import { USAGE_RANGES, type ContainerUsage, type UsageRange } from '~/shared/container-usage'
@@ -7,6 +7,7 @@ import { HistoryChart } from './HistoryChart'
 import { Modal } from './Modal'
 import { Sparkline } from './Sparkline'
 import { m } from '~/paraglide/messages'
+import { usePolling } from '~/lib/polling'
 
 type Sort = 'cpu' | 'mem'
 const cpuText = (v: number) => `${num(v, v < 10 ? 1 : 0)} %`
@@ -28,11 +29,7 @@ export function ContainerUsageView({ open }: { open?: string }) {
       setError((e as Error).message)
     }
   }, [range])
-  useEffect(() => {
-    void load()
-    const t = setInterval(load, 60_000)
-    return () => clearInterval(t)
-  }, [load])
+  usePolling(load, 60_000)
 
   const rows = [...(data?.containers ?? [])].sort((a, b) => (sort === 'cpu' ? b.cpuAvg - a.cpuAvg : b.memAvg - a.memAvg))
   const top = Math.max(1e-9, ...rows.map((r) => (sort === 'cpu' ? r.cpuAvg : r.memAvg)))

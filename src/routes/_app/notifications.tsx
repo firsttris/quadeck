@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { BusyButton, Spinner } from '~/components/Busy'
 import { ConfirmDialog, Modal } from '~/components/Modal'
 import { PageHeader } from '~/components/PageHeader'
@@ -12,6 +12,7 @@ import { msg } from '~/shared/i18n'
 import { channelKinds, rules as ruleList, smtpPresets, channelErrors, channelTarget, type Channel, type ChannelKind, type NotifySettings, type NotifyState, type SentNotice, type Severity } from '~/shared/notify'
 import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
+import { usePolling } from '~/lib/polling'
 
 export const Route = createFileRoute('/_app/notifications')({
   head: () => ({ meta: [{ title: msg(m.page_title_notifications) }] }),
@@ -40,11 +41,7 @@ function NotificationsPage() {
       setError((e as Error).message)
     }
   }, [])
-  useEffect(() => {
-    void load()
-    const t = setInterval(load, 20_000)
-    return () => clearInterval(t)
-  }, [load])
+  usePolling(load, 20_000)
 
   const save = async (settings: NotifySettings, done: string) => {
     try {

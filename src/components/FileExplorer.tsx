@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
-import { bytes, diskSize } from '~/lib/format'
+import { bytes, dateTime, diskSize } from '~/lib/format'
 import { baseName, fileKind, isSensitivePath, joinPath, parentOf, validateName, type DirListing, type FileEntry, type FileRoot } from '~/shared/files'
 import { useActions } from './Actions'
 import { BusyButton, useBusy } from './Busy'
@@ -20,7 +20,6 @@ type Sort = 'name' | 'size' | 'mtime'
 export type Side = 'left' | 'right'
 type Mode = 'copy' | 'move'
 
-const dateFmt = (ts: number) => new Date(ts).toLocaleString(localeOf(), { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 const TWO_KEY = 'quadeck.files.twoPanes'
 const DRAG_TYPE = 'application/x-quadeck-files'
 const other = (s: Side): Side => (s === 'left' ? 'right' : 'left')
@@ -733,7 +732,7 @@ function PaneTable(props: {
                 <td className="hidden font-mono text-[12px] sm:table-cell">{e.type === 'file' ? bytes(e.size) : ''}</td>
                 {!compact && (
                   <td className="hidden font-mono text-[12px] text-muted md:table-cell" suppressHydrationWarning>
-                    {dateFmt(e.mtime)}
+                    {dateTime(e.mtime)}
                   </td>
                 )}
                 {!compact && (

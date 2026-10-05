@@ -73,6 +73,11 @@ export function age(ts: number | undefined, now = Date.now()): string {
   return abs < 60 ? msg(m.format_time_justNow) : span(abs)
 }
 
+/** "05.10.2026, 14:03" / "10/05/2026, 2:03 PM" – date and time in the viewer's language. */
+export function dateTime(ts: number): string {
+  return new Date(ts).toLocaleString(localeOf(), { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+}
+
 export function clock(ts: number): string {
   const d = new Date(ts)
   const p = (n: number) => String(n).padStart(2, '0')

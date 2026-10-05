@@ -28,6 +28,7 @@ import { useGuardedApi } from './Unlock'
 import { ApiError, api } from '~/lib/api'
 import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { fieldLabel } from '~/lib/classes'
 
 const FAT_LIKE = ['vfat', 'exfat', 'ntfs3', 'ntfs', 'ntfs-3g']
 
@@ -393,7 +394,7 @@ function Toggle({ checked, onChange, label, help, warn }: { checked: boolean; on
   )
 }
 
-const label = 'flex flex-col gap-1 text-[12px] font-medium text-muted'
+const label = fieldLabel
 
 function EntryDialog({ entry, device, taken, onClose, onReview }: { entry?: MountView; device?: BlockDevice; taken: string[]; onClose: () => void; onReview: (c: FstabChange, title: string) => Promise<void> }) {
   const initial = useMemo<Form>(() => {
