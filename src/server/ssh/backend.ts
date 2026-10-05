@@ -2,7 +2,7 @@
 // service, host keys, recent logins. SystemSsh runs where root is;
 // FixtureSsh keeps demo data in memory.
 
-import { closeSync, constants, existsSync, fchmodSync, fchownSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs'
+import { closeSync, constants, existsSync, fchmodSync, fchownSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeSync } from 'node:fs'
 import { hostname } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { HttpError } from '../auth'
@@ -11,6 +11,7 @@ import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
 import { USER_NAME, validateSettings, type SshChange, type SshKey, type SshLogin, type SshPreview, type SshSettings, type SshState, type SshUser } from '~/shared/ssh'
 import { addKey, parseAuthLog, parseAuthorizedKeys, parseEstablished, parseDropIn, parseKeyLine, parseSshdT, removeKey, renderDropIn } from './keys'
+import { writeFileAtomic } from '../atomic'
 
 export interface SshAdmin {
   sshState(): Promise<SshState>
@@ -371,15 +372,14 @@ export class SystemSsh implements SshBackend {
     if (change.kind === 'settings') {
       if (!st.dropInActive) throw new HttpError(409, msg(m.ssh_error_noInclude, { file: join(this.etc, 'sshd_config') }))
       mkdirSync(join(this.etc, 'sshd_config.d'), { recursive: true, mode: 0o755 })
-      if (existsSync(this.dropIn)) writeFileSync(`${this.dropIn}.quadeck-bak`, p.before, { mode: 0o644 })
-      writeFileSync(`${this.dropIn}.quadeck-tmp`, p.after, { mode: 0o644 })
-      renameSync(`${this.dropIn}.quadeck-tmp`, this.dropIn)
+      if (existsSync(this.dropIn)) writeFileAtomic(`${this.dropIn}.quadeck-bak`, p.before)
+      writeFileAtomic(this.dropIn, p.after)
       const sshd = this.sshd()
       if (this.live && sshd) {
         const t = await run([sshd, '-t'], { timeoutMs: 10_000 })
         if (t.code !== 0) {
           // Never leave a config behind that sshd refuses (it would not start again).
-          if (p.before) writeFileSync(this.dropIn, p.before, { mode: 0o644 })
+          if (p.before) writeFileAtomic(this.dropIn, p.before)
           else rmSync(this.dropIn, { force: true })
           throw new HttpError(422, msg(m.ssh_error_sshdTestRejected, { output: (t.stderr || t.stdout).trim() }))
         }

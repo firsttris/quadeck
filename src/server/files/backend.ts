@@ -3,7 +3,7 @@
 // never the system. Symlinks are resolved before the check, so a link
 // cannot lead out. Copy/move/delete run as jobs (`quadeck job`).
 
-import { chmodSync, chownSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync, renameSync, rmSync, statfsSync, statSync, writeFileSync, type Stats } from 'node:fs'
+import { chownSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync, renameSync, statfsSync, statSync, type Stats } from 'node:fs'
 import { contentHash } from '~/shared/caddy'
 import { join } from 'node:path'
 import { HttpError } from '../auth'
@@ -14,6 +14,7 @@ import { preparePack, previewExtract, systemArchiveHost, type ArchiveHost, type 
 import { normEntry, type ArchiveEntry, type ArchivePreview } from '~/shared/archives'
 import type { OpenedFile } from './serve'
 import { baseName, isSensitivePath, joinPath, looksLikeText, MAX_ENTRIES, parentOf, TEXT_MAX, validateName, validatePath, type DirListing, type FileEntry, type FileRoot, type TextFile } from '~/shared/files'
+import { writeFileAtomic } from '../atomic'
 
 export interface FilesAdmin {
   fileRoots(): Promise<FileRoot[]>
@@ -227,17 +228,9 @@ export class SystemFiles implements FilesBackend {
     const { real } = resolveInRoots(path, this.rootsFn())
     const data = textToWrite(this.readFile(real), content, expected)
     const st = statSync(real)
-    // Next to the file, then renamed over it: never half written. Owner and mode stay.
-    const tmp = joinPath(parentOf(real), `.${baseName(real)}.quadeck-tmp`)
-    try {
-      writeFileSync(tmp, data, { mode: 0o600 })
-      chownSync(tmp, st.uid, st.gid)
-      chmodSync(tmp, st.mode & 0o7777)
-      renameSync(tmp, real)
-    } catch (e) {
-      rmSync(tmp, { force: true })
-      throw e
-    }
+    // Never half written, owner and mode stay. The folder belongs to a user: writeFileAtomic
+    // never follows a link they put there (root would otherwise write and chown its target).
+    writeFileAtomic(real, data, { mode: st.mode & 0o7777, owner: { uid: st.uid, gid: st.gid } })
     return this.readFile(real)
   }
 

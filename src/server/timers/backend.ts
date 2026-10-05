@@ -10,6 +10,7 @@ import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
 import { HttpError } from '../auth'
 import { run, runOk } from '../exec'
+import { writeFileAtomic } from '../atomic'
 import { parseShow, parseTimestamp } from '../collectors/systemd'
 import {
   CALENDAR,
@@ -106,12 +107,7 @@ export function parseCalendarOutput(out: string): {
   return { normalized, next }
 }
 
-const atomicWrite = (path: string, content: string) => {
-  mkdirSync(dirname(path), { recursive: true, mode: 0o755 })
-  const tmp = `${path}.quadeck-tmp`
-  writeFileSync(tmp, content, { mode: 0o644 })
-  renameSync(tmp, path)
-}
+const atomicWrite = (path: string, content: string) => writeFileAtomic(path, content, { mkdir: 0o755 })
 
 /**
  * `systemd-analyze verify` on copies in a temp folder (its directory joins the unit search path,

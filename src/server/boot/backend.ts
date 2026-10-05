@@ -3,7 +3,8 @@
 // helper; writes to EFI variables run through systemd-run, because the
 // helper's own sandbox (ProtectKernelTunables) keeps /sys read-only.
 
-import { existsSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs'
+import { writeFileAtomic } from '../atomic'
 import { contentHash } from '~/shared/caddy'
 import type { Revision } from '~/shared/quadlets'
 import { release } from 'node:os'
@@ -353,9 +354,7 @@ export class SystemBoot implements BootBackend {
 
   async createKernelEntry(pkg: string) {
     const { path, content } = entryForFlavor(await this.bootState(), pkg, read, existsSync)
-    const tmp = `${path}.quadeck-tmp`
-    writeFileSync(tmp, content, { mode: 0o644 })
-    renameSync(tmp, path)
+    writeFileAtomic(path, content)
     return this.bootState()
   }
 
@@ -364,11 +363,7 @@ export class SystemBoot implements BootBackend {
     read,
     exists: existsSync,
     // tmp + rename: no half-written entry on the boot partition (vfat, too)
-    write: (path, content) => {
-      const tmp = `${path}.quadeck-tmp`
-      writeFileSync(tmp, content, { mode: 0o644 })
-      renameSync(tmp, path)
-    },
+    write: (path, content) => writeFileAtomic(path, content),
     rename: (from, to) => renameSync(from, to),
     remove: (path) => rmSync(path, { force: true }),
     history: {

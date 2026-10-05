@@ -9,7 +9,8 @@
 // atomic write with backup and history → daemon-reload → start/remount the
 // mount unit. Any failure after writing restores the old file.
 
-import { existsSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmdirSync, rmSync, statSync, writeFileSync, mkdirSync, copyFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmdirSync, rmSync, statSync, writeFileSync, mkdirSync } from 'node:fs'
+import { writeFileAtomic } from '../atomic'
 import { statfs } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
@@ -67,8 +68,8 @@ export interface MountInfo {
 export interface FstabHost {
   readonly path: string
   read(): string
-  /** Atomic, keeps the previous file as <path>.quadeck-bak. */
-  write(text: string): void
+  /** Atomic, keeps the previous file as <path>.quadeck-bak (not when undoing: the backup stays the good one). */
+  write(text: string, backup?: boolean): void
   devices(): Promise<BlockDevice[]>
   /** Mounted targets → source. */
   mounts(): Promise<Map<string, MountInfo>>
@@ -286,8 +287,11 @@ export class FstabManager implements FstabBackend {
     const created = check.createDir
     if (created) this.host.mkdir(created)
     this.host.write(check.after)
+    let recorded = false
     const undo = async (why: string): Promise<never> => {
-      this.host.write(check.before)
+      this.host.write(check.before, false)
+      // the history said "after" was saved: the file is "before" again
+      if (recorded) this.host.history.saved(check.after, check.before)
       await this.host.systemctl(['daemon-reload'])
       if (created) this.host.rmdirIfEmpty(created)
       if (old && mounts.has(old.file) && !(await this.host.mounts()).has(old.file)) await this.host.systemctl(['start', '--', mountUnit(old.file)])
@@ -296,6 +300,7 @@ export class FstabManager implements FstabBackend {
     const reload = await this.host.systemctl(['daemon-reload'])
     if (!reload.ok) await undo(msg(m.fstab_error_daemonReload) + reload.message)
     this.host.history.saved(check.before, check.after)
+    recorded = true
 
     if (change.kind === 'add' || change.kind === 'update') {
       const e = change.entry
@@ -445,11 +450,9 @@ export class SystemFstabHost implements FstabHost {
     return readSafe(this.path) ?? ''
   }
 
-  write(text: string) {
-    if (existsSync(this.path)) copyFileSync(this.path, `${this.path}.quadeck-bak`)
-    const tmp = `${this.path}.quadeck-tmp`
-    writeFileSync(tmp, text, { mode: 0o644 })
-    renameSync(tmp, this.path)
+  write(text: string, backup = true) {
+    if (backup && existsSync(this.path)) writeFileAtomic(`${this.path}.quadeck-bak`, readFileSync(this.path))
+    writeFileAtomic(this.path, text)
   }
 
   async devices() {

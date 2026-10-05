@@ -8,7 +8,7 @@
 // snapshot list. The schedule is a pair of systemd units in /etc/systemd/system.
 
 import { randomBytes } from 'node:crypto'
-import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
 import { statfs } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
 import {
@@ -49,6 +49,7 @@ import { clientScript, defaultClientPlan, type ClientPlan } from '~/shared/backu
 import { HttpError } from '../auth'
 import { run, type ExecResult } from '../exec'
 import type { PodmanAdmin } from '../quadlets/backend'
+import { writeFileAtomic } from '../atomic'
 
 export interface BackupAdmin {
   backupState(refresh?: boolean): Promise<BackupState>
@@ -164,10 +165,7 @@ export interface SystemBackupOptions {
 const MAX_RUNS = 100
 
 function writePrivate(path: string, content: string) {
-  const tmp = `${path}.tmp`
-  writeFileSync(tmp, content, { mode: 0o600 })
-  chmodSync(tmp, 0o600)
-  renameSync(tmp, path)
+  writeFileAtomic(path, content, { mode: 0o600 })
 }
 
 function readJson<T>(path: string, fallback: T): T {
@@ -397,7 +395,7 @@ export class SystemBackup implements BackupBackend {
           await this.systemctl('disable', '--now', name)
           rmSync(path)
         }
-      } else writeFileSync(path, content, { mode: 0o644 })
+      } else writeFileAtomic(path, content)
     }
     await this.systemctl('daemon-reload')
     const en = await this.systemctl('enable', '--now', BACKUP_TIMER)
