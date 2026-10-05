@@ -436,10 +436,10 @@ export function RemoveQuadletDialog({ open, name, onClose, onRemoved }: { open: 
         </div>
       )}
       <div className="flex justify-end gap-2">
-        <button type="button" className="btn" disabled={busy} onClick={onClose}>
+        <button type="button" className="btn" disabled={busy} onClick={onClose} autoFocus>
           {m.common_cancel()}
         </button>
-        <BusyButton className="btn danger" autoFocus busy={busy} busyLabel={m.common_deleting()} disabled={container && !plan} onClick={() => void remove()}>
+        <BusyButton className="btn danger" busy={busy} busyLabel={m.common_deleting()} disabled={container && !plan} onClick={() => void remove()}>
           {m.common_delete()}
         </BusyButton>
       </div>

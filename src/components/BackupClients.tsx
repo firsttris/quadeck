@@ -552,7 +552,7 @@ function ClientDialog({
           ))}
         </ul>
         <div className="flex gap-2">
-          <input className="field font-mono" value={folder} placeholder="~/Musik" aria-label={m.backup_setup_addFolder()} onChange={(e) => setFolder(e.target.value)} />
+          <input className="field font-mono" value={folder} placeholder={m.backup_clients_folderPlaceholder()} aria-label={m.backup_setup_addFolder()} onChange={(e) => setFolder(e.target.value)} />
           <button
             type="button"
             className="btn"

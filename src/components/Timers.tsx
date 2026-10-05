@@ -529,7 +529,7 @@ const templates = (): { label: string; spec: Partial<TimerSpec> }[] => [
   {
     label: m.timers_templates_snapraid_label(),
     spec: {
-      name: 'snapraid-wartung',
+      name: 'snapraid-maintenance',
       description: m.timers_templates_snapraid_description(),
       command: 'snapraid sync\nsnapraid scrub -p 8 -o 10',
       calendar: '*-*-* 04:00:00',
@@ -541,7 +541,7 @@ const templates = (): { label: string; spec: Partial<TimerSpec> }[] => [
     spec: {
       name: 'healthcheck-ping',
       description: m.timers_templates_ping_description(),
-      command: 'curl -fsS -m 10 https://hc-ping.com/DEINE-UUID',
+      command: 'curl -fsS -m 10 https://hc-ping.com/YOUR-CHECK-UUID',
       calendar: '*-*-* *:00/5:00',
       persistent: false,
       network: true,

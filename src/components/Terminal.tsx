@@ -299,7 +299,7 @@ function TerminalView({ info, visible, font, full }: { info: TerminalInfo; visib
               term.current?.focus()
             }}
           >
-            Strg
+            {m.terminal_keys_ctrl()}
           </button>
           <button type="button" className="btn sm" onClick={() => key('Tab')}>
             Tab

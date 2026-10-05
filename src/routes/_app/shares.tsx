@@ -11,7 +11,7 @@ import { Pill } from '~/components/Status'
 import { useToast } from '~/components/Toast'
 import { useGuardedApi } from '~/components/Unlock'
 import { api } from '~/lib/api'
-import { relative } from '~/lib/format'
+import { age } from '~/lib/format'
 import {
   validateNfs,
   validateSmb,
@@ -226,7 +226,7 @@ function SmbPanel({ state, onState, onEdit, onDelete, onReload }: { state: Share
           {smb.connections.map((c, i) => (
             <span key={i} className="mr-3 font-mono" suppressHydrationWarning>
               {c.client} → {c.share}
-              {c.since ? m.shares_smb_since({ when: relative(c.since).replace(/^vor | ago$/g, '') }) : ''}
+              {c.since ? m.shares_smb_since({ when: age(c.since) }) : ''}
             </span>
           ))}
         </div>
