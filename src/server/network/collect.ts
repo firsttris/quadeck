@@ -191,6 +191,29 @@ export function parseUfw(text: string): { active: boolean; ports: string[]; serv
   return { active, ports: [...new Set(ports)], services: [...new Set(services)] }
 }
 
+/**
+ * Ports of a firewalld service from its definition (/etc/firewalld/services wins over
+ * /usr/lib/firewalld/services), as "22/tcp"; undefined when there is no such file.
+ */
+export function firewalldServicePorts(name: string, dirs = ['/etc/firewalld/services', '/usr/lib/firewalld/services']): string[] | undefined {
+  if (!/^[A-Za-z0-9_.-]+$/.test(name)) return undefined
+  for (const dir of dirs) {
+    const file = join(dir, `${name}.xml`)
+    if (!existsSync(file)) continue
+    try {
+      const xml = readFileSync(file, 'utf8')
+      return [...xml.matchAll(/<port\b([^>]*)\/?>/g)].flatMap(([, attrs]) => {
+        const port = attrs!.match(/\bport="([^"]+)"/)?.[1]
+        const proto = attrs!.match(/\bprotocol="([^"]+)"/)?.[1]
+        return port && proto ? [`${port}/${proto}`] : []
+      })
+    } catch {
+      return undefined
+    }
+  }
+  return undefined
+}
+
 async function firewall(): Promise<FirewallInfo> {
   if (Bun.which('firewall-cmd')) {
     const state = await run(['firewall-cmd', '--state'])
@@ -199,6 +222,12 @@ async function firewall(): Promise<FirewallInfo> {
       const z = parseFirewalldZone((await run(['firewall-cmd', '--list-all'])).stdout)
       const ports = [...z.ports]
       for (const s of z.services.slice(0, 40)) {
+        // from the service definition when there is one: one firewall-cmd (a Python start) per service was slow
+        const known = firewalldServicePorts(s)
+        if (known) {
+          ports.push(...known)
+          continue
+        }
         const info = await run(['firewall-cmd', `--info-service=${s}`])
         const p = info.stdout.match(/^\s*ports:\s*(.*)$/m)?.[1]?.trim()
         if (p) ports.push(...p.split(/\s+/))

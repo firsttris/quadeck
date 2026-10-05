@@ -7,6 +7,7 @@ import { parseLspciName, parseNvidiaSmi, readDrmCard } from '~/server/collectors
 import { openDb, schema } from '~/server/db'
 import { metricRows, parseRange, pruneHistory, queryHistory } from '~/server/metrics'
 import type { SystemMetrics } from '~/shared/types'
+import { GpuCollector, NVIDIA_EVERY_MS } from '~/server/collectors/gpu'
 
 const sample: SystemMetrics = {
   ts: 1_000_000,
@@ -55,6 +56,24 @@ describe('metric history', () => {
     expect(db.select().from(schema.metricSamples).all().some((r) => r.value === 1 && r.metric === 'cpu')).toBe(false)
     expect(parseRange('24h')).toBe('24h')
     expect(parseRange('1y')).toBe('1h')
+  })
+})
+
+describe('nvidia-smi is not polled every tick', () => {
+  it('reuses its values for NVIDIA_EVERY_MS', async () => {
+    let calls = 0
+    let t = 0
+    const smi = async () => (calls++, { code: 0, stdout: '0, NVIDIA GeForce RTX 3060, 12, 512, 12288, 40, 15.2, 210\n', stderr: '' })
+    const c = new GpuCollector('/nonexistent', true, smi, () => t)
+    expect((await c.collect())[0]).toMatchObject({ vendor: 'nvidia' })
+    t = 5_000
+    await c.collect()
+    t = 10_000
+    await c.collect()
+    expect(calls).toBe(1)
+    t = NVIDIA_EVERY_MS
+    await c.collect()
+    expect(calls).toBe(2)
   })
 })
 

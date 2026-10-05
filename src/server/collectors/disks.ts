@@ -96,20 +96,18 @@ function readDriveTemps(): Map<string, number> {
 export async function collectDisks(): Promise<Disk[]> {
   const json = await runOk(['lsblk', '-J', '-b', '-o', 'NAME,PATH,TYPE,SIZE,FSTYPE,MOUNTPOINTS,PKNAME']).catch(() => runOk(['lsblk', '-J', '-b', '-o', 'NAME,PATH,TYPE,SIZE,FSTYPE,MOUNTPOINT,PKNAME']))
   const temps = readDriveTemps()
-  const disks: Disk[] = []
-  for (const fs of parseLsblk(json)) {
-    let size = fs.size
-    let used = 0
-    try {
-      const s = await statfs(fs.mount)
-      size = s.blocks * s.bsize
-      used = (s.blocks - s.bfree) * s.bsize
-    } catch {
-      continue
-    }
-    disks.push({ dev: fs.dev, path: fs.path, mount: fs.mount, fstype: fs.fstype, size, used, tempC: temps.get(fs.dev), role: diskRole(fs.mount), disks: fs.disks.length ? fs.disks : [fs.dev] })
-  }
-  return disks
+  // all file systems at once: one slow mount does not hold up the others
+  const all = await Promise.all(
+    parseLsblk(json).map(async (fs): Promise<Disk | undefined> => {
+      try {
+        const s = await statfs(fs.mount)
+        return { dev: fs.dev, path: fs.path, mount: fs.mount, fstype: fs.fstype, size: s.blocks * s.bsize, used: (s.blocks - s.bfree) * s.bsize, tempC: temps.get(fs.dev), role: diskRole(fs.mount), disks: fs.disks.length ? fs.disks : [fs.dev] }
+      } catch {
+        return undefined
+      }
+    }),
+  )
+  return all.filter((d): d is Disk => !!d)
 }
 
 /** The kernel sensor wins; SMART fills in when there is none and the reading is at most 2 hours old. */

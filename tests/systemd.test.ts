@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildUnit, calendarOf, parseListUnits, parseShow, parseTimestamp, quadletOf } from '~/server/collectors/systemd'
+import { buildUnit, calendarOf, parseListUnits, parseShow, parseTimestamp, quadletOf, UnitCollector, type ListedUnit } from '~/server/collectors/systemd'
 import { failureReason } from '~/shared/units'
 
 describe('systemd', () => {
@@ -59,5 +59,54 @@ describe('sockets', () => {
     const u = buildUnit({ name: 'sshd.socket', description: 'OpenSSH Server Socket', load: 'loaded', active: 'active', sub: 'listening' } as Parameters<typeof buildUnit>[0], p!)
     expect(u).toMatchObject({ kind: 'socket', socket: { listen: ['[::]:22 (Stream)', '0.0.0.0:2222 (Stream)'], triggers: 'sshd@.service' }, unitFileState: 'enabled' })
     expect(buildUnit({ name: 'x.service', description: '', load: 'loaded', active: 'active', sub: 'running' } as Parameters<typeof buildUnit>[0], {}).socket).toBeUndefined()
+  })
+})
+
+describe('UnitCollector', () => {
+  const row = (name: string, active = 'active'): ListedUnit => ({ name, description: name, load: 'loaded', active, sub: active === 'active' ? 'running' : 'dead' })
+  const setup = (timestamps = true) => {
+    let units = [row('a.service'), row('b.service'), row('c.timer')]
+    let t = 0
+    const calls: string[][] = []
+    const show = async (args: string[]) => {
+      calls.push(args)
+      if (!timestamps && args[0] === '--timestamp=unix') return { code: 1, stdout: '' }
+      const names = args.slice(args.indexOf('--') + 1)
+      return { code: 0, stdout: names.map((n) => `Id=${n}\nUnitFileState=enabled\nMemoryCurrent=${t}\n`).join('\n') }
+    }
+    const c = new UnitCollector({ refreshMs: 30_000, now: () => t, list: async () => units, show })
+    return { c, calls, setTime: (v: number) => (t = v), setUnits: (u: ListedUnit[]) => (units = u) }
+  }
+  const shown = (args: string[]) => args.slice(args.indexOf('--') + 1)
+
+  it('reads every unit once, then only the ones whose row changed, all again after refreshMs', async () => {
+    const { c, calls, setTime, setUnits } = setup()
+    expect((await c.collect()).map((u) => u.memory)).toEqual([0, 0, 0])
+    expect(calls.map(shown)).toEqual([['a.service', 'b.service', 'c.timer']])
+    calls.length = 0
+    setTime(5_000)
+    await c.collect()
+    expect(calls).toEqual([]) // nothing changed: no systemctl show at all
+    setUnits([row('a.service'), row('b.service', 'failed'), row('c.timer')])
+    setTime(10_000)
+    await c.collect()
+    expect(calls.map(shown)).toEqual([['b.service']])
+    calls.length = 0
+    c.invalidate('a.service') // e.g. after "enable at boot"
+    await c.collect()
+    expect(calls.map(shown)).toEqual([['a.service']])
+    calls.length = 0
+    setTime(40_000)
+    const all = await c.collect()
+    expect(calls.map(shown)).toEqual([['a.service', 'b.service', 'c.timer']])
+    expect(all.map((u) => u.memory)).toEqual([40_000, 40_000, 40_000])
+  })
+
+  it('learns once that systemd has no --timestamp', async () => {
+    const { c, calls, setTime } = setup(false)
+    await c.collect()
+    setTime(40_000)
+    await c.collect()
+    expect(calls.map((a) => a[0] === '--timestamp=unix')).toEqual([true, false, false])
   })
 })

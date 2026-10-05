@@ -173,17 +173,19 @@ export class SystemPower implements PowerBackend {
     const r = await this.exec(['lsblk', '-J', '-o', 'NAME,TYPE,ROTA,TRAN,SERIAL,MODEL,FSTYPE,MOUNTPOINTS'], { timeoutMs: 10_000 })
     const hd = this.hdparm()
     const rules = this.rules()
-    const disks: DiskPower[] = []
-    for (const d of parseLsblkDisks(r.stdout)) {
-      let state: DiskPower['state'] = 'unknown'
-      let apmNow: DiskPower['apmNow']
-      if (hd) {
-        // -C asks the drive without waking it; -B only while it is awake anyway.
-        state = parseHdparmState((await this.exec([hd, '-C', `/dev/${d.name}`], { timeoutMs: 10_000 })).stdout)
-        if (state === 'active') apmNow = parseHdparmApm((await this.exec([hd, '-B', `/dev/${d.name}`], { timeoutMs: 10_000 })).stdout)
-      }
-      disks.push({ ...d, state, ...(apmNow !== undefined ? { apmNow } : {}), ...(d.serial && rules[d.serial] ? { setting: rules[d.serial] } : {}) })
-    }
+    // one drive after the other took up to 10 s each when a drive hung: all at once
+    const disks: DiskPower[] = await Promise.all(
+      parseLsblkDisks(r.stdout).map(async (d) => {
+        let state: DiskPower['state'] = 'unknown'
+        let apmNow: DiskPower['apmNow']
+        if (hd) {
+          // -C asks the drive without waking it; -B only while it is awake anyway.
+          state = parseHdparmState((await this.exec([hd, '-C', `/dev/${d.name}`], { timeoutMs: 10_000 })).stdout)
+          if (state === 'active') apmNow = parseHdparmApm((await this.exec([hd, '-B', `/dev/${d.name}`], { timeoutMs: 10_000 })).stdout)
+        }
+        return { ...d, state, ...(apmNow !== undefined ? { apmNow } : {}), ...(d.serial && rules[d.serial] ? { setting: rules[d.serial] } : {}) }
+      }),
+    )
     return { installed: !!hd, rulesPath: this.rulesPath, foreign: this.foreign(), disks }
   }
 
@@ -213,13 +215,14 @@ export class SystemPower implements PowerBackend {
     const rapl = this.readRapl()
     const r = await this.exec(['lsblk', '-J', '-o', 'NAME,TYPE,ROTA,TRAN,MODEL'], { timeoutMs: 10_000 })
     const hd = this.hdparm()
-    const disks: SampleDisk[] = []
-    for (const d of parseLsblkKinds(r.stdout)) {
-      // -C asks without waking the disk; only spinning disks have a standby worth asking about. Not
-      // through USB bridges every 30 s: some wake the disk on any ATA command (counted as active).
-      const state = d.kind === 'hdd' && !d.usb && hd ? parseHdparmState((await this.exec([hd, '-C', `/dev/${d.name}`], { timeoutMs: 10_000 })).stdout) : 'unknown'
-      disks.push({ ...d, state })
-    }
+    const disks: SampleDisk[] = await Promise.all(
+      parseLsblkKinds(r.stdout).map(async (d) => {
+        // -C asks without waking the disk; only spinning disks have a standby worth asking about. Not
+        // through USB bridges every 30 s: some wake the disk on any ATA command (counted as active).
+        const state = d.kind === 'hdd' && !d.usb && hd ? parseHdparmState((await this.exec([hd, '-C', `/dev/${d.name}`], { timeoutMs: 10_000 })).stdout) : 'unknown'
+        return { ...d, state }
+      }),
+    )
     return { at: Date.now(), rapl, disks }
   }
 
