@@ -90,6 +90,18 @@ describe('helper over a Unix socket', () => {
     expect(statSync(socket).mode & 0o777).toBe(0o660)
   })
 
+  it('keeps the umask the helper writes system files with', () => {
+    const old = process.umask(0o022)
+    const other = serveHelper(join(dir, 'second.sock'), new LocalPrivileged(new Gate('none', 15), join(dir, 'no-podman.sock'), new FixtureMaintenance('fixtures/demo'), new FixturePodmanAdmin('fixtures/demo'), new FixtureShares('fixtures/demo'), new FixtureSsh('fixtures/demo'), new FixtureSmart('fixtures/demo'), new FixtureFiles(), new FixtureTimers('fixtures/demo'), new FixtureUnitEditor('fixtures/demo'), new FixtureNetwork('fixtures/demo'), new FstabManager(new FixtureFstabHost('fixtures/demo')), new FixtureBoot('fixtures/demo'), new FixtureUsers('fixtures/demo'), new FixtureHardware('fixtures/demo'), new CaddyManager(new FixtureCaddyHost('fixtures/demo')), new FixtureBackup(), new FixturePower()))
+    try {
+      expect(process.umask()).toBe(0o022)
+      expect(statSync(join(dir, 'second.sock')).mode & 0o777).toBe(0o660)
+    } finally {
+      other.stop(true)
+      process.umask(old)
+    }
+  })
+
   it('reports the unlock mode and the suggested account', async () => {
     expect(await client.info()).toEqual({ mode: 'system', suggestedUser: 'tristan', minutes: 15 })
   })

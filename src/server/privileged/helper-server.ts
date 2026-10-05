@@ -293,7 +293,14 @@ function groupId(name: string): number | undefined {
 
 export function serveHelper(socket: string, p: Privileged, routes = HELPER_ROUTES) {
   if (existsSync(socket)) rmSync(socket)
-  const server = Bun.serve({ unix: socket, fetch: (req) => handleHelperRequest(req, p, routes) })
+  // Created root-only, then opened to the group below: no moment where others could connect.
+  const old = process.umask(0o077)
+  let server: ReturnType<typeof Bun.serve>
+  try {
+    server = Bun.serve({ unix: socket, fetch: (req) => handleHelperRequest(req, p, routes) })
+  } finally {
+    process.umask(old)
+  }
   // Only root and the "quadeck" group may connect.
   const gid = groupId(process.env.QUADECK_HELPER_GROUP || 'quadeck')
   if (gid !== undefined && process.getuid?.() === 0) chownSync(socket, 0, gid)

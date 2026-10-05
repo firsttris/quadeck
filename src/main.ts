@@ -229,6 +229,10 @@ export async function main(argv: string[], opts: MainOptions) {
         console.error('quadeck helper must run as root')
         process.exit(1)
       }
+      // The helper writes system files (/etc/fstab, containers.conf, smb.conf, units …) that
+      // other users and tools must read: 0644/0755 as asked, not cut down to 0600/0700.
+      // Its own secrets (history, backup credentials, Caddy state) set 0600/0700 explicitly.
+      process.umask(0o022)
       cleanupSudoers()
       installNoLang()
       const podman = new SystemPodmanAdmin()

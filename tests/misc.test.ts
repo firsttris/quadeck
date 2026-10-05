@@ -68,3 +68,11 @@ describe('format', () => {
     expect(calendarLabel('daily')).toBe('täglich 00:00')
   })
 })
+
+describe('systemd units', () => {
+  it('lets the helper write system files readable for everyone, the web app root only', async () => {
+    const { HELPER_UNIT, WEB_UNIT } = await import('~/unit-file')
+    expect(HELPER_UNIT).toMatch(/^UMask=0022$/m)
+    expect(WEB_UNIT).toMatch(/^UMask=0077$/m)
+  })
+})

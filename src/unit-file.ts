@@ -59,7 +59,8 @@ StateDirectory=quadeck-helper
 StateDirectoryMode=0700
 Restart=on-failure
 RestartSec=3
-UMask=0077
+# writes system files (fstab, units, smb.conf …) that must stay readable for everyone
+UMask=0022
 EnvironmentFile=-/etc/quadeck/quadeck.env
 PrivateTmp=yes
 ProtectKernelTunables=yes
