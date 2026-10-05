@@ -237,14 +237,14 @@ export class SystemBackup implements BackupBackend {
   }
 
   /** Environment for restic: repository, password file, cache, credentials. */
-  resticEnv(plan: BackupPlan): Record<string, string> {
-    const secrets = this.secrets()
+  resticEnv(plan: BackupPlan, secrets = this.secrets()): Record<string, string> {
     const allowed = Object.fromEntries(REPO_SECRETS[plan.repo.kind].filter((k) => secrets[k]).map((k) => [k, secrets[k]!]))
     return { ...allowed, RESTIC_REPOSITORY: repoString(plan.repo), RESTIC_PASSWORD_FILE: this.file('password'), RESTIC_CACHE_DIR: this.file('cache'), RESTIC_PROGRESS_FPS: '0.1' }
   }
 
-  private restic(plan: BackupPlan, args: string[], timeoutMs = 60_000) {
-    return this.exec(['restic', ...args], { env: this.resticEnv(plan), timeoutMs })
+  /** secrets: credentials not saved yet (checking a new plan); otherwise the stored ones. */
+  private restic(plan: BackupPlan, args: string[], timeoutMs = 60_000, secrets?: Record<string, string>) {
+    return this.exec(['restic', ...args], { env: this.resticEnv(plan, secrets), timeoutMs })
   }
 
   private installed() {
@@ -375,17 +375,18 @@ export class SystemBackup implements BackupBackend {
     const needed = REPO_SECRETS[plan.repo.kind]
     const missing = needed.filter((k) => !merged[k])
     if (missing.length) throw new HttpError(400, msg(m.backup_error_secretMissing, { keys: missing.join(', ') }))
-    writePrivate(this.file('env'), Object.entries(merged).map(([k, v]) => `${k}=${v}`).join('\n') + '\n')
     if (plan.repo.kind === 'local' && !existsSync(dirname(plan.repo.location))) throw new HttpError(422, msg(m.backup_error_parentMissing, { path: dirname(plan.repo.location) }))
 
-    // The repository: open it, or create it where there is none yet.
-    const cfg = await this.restic(plan, ['cat', 'config', '--no-lock'], 120_000)
+    // The repository: open it, or create it where there is none yet – with the new credentials,
+    // which are stored only once they work (a typo must not replace credentials that worked).
+    const cfg = await this.restic(plan, ['cat', 'config', '--no-lock'], 120_000, merged)
     if (cfg.code !== 0) {
       if (!NO_REPO.test(cfg.stderr)) throw new HttpError(422, msg(m.backup_error_repoOpen, { message: cfg.stderr.trim() }))
-      const init = await this.restic(plan, ['init'], 180_000)
+      const init = await this.restic(plan, ['init'], 180_000, merged)
       if (init.code !== 0) throw new HttpError(422, msg(m.backup_error_repoInit, { message: init.stderr.trim() }))
       this.log(msg(m.backup_log_initialised, { repo: repoString(plan.repo) }))
     }
+    writePrivate(this.file('env'), Object.entries(merged).map(([k, v]) => `${k}=${v}`).join('\n') + '\n')
 
     writePrivate(this.file('plan.json'), JSON.stringify(plan, null, 2))
     writePrivate(this.file('excludes'), excludeFile(plan))
