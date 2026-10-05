@@ -113,9 +113,11 @@ export class PodmanCollector {
     const pushHistory = now - this.lastHistoryAt >= 15_000
     if (pushHistory) this.lastHistoryAt = now
 
+    // inspect is cached per container; new ones (first tick, after a recreate) are asked in parallel
+    const inspected = new Map(await Promise.all(list.filter((c) => c.State === 'running').map(async (c) => [c.Id, await this.inspect(c.Id)] as const)))
     const out: Container[] = []
     for (const c of list) {
-      const base = mapContainer(c, c.State === 'running' ? await this.inspect(c.Id) : undefined)
+      const base = mapContainer(c, inspected.get(c.Id))
       const st = stats.get(c.Id)
       const running = c.State === 'running'
       const cpu = running && st ? st.CPU : undefined

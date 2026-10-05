@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { FixtureNetwork, cgroupOwner, parseFirewalldZone, parseIpAddr, parseResolvConf, parseResolvectl, parseRoutes, parseSs, parseUfw } from '~/server/network/collect'
+import { FixtureNetwork, cgroupOwner, parseFirewalldZone, parseIpAddr, parseResolvConf, parseResolvectl, parseRoutes, parseSs, parseUfw, firewalldServicePorts } from '~/server/network/collect'
 import { firewallVerdict, mergeContainerPorts, portAllowed, scopeOf, type FirewallInfo } from '~/shared/network'
 
 describe('ip', () => {
@@ -154,5 +154,21 @@ describe('firewall', () => {
     const s = await new FixtureNetwork('fixtures/demo').networkState()
     expect(s.ports.find((p) => p.port === 111)?.firewall).toBe('blocked')
     expect(s.ports.find((p) => p.port === 22)?.firewall).toBe('open')
+  })
+})
+
+describe('firewalld service ports without one firewall-cmd per service', () => {
+  it('reads the service definition, /etc before /usr/lib', () => {
+    const root = mkdtempSync(join(tmpdir(), 'qd-fw-'))
+    const [etc, lib] = [join(root, 'etc'), join(root, 'lib')]
+    mkdirSync(etc)
+    mkdirSync(lib)
+    writeFileSync(join(lib, 'ssh.xml'), '<?xml version="1.0" encoding="utf-8"?>\n<service>\n  <short>SSH</short>\n  <port protocol="tcp" port="22"/>\n</service>\n')
+    writeFileSync(join(lib, 'samba.xml'), '<service><port protocol="udp" port="137"/><port protocol="udp" port="138"/><port protocol="tcp" port="139"/><port protocol="tcp" port="445"/></service>')
+    writeFileSync(join(etc, 'ssh.xml'), '<service><port port="2222" protocol="tcp" /></service>')
+    expect(firewalldServicePorts('samba', [etc, lib])).toEqual(['137/udp', '138/udp', '139/tcp', '445/tcp'])
+    expect(firewalldServicePorts('ssh', [etc, lib])).toEqual(['2222/tcp'])
+    expect(firewalldServicePorts('missing', [etc, lib])).toBeUndefined()
+    expect(firewalldServicePorts('../ssh', [etc, lib])).toBeUndefined()
   })
 })

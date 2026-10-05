@@ -108,11 +108,30 @@ export function parseLspciName(line: string): string | undefined {
   return [vendor, bracket ?? model].filter(Boolean).join(' ')
 }
 
+/**
+ * nvidia-smi starts up the driver on every call when persistence mode is off: polled every 5 s it
+ * keeps the GPU from settling into its lowest idle state and costs tens of ms CPU each time. Its
+ * values are read at most this often; AMD/Intel come from sysfs on every tick.
+ */
+export const NVIDIA_EVERY_MS = 15_000
+
 export class GpuCollector {
   private names = new Map<string, string | undefined>()
-  private hasNvidia = !!Bun.which('nvidia-smi')
+  private nvidia: { at: number; gpus: GpuMetrics[] } | undefined
 
-  constructor(private root = '/sys/class/drm') {}
+  constructor(
+    private root = '/sys/class/drm',
+    private hasNvidia = !!Bun.which('nvidia-smi'),
+    private smi = () => run(['nvidia-smi', '--query-gpu=index,name,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw,clocks.gr', '--format=csv,noheader,nounits'], { timeoutMs: 5000 }),
+    private now = () => Date.now(),
+  ) {}
+
+  private async nvidiaGpus(): Promise<GpuMetrics[]> {
+    if (this.nvidia && this.now() - this.nvidia.at < NVIDIA_EVERY_MS) return this.nvidia.gpus
+    const r = await this.smi()
+    this.nvidia = { at: this.now(), gpus: r.code === 0 ? parseNvidiaSmi(r.stdout) : [] }
+    return this.nvidia.gpus
+  }
 
   private cards() {
     try {
@@ -137,10 +156,7 @@ export class GpuCollector {
 
   async collect(): Promise<GpuMetrics[]> {
     const out: GpuMetrics[] = []
-    if (this.hasNvidia) {
-      const r = await run(['nvidia-smi', '--query-gpu=index,name,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw,clocks.gr', '--format=csv,noheader,nounits'], { timeoutMs: 5000 })
-      if (r.code === 0) out.push(...parseNvidiaSmi(r.stdout))
-    }
+    if (this.hasNvidia) out.push(...(await this.nvidiaGpus()))
     for (const card of this.cards()) {
       if (!existsSync(join(this.root, card, 'device', 'driver'))) continue
       const g = readDrmCard(this.root, card, await this.name(card))

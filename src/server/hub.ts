@@ -18,7 +18,7 @@ import { smartSamples } from '~/shared/smart-metrics'
 import { collectShares, sharesSummary } from './collectors/shares'
 import { PodmanCollector } from './collectors/podman'
 import { readHostInfo, SystemCollector } from './collectors/system'
-import { collectUnits, systemdVersion } from './collectors/systemd'
+import { UnitCollector, systemdVersion } from './collectors/systemd'
 import { config } from './config'
 import { db, schema } from './db'
 import { HealthChecker } from './health'
@@ -268,7 +268,7 @@ export class Hub {
 
   private async collectSystemd() {
     try {
-      this.units = this.fixtures ? (this.fixtures.units ?? []) : await collectUnits()
+      this.units = this.fixtures ? (this.fixtures.units ?? []) : await this.unitCollector.collect()
       this.ok('systemd')
     } catch (e) {
       this.fail('systemd', e)
@@ -336,6 +336,7 @@ export class Hub {
   private backup: Snapshot['backup']
 
   readonly energy = new EnergyMeter()
+  private unitCollector = new UnitCollector()
   /** CPU and RAM per container in 5-minute buckets (Units → Usage). */
   readonly usage = new UsageRecorder(db)
   readonly fsHistory = new FsHistory(db)
@@ -562,6 +563,7 @@ export class Hub {
     } else {
       await this.priv.unit(token, action, name)
     }
+    this.unitCollector.invalidate(name)
     await this.collectSystemd()
     await this.collectPodman()
     this.publish()

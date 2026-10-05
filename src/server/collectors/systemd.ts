@@ -110,21 +110,60 @@ export async function listUnits(): Promise<ListedUnit[]> {
   return parseListUnits(out)
 }
 
-export async function collectUnits(): Promise<Unit[]> {
-  const listed = (await listUnits()).filter(relevant)
-  const props = new Map<string, Record<string, string>>()
-  // Batch to keep argv sizes sane on hosts with many units.
-  for (let i = 0; i < listed.length; i += 150) {
-    const batch = listed.slice(i, i + 150).map((u) => u.name)
-    const r = await run(['systemctl', 'show', '--timestamp=unix', ...PROPS.flatMap((p) => ['-p', p]), '--', ...batch])
-    let text = r.stdout
-    if (r.code !== 0) {
-      // systemd < 251 has no --timestamp option.
-      text = (await run(['systemctl', 'show', ...PROPS.flatMap((p) => ['-p', p]), '--', ...batch])).stdout
+const rowKey = (u: ListedUnit) => `${u.load}|${u.active}|${u.sub}|${u.description}`
+
+/**
+ * Units for the hub's 5 s tick. ListUnits (one call) runs every time, so a start, stop or
+ * failure shows at once. The properties (`systemctl show`, ~15 per unit) are read again only for
+ * units whose ListUnits row changed, and for all of them every `refreshMs` (memory, timer
+ * times). Before, every tick read them for every unit: ~1 MB of text every 5 s on a big host.
+ */
+export class UnitCollector {
+  private props = new Map<string, Record<string, string>>()
+  private rows = new Map<string, string>()
+  private fullAt = -Infinity
+  /** systemd < 251 has no --timestamp: learned once, not retried on every batch. */
+  private timestamps = true
+
+  constructor(
+    private opts: { refreshMs?: number; now?: () => number; list?: () => Promise<ListedUnit[]>; show?: (args: string[]) => Promise<{ code: number; stdout: string }> } = {},
+  ) {}
+
+  private async show(names: string[]) {
+    const show = this.opts.show ?? ((args: string[]) => run(['systemctl', 'show', ...args]))
+    const args = [...PROPS.flatMap((p) => ['-p', p]), '--', ...names]
+    if (this.timestamps) {
+      const r = await show(['--timestamp=unix', ...args])
+      if (r.code === 0) return r.stdout
+      this.timestamps = false
     }
-    for (const o of parseShow(text)) props.set(o.Id!, o)
+    return (await show(args)).stdout
   }
-  return listed.map((l) => buildUnit(l, props.get(l.name) ?? {})).sort((a, b) => a.name.localeCompare(b.name))
+
+  /** After an action on a unit: read its properties again on the next collect (enable/disable is not in the row). */
+  invalidate(name: string) {
+    this.rows.delete(name)
+  }
+
+  async collect(): Promise<Unit[]> {
+    const listed = (await (this.opts.list ?? listUnits)()).filter(relevant)
+    const now = (this.opts.now ?? Date.now)()
+    const full = now - this.fullAt >= (this.opts.refreshMs ?? 30_000)
+    const stale = full ? listed : listed.filter((u) => this.rows.get(u.name) !== rowKey(u))
+    // Batch to keep argv sizes sane on hosts with many units.
+    for (let i = 0; i < stale.length; i += 150) {
+      const batch = stale.slice(i, i + 150)
+      for (const o of parseShow(await this.show(batch.map((u) => u.name)))) this.props.set(o.Id!, o)
+      for (const u of batch) this.rows.set(u.name, rowKey(u))
+    }
+    if (full) {
+      this.fullAt = now
+      const names = new Set(listed.map((u) => u.name))
+      for (const n of [...this.props.keys()]) if (!names.has(n)) this.props.delete(n)
+      for (const n of [...this.rows.keys()]) if (!names.has(n)) this.rows.delete(n)
+    }
+    return listed.map((l) => buildUnit(l, this.props.get(l.name) ?? {})).sort((a, b) => a.name.localeCompare(b.name))
+  }
 }
 
 export async function systemdVersion(): Promise<string | undefined> {
