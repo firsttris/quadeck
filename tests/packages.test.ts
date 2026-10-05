@@ -211,6 +211,16 @@ describe('jobs', () => {
     expect(got).toEqual(['ab', 'progress 100%', 'end'])
   })
 
+  it('drops lines that are only progress control codes and collapses empty lines', () => {
+    const got: string[] = []
+    const s = lineSplitter((l) => got.push(l))
+    // pacman -Syu without a terminal: one line of erase codes per download step
+    s.push(':: Retrieving packages...\n' + '\x1b[K\r\x1b[1A\n'.repeat(40) + '\r \r\n')
+    s.push('\n\n\n(31/31) checking keys in keyring\n\nend\n')
+    s.flush()
+    expect(got).toEqual([':: Retrieving packages...', '', '(31/31) checking keys in keyring', '', 'end'])
+  })
+
   it('runs one job at a time and stops at the exit marker', async () => {
     let sink: JobSink | undefined
     const m = new JobManager({ start: async (_id, _spec, s) => void (sink = s) })

@@ -25,19 +25,37 @@ const KEEP_JOBS = 20
 // eslint-disable-next-line no-control-regex
 const ANSI = /\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*\x07/g
 
-/** Splits a chunk stream into lines; a carriage return overwrites the line (progress bars). */
+/**
+ * Splits a chunk stream into lines; a carriage return overwrites the line (progress bars).
+ * Lines that are only control codes (pacman's download progress without a terminal) are dropped,
+ * and several empty lines in a row become one, so the output doesn't keep growing with nothing.
+ */
 export function lineSplitter(emit: (l: string) => void) {
   let buf = ''
+  let blank = false
   const clean = (l: string) => l.replace(ANSI, '').split('\r').filter(Boolean).pop() ?? ''
+  const out = (raw: string) => {
+    const l = clean(raw)
+    if (!l.trim()) {
+      // eslint-disable-next-line no-control-regex
+      if (/[\r\x1b]/.test(raw)) return // only control codes and spaces
+      if (blank) return
+      blank = true
+      emit('')
+      return
+    }
+    blank = false
+    emit(l)
+  }
   return {
     push(chunk: string) {
       buf += chunk
       const parts = buf.split('\n')
       buf = parts.pop()!
-      for (const p of parts) emit(clean(p))
+      for (const p of parts) out(p)
     },
     flush() {
-      if (buf) emit(clean(buf))
+      if (buf) out(buf)
       buf = ''
     },
   }
