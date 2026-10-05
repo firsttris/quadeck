@@ -146,7 +146,8 @@ export class Hub {
     }
     every(2000, async () => {
       this.collectSystem()
-      this.emit({ type: 'system', data: this.system! })
+      // nothing to send before the first sample worked (e.g. /proc unreadable)
+      if (this.system) this.emit({ type: 'system', data: this.system })
     })
     const fast = every(5000, async () => {
       await Promise.allSettled([this.collectPodman(), this.collectSystemd()])

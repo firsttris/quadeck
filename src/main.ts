@@ -128,8 +128,27 @@ function withHeaders(res: Response): Response {
   return new Response(res.body, { status: res.status, statusText: res.statusText, headers: h })
 }
 
+/**
+ * systemctl stop/restart and `quadeck update` end the service with SIGTERM: the hub first writes
+ * what it still holds in memory (container usage of the current 5 minutes, otherwise a gap in
+ * the charts after every restart). The hub lives in the server bundle and on globalThis; it is
+ * not imported here so the binary does not carry a second copy.
+ */
+function stopOnSignal() {
+  for (const sig of ['SIGTERM', 'SIGINT'] as const)
+    process.once(sig, () => {
+      try {
+        ;(globalThis as { __quadeckHub?: { stop(): void } }).__quadeckHub?.stop()
+      } catch (e) {
+        console.error('[quadeck] on shutdown', e)
+      }
+      process.exit(0)
+    })
+}
+
 export function serve(opts: MainOptions) {
   const cfg = config()
+  stopOnSignal()
   db() // open + migrate before the first request
   const token = ensureSetupToken()
   installRequestLang()
