@@ -106,8 +106,14 @@ export function createSession(): { token: string; session: Session } {
     .insert(schema.sessions)
     .values({ ...session, createdAt: Date.now() })
     .run()
-  db().delete(schema.sessions).where(lt(schema.sessions.expiresAt, Date.now())).run()
+  pruneSessions()
   return { token, session }
+}
+
+/** Removes expired login sessions; returns the ids still valid. Also run hourly by the hub. */
+export function pruneSessions(now = Date.now()): Set<string> {
+  db().delete(schema.sessions).where(lt(schema.sessions.expiresAt, now)).run()
+  return new Set(db().select({ id: schema.sessions.id }).from(schema.sessions).all().map((s) => s.id))
 }
 
 export function parseCookies(header: string | null): Record<string, string> {
