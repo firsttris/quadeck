@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, existsSync } from 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { diffLines, hunks } from '~/lib/diff'
+import { diffLines, hunks, MAX_EDITS } from '~/lib/diff'
 import { generatedUnit, generatorDiagnostics, missingReferences, SystemPodmanAdmin } from '~/server/quadlets/backend'
 import { composeToQuadlets } from '~/server/quadlets/compose'
 import { getValue, getValues, lintQuadlet, parseIni, setValues } from '~/shared/ini'
@@ -113,6 +113,37 @@ describe('diff', () => {
     ])
     const h = hunks(d, 1)
     expect(h.map((l) => (l ? l.op + l.text : null))).toEqual([' d', '-e', '+E', ' f', null, ' i', '+j'])
+  })
+
+  it('stays fast and small on large files (the old table needed n·m memory)', () => {
+    const big = Array.from({ length: 40_000 }, (_, i) => `line ${i}`).join('\n')
+    const t = performance.now()
+    const d = diffLines(big, big.replace('line 20000', 'LINE').replace('line 30000\n', ''))
+    expect(d.filter((l) => l.op !== ' ')).toEqual([
+      { op: '-', text: 'line 20000' },
+      { op: '+', text: 'LINE' },
+      { op: '-', text: 'line 30000' },
+    ])
+    expect(performance.now() - t).toBeLessThan(2000)
+  })
+
+  it('shows a completely rewritten file as removed and re-added beyond the edit limit', () => {
+    const a = Array.from({ length: MAX_EDITS + 10 }, (_, i) => `a${i}`).join('\n')
+    const b = Array.from({ length: MAX_EDITS + 10 }, (_, i) => `b${i}`).join('\n')
+    const d = diffLines(a, b)
+    expect(d.filter((l) => l.op === '-').map((l) => l.text).join('\n')).toBe(a)
+    expect(d.filter((l) => l.op === '+').map((l) => l.text).join('\n')).toBe(b)
+  })
+
+  it('always reproduces both texts', () => {
+    for (let r = 0; r < 500; r++) {
+      const rnd = () => Array.from({ length: Math.floor(Math.random() * 15) }, () => 'abc'[Math.floor(Math.random() * 3)]).join('\n')
+      const a = rnd()
+      const b = rnd()
+      const d = diffLines(a, b)
+      expect(d.filter((l) => l.op !== '+').map((l) => l.text).join('\n')).toBe(a)
+      expect(d.filter((l) => l.op !== '-').map((l) => l.text).join('\n')).toBe(b)
+    }
   })
 })
 
