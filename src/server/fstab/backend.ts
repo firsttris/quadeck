@@ -16,6 +16,7 @@ import { join } from 'node:path'
 import { HttpError } from '../auth'
 import { run } from '../exec'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { UnitHistory } from '../systemd/editor'
 import type { Diagnostic, Revision } from '~/shared/quadlets'
 import {
@@ -165,11 +166,11 @@ export class FstabManager implements FstabBackend {
     // The entry being changed, and the one it replaces.
     const old = change.kind === 'update' || change.kind === 'remove' ? parseFstab(before).entries.find((e) => e.line === change.line) : undefined
     if (old && systemReason(old, ctx.rootSpecs)) {
-      out.push({ severity: 'error', message: `${old.file}: ${systemReason(old, ctx.rootSpecs)}` + msg('fstab_error_systemNotChanged') })
+      out.push({ severity: 'error', message: `${old.file}: ${systemReason(old, ctx.rootSpecs)}` + msg(m.fstab_error_systemNotChanged) })
       return result()
     }
     if (change.kind === 'add' || change.kind === 'update') out.push(...checkInput(change.entry))
-    if (change.kind === 'restore' && /\x00/.test(change.content)) out.push({ severity: 'error', message: msg('common_errors_invalidContent') })
+    if (change.kind === 'restore' && /\x00/.test(change.content)) out.push({ severity: 'error', message: msg(m.common_errors_invalidContent) })
     const prot = protectedLinesChanged(before, after, ctx.rootSpecs)
     if (prot) out.push({ severity: 'error', message: prot })
     out.push(...checkFile(after, ctx.rootSpecs))
@@ -187,41 +188,41 @@ export class FstabManager implements FstabBackend {
       }
       const local = !isNetworkSpec(e.spec) && !e.options.includes('_netdev')
       if (!local) {
-        out.push({ line: e.line, severity: 'warning', message: label(e) + msg('fstab_warn_networkUnchecked') })
+        out.push({ line: e.line, severity: 'warning', message: label(e) + msg(m.fstab_warn_networkUnchecked) })
         continue
       }
       if (!isBlockSpec(e.spec)) {
-        if (!(await this.host.driver(e.vfstype))) out.push({ line: e.line, severity: 'error', message: label(e) + msg('fstab_error_programMissing', { vfstype: e.vfstype }) })
-        out.push({ line: e.line, severity: 'warning', message: label(e) + msg('fstab_warn_sourceNotDrive', { spec: e.spec }) })
+        if (!(await this.host.driver(e.vfstype))) out.push({ line: e.line, severity: 'error', message: label(e) + msg(m.fstab_error_programMissing, { vfstype: e.vfstype }) })
+        out.push({ line: e.line, severity: 'warning', message: label(e) + msg(m.fstab_warn_sourceNotDrive, { spec: e.spec }) })
         continue
       }
       const dev = ctx.devices.find((d) => specMatches(e.spec, d))
-      if (!dev) out.push({ line: e.line, severity: isBootCritical(e) || change.kind === 'add' ? 'error' : 'warning', message: label(e) + msg('fstab_error_deviceMissing', { spec: e.spec }) })
-      else if (!fsCompatible(e.vfstype, dev.fstype)) out.push({ line: e.line, severity: 'error', message: label(e) + msg('fstab_error_wrongFsType', { path: dev.path, fstype: dev.fstype || msg('fstab_label_noFileSystem'), vfstype: e.vfstype }) })
+      if (!dev) out.push({ line: e.line, severity: isBootCritical(e) || change.kind === 'add' ? 'error' : 'warning', message: label(e) + msg(m.fstab_error_deviceMissing, { spec: e.spec }) })
+      else if (!fsCompatible(e.vfstype, dev.fstype)) out.push({ line: e.line, severity: 'error', message: label(e) + msg(m.fstab_error_wrongFsType, { path: dev.path, fstype: dev.fstype || msg(m.fstab_label_noFileSystem), vfstype: e.vfstype }) })
       const type = e.vfstype === 'auto' ? dev?.fstype : e.vfstype
       if (type && !(await this.host.driver(type)))
         out.push({
           line: e.line,
           severity: 'error',
-          message: label(e) + msg('fstab_error_driverMissing', { fsType: type ?? '', package: (type && FS_PACKAGE[type]) || '', hasPackage: String(!!(type && FS_PACKAGE[type])) }),
+          message: label(e) + msg(m.fstab_error_driverMissing, { fsType: type ?? '', package: (type && FS_PACKAGE[type]) || '', hasPackage: String(!!(type && FS_PACKAGE[type])) }),
         })
       const at = ctx.mounts.get(e.file)
       const same = at && dev && (at.source.replace(/\[.*\]$/, '') === dev.path || specMatches(at.source, dev))
-      if (at && !same && !(old && old.file === e.file)) out.push({ line: e.line, severity: 'error', message: label(e) + msg('fstab_error_mountPointBusy', { file: e.file, source: at.source }) })
+      if (at && !same && !(old && old.file === e.file)) out.push({ line: e.line, severity: 'error', message: label(e) + msg(m.fstab_error_mountPointBusy, { file: e.file, source: at.source }) })
       const elsewhere = dev?.mountpoints.filter((m) => m !== e.file && m !== old?.file)
       if (elsewhere?.length)
         out.push({
           line: e.line,
           severity: 'warning',
-          message: label(e) + msg('fstab_warn_mountedElsewhere', { path: dev!.path, mountPoints: elsewhere.join(', ') }),
+          message: label(e) + msg(m.fstab_warn_mountedElsewhere, { path: dev!.path, mountPoints: elsewhere.join(', ') }),
         })
       const dir = this.host.dirState(e.file)
-      if (dir === 'file') out.push({ line: e.line, severity: 'error', message: label(e) + msg('fstab_error_mountPointIsFile', { file: e.file }) })
+      if (dir === 'file') out.push({ line: e.line, severity: 'error', message: label(e) + msg(m.fstab_error_mountPointIsFile, { file: e.file }) })
       if (dir === 'nonempty' && !at)
         out.push({
           line: e.line,
           severity: 'warning',
-          message: label(e) + msg('fstab_warn_mountPointNotEmpty', { file: e.file }),
+          message: label(e) + msg(m.fstab_warn_mountPointNotEmpty, { file: e.file }),
         })
       if (dir === 'missing' && change.kind !== 'restore') createDir = e.file
     }
@@ -241,19 +242,19 @@ export class FstabManager implements FstabBackend {
     // The steps, for the confirmation.
     if (change.kind === 'remove' && old) {
       usedBy = this.host.usedBy(old.file)
-      if (usedBy.length) out.push({ severity: 'warning', message: msg('fstab_warn_stillInUse', { file: old.file }) + usedBy.join(', ') })
-      if (ctx.mounts.has(old.file)) actions.push(msg('fstab_job_unmount', { file: old.file, unit: mountUnit(old.file) }))
+      if (usedBy.length) out.push({ severity: 'warning', message: msg(m.fstab_warn_stillInUse, { file: old.file }) + usedBy.join(', ') })
+      if (ctx.mounts.has(old.file)) actions.push(msg(m.fstab_job_unmount, { file: old.file, unit: mountUnit(old.file) }))
     }
     for (const e of changed) {
-      if (isBlockSpec(e.spec) && !ctx.mounts.has(e.file) && change.kind !== 'restore') actions.push(msg('fstab_job_testMount', { spec: e.spec, options: e.options.join(',') || 'defaults' }))
+      if (isBlockSpec(e.spec) && !ctx.mounts.has(e.file) && change.kind !== 'restore') actions.push(msg(m.fstab_job_testMount, { spec: e.spec, options: e.options.join(',') || 'defaults' }))
     }
-    if (createDir) actions.push(msg('fstab_job_createDir', { path: createDir }))
-    actions.push(msg('fstab_job_writeFile', { path: this.host.path }), 'systemctl daemon-reload')
+    if (createDir) actions.push(msg(m.fstab_job_createDir, { path: createDir }))
+    actions.push(msg(m.fstab_job_writeFile, { path: this.host.path }), 'systemctl daemon-reload')
     if (change.kind === 'add' || change.kind === 'update') {
       const e = change.entry
       const wasMounted = old && ctx.mounts.has(old.file)
-      if (wasMounted && old.file === e.file && old.spec === e.spec) actions.push(msg('fstab_job_remount', { file: e.file }))
-      else if (!e.options.includes('noauto')) actions.push(msg('fstab_job_mount', { file: e.file, unit: mountUnit(e.file) }))
+      if (wasMounted && old.file === e.file && old.spec === e.spec) actions.push(msg(m.fstab_job_remount, { file: e.file }))
+      else if (!e.options.includes('noauto')) actions.push(msg(m.fstab_job_mount, { file: e.file, unit: mountUnit(e.file) }))
     }
     return result({ bootCritical: critical })
   }
@@ -261,8 +262,8 @@ export class FstabManager implements FstabBackend {
   async applyFstab(change: FstabChange, confirmCritical: boolean): Promise<FstabState> {
     const check = await this.validateFstab(change)
     const err = check.diagnostics.find((d) => d.severity === 'error')
-    if (err) throw new HttpError(422, (err.line ? msg('fstab_label_linePrefix', { line: err.line }) : '') + err.message)
-    if (check.bootCritical.length && !confirmCritical) throw new HttpError(409, msg('fstab_error_bootCritical', { mountPoints: check.bootCritical.join(', ') }))
+    if (err) throw new HttpError(422, (err.line ? msg(m.fstab_label_linePrefix, { line: err.line }) : '') + err.message)
+    if (check.bootCritical.length && !confirmCritical) throw new HttpError(409, msg(m.fstab_error_bootCritical, { mountPoints: check.bootCritical.join(', ') }))
     const mounts = await this.host.mounts()
     const old = change.kind === 'update' || change.kind === 'remove' ? parseFstab(check.before).entries.find((e) => e.line === change.line) : undefined
 
@@ -271,14 +272,14 @@ export class FstabManager implements FstabBackend {
       const e = change.entry
       if (isBlockSpec(e.spec) && !mounts.has(e.file) && !(old && mounts.has(old.file) && old.spec === e.spec)) {
         const fail = await this.host.testMount(e)
-        if (fail) throw new HttpError(422, msg('fstab_error_testMountFailed') + fail)
+        if (fail) throw new HttpError(422, msg(m.fstab_error_testMountFailed) + fail)
       }
     }
 
     // 2. Unmount what goes away or moves.
     if (old && mounts.has(old.file) && (change.kind === 'remove' || (change.kind === 'update' && (change.entry.file !== old.file || change.entry.spec !== old.spec)))) {
       for (const u of [mountUnit(old.file, 'automount'), mountUnit(old.file)]) await this.host.systemctl(['stop', '--', u])
-      if ((await this.host.mounts()).has(old.file)) throw new HttpError(409, msg('fstab_error_busyOnRemove', { file: old.file }))
+      if ((await this.host.mounts()).has(old.file)) throw new HttpError(409, msg(m.fstab_error_busyOnRemove, { file: old.file }))
     }
 
     // 3. Write, reload, mount – and undo everything if a step fails.
@@ -290,10 +291,10 @@ export class FstabManager implements FstabBackend {
       await this.host.systemctl(['daemon-reload'])
       if (created) this.host.rmdirIfEmpty(created)
       if (old && mounts.has(old.file) && !(await this.host.mounts()).has(old.file)) await this.host.systemctl(['start', '--', mountUnit(old.file)])
-      throw new HttpError(422, why + msg('fstab_error_restoredSuffix'))
+      throw new HttpError(422, why + msg(m.fstab_error_restoredSuffix))
     }
     const reload = await this.host.systemctl(['daemon-reload'])
-    if (!reload.ok) await undo(msg('fstab_error_daemonReload') + reload.message)
+    if (!reload.ok) await undo(msg(m.fstab_error_daemonReload) + reload.message)
     this.host.history.saved(check.before, check.after)
 
     if (change.kind === 'add' || change.kind === 'update') {
@@ -301,11 +302,11 @@ export class FstabManager implements FstabBackend {
       const remount = old && mounts.has(old.file) && old.file === e.file && old.spec === e.spec
       if (remount) {
         const r = await this.host.systemctl(['reload', '--', mountUnit(e.file)])
-        if (!r.ok) await undo(msg('fstab_error_remountFailed') + r.message)
+        if (!r.ok) await undo(msg(m.fstab_error_remountFailed) + r.message)
       } else if (!e.options.includes('noauto')) {
         const unit = e.options.includes('x-systemd.automount') ? mountUnit(e.file, 'automount') : mountUnit(e.file)
         const r = await this.host.systemctl(['start', '--', unit])
-        if (!r.ok) await undo(msg('fstab_error_mountFailed') + r.message)
+        if (!r.ok) await undo(msg(m.fstab_error_mountFailed) + r.message)
       }
     }
     if (change.kind === 'remove' && old && created === undefined) this.host.rmdirIfEmpty(old.file)
@@ -315,15 +316,15 @@ export class FstabManager implements FstabBackend {
   async mountAction(target: string, action: 'mount' | 'unmount'): Promise<FstabState> {
     const { rootSpecs, text } = await this.context()
     const e = parseFstab(text).entries.find((x) => x.file === target)
-    if (!e) throw new HttpError(404, msg('fstab_error_notInFstab', { target }))
-    if (systemReason(e, rootSpecs)) throw new HttpError(403, `${target}: ${systemReason(e, rootSpecs)}` + msg('fstab_error_systemNoMount'))
+    if (!e) throw new HttpError(404, msg(m.fstab_error_notInFstab, { target }))
+    if (systemReason(e, rootSpecs)) throw new HttpError(403, `${target}: ${systemReason(e, rootSpecs)}` + msg(m.fstab_error_systemNoMount))
     if (action === 'mount') {
       if (this.host.dirState(target) === 'missing') this.host.mkdir(target)
       const r = await this.host.systemctl(['start', '--', mountUnit(target)])
-      if (!r.ok) throw new HttpError(422, msg('fstab_error_mountFailed') + r.message)
+      if (!r.ok) throw new HttpError(422, msg(m.fstab_error_mountFailed) + r.message)
     } else {
       for (const u of [mountUnit(target, 'automount'), mountUnit(target)]) await this.host.systemctl(['stop', '--', u])
-      if ((await this.host.mounts()).has(target)) throw new HttpError(409, msg('fstab_error_busyOnUnmount', { target }))
+      if ((await this.host.mounts()).has(target)) throw new HttpError(409, msg(m.fstab_error_busyOnUnmount, { target }))
     }
     return this.fstabState()
   }
@@ -413,7 +414,7 @@ export function pathsInUse(files: { smb?: string; exports?: string[]; quadlets?:
     const s = l.match(/^\s*\[(.+)\]\s*$/)
     if (s) section = s[1]!
     const p = l.match(/^\s*path\s*=\s*(\/\S.*?)\s*$/i)
-    if (p) out.push({ path: p[1]!, what: msg('fstab_label_smbShare', { section }) })
+    if (p) out.push({ path: p[1]!, what: msg(m.fstab_label_smbShare, { section }) })
   }
   for (const t of files.exports ?? [])
     for (const l of t.split('\n')) {
@@ -543,7 +544,7 @@ export class SystemFstabHost implements FstabHost {
       const opts = e.options.filter((o) => !USERSPACE_OPTION(o) || o === 'defaults')
       const argv = ['mount', '-t', e.vfstype, ...(opts.length ? ['-o', opts.join(',')] : []), '--', e.spec, dir]
       const r = await run(argv, { timeoutMs: 60_000 })
-      if (r.code !== 0) return (r.stderr || r.stdout).trim().replace(dir, e.file) || msg('fstab_error_mountExitCode', { code: r.code })
+      if (r.code !== 0) return (r.stderr || r.stdout).trim().replace(dir, e.file) || msg(m.fstab_error_mountExitCode, { code: r.code })
       await run(['umount', '--', dir], { timeoutMs: 60_000 })
       return undefined
     } finally {
@@ -616,13 +617,13 @@ export class FixtureFstabHost implements FstabHost {
     list: () => this.revs.map((r) => r.rev),
     read: (id) => {
       const r = this.revs.find((x) => x.rev.id === id)
-      if (!r) throw new HttpError(404, msg('common_errors_versionNotFound'))
+      if (!r) throw new HttpError(404, msg(m.common_errors_versionNotFound))
       return r.content
     },
     saved: (before, after) => {
       const add = (content: string, message: string) => this.revs.unshift({ rev: { id: `${Date.now()}-${++this.seq}`, date: Date.now() + this.seq, message }, content })
-      if (!this.revs.length) add(before, msg('common_history_original'))
-      add(after, msg('notifications_saved'))
+      if (!this.revs.length) add(before, msg(m.common_history_original))
+      add(after, msg(m.notifications_saved))
       this.revs = this.revs.slice(0, 30)
     },
   }

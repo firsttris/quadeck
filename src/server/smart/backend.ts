@@ -4,6 +4,7 @@ import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { SmartDisk, SmartReport } from '~/shared/smart'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { HttpError } from '../auth'
 import { run, runOk } from '../exec'
 import { parseSmartctl, physicalDisks } from './parse'
@@ -31,7 +32,7 @@ export class SystemSmart implements SmartBackend {
   }
 
   private async collect(): Promise<SmartReport> {
-    if (!Bun.which('smartctl')) return { checkedAt: Date.now(), disks: [], installed: false, error: msg('smart_error_notInstalled') }
+    if (!Bun.which('smartctl')) return { checkedAt: Date.now(), disks: [], installed: false, error: msg(m.smart_error_notInstalled) }
     const names = await this.disks()
     const disks: SmartDisk[] = []
     // A few at a time: smartctl can take a second per disk.
@@ -59,7 +60,7 @@ export class SystemSmart implements SmartBackend {
   }
 
   async smartSelfTest(disk: string, type: SelfTestType) {
-    if (!DISK_NAME.test(disk) || !(await this.disks()).includes(disk)) throw new HttpError(404, msg('smart_error_unknownDisk', { disk }))
+    if (!DISK_NAME.test(disk) || !(await this.disks()).includes(disk)) throw new HttpError(404, msg(m.smart_error_unknownDisk, { disk }))
     const r = await run(['smartctl', '-t', type, `/dev/${disk}`], { timeoutMs: 30_000 })
     // Exit bits 0/1 = could not even send the command.
     if (r.code & 3) throw new HttpError(422, `smartctl -t ${type}: ${(r.stdout + r.stderr).trim().split('\n').slice(-2).join(' ')}`)
@@ -85,8 +86,8 @@ export class FixtureSmart implements SmartBackend {
   }
   async smartSelfTest(disk: string, type: SelfTestType) {
     const d = this.disks.find((x) => x.name === disk)
-    if (!d) throw new HttpError(404, msg('smart_error_unknownDisk', { disk }))
-    if (!d.supported || d.standby) throw new HttpError(422, msg('smart_error_selfTestUnavailable', { disk }))
+    if (!d) throw new HttpError(404, msg(m.smart_error_unknownDisk, { disk }))
+    if (!d.supported || d.standby) throw new HttpError(422, msg(m.smart_error_selfTestUnavailable, { disk }))
     d.testRunning = type === 'short' ? 90 : 99
     return this.smartReport()
   }

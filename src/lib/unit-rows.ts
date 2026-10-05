@@ -1,5 +1,6 @@
 import { containerState } from '~/components/Status'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import type { Container, Unit } from '~/shared/types'
 
 export const FILTER_KEYS = ['all', 'container', 'service', 'timer', 'socket', 'failed'] as const
@@ -7,12 +8,12 @@ export type Filter = (typeof FILTER_KEYS)[number]
 
 /** Filter chips with their labels in the current language. */
 export const filters = (): [Filter, string][] => [
-  ['all', msg('system_packages_filters_all')],
-  ['container', msg('units_row_containers')],
-  ['service', msg('overview_cards_services')],
-  ['timer', msg('units_row_timers')],
-  ['socket', msg('units_row_sockets')],
-  ['failed', msg('units_row_failed')],
+  ['all', msg(m.system_packages_filters_all)],
+  ['container', msg(m.units_row_containers)],
+  ['service', msg(m.overview_cards_services)],
+  ['timer', msg(m.units_row_timers)],
+  ['socket', msg(m.units_row_sockets)],
+  ['failed', msg(m.units_row_failed)],
 ]
 
 /**

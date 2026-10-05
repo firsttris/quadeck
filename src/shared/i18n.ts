@@ -3,13 +3,16 @@
 //
 // Components call the generated functions directly: m.units_title(). Code
 // outside of components – server errors, messages of the root helper, notes
-// computed in src/shared – uses msg('units_title', inputs): inside a request
+// computed in src/shared – uses msg(m.units_title, inputs): inside a request
 // (or in the browser) it returns the viewer's language right away; where no
 // viewer is known (background jobs, the root helper) it returns the key and
 // its inputs, marked as \u0002["key",{…}]\u0003, and the response, the event
 // stream or the notification renders it in the right language later.
+//
+// Messages are always named statically (m.key), so the browser bundle only
+// carries the ones its pages use. The table from key to message, needed for
+// the marks, lives on the server only (registerMessages in src/server/lang.ts).
 
-import { m as messages } from '~/paraglide/messages'
 import { overwriteGetLocale } from '~/paraglide/runtime'
 
 export type Lang = 'de' | 'en'
@@ -49,21 +52,34 @@ export const localeOf = (lang: Lang = currentLang()) => (lang === 'en' ? 'en-GB'
 
 export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
-type Messages = typeof messages
-export type MsgKey = keyof Messages
-type Inputs<K extends MsgKey> = Parameters<Messages[K]>[0]
+/** A compiled Paraglide message, e.g. m.units_title. */
+export type Message = (inputs: any, options?: { locale?: Lang }) => string
+type Inputs<F extends Message> = Parameters<F>[0]
 
-/** A message by key, for code outside of components; see the top of this file. */
-export function msg<K extends MsgKey>(key: K, ...args: undefined extends Inputs<K> ? [inputs?: Inputs<K>] : [inputs: Inputs<K>]): string {
-  const lang = resolver()
-  const inputs = (args[0] ?? {}) as Record<string, unknown>
-  if (lang) return render(key, inputs, lang)
-  return `\u0002${JSON.stringify([key, inputs])}\u0003`
+// On globalThis, like the language: every copy of this module shares the server's table.
+const table = globalThis as unknown as { __quadeckMessages?: { byKey: Map<string, Message>; keyOf: Map<Message, string> } }
+
+/** Server: every message by key, so msg() can mark messages and localize() render the marks. */
+export function registerMessages(all: Record<string, Message>) {
+  const t = (table.__quadeckMessages ??= { byKey: new Map(), keyOf: new Map() })
+  for (const [key, fn] of Object.entries(all)) {
+    t.byKey.set(key, fn)
+    t.keyOf.set(fn, key)
+  }
 }
 
-function render(key: string, inputs: Record<string, unknown>, lang: Lang): string {
-  const fn = (messages as unknown as Record<string, (i: unknown, o: { locale: Lang }) => string>)[key]
-  if (!fn) return key
+/** A message for code outside of components; see the top of this file. */
+export function msg<F extends Message>(fn: F, ...args: undefined extends Inputs<F> ? [inputs?: Inputs<F>] : [inputs: Inputs<F>]): string {
+  const lang = resolver()
+  const inputs = (args[0] ?? {}) as Record<string, unknown>
+  if (lang) return render(fn, inputs, lang)
+  const key = table.__quadeckMessages?.keyOf.get(fn)
+  if (key) return `\u0002${JSON.stringify([key, inputs])}\u0003`
+  // No table in this process: both texts side by side, which localize() reads as well.
+  return `\u0002${render(fn, inputs, 'de')}\u001f${render(fn, inputs, 'en')}\u0003`
+}
+
+function render(fn: Message, inputs: Record<string, unknown>, lang: Lang): string {
   // Inputs can be marked messages themselves (a reason inside an error).
   const resolved = Object.fromEntries(Object.entries(inputs).map(([k, v]) => [k, typeof v === 'string' ? localize(v, lang) : v]))
   return fn(resolved, { locale: lang })
@@ -78,7 +94,8 @@ export function localize(text: string, lang: Lang): string {
     if (en === undefined && body.startsWith('[')) {
       try {
         const [key, inputs] = JSON.parse(body) as [string, Record<string, unknown>]
-        return render(key, inputs ?? {}, lang)
+        const fn = table.__quadeckMessages?.byKey.get(key)
+        return fn ? render(fn, inputs ?? {}, lang) : key
       } catch {
         return body
       }

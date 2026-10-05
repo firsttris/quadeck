@@ -4,6 +4,7 @@
 
 import { isSensitive, splitEnvironment } from './secrets'
 import { msg } from './i18n'
+import { m } from '~/paraglide/messages'
 import { QUADLET_KEYS, QUADLET_SECTION } from './quadlet-keys'
 import type { Diagnostic, QuadletType } from './quadlets'
 
@@ -114,34 +115,34 @@ export function lintQuadlet(text: string, type: QuadletType): Diagnostic[] {
   const seen = new Map<string, number>()
   for (const e of entries) {
     const line = e.start + 1
-    if (e.kind === 'invalid') diags.push({ line, severity: 'error', message: msg('ini_lint_invalidLine') })
+    if (e.kind === 'invalid') diags.push({ line, severity: 'error', message: msg(m.ini_lint_invalidLine) })
     if (e.kind === 'section' && e.section !== main && !SYSTEMD_SECTIONS.has(e.section) && !e.section.startsWith('X-') && !QUADLET_KEYS[e.section])
-      diags.push({ line, severity: 'warning', message: msg('ini_lint_unknownSection', { section: e.section }) })
+      diags.push({ line, severity: 'warning', message: msg(m.ini_lint_unknownSection, { section: e.section }) })
     if (e.kind === 'section' && e.section !== main && QUADLET_KEYS[e.section]) {
       const ext = Object.entries(QUADLET_SECTION).find(([, s]) => s === e.section)![0]
-      diags.push({ line, severity: 'error', message: msg('ini_lint_wrongSection', { section: e.section, ext }) })
+      diags.push({ line, severity: 'error', message: msg(m.ini_lint_wrongSection, { section: e.section, ext }) })
     }
     if (e.kind !== 'kv') continue
     if (!e.section) {
-      diags.push({ line, severity: 'error', message: msg('ini_lint_keyBeforeSection', { key: e.key ?? '' }) })
+      diags.push({ line, severity: 'error', message: msg(m.ini_lint_keyBeforeSection, { key: e.key ?? '' }) })
       continue
     }
-    if (!e.value) diags.push({ line, severity: 'warning', message: msg('ini_lint_emptyValue', { key: e.key ?? '' }) })
+    if (!e.value) diags.push({ line, severity: 'warning', message: msg(m.ini_lint_emptyValue, { key: e.key ?? '' }) })
     if (e.section !== main) continue
     const doc = keys[e.key!]
     if (!doc) {
-      diags.push({ line, severity: 'warning', message: msg('ini_lint_unknownKey', { key: e.key ?? '', main }) })
+      diags.push({ line, severity: 'warning', message: msg(m.ini_lint_unknownKey, { key: e.key ?? '', main }) })
       continue
     }
-    if (!doc.multi && seen.has(e.key!)) diags.push({ line, severity: 'warning', message: msg('ini_lint_duplicateKey', { key: e.key ?? '', line }) })
+    if (!doc.multi && seen.has(e.key!)) diags.push({ line, severity: 'warning', message: msg(m.ini_lint_duplicateKey, { key: e.key ?? '', line }) })
     seen.set(e.key!, line)
-    if (e.key === 'Environment' && e.value) for (const a of splitEnvironment(e.value)) if (isSensitive(a.key) && a.value && !/^\$\{?\w+\}?$/.test(a.value)) diags.push({ line, severity: 'warning', message: msg('ini_lint_plainSecret', { key: a.key }) })
-    if (doc.options && e.value && !doc.options.includes(e.value)) diags.push({ line, severity: 'warning', message: msg('ini_lint_unexpectedValue', { key: e.key ?? '', value: e.value, list: doc.options.filter(Boolean).join(', ') }) })
+    if (e.key === 'Environment' && e.value) for (const a of splitEnvironment(e.value)) if (isSensitive(a.key) && a.value && !/^\$\{?\w+\}?$/.test(a.value)) diags.push({ line, severity: 'warning', message: msg(m.ini_lint_plainSecret, { key: a.key }) })
+    if (doc.options && e.value && !doc.options.includes(e.value)) diags.push({ line, severity: 'warning', message: msg(m.ini_lint_unexpectedValue, { key: e.key ?? '', value: e.value, list: doc.options.filter(Boolean).join(', ') }) })
   }
-  if (!entries.some((e) => e.kind === 'section' && e.section === main)) diags.push({ severity: 'error', message: msg('ini_lint_sectionMissing', { main }) })
-  else if (type === 'container' && !getValue(text, main, 'Image') && !getValue(text, main, 'Rootfs')) diags.push({ severity: 'error', message: msg('ini_lint_imageMissing') })
-  else if (type === 'kube' && !getValue(text, main, 'Yaml')) diags.push({ severity: 'error', message: msg('ini_lint_yamlMissing') })
-  else if (type === 'image' && !getValue(text, main, 'Image')) diags.push({ severity: 'error', message: msg('ini_lint_imageMissing') })
+  if (!entries.some((e) => e.kind === 'section' && e.section === main)) diags.push({ severity: 'error', message: msg(m.ini_lint_sectionMissing, { main }) })
+  else if (type === 'container' && !getValue(text, main, 'Image') && !getValue(text, main, 'Rootfs')) diags.push({ severity: 'error', message: msg(m.ini_lint_imageMissing) })
+  else if (type === 'kube' && !getValue(text, main, 'Yaml')) diags.push({ severity: 'error', message: msg(m.ini_lint_yamlMissing) })
+  else if (type === 'image' && !getValue(text, main, 'Image')) diags.push({ severity: 'error', message: msg(m.ini_lint_imageMissing) })
   return diags
 }
 

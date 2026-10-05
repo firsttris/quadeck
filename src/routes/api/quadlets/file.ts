@@ -5,10 +5,11 @@ import { authed, readJson } from '~/server/http'
 import { privileged } from '~/server/privileged'
 import { unlockToken } from '~/server/unlock-sessions'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 
 const nameParam = (request: Request) => {
   const name = new URL(request.url).searchParams.get('name')
-  if (!name) throw new HttpError(400, msg('api_quadlets_nameMissing'))
+  if (!name) throw new HttpError(400, msg(m.api_quadlets_nameMissing))
   return name
 }
 
@@ -27,13 +28,13 @@ export const Route = createFileRoute('/api/quadlets/file')({
       PUT: authed(async ({ request }, session) => {
         assertWritable()
         const b = await readJson<{ name?: unknown; content?: unknown; restart?: unknown }>(request)
-        if (typeof b.name !== 'string' || typeof b.content !== 'string') throw new HttpError(400, msg('api_quadlets_nameContentRequired'))
+        if (typeof b.name !== 'string' || typeof b.content !== 'string') throw new HttpError(400, msg(m.api_quadlets_nameContentRequired))
         return Response.json(await privileged().writeQuadlet(unlockToken(session.id), b.name, b.content, b.restart === true))
       }),
       DELETE: authed(async ({ request }, session) => {
         assertWritable()
         const b = await readJson<{ name?: unknown; image?: unknown; volumes?: unknown }>(request)
-        if (typeof b.name !== 'string') throw new HttpError(400, msg('api_quadlets_nameRequired'))
+        if (typeof b.name !== 'string') throw new HttpError(400, msg(m.api_quadlets_nameRequired))
         const r = await privileged().deleteQuadlet(unlockToken(session.id), b.name, { image: b.image === true, volumes: b.volumes === true })
         return Response.json({ ok: true, ...r })
       }),

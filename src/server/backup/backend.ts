@@ -44,6 +44,7 @@ import {
   type TargetState,
 } from '~/shared/backup'
 import { localize, msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { clientScript, defaultClientPlan, type ClientPlan } from '~/shared/backup-client'
 import { HttpError } from '../auth'
 import { run, type ExecResult } from '../exec'
@@ -326,7 +327,7 @@ export class SystemBackup implements BackupBackend {
 
   async backupSizes(paths: string[], excludes: string[]): Promise<BackupSizes> {
     const valid = (p: string) => VOLUME_PATH.test(p) || !absPathProblem(p)
-    if (paths.length > 50 || excludes.length > 50 || ![...paths, ...excludes].every((p) => typeof p === 'string' && valid(p))) throw new HttpError(400, msg('backup_error_tooMany'))
+    if (paths.length > 50 || excludes.length > 50 || ![...paths, ...excludes].every((p) => typeof p === 'string' && valid(p))) throw new HttpError(400, msg(m.backup_error_tooMany))
     const du = async (p: string) => {
       const real = await this.resolvePath(p)
       if (!real || !existsSync(real)) return undefined
@@ -342,7 +343,7 @@ export class SystemBackup implements BackupBackend {
 
   async backupLs(snapshot: string, dir: string): Promise<LsEntry[]> {
     const plan = this.requirePlan()
-    if (!SNAPSHOT_ID.test(snapshot) || (dir !== '/' && absPathProblem(dir))) throw new HttpError(400, msg('backup_error_path', { path: dir }))
+    if (!SNAPSHOT_ID.test(snapshot) || (dir !== '/' && absPathProblem(dir))) throw new HttpError(400, msg(m.backup_error_path, { path: dir }))
     const r = await this.restic(plan, ['ls', '--json', '--no-lock', snapshot, dir], 120_000)
     if (r.code !== 0) throw new HttpError(502, r.stderr.trim() || `restic ${r.code}`)
     return parseLs(r.stdout, dir).map((e) => {
@@ -359,31 +360,31 @@ export class SystemBackup implements BackupBackend {
 
   private requirePlan(): BackupPlan {
     const plan = this.plan()
-    if (!plan) throw new HttpError(409, msg('backup_error_notConfigured'))
-    if (!this.installed()) throw new HttpError(409, msg('backup_error_notInstalled'))
+    if (!plan) throw new HttpError(409, msg(m.backup_error_notConfigured))
+    if (!this.installed()) throw new HttpError(409, msg(m.backup_error_notInstalled))
     return plan
   }
 
   // ---------- writes ----------
 
   async saveBackupPlan(plan: BackupPlan, secrets: Record<string, string>): Promise<BackupState> {
-    if (!this.installed()) throw new HttpError(409, msg('backup_error_notInstalled'))
+    if (!this.installed()) throw new HttpError(409, msg(m.backup_error_notInstalled))
     this.ensureDir()
     if (!existsSync(this.file('password'))) writePrivate(this.file('password'), randomBytes(32).toString('base64url') + '\n')
     const merged = { ...this.secrets(), ...secrets }
     const needed = REPO_SECRETS[plan.repo.kind]
     const missing = needed.filter((k) => !merged[k])
-    if (missing.length) throw new HttpError(400, msg('backup_error_secretMissing', { keys: missing.join(', ') }))
+    if (missing.length) throw new HttpError(400, msg(m.backup_error_secretMissing, { keys: missing.join(', ') }))
     writePrivate(this.file('env'), Object.entries(merged).map(([k, v]) => `${k}=${v}`).join('\n') + '\n')
-    if (plan.repo.kind === 'local' && !existsSync(dirname(plan.repo.location))) throw new HttpError(422, msg('backup_error_parentMissing', { path: dirname(plan.repo.location) }))
+    if (plan.repo.kind === 'local' && !existsSync(dirname(plan.repo.location))) throw new HttpError(422, msg(m.backup_error_parentMissing, { path: dirname(plan.repo.location) }))
 
     // The repository: open it, or create it where there is none yet.
     const cfg = await this.restic(plan, ['cat', 'config', '--no-lock'], 120_000)
     if (cfg.code !== 0) {
-      if (!NO_REPO.test(cfg.stderr)) throw new HttpError(422, msg('backup_error_repoOpen', { message: cfg.stderr.trim() }))
+      if (!NO_REPO.test(cfg.stderr)) throw new HttpError(422, msg(m.backup_error_repoOpen, { message: cfg.stderr.trim() }))
       const init = await this.restic(plan, ['init'], 180_000)
-      if (init.code !== 0) throw new HttpError(422, msg('backup_error_repoInit', { message: init.stderr.trim() }))
-      this.log(msg('backup_log_initialised', { repo: repoString(plan.repo) }))
+      if (init.code !== 0) throw new HttpError(422, msg(m.backup_error_repoInit, { message: init.stderr.trim() }))
+      this.log(msg(m.backup_log_initialised, { repo: repoString(plan.repo) }))
     }
 
     writePrivate(this.file('plan.json'), JSON.stringify(plan, null, 2))
@@ -432,11 +433,11 @@ export class SystemBackup implements BackupBackend {
 
   async backupDump(snapshot: string, path: string): Promise<Response> {
     const plan = this.requirePlan()
-    if (!SNAPSHOT_ID.test(snapshot) || absPathProblem(path)) throw new HttpError(400, msg('backup_error_path', { path }))
+    if (!SNAPSHOT_ID.test(snapshot) || absPathProblem(path)) throw new HttpError(400, msg(m.backup_error_path, { path }))
     // A directory comes as a zip; ls tells which it is.
     const parent = dirname(path)
     const entry = (await this.backupLs(snapshot, parent)).find((e) => e.path === path)
-    if (!entry) throw new HttpError(404, msg('backup_error_notInSnapshot', { path }))
+    if (!entry) throw new HttpError(404, msg(m.backup_error_notInSnapshot, { path }))
     const zip = entry.type === 'dir'
     const proc = Bun.spawn(['restic', 'dump', '--no-lock', ...(zip ? ['--archive', 'zip'] : []), snapshot, path], {
       stdin: 'ignore',
@@ -492,7 +493,7 @@ export class SystemBackup implements BackupBackend {
 
   private client(t: TargetFile, name: string): StoredClient {
     const c = t.clients.find((x) => x.name === name)
-    if (!c) throw new HttpError(404, msg('backup_error_clientUnknown', { name }))
+    if (!c) throw new HttpError(404, msg(m.backup_error_clientUnknown, { name }))
     return c
   }
 
@@ -522,9 +523,9 @@ export class SystemBackup implements BackupBackend {
   }
 
   async saveTarget(config: TargetConfig): Promise<string> {
-    if (!existsSync(dirname(config.dataDir))) throw new HttpError(422, msg('backup_error_parentMissing', { path: dirname(config.dataDir) }))
+    if (!existsSync(dirname(config.dataDir))) throw new HttpError(422, msg(m.backup_error_parentMissing, { path: dirname(config.dataDir) }))
     const plan = this.plan()
-    if (plan?.repo.kind === 'local' && (config.dataDir === plan.repo.location || config.dataDir.startsWith(plan.repo.location + '/'))) throw new HttpError(422, msg('backup_error_targetInRepo'))
+    if (plan?.repo.kind === 'local' && (config.dataDir === plan.repo.location || config.dataDir.startsWith(plan.repo.location + '/'))) throw new HttpError(422, msg(m.backup_error_targetInRepo))
     mkdirSync(config.dataDir, { recursive: true, mode: 0o700 })
     const t = this.target()
     this.writeTarget({ ...t, config })
@@ -538,10 +539,10 @@ export class SystemBackup implements BackupBackend {
   }
 
   async addClient(name: string, warnDays: number | undefined) {
-    if (!CLIENT_NAME.test(name)) throw new HttpError(400, msg('backup_error_clientName'))
+    if (!CLIENT_NAME.test(name)) throw new HttpError(400, msg(m.backup_error_clientName))
     const t = this.target()
-    if (!t.config) throw new HttpError(409, msg('backup_error_noTarget'))
-    if (t.clients.some((c) => c.name === name)) throw new HttpError(409, msg('backup_error_clientExists', { name }))
+    if (!t.config) throw new HttpError(409, msg(m.backup_error_noTarget))
+    if (t.clients.some((c) => c.name === name)) throw new HttpError(409, msg(m.backup_error_clientExists, { name }))
     const password = accessPassword()
     t.clients.push({ name, created: Date.now(), ...(warnDays ? { warnDays } : {}), hash: await Bun.password.hash(password, { algorithm: 'bcrypt', cost: 10 }) })
     this.writeTarget(t)
@@ -596,7 +597,7 @@ export class SystemBackup implements BackupBackend {
   async clientLink(name: string, quadeckUrl: string) {
     const t = this.target()
     this.client(t, name)
-    if (!t.config) throw new HttpError(409, msg('backup_error_noTarget'))
+    if (!t.config) throw new HttpError(409, msg(m.backup_error_noTarget))
     return this.linkStore.create(name, quadeckUrl)
   }
 
@@ -628,15 +629,15 @@ export class SystemBackup implements BackupBackend {
       this.log(message)
       return r
     }
-    if (!plan) return fail(msg('backup_error_notConfigured'))
-    if (!this.installed()) return fail(msg('backup_error_notInstalled'))
+    if (!plan) return fail(msg(m.backup_error_notConfigured))
+    if (!this.installed()) return fail(msg(m.backup_error_notInstalled))
     const paths: string[] = []
     for (const p of plan.paths) {
       const real = await this.resolvePath(p)
       if (real && existsSync(real)) paths.push(real)
-      else this.log(msg('backup_log_skipped', { path: p }))
+      else this.log(msg(m.backup_log_skipped, { path: p }))
     }
-    if (!paths.length) return fail(msg('backup_error_noPathsFound'))
+    if (!paths.length) return fail(msg(m.backup_error_noPathsFound))
     writePrivate(this.file('excludes'), excludeFile(plan))
 
     // Only what was running is started again afterwards.
@@ -663,13 +664,13 @@ export class SystemBackup implements BackupBackend {
     const rec = backupRunFrom(result.code, result.stdout, result.stderr, startedAt, Date.now())
     for (const e of rec.errors) this.log(e)
     if (rec.status !== 'failed') {
-      this.log(msg('backup_log_done', { files: rec.files ?? 0, snapshot: rec.snapshot?.slice(0, 8) ?? '' }))
+      this.log(msg(m.backup_log_done, { files: rec.files ?? 0, snapshot: rec.snapshot?.slice(0, 8) ?? '' }))
       const f = await this.restic(plan, ['forget', ...forgetArgs(plan)], 6 * 3600_000)
       this.log(f.stdout.trim())
       if (f.code !== 0) {
         this.log(f.stderr.trim())
         rec.status = 'warning'
-        rec.errors.push(msg('backup_log_forgetFailed', { message: f.stderr.trim().split('\n').pop() ?? '' }))
+        rec.errors.push(msg(m.backup_log_forgetFailed, { message: f.stderr.trim().split('\n').pop() ?? '' }))
       }
     } else this.log(rec.message ?? '')
     rec.endedAt = Date.now()
@@ -683,7 +684,7 @@ export class SystemBackup implements BackupBackend {
     const plan = this.plan()
     const startedAt = Date.now()
     if (!plan || !this.installed()) {
-      const r: BackupRun = { kind: 'check', startedAt, endedAt: Date.now(), status: 'failed', errors: [], message: msg(plan ? 'backup_error_notInstalled' : 'backup_error_notConfigured') }
+      const r: BackupRun = { kind: 'check', startedAt, endedAt: Date.now(), status: 'failed', errors: [], message: msg(plan ? m.backup_error_notInstalled : m.backup_error_notConfigured) }
       this.addRun(r)
       return r
     }
@@ -698,7 +699,7 @@ export class SystemBackup implements BackupBackend {
   /** Restores paths of a snapshot into a folder or in place; returns restic's exit code. */
   async restore(spec: RestoreSpec): Promise<number> {
     const plan = this.requirePlan()
-    if (!SNAPSHOT_ID.test(spec.snapshot) || !spec.paths.length || spec.paths.some((p) => absPathProblem(p)) || (spec.target !== undefined && absPathProblem(spec.target))) throw new HttpError(400, msg('backup_error_path', { path: spec.target ?? '' }))
+    if (!SNAPSHOT_ID.test(spec.snapshot) || !spec.paths.length || spec.paths.some((p) => absPathProblem(p)) || (spec.target !== undefined && absPathProblem(spec.target))) throw new HttpError(400, msg(m.backup_error_path, { path: spec.target ?? '' }))
     const stopped: string[] = []
     if (spec.target === undefined)
       for (const unit of spec.stop) {
@@ -843,7 +844,7 @@ export class FixtureBackup implements BackupBackend {
   }
 
   async backupLs(snapshot: string, dir: string): Promise<LsEntry[]> {
-    if (!SNAPSHOT_ID.test(snapshot)) throw new HttpError(400, msg('backup_error_path', { path: dir }))
+    if (!SNAPSHOT_ID.test(snapshot)) throw new HttpError(400, msg(m.backup_error_path, { path: dir }))
     const t = (s: string) => Date.parse(s)
     const tree: Record<string, LsEntry[]> = {
       '/': [{ name: 'etc', path: '/etc', type: 'dir', now: 'same' }, { name: 'srv', path: '/srv', type: 'dir', now: 'same' }],
@@ -876,7 +877,7 @@ export class FixtureBackup implements BackupBackend {
   async saveBackupPlan(plan: BackupPlan, secrets: Record<string, string>) {
     for (const k of REPO_SECRETS[plan.repo.kind]) if (secrets[k]) this.secrets.add(k)
     const missing = REPO_SECRETS[plan.repo.kind].filter((k) => !this.secrets.has(k))
-    if (missing.length) throw new HttpError(400, msg('backup_error_secretMissing', { keys: missing.join(', ') }))
+    if (missing.length) throw new HttpError(400, msg(m.backup_error_secretMissing, { keys: missing.join(', ') }))
     this.plan = plan
     return this.backupState()
   }
@@ -887,12 +888,12 @@ export class FixtureBackup implements BackupBackend {
   }
 
   async backupPassword() {
-    if (!this.plan) throw new HttpError(409, msg('backup_error_notConfigured'))
+    if (!this.plan) throw new HttpError(409, msg(m.backup_error_notConfigured))
     return 'demo-Kx7v2QpR9mLw4ZtN8bYc3HdJ6sFg1Ae5'
   }
 
   async startBackup(kind: 'backup' | 'check') {
-    if (!this.plan) throw new HttpError(409, msg('backup_error_notConfigured'))
+    if (!this.plan) throw new HttpError(409, msg(m.backup_error_notConfigured))
     this.running = kind
     setTimeout(() => {
       this.running = undefined
@@ -918,15 +919,15 @@ export class FixtureBackup implements BackupBackend {
     this.targetConfig = undefined
   }
   async addClient(name: string, warnDays: number | undefined) {
-    if (!CLIENT_NAME.test(name)) throw new HttpError(400, msg('backup_error_clientName'))
-    if (!this.targetConfig) throw new HttpError(409, msg('backup_error_noTarget'))
-    if (this.clients.some((c) => c.name === name)) throw new HttpError(409, msg('backup_error_clientExists', { name }))
+    if (!CLIENT_NAME.test(name)) throw new HttpError(400, msg(m.backup_error_clientName))
+    if (!this.targetConfig) throw new HttpError(409, msg(m.backup_error_noTarget))
+    if (this.clients.some((c) => c.name === name)) throw new HttpError(409, msg(m.backup_error_clientExists, { name }))
     this.clients.push({ name, created: Date.now(), ...(warnDays ? { warnDays } : {}), snapshots: 0 })
     return { password: accessPassword() }
   }
   async updateClient(name: string, change: { warnDays?: number | null; disabled?: boolean }) {
     const c = this.clients.find((x) => x.name === name)
-    if (!c) throw new HttpError(404, msg('backup_error_clientUnknown', { name }))
+    if (!c) throw new HttpError(404, msg(m.backup_error_clientUnknown, { name }))
     if (change.warnDays !== undefined) {
       if (change.warnDays === null) delete c.warnDays
       else c.warnDays = change.warnDays
@@ -938,7 +939,7 @@ export class FixtureBackup implements BackupBackend {
     return this.targetState()
   }
   async renewClient(name: string) {
-    if (!this.clients.some((x) => x.name === name)) throw new HttpError(404, msg('backup_error_clientUnknown', { name }))
+    if (!this.clients.some((x) => x.name === name)) throw new HttpError(404, msg(m.backup_error_clientUnknown, { name }))
     return { password: accessPassword() }
   }
   async removeClient(name: string) {
@@ -948,13 +949,13 @@ export class FixtureBackup implements BackupBackend {
   private links = new LinkStore()
   async setClientPlan(name: string, plan: ClientPlan) {
     const c = this.clients.find((x) => x.name === name)
-    if (!c) throw new HttpError(404, msg('backup_error_clientUnknown', { name }))
+    if (!c) throw new HttpError(404, msg(m.backup_error_clientUnknown, { name }))
     c.plan = plan
     c.version = (c.version ?? 0) + 1
     return this.targetState()
   }
   async clientLink(name: string, quadeckUrl: string) {
-    if (!this.clients.some((x) => x.name === name)) throw new HttpError(404, msg('backup_error_clientUnknown', { name }))
+    if (!this.clients.some((x) => x.name === name)) throw new HttpError(404, msg(m.backup_error_clientUnknown, { name }))
     return this.links.create(name, quadeckUrl)
   }
   async redeemClientLink(token: string) {

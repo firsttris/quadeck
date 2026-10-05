@@ -2,6 +2,7 @@
 // terminal (only its owner can read, type or close), and "home network only".
 
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { DEFAULT_TERMINAL, isLocalAddress, parseTerminalSettings, type TerminalInfo, type TerminalSettings } from '~/shared/terminal'
 import { HttpError, clientKey } from '../auth'
 import { getSetting, setSetting } from '../settings'
@@ -22,8 +23,8 @@ export function setTerminalSettings(v: unknown): TerminalSettings {
 /** Switched on, and (if set) the browser is in the home network. */
 export function assertTerminalAllowed(request: Request) {
   const s = terminalSettings()
-  if (!s.enabled) throw new HttpError(403, msg('terminal_error_off'))
-  if (s.localOnly && !isLocalAddress(clientKey(request))) throw new HttpError(403, msg('terminal_error_notLocal'))
+  if (!s.enabled) throw new HttpError(403, msg(m.terminal_error_off))
+  if (s.localOnly && !isLocalAddress(clientKey(request))) throw new HttpError(403, msg(m.terminal_error_notLocal))
 }
 
 export function remember(info: TerminalInfo, session: string) {
@@ -32,7 +33,7 @@ export function remember(info: TerminalInfo, session: string) {
 
 /** The terminal, if this login session opened it. */
 export function owned(id: unknown, session: string): string {
-  if (typeof id !== 'string' || owners.get(id)?.session !== session) throw new HttpError(404, msg('terminal_error_gone'))
+  if (typeof id !== 'string' || owners.get(id)?.session !== session) throw new HttpError(404, msg(m.terminal_error_gone))
   return id
 }
 

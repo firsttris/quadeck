@@ -2,6 +2,7 @@
 // one Snapshot and pushes changes to SSE subscribers.
 
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { asc } from 'drizzle-orm'
 import { readFileSync } from 'node:fs'
 import { hostname, networkInterfaces } from 'node:os'
@@ -520,7 +521,7 @@ export class Hub {
   // ---------- actions ----------
 
   assertWritable() {
-    if (config().readonly) throw new ActionError(403, msg('hub_error_readonly'))
+    if (config().readonly) throw new ActionError(403, msg(m.hub_error_readonly))
   }
 
   /** token: the session's unlock token (see /api/unlock). */
@@ -533,7 +534,7 @@ export class Hub {
       throw new ActionError(400, (e as Error).message)
     }
     // Only units we actually know about (fixed action list, no arbitrary targets).
-    if (!this.units.some((u) => u.name === name) && !this.containers.some((c) => c.unit === name)) throw new ActionError(404, msg('hub_error_unknownUnit', { unit: name }))
+    if (!this.units.some((u) => u.name === name) && !this.containers.some((c) => c.unit === name)) throw new ActionError(404, msg(m.hub_error_unknownUnit, { unit: name }))
     if (this.fixtures) {
       await this.priv.check(token)
       this.fixtures.units = (this.fixtures.units ?? []).map((u) => (u.name === name ? { ...u, active: action === 'stop' ? 'inactive' : 'active', sub: action === 'stop' ? 'dead' : 'running', result: 'success', since: Date.now() } : u))
@@ -555,7 +556,7 @@ export class Hub {
     this.assertWritable()
     await this.priv.check(token)
     const c = this.containers.find((x) => x.name === name)
-    if (!c) throw new ActionError(404, msg('hub_error_unknownContainer', { container: name }))
+    if (!c) throw new ActionError(404, msg(m.hub_error_unknownContainer, { container: name }))
     if (c.unit) {
       await this.unitAction(action, c.unit, token)
       return 'systemd'

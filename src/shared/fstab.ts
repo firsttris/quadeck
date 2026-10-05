@@ -1,7 +1,8 @@
 // /etc/fstab: parser, writer, option catalogue and the checks that do not need
 // the host. Shared by the disks page, the web app and the root helper.
 
-import { msg, type MsgKey } from './i18n'
+import { msg, type Message } from './i18n'
+import { m } from '~/paraglide/messages'
 import type { Diagnostic, Revision } from './quadlets'
 
 export interface FstabEntry {
@@ -105,16 +106,16 @@ export function parseFstab(text: string): { entries: FstabEntry[]; diagnostics: 
     if (!t || t.startsWith('#')) return
     const f = t.split(/\s+/)
     const line = i + 1
-    if (f.length < 2) return void diagnostics.push({ line, severity: 'error', message: msg('fstab_check_tooFewFields') })
+    if (f.length < 2) return void diagnostics.push({ line, severity: 'error', message: msg(m.fstab_check_tooFewFields) })
     if (f.length > 6)
       return void diagnostics.push({
         line,
         severity: 'error',
-        message: msg('fstab_check_tooManyFields', { count: f.length }),
+        message: msg(m.fstab_check_tooManyFields, { count: f.length }),
       })
     const num = (v: string | undefined, name: string) => {
       if (v === undefined) return 0
-      if (!/^\d+$/.test(v)) diagnostics.push({ line, severity: 'error', message: name + msg('fstab_check_notNumber', { value: v }) })
+      if (!/^\d+$/.test(v)) diagnostics.push({ line, severity: 'error', message: name + msg(m.fstab_check_notNumber, { value: v }) })
       return Number(v) || 0
     }
     entries.push({
@@ -124,8 +125,8 @@ export function parseFstab(text: string): { entries: FstabEntry[]; diagnostics: 
       file: unescapeField(f[1]!),
       vfstype: f[2] ?? 'auto',
       options: (f[3] ?? 'defaults').split(',').filter(Boolean),
-      freq: num(f[4], msg('fstab_label_dumpField')),
-      passno: num(f[5], msg('fstab_label_passnoField')),
+      freq: num(f[4], msg(m.fstab_label_dumpField)),
+      passno: num(f[5], msg(m.fstab_label_passnoField)),
     })
   })
   return { entries, diagnostics }
@@ -172,7 +173,7 @@ export function applyChange(text: string, change: FstabChange): string {
 
 export class FstabConflict extends Error {
   constructor() {
-    super(msg('fstab_error_changedMeanwhile'))
+    super(msg(m.fstab_error_changedMeanwhile))
   }
 }
 
@@ -210,11 +211,11 @@ const FORBIDDEN_TARGET = /^\/(?:$|(?:boot|efi|usr|etc|proc|sys|dev|run|tmp|bin|s
 
 /** Why an entry is read-only, or undefined when Quadeck may change it. `rootSpecs` are the sources of `/`. */
 export function systemReason(e: Pick<FstabEntry, 'spec' | 'file' | 'vfstype'>, rootSpecs: string[] = []): string | undefined {
-  if (e.vfstype === 'swap' || e.file === 'none' || e.file === 'swap') return msg('fstab_label_swap')
-  if (SYSTEM_TARGETS.has(e.file)) return msg('fstab_label_systemPartition')
-  if (PSEUDO_FS.has(e.vfstype)) return msg('fstab_label_systemFs')
-  if (e.file !== '/' && rootSpecs.includes(e.spec)) return msg('fstab_label_systemSubvolume')
-  if (/^\/(boot|efi|usr|var|etc)\//.test(e.file)) return msg('fstab_label_systemDir')
+  if (e.vfstype === 'swap' || e.file === 'none' || e.file === 'swap') return msg(m.fstab_label_swap)
+  if (SYSTEM_TARGETS.has(e.file)) return msg(m.fstab_label_systemPartition)
+  if (PSEUDO_FS.has(e.vfstype)) return msg(m.fstab_label_systemFs)
+  if (e.file !== '/' && rootSpecs.includes(e.spec)) return msg(m.fstab_label_systemSubvolume)
+  if (/^\/(boot|efi|usr|var|etc)\//.test(e.file)) return msg(m.fstab_label_systemDir)
   return undefined
 }
 
@@ -246,7 +247,7 @@ export interface OptionDoc {
 const FAT_LIKE = ['vfat', 'exfat', 'ntfs3', 'ntfs', 'ntfs-3g']
 
 /** The text follows the viewer's language: it is read when needed, not when the module loads. */
-const doc = (d: Omit<OptionDoc, 'text'>, key: MsgKey): OptionDoc => ({
+const doc = (d: Omit<OptionDoc, 'text'>, key: Message): OptionDoc => ({
   ...d,
   get text() {
     return msg(key)
@@ -254,83 +255,83 @@ const doc = (d: Omit<OptionDoc, 'text'>, key: MsgKey): OptionDoc => ({
 })
 
 export const OPTION_DOCS: OptionDoc[] = [
-  doc({ name: 'defaults' }, 'fstab_option_defaults'),
-  doc({ name: 'nofail' }, 'fstab_option_nofail'),
-  doc({ name: 'x-systemd.device-timeout', value: 'seconds' }, 'fstab_option_xsystemddevicetimeout'),
-  doc({ name: 'noauto' }, 'fstab_option_noauto'),
-  doc({ name: 'x-systemd.automount' }, 'fstab_option_xsystemdautomount'),
-  doc({ name: 'x-systemd.idle-timeout', value: 'seconds' }, 'fstab_option_xsystemdidletimeout'),
-  doc({ name: 'x-systemd.mount-timeout', value: 'seconds' }, 'fstab_option_xsystemdmounttimeout'),
-  doc({ name: 'x-systemd.requires', value: 'text' }, 'fstab_option_xsystemdrequires'),
-  doc({ name: 'x-systemd.after', value: 'text' }, 'fstab_option_xsystemdafter'),
-  doc({ name: 'x-systemd.before', value: 'text' }, 'fstab_option_xsystemdbefore'),
-  doc({ name: 'x-systemd.makefs' }, 'fstab_option_xsystemdmakefs'),
-  doc({ name: 'x-mount.mkdir' }, 'fstab_option_xmountmkdir'),
-  doc({ name: 'x-gvfs-show' }, 'fstab_option_xgvfsshow'),
-  doc({ name: '_netdev' }, 'fstab_option_netdev'),
-  doc({ name: 'noatime' }, 'fstab_option_noatime'),
-  doc({ name: 'relatime' }, 'fstab_option_relatime'),
-  doc({ name: 'nodiratime' }, 'fstab_option_nodiratime'),
-  doc({ name: 'lazytime' }, 'fstab_option_lazytime'),
-  doc({ name: 'ro' }, 'fstab_option_ro'),
-  doc({ name: 'rw' }, 'fstab_option_rw'),
-  doc({ name: 'auto' }, 'fstab_option_auto'),
-  doc({ name: 'user' }, 'fstab_option_user'),
-  doc({ name: 'users' }, 'fstab_option_users'),
-  doc({ name: 'nouser' }, 'fstab_option_nouser'),
-  doc({ name: 'owner' }, 'fstab_option_owner'),
-  doc({ name: 'group' }, 'fstab_option_group'),
-  doc({ name: 'exec' }, 'fstab_option_exec'),
-  doc({ name: 'noexec' }, 'fstab_option_noexec'),
-  doc({ name: 'suid' }, 'fstab_option_suid'),
-  doc({ name: 'nosuid' }, 'fstab_option_nosuid'),
-  doc({ name: 'dev' }, 'fstab_option_dev'),
-  doc({ name: 'nodev' }, 'fstab_option_nodev'),
-  doc({ name: 'sync' }, 'fstab_option_sync'),
-  doc({ name: 'async' }, 'fstab_option_async'),
-  doc({ name: 'discard' }, 'fstab_option_discard'),
-  doc({ name: 'comment', value: 'text' }, 'fstab_option_comment'),
-  doc({ name: 'errors', value: 'text', fs: ['ext2', 'ext3', 'ext4', 'vfat'] }, 'fstab_option_errors'),
-  doc({ name: 'commit', value: 'number', fs: ['ext3', 'ext4', 'btrfs'] }, 'fstab_option_commit'),
-  doc({ name: 'data', value: 'text', fs: ['ext3', 'ext4'] }, 'fstab_option_data'),
-  doc({ name: 'barrier', value: 'number', fs: ['ext4'] }, 'fstab_option_barrier'),
-  doc({ name: 'nobarrier', fs: ['ext4'] }, 'fstab_option_nobarrier'),
-  doc({ name: 'user_xattr', fs: ['ext4'] }, 'fstab_option_userxattr'),
-  doc({ name: 'acl', fs: ['ext4'] }, 'fstab_option_acl'),
-  doc({ name: 'inode64', fs: ['xfs'] }, 'fstab_option_inode64'),
-  doc({ name: 'logbufs', value: 'number', fs: ['xfs'] }, 'fstab_option_logbufs'),
-  doc({ name: 'allocsize', value: 'text', fs: ['xfs'] }, 'fstab_option_allocsize'),
-  doc({ name: 'largeio', fs: ['xfs'] }, 'fstab_option_largeio'),
-  doc({ name: 'usrquota', fs: ['xfs', 'ext4'] }, 'fstab_option_usrquota'),
-  doc({ name: 'grpquota', fs: ['xfs', 'ext4'] }, 'fstab_option_grpquota'),
-  doc({ name: 'subvol', value: 'text', fs: ['btrfs'] }, 'fstab_option_subvol'),
-  doc({ name: 'subvolid', value: 'number', fs: ['btrfs'] }, 'fstab_option_subvolid'),
-  doc({ name: 'compress', value: 'text', fs: ['btrfs'] }, 'fstab_option_compress'),
-  doc({ name: 'compress-force', value: 'text', fs: ['btrfs'] }, 'fstab_option_compressforce'),
-  doc({ name: 'space_cache', value: 'text', fs: ['btrfs'] }, 'fstab_option_spacecache'),
-  doc({ name: 'autodefrag', fs: ['btrfs'] }, 'fstab_option_autodefrag'),
-  doc({ name: 'ssd', fs: ['btrfs'] }, 'fstab_option_ssd'),
-  doc({ name: 'nossd', fs: ['btrfs'] }, 'fstab_option_nossd'),
-  doc({ name: 'degraded', fs: ['btrfs'] }, 'fstab_option_degraded'),
-  doc({ name: 'uid', value: 'number', fs: FAT_LIKE }, 'fstab_option_uid'),
-  doc({ name: 'gid', value: 'number', fs: FAT_LIKE }, 'fstab_option_gid'),
-  doc({ name: 'umask', value: 'text', fs: FAT_LIKE }, 'fstab_option_umask'),
-  doc({ name: 'fmask', value: 'text', fs: FAT_LIKE }, 'fstab_option_fmask'),
-  doc({ name: 'dmask', value: 'text', fs: FAT_LIKE }, 'fstab_option_dmask'),
-  doc({ name: 'iocharset', value: 'text', fs: ['vfat', 'exfat', 'ntfs3', 'ntfs', 'ntfs-3g', 'cifs'] }, 'fstab_option_iocharset'),
-  doc({ name: 'utf8', fs: ['vfat'] }, 'fstab_option_utf8'),
-  doc({ name: 'shortname', value: 'text', fs: ['vfat'] }, 'fstab_option_shortname'),
-  doc({ name: 'flush', fs: ['vfat', 'exfat'] }, 'fstab_option_flush'),
-  doc({ name: 'windows_names', fs: ['ntfs3', 'ntfs', 'ntfs-3g'] }, 'fstab_option_windowsnames'),
-  doc({ name: 'prealloc', fs: ['ntfs3'] }, 'fstab_option_prealloc'),
-  doc({ name: 'force', fs: ['ntfs3'] }, 'fstab_option_force'),
-  doc({ name: 'permissions', fs: ['ntfs', 'ntfs-3g'] }, 'fstab_option_permissions'),
-  doc({ name: 'big_writes', fs: ['ntfs', 'ntfs-3g'] }, 'fstab_option_bigwrites'),
-  doc({ name: 'nfsvers', value: 'text', fs: ['nfs', 'nfs4'] }, 'fstab_option_nfsvers'),
-  doc({ name: 'vers', value: 'text', fs: ['nfs', 'nfs4', 'cifs'] }, 'fstab_option_vers'),
-  doc({ name: 'credentials', value: 'text', fs: ['cifs', 'smb3'] }, 'fstab_option_credentials'),
-  doc({ name: 'soft', fs: ['nfs', 'nfs4'] }, 'fstab_option_soft'),
-  doc({ name: 'hard', fs: ['nfs', 'nfs4'] }, 'fstab_option_hard'),
+  doc({ name: 'defaults' }, m.fstab_option_defaults),
+  doc({ name: 'nofail' }, m.fstab_option_nofail),
+  doc({ name: 'x-systemd.device-timeout', value: 'seconds' }, m.fstab_option_xsystemddevicetimeout),
+  doc({ name: 'noauto' }, m.fstab_option_noauto),
+  doc({ name: 'x-systemd.automount' }, m.fstab_option_xsystemdautomount),
+  doc({ name: 'x-systemd.idle-timeout', value: 'seconds' }, m.fstab_option_xsystemdidletimeout),
+  doc({ name: 'x-systemd.mount-timeout', value: 'seconds' }, m.fstab_option_xsystemdmounttimeout),
+  doc({ name: 'x-systemd.requires', value: 'text' }, m.fstab_option_xsystemdrequires),
+  doc({ name: 'x-systemd.after', value: 'text' }, m.fstab_option_xsystemdafter),
+  doc({ name: 'x-systemd.before', value: 'text' }, m.fstab_option_xsystemdbefore),
+  doc({ name: 'x-systemd.makefs' }, m.fstab_option_xsystemdmakefs),
+  doc({ name: 'x-mount.mkdir' }, m.fstab_option_xmountmkdir),
+  doc({ name: 'x-gvfs-show' }, m.fstab_option_xgvfsshow),
+  doc({ name: '_netdev' }, m.fstab_option_netdev),
+  doc({ name: 'noatime' }, m.fstab_option_noatime),
+  doc({ name: 'relatime' }, m.fstab_option_relatime),
+  doc({ name: 'nodiratime' }, m.fstab_option_nodiratime),
+  doc({ name: 'lazytime' }, m.fstab_option_lazytime),
+  doc({ name: 'ro' }, m.fstab_option_ro),
+  doc({ name: 'rw' }, m.fstab_option_rw),
+  doc({ name: 'auto' }, m.fstab_option_auto),
+  doc({ name: 'user' }, m.fstab_option_user),
+  doc({ name: 'users' }, m.fstab_option_users),
+  doc({ name: 'nouser' }, m.fstab_option_nouser),
+  doc({ name: 'owner' }, m.fstab_option_owner),
+  doc({ name: 'group' }, m.fstab_option_group),
+  doc({ name: 'exec' }, m.fstab_option_exec),
+  doc({ name: 'noexec' }, m.fstab_option_noexec),
+  doc({ name: 'suid' }, m.fstab_option_suid),
+  doc({ name: 'nosuid' }, m.fstab_option_nosuid),
+  doc({ name: 'dev' }, m.fstab_option_dev),
+  doc({ name: 'nodev' }, m.fstab_option_nodev),
+  doc({ name: 'sync' }, m.fstab_option_sync),
+  doc({ name: 'async' }, m.fstab_option_async),
+  doc({ name: 'discard' }, m.fstab_option_discard),
+  doc({ name: 'comment', value: 'text' }, m.fstab_option_comment),
+  doc({ name: 'errors', value: 'text', fs: ['ext2', 'ext3', 'ext4', 'vfat'] }, m.fstab_option_errors),
+  doc({ name: 'commit', value: 'number', fs: ['ext3', 'ext4', 'btrfs'] }, m.fstab_option_commit),
+  doc({ name: 'data', value: 'text', fs: ['ext3', 'ext4'] }, m.fstab_option_data),
+  doc({ name: 'barrier', value: 'number', fs: ['ext4'] }, m.fstab_option_barrier),
+  doc({ name: 'nobarrier', fs: ['ext4'] }, m.fstab_option_nobarrier),
+  doc({ name: 'user_xattr', fs: ['ext4'] }, m.fstab_option_userxattr),
+  doc({ name: 'acl', fs: ['ext4'] }, m.fstab_option_acl),
+  doc({ name: 'inode64', fs: ['xfs'] }, m.fstab_option_inode64),
+  doc({ name: 'logbufs', value: 'number', fs: ['xfs'] }, m.fstab_option_logbufs),
+  doc({ name: 'allocsize', value: 'text', fs: ['xfs'] }, m.fstab_option_allocsize),
+  doc({ name: 'largeio', fs: ['xfs'] }, m.fstab_option_largeio),
+  doc({ name: 'usrquota', fs: ['xfs', 'ext4'] }, m.fstab_option_usrquota),
+  doc({ name: 'grpquota', fs: ['xfs', 'ext4'] }, m.fstab_option_grpquota),
+  doc({ name: 'subvol', value: 'text', fs: ['btrfs'] }, m.fstab_option_subvol),
+  doc({ name: 'subvolid', value: 'number', fs: ['btrfs'] }, m.fstab_option_subvolid),
+  doc({ name: 'compress', value: 'text', fs: ['btrfs'] }, m.fstab_option_compress),
+  doc({ name: 'compress-force', value: 'text', fs: ['btrfs'] }, m.fstab_option_compressforce),
+  doc({ name: 'space_cache', value: 'text', fs: ['btrfs'] }, m.fstab_option_spacecache),
+  doc({ name: 'autodefrag', fs: ['btrfs'] }, m.fstab_option_autodefrag),
+  doc({ name: 'ssd', fs: ['btrfs'] }, m.fstab_option_ssd),
+  doc({ name: 'nossd', fs: ['btrfs'] }, m.fstab_option_nossd),
+  doc({ name: 'degraded', fs: ['btrfs'] }, m.fstab_option_degraded),
+  doc({ name: 'uid', value: 'number', fs: FAT_LIKE }, m.fstab_option_uid),
+  doc({ name: 'gid', value: 'number', fs: FAT_LIKE }, m.fstab_option_gid),
+  doc({ name: 'umask', value: 'text', fs: FAT_LIKE }, m.fstab_option_umask),
+  doc({ name: 'fmask', value: 'text', fs: FAT_LIKE }, m.fstab_option_fmask),
+  doc({ name: 'dmask', value: 'text', fs: FAT_LIKE }, m.fstab_option_dmask),
+  doc({ name: 'iocharset', value: 'text', fs: ['vfat', 'exfat', 'ntfs3', 'ntfs', 'ntfs-3g', 'cifs'] }, m.fstab_option_iocharset),
+  doc({ name: 'utf8', fs: ['vfat'] }, m.fstab_option_utf8),
+  doc({ name: 'shortname', value: 'text', fs: ['vfat'] }, m.fstab_option_shortname),
+  doc({ name: 'flush', fs: ['vfat', 'exfat'] }, m.fstab_option_flush),
+  doc({ name: 'windows_names', fs: ['ntfs3', 'ntfs', 'ntfs-3g'] }, m.fstab_option_windowsnames),
+  doc({ name: 'prealloc', fs: ['ntfs3'] }, m.fstab_option_prealloc),
+  doc({ name: 'force', fs: ['ntfs3'] }, m.fstab_option_force),
+  doc({ name: 'permissions', fs: ['ntfs', 'ntfs-3g'] }, m.fstab_option_permissions),
+  doc({ name: 'big_writes', fs: ['ntfs', 'ntfs-3g'] }, m.fstab_option_bigwrites),
+  doc({ name: 'nfsvers', value: 'text', fs: ['nfs', 'nfs4'] }, m.fstab_option_nfsvers),
+  doc({ name: 'vers', value: 'text', fs: ['nfs', 'nfs4', 'cifs'] }, m.fstab_option_vers),
+  doc({ name: 'credentials', value: 'text', fs: ['cifs', 'smb3'] }, m.fstab_option_credentials),
+  doc({ name: 'soft', fs: ['nfs', 'nfs4'] }, m.fstab_option_soft),
+  doc({ name: 'hard', fs: ['nfs', 'nfs4'] }, m.fstab_option_hard),
 ]
 
 const DOC = new Map(OPTION_DOCS.map((d) => [d.name, d]))
@@ -340,7 +341,7 @@ export const optionValue = (o: string) => (o.includes('=') ? o.slice(o.indexOf('
 
 export function optionDoc(o: string): OptionDoc | undefined {
   const n = optionName(o)
-  return DOC.get(n) ?? (n.startsWith('x-systemd.') || n.startsWith('x-') ? doc({ name: n }, 'fstab_option_x') : undefined)
+  return DOC.get(n) ?? (n.startsWith('x-systemd.') || n.startsWith('x-') ? doc({ name: n }, m.fstab_option_x) : undefined)
 }
 
 /** Options that need no driver: mount(8) and systemd handle them. */
@@ -363,11 +364,11 @@ const FSTYPE_RE = /^[a-z0-9][a-z0-9_.+-]{0,39}$/
 
 /** Mount point a new entry may use. */
 export function targetProblem(path: string): string | undefined {
-  if (!path.startsWith('/')) return msg('fstab_check_mountPointNotAbsolute')
-  if (/\/\.\.?(\/|$)/.test(path) || /\/\//.test(path) || (path.length > 1 && path.endsWith('/'))) return msg('fstab_check_pathNotNormalized')
-  if (/[\x00-\x1f#]/.test(path)) return msg('fstab_check_pathInvalidChars')
-  if (FORBIDDEN_TARGET.test(path)) return msg('fstab_check_systemDir', { path })
-  if (path.length > 240) return msg('files_check_pathTooLong')
+  if (!path.startsWith('/')) return msg(m.fstab_check_mountPointNotAbsolute)
+  if (/\/\.\.?(\/|$)/.test(path) || /\/\//.test(path) || (path.length > 1 && path.endsWith('/'))) return msg(m.fstab_check_pathNotNormalized)
+  if (/[\x00-\x1f#]/.test(path)) return msg(m.fstab_check_pathInvalidChars)
+  if (FORBIDDEN_TARGET.test(path)) return msg(m.fstab_check_systemDir, { path })
+  if (path.length > 240) return msg(m.files_check_pathTooLong)
   return undefined
 }
 
@@ -375,33 +376,33 @@ export function targetProblem(path: string): string | undefined {
 export function checkInput(e: EntryInput): Diagnostic[] {
   const d: Diagnostic[] = []
   const err = (message: string) => d.push({ severity: 'error', message })
-  if (!e.spec.trim() || /[\x00-\x1f]/.test(e.spec) || !SPEC_RE.test(e.spec)) err(msg('fstab_check_sourceInvalid'))
+  if (!e.spec.trim() || /[\x00-\x1f]/.test(e.spec) || !SPEC_RE.test(e.spec)) err(msg(m.fstab_check_sourceInvalid))
   const t = targetProblem(e.file)
   if (t) err(t)
-  if (!FSTYPE_RE.test(e.vfstype)) err(msg('fstab_check_fsTypeInvalid'))
+  if (!FSTYPE_RE.test(e.vfstype)) err(msg(m.fstab_check_fsTypeInvalid))
   for (const o of e.options) {
-    if (!OPTION_RE.test(o)) err(msg('fstab_check_optionInvalidChars', { option: o }))
+    if (!OPTION_RE.test(o)) err(msg(m.fstab_check_optionInvalidChars, { option: o }))
     else if (!knownOption(o, e.vfstype))
       d.push({
         severity: 'warning',
-        message: msg('fstab_check_optionUnknown', { option: o, vfstype: e.vfstype }),
+        message: msg(m.fstab_check_optionUnknown, { option: o, vfstype: e.vfstype }),
       })
   }
   const names = e.options.map(optionName)
   const dup = names.find((n, i) => names.indexOf(n) !== i)
-  if (dup) err(msg('fstab_check_optionDuplicate', { option: dup }))
-  if (names.includes('ro') && names.includes('rw')) err(msg('fstab_check_roAndRw'))
-  if (names.includes('noauto') && names.includes('x-systemd.automount')) d.push({ severity: 'warning', message: msg('fstab_check_noautoAutomount') })
-  if (!Number.isInteger(e.freq) || e.freq < 0 || e.freq > 1) err(msg('fstab_check_dumpRange'))
-  if (!Number.isInteger(e.passno) || e.passno < 0 || e.passno > 2) err(msg('fstab_check_passnoRange'))
-  if (e.passno === 1 && e.file !== '/') d.push({ severity: 'warning', message: msg('fstab_check_passnoOneNotRoot') })
-  if (e.passno > 0 && ['xfs', 'btrfs', 'ntfs3', 'ntfs', 'exfat', 'zfs'].includes(e.vfstype)) d.push({ severity: 'warning', message: msg('fstab_check_passnoNoFsck', { vfstype: e.vfstype }) })
+  if (dup) err(msg(m.fstab_check_optionDuplicate, { option: dup }))
+  if (names.includes('ro') && names.includes('rw')) err(msg(m.fstab_check_roAndRw))
+  if (names.includes('noauto') && names.includes('x-systemd.automount')) d.push({ severity: 'warning', message: msg(m.fstab_check_noautoAutomount) })
+  if (!Number.isInteger(e.freq) || e.freq < 0 || e.freq > 1) err(msg(m.fstab_check_dumpRange))
+  if (!Number.isInteger(e.passno) || e.passno < 0 || e.passno > 2) err(msg(m.fstab_check_passnoRange))
+  if (e.passno === 1 && e.file !== '/') d.push({ severity: 'warning', message: msg(m.fstab_check_passnoOneNotRoot) })
+  if (e.passno > 0 && ['xfs', 'btrfs', 'ntfs3', 'ntfs', 'exfat', 'zfs'].includes(e.vfstype)) d.push({ severity: 'warning', message: msg(m.fstab_check_passnoNoFsck, { vfstype: e.vfstype }) })
   for (const o of e.options) {
     const v = optionValue(o)
     const doc = optionDoc(o)
-    if (doc?.value && (v === undefined || v === '')) err(msg('fstab_check_optionNeedsValue', { option: doc.name }))
-    if (doc?.value === 'number' && v !== undefined && !/^\d+$/.test(v)) err(msg('fstab_check_optionNumber', { option: doc.name }))
-    if (doc?.value === 'seconds' && v !== undefined && !/^\d+(ms|s|min|h)?$/.test(v)) err(msg('fstab_check_optionDuration', { option: doc.name }))
+    if (doc?.value && (v === undefined || v === '')) err(msg(m.fstab_check_optionNeedsValue, { option: doc.name }))
+    if (doc?.value === 'number' && v !== undefined && !/^\d+$/.test(v)) err(msg(m.fstab_check_optionNumber, { option: doc.name }))
+    if (doc?.value === 'seconds' && v !== undefined && !/^\d+(ms|s|min|h)?$/.test(v)) err(msg(m.fstab_check_optionDuration, { option: doc.name }))
   }
   return d
 }
@@ -413,10 +414,10 @@ export function checkFile(text: string, rootSpecs: string[] = []): Diagnostic[] 
   for (const e of entries) {
     if (e.vfstype === 'swap' || e.file === 'none') continue
     const prev = seen.get(e.file)
-    if (prev) diagnostics.push({ line: e.line, severity: 'error', message: msg('fstab_check_mountPointDuplicate', { file: e.file, line: prev }) })
+    if (prev) diagnostics.push({ line: e.line, severity: 'error', message: msg(m.fstab_check_mountPointDuplicate, { file: e.file, line: prev }) })
     else seen.set(e.file, e.line)
   }
-  if (!entries.some((e) => e.file === '/') && rootSpecs.length) diagnostics.push({ severity: 'warning', message: msg('fstab_check_noRootEntry') })
+  if (!entries.some((e) => e.file === '/') && rootSpecs.length) diagnostics.push({ severity: 'warning', message: msg(m.fstab_check_noRootEntry) })
   return diagnostics
 }
 
@@ -430,9 +431,9 @@ export function protectedLinesChanged(before: string, after: string, rootSpecs: 
   const a = sys(before)
   const b = sys(after)
   const gone = a.find((l) => !b.includes(l))
-  if (gone) return msg('fstab_check_systemEntryChanged', { entries: gone })
+  if (gone) return msg(m.fstab_check_systemEntryChanged, { entries: gone })
   const added = b.find((l) => !a.includes(l))
-  if (added) return msg('fstab_check_systemEntryAdded', { entries: added })
+  if (added) return msg(m.fstab_check_systemEntryAdded, { entries: added })
   return undefined
 }
 

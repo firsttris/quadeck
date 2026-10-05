@@ -3,6 +3,7 @@
 // Shared by the page, the web app and the root helper.
 
 import { msg } from './i18n'
+import { m } from '~/paraglide/messages'
 
 /** A timer Quadeck manages: `<name>.service` + `<name>.timer` in /etc/systemd/system. */
 export interface TimerSpec {
@@ -98,20 +99,20 @@ export const emptySpec = (): TimerSpec => ({
 /** Problems with a spec (in the viewer's language), empty when fine. */
 export function specErrors(s: TimerSpec): string[] {
   const out: string[] = []
-  if (!TIMER_BASE.test(s.name) || /\.(service|timer)$/.test(s.name)) out.push(msg('timers_check_invalidName'))
-  if (s.description.length > 200 || /[\n\r\\]/.test(s.description) || CONTROL.test(s.description)) out.push(msg('timers_check_invalidDescription'))
-  if (!s.command.trim()) out.push(msg('timers_check_commandMissing'))
-  else if (s.command.length > MAX_COMMAND || /[\x00\r]/.test(s.command) || CONTROL.test(s.command.replace(/\t/g, ''))) out.push(msg('timers_check_invalidCommand'))
-  if (s.user && !USER.test(s.user)) out.push(msg('timers_check_invalidUser'))
-  if (s.workingDirectory && (!s.workingDirectory.startsWith('/') || /[\n\r\\]/.test(s.workingDirectory) || CONTROL.test(s.workingDirectory) || s.workingDirectory.length > 400)) out.push(msg('timers_check_workDirAbsolute'))
-  if (!CALENDAR.test(s.calendar.trim())) out.push(msg('quadlets_check_invalidSchedule'))
-  if (!Number.isInteger(s.randomDelay) || s.randomDelay < 0 || s.randomDelay > 24 * 60) out.push(msg('timers_check_randomDelay'))
+  if (!TIMER_BASE.test(s.name) || /\.(service|timer)$/.test(s.name)) out.push(msg(m.timers_check_invalidName))
+  if (s.description.length > 200 || /[\n\r\\]/.test(s.description) || CONTROL.test(s.description)) out.push(msg(m.timers_check_invalidDescription))
+  if (!s.command.trim()) out.push(msg(m.timers_check_commandMissing))
+  else if (s.command.length > MAX_COMMAND || /[\x00\r]/.test(s.command) || CONTROL.test(s.command.replace(/\t/g, ''))) out.push(msg(m.timers_check_invalidCommand))
+  if (s.user && !USER.test(s.user)) out.push(msg(m.timers_check_invalidUser))
+  if (s.workingDirectory && (!s.workingDirectory.startsWith('/') || /[\n\r\\]/.test(s.workingDirectory) || CONTROL.test(s.workingDirectory) || s.workingDirectory.length > 400)) out.push(msg(m.timers_check_workDirAbsolute))
+  if (!CALENDAR.test(s.calendar.trim())) out.push(msg(m.quadlets_check_invalidSchedule))
+  if (!Number.isInteger(s.randomDelay) || s.randomDelay < 0 || s.randomDelay > 24 * 60) out.push(msg(m.timers_check_randomDelay))
   return out
 }
 
 /** Spec from untrusted JSON (API, helper socket); throws a message for the user. */
 export function parseSpec(v: unknown): TimerSpec {
-  if (!v || typeof v !== 'object') throw new Error(msg('timers_check_scheduleMissing'))
+  if (!v || typeof v !== 'object') throw new Error(msg(m.timers_check_scheduleMissing))
   const o = v as Record<string, unknown>
   const str = (k: string) => (typeof o[k] === 'string' ? (o[k] as string) : '')
   const spec: TimerSpec = {
@@ -199,7 +200,7 @@ export function overrideDropIn(calendar: string) {
 export const DAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'] as const
 export type Day = (typeof DAYS)[number]
 /** Short weekday name in the viewer's language. */
-export const dayLabel = (d: Day): string => msg('timers_describe_dayNames').split(' ')[DAYS.indexOf(d)]!
+export const dayLabel = (d: Day): string => msg(m.timers_describe_dayNames).split(' ')[DAYS.indexOf(d)]!
 
 export type Schedule =
   | { kind: 'minutes'; every: number }
@@ -312,17 +313,17 @@ export function describeCalendar(expr: string | undefined): string {
   const s = parseCalendar(expr)
   switch (s.kind) {
     case 'minutes':
-      return s.every === 1 ? msg('timers_describe_everyMinute') : msg('timers_describe_everyMinutes', { every: s.every })
+      return s.every === 1 ? msg(m.timers_describe_everyMinute) : msg(m.timers_describe_everyMinutes, { every: s.every })
     case 'hours':
-      return s.every === 1 ? (s.minute ? msg('timers_describe_hourlyAt', { minute: two(s.minute) }) : msg('timers_describe_hourly')) : msg('timers_describe_everyHours', { every: s.every, minute: s.minute ? two(s.minute) : '', hasMinute: String(!!s.minute) })
+      return s.every === 1 ? (s.minute ? msg(m.timers_describe_hourlyAt, { minute: two(s.minute) }) : msg(m.timers_describe_hourly)) : msg(m.timers_describe_everyHours, { every: s.every, minute: s.minute ? two(s.minute) : '', hasMinute: String(!!s.minute) })
     case 'daily':
-      return msg('timers_describe_dailyAt', { time: s.time })
+      return msg(m.timers_describe_dailyAt, { time: s.time })
     case 'weekly': {
-      const days = s.days.length === 5 && !s.days.includes('Sat') && !s.days.includes('Sun') ? msg('timers_describe_weekdays') : s.days.length === 7 ? msg('timers_describe_everyDay') : s.days.map(dayLabel).join(', ')
+      const days = s.days.length === 5 && !s.days.includes('Sat') && !s.days.includes('Sun') ? msg(m.timers_describe_weekdays) : s.days.length === 7 ? msg(m.timers_describe_everyDay) : s.days.map(dayLabel).join(', ')
       return `${days} ${s.time}`
     }
     case 'monthly':
-      return msg('timers_describe_monthly', { day: s.day, time: s.time })
+      return msg(m.timers_describe_monthly, { day: s.day, time: s.time })
     case 'custom':
       return s.expr
   }
@@ -354,14 +355,14 @@ function cronField(f: string, min: number, max: number, names?: string[]): strin
   const value = (v: string) => {
     const i = names?.indexOf(v.toLowerCase()) ?? -1
     const n = i >= 0 ? i + (names === MONTHS ? 1 : 0) : /^\d+$/.test(v) ? Number(v) : NaN
-    if (!Number.isInteger(n) || n < min || n > max) throw new Error(msg('timers_cron_outOfRange', { value: v, min, max }))
+    if (!Number.isInteger(n) || n < min || n > max) throw new Error(msg(m.timers_cron_outOfRange, { value: v, min, max }))
     return n
   }
   return f
     .split(',')
     .map((part) => {
       const [range, step] = part.split('/') as [string, string | undefined]
-      if (step !== undefined && !/^\d+$/.test(step)) throw new Error(msg('timers_cron_invalidStep', { step }))
+      if (step !== undefined && !/^\d+$/.test(step)) throw new Error(msg(m.timers_cron_invalidStep, { step }))
       let out: string
       if (range === '*') out = step ? two(min) : '*'
       else if (range.includes('-')) {
@@ -377,14 +378,14 @@ function cronDays(f: string): string {
   const day = (v: string) => {
     const i = CRON_DAYS.indexOf(v.toLowerCase().slice(0, 3))
     const n = i >= 0 ? i : /^\d$/.test(v) ? Number(v) % 7 : NaN
-    if (!Number.isInteger(n) || n > 6) throw new Error(msg('timers_cron_invalidWeekday', { value: v }))
+    if (!Number.isInteger(n) || n > 6) throw new Error(msg(m.timers_cron_invalidWeekday, { value: v }))
     return n
   }
   const name = (n: number) => DAYS[(n + 6) % 7]!
   return f
     .split(',')
     .map((part) => {
-      if (part.includes('/')) throw new Error(msg('timers_cron_weekdayStep'))
+      if (part.includes('/')) throw new Error(msg(m.timers_cron_weekdayStep))
       if (!part.includes('-')) return name(day(part))
       const [a, b] = part.split('-').map(day) as [number, number]
       // Sun is 0 in cron but last in systemd: 0-2 → Sun,Mon..Tue
@@ -402,27 +403,27 @@ function cronDays(f: string): string {
  */
 export function cronToCalendar(line: string): CronResult {
   const l = line.trim()
-  if (!l) return { error: msg('timers_cron_empty') }
+  if (!l) return { error: msg(m.timers_cron_empty) }
   const special = l.match(/^(@\w+)\s*(.*)$/)
   if (special) {
     if (special[1] === '@reboot')
       return {
-        error: msg('timers_cron_reboot'),
+        error: msg(m.timers_cron_reboot),
       }
     const cal = CRON_SPECIAL[special[1]!.toLowerCase()]
-    return cal ? { calendar: cal, command: special[2] || undefined } : { error: msg('timers_cron_unknownSpecial', { special: special[1] }) }
+    return cal ? { calendar: cal, command: special[2] || undefined } : { error: msg(m.timers_cron_unknownSpecial, { special: special[1] }) }
   }
   const parts = l.split(/\s+/)
   if (parts.length < 5)
     return {
-      error: msg('timers_cron_fieldCount'),
+      error: msg(m.timers_cron_fieldCount),
     }
   const [mi, h, dom, mon, dow] = parts as [string, string, string, string, string]
   const command = l.match(/^(?:\S+\s+){4}\S+\s+([\s\S]+)$/)?.[1]?.trim() || undefined
   try {
     const days = dow === '*' || dow === '?' ? '' : cronDays(dow)
     const calendar = `${days ? days + ' ' : ''}*-${cronField(mon, 1, 12, MONTHS)}-${dom === '?' ? '*' : cronField(dom, 1, 31)} ${cronField(h, 0, 23)}:${cronField(mi, 0, 59)}:00`
-    const warning = days && dom !== '*' && dom !== '?' ? msg('timers_cron_dayOrWeekday') : undefined
+    const warning = days && dom !== '*' && dom !== '?' ? msg(m.timers_cron_dayOrWeekday) : undefined
     return { calendar, command, warning }
   } catch (e) {
     return { error: (e as Error).message }

@@ -2,6 +2,7 @@
 // web app and the root helper.
 
 import { msg } from './i18n'
+import { m } from '~/paraglide/messages'
 
 export interface SmbShareSpec {
   name: string
@@ -113,25 +114,25 @@ const FORBIDDEN = ['/etc', '/root', '/boot', '/proc', '/sys', '/dev', '/run', '/
 const CONTROL = /[\x00-\x1f\x7f]/
 
 export function validateSharePath(path: string): string | undefined {
-  if (!path.startsWith('/')) return msg('shares_check_pathNotAbsolute')
-  if (CONTROL.test(path) || path.includes('"')) return msg('shares_check_pathInvalidChars')
-  if (path.split('/').includes('..')) return msg('files_check_pathDotDot')
+  if (!path.startsWith('/')) return msg(m.shares_check_pathNotAbsolute)
+  if (CONTROL.test(path) || path.includes('"')) return msg(m.shares_check_pathInvalidChars)
+  if (path.split('/').includes('..')) return msg(m.files_check_pathDotDot)
   const clean = path.replace(/\/+$/, '') || '/'
-  if (clean === '/') return msg('shares_check_rootDir')
+  if (clean === '/') return msg(m.shares_check_rootDir)
   const bad = FORBIDDEN.find((f) => clean === f || clean.startsWith(f + '/'))
-  if (bad) return msg('shares_check_pathForbidden', { path: bad })
+  if (bad) return msg(m.shares_check_pathForbidden, { path: bad })
   return undefined
 }
 
 export function validateSmb(s: SmbShareSpec): string[] {
   const e: string[] = []
-  if (!SMB_NAME.test(s.name)) e.push(msg('shares_check_nameInvalid'))
-  else if (RESERVED_SMB.has(s.name.toLowerCase())) e.push(msg('shares_check_nameReserved', { name: s.name }))
+  if (!SMB_NAME.test(s.name)) e.push(msg(m.shares_check_nameInvalid))
+  else if (RESERVED_SMB.has(s.name.toLowerCase())) e.push(msg(m.shares_check_nameReserved, { name: s.name }))
   const p = validateSharePath(s.path)
   if (p) e.push(p)
-  if (CONTROL.test(s.comment) || s.comment.length > 200) e.push(msg('shares_check_commentInvalid'))
+  if (CONTROL.test(s.comment) || s.comment.length > 200) e.push(msg(m.shares_check_commentInvalid))
   const users = s.validUsers.split(/[\s,]+/).filter(Boolean)
-  if (CONTROL.test(s.validUsers) || users.some((u) => !USER_TOKEN.test(u))) e.push(msg('shares_check_usersInvalid'))
+  if (CONTROL.test(s.validUsers) || users.some((u) => !USER_TOKEN.test(u))) e.push(msg(m.shares_check_usersInvalid))
   return e
 }
 
@@ -139,12 +140,12 @@ export function validateNfs(s: NfsExportSpec): string[] {
   const e: string[] = []
   const p = validateSharePath(s.path)
   if (p) e.push(p)
-  if (!s.clients.length) e.push(msg('shares_check_noClients'))
-  if (s.clients.length > 50) e.push(msg('shares_check_tooManyClients'))
+  if (!s.clients.length) e.push(msg(m.shares_check_noClients))
+  if (s.clients.length > 50) e.push(msg(m.shares_check_tooManyClients))
   for (const c of s.clients) {
-    if (!NFS_HOST.test(c.host)) e.push(msg('shares_check_clientInvalid', { host: c.host }))
-    for (const o of c.options) if (!(NFS_OPTIONS as readonly string[]).includes(o) && !NFS_VALUE_OPTION.test(o)) e.push(msg('shares_check_optionNotAllowed', { option: o }))
-    if (c.options.includes('rw') && c.options.includes('ro')) e.push(msg('shares_check_rwAndRo', { host: c.host }))
+    if (!NFS_HOST.test(c.host)) e.push(msg(m.shares_check_clientInvalid, { host: c.host }))
+    for (const o of c.options) if (!(NFS_OPTIONS as readonly string[]).includes(o) && !NFS_VALUE_OPTION.test(o)) e.push(msg(m.shares_check_optionNotAllowed, { option: o }))
+    if (c.options.includes('rw') && c.options.includes('ro')) e.push(msg(m.shares_check_rwAndRo, { host: c.host }))
   }
   return e
 }

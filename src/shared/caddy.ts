@@ -5,6 +5,7 @@
 // editable as text.
 
 import { msg } from './i18n'
+import { m } from '~/paraglide/messages'
 import { getValues } from './ini'
 import type { Revision } from './quadlets'
 
@@ -294,14 +295,14 @@ export function parseCaddyfile(text: string): ParsedCaddyfile {
 const ADDRESS = /^(?:https?:\/\/)?(?:\*\.)?(?:[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)(?:\.[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?)*(?::\d{1,5})?$|^:\d{1,5}$/
 
 export function addressProblem(a: string): string | undefined {
-  if (!a) return msg('proxy_errors_domainMissing')
-  if (!ADDRESS.test(a)) return msg('proxy_errors_badAddress', { address: a })
+  if (!a) return msg(m.proxy_errors_domainMissing)
+  if (!ADDRESS.test(a)) return msg(m.proxy_errors_badAddress, { address: a })
   return undefined
 }
 
 export function upstreamProblem(u: string): string | undefined {
-  if (!u) return msg('proxy_errors_targetMissing')
-  if (!UPSTREAM_TOKEN.test(u) || (!u.startsWith('unix//') && !/:\d{1,5}$/.test(u) && !/^https?:\/\//.test(u))) return msg('proxy_errors_badTarget', { u })
+  if (!u) return msg(m.proxy_errors_targetMissing)
+  if (!UPSTREAM_TOKEN.test(u) || (!u.startsWith('unix//') && !/:\d{1,5}$/.test(u) && !/^https?:\/\//.test(u))) return msg(m.proxy_errors_badTarget, { u })
   return undefined
 }
 
@@ -328,14 +329,14 @@ export function renderSite(addresses: string[], upstreams: string[], o: SiteOpti
 /** Why the dialog's options cannot be written, or undefined. */
 export function optionsProblem(o: SiteOptions): string | undefined {
   if (o.auth) {
-    if (!/^[A-Za-z0-9._@-]{1,64}$/.test(o.auth.user)) return msg('proxy_errors_authUser')
-    if (!o.auth.hash && !o.auth.password) return msg('proxy_errors_authPassword')
-    if (o.auth.password !== undefined && o.auth.password.length < 8) return msg('proxy_errors_authShort')
-    if (o.auth.hash && !BCRYPT.test(o.auth.hash)) return msg('proxy_errors_authHash')
+    if (!/^[A-Za-z0-9._@-]{1,64}$/.test(o.auth.user)) return msg(m.proxy_errors_authUser)
+    if (!o.auth.hash && !o.auth.password) return msg(m.proxy_errors_authPassword)
+    if (o.auth.password !== undefined && o.auth.password.length < 8) return msg(m.proxy_errors_authShort)
+    if (o.auth.hash && !BCRYPT.test(o.auth.hash)) return msg(m.proxy_errors_authHash)
   }
   for (const t of [o.extra, o.proxyExtra]) {
     const code = t.replace(/(^|\s)#.*$/gm, '').replace(/"[^"]*"|`[^`]*`/g, '')
-    if ((code.match(/\{/g) ?? []).length !== (code.match(/\}/g) ?? []).length) return msg('proxy_errors_braces')
+    if ((code.match(/\{/g) ?? []).length !== (code.match(/\}/g) ?? []).length) return msg(m.proxy_errors_braces)
   }
   return undefined
 }
@@ -354,24 +355,24 @@ export function applyCaddyChange(text: string, change: CaddyChange): string {
   const find = (address: string) => sites.find((b) => b.addresses.includes(address))
   if (change.kind === 'block') {
     const b = find(change.address)
-    if (!b) throw new Error(msg('proxy_errors_notInFile', { address: change.address }))
+    if (!b) throw new Error(msg(m.proxy_errors_notInFile, { address: change.address }))
     const parsed = parseCaddyfile(change.text)
-    if (parsed.unstructured || parsed.blocks.length !== 1 || (parsed.blocks[0]!.kind !== 'proxy' && parsed.blocks[0]!.kind !== 'site')) throw new Error(msg('proxy_errors_oneBlock'))
+    if (parsed.unstructured || parsed.blocks.length !== 1 || (parsed.blocks[0]!.kind !== 'proxy' && parsed.blocks[0]!.kind !== 'site')) throw new Error(msg(m.proxy_errors_oneBlock))
     for (const a of parsed.blocks[0]!.addresses) {
       const other = find(a)
-      if (other && other !== b) throw new Error(msg('proxy_errors_exists', { address: a, line: other.line }))
+      if (other && other !== b) throw new Error(msg(m.proxy_errors_exists, { address: a, line: other.line }))
     }
     return text.slice(0, b.start) + change.text.trim() + text.slice(b.end)
   }
   if (change.kind === 'delete') {
     const b = find(change.address)
-    if (!b) throw new Error(msg('proxy_errors_notInFile', { address: change.address }))
+    if (!b) throw new Error(msg(m.proxy_errors_notInFile, { address: change.address }))
     return tidy(text.slice(0, b.start) + text.slice(b.end))
   }
   const addresses = change.addresses.map((a) => a.trim()).filter(Boolean)
   const upstreams = change.upstreams.map((u) => u.trim()).filter(Boolean)
-  if (!addresses.length) throw new Error(msg('proxy_errors_domainMissing'))
-  if (!upstreams.length) throw new Error(msg('proxy_errors_targetMissing'))
+  if (!addresses.length) throw new Error(msg(m.proxy_errors_domainMissing))
+  if (!upstreams.length) throw new Error(msg(m.proxy_errors_targetMissing))
   for (const a of addresses) {
     const p = addressProblem(a)
     if (p) throw new Error(p)
@@ -384,11 +385,11 @@ export function applyCaddyChange(text: string, change: CaddyChange): string {
   const op = optionsProblem(options)
   if (op) throw new Error(op)
   const previous = change.previous ? find(change.previous) : undefined
-  if (change.previous && !previous) throw new Error(msg('proxy_errors_notInFile', { address: change.previous! }))
-  if (previous && previous.kind !== 'proxy') throw new Error(msg('proxy_errors_custom', { address: change.previous! }))
+  if (change.previous && !previous) throw new Error(msg(m.proxy_errors_notInFile, { address: change.previous! }))
+  if (previous && previous.kind !== 'proxy') throw new Error(msg(m.proxy_errors_custom, { address: change.previous! }))
   for (const a of addresses) {
     const other = find(a)
-    if (other && other !== previous) throw new Error(msg('proxy_errors_exists', { address: a, line: other.line }))
+    if (other && other !== previous) throw new Error(msg(m.proxy_errors_exists, { address: a, line: other.line }))
   }
   const block = renderSite(addresses, upstreams, options)
   if (previous) return text.slice(0, previous.start) + block + text.slice(previous.end)
@@ -466,10 +467,10 @@ export function caddyFromQuadlet(name: string, content: string): QuadletCaddy | 
 
 /** A path picked by hand: absolute, plausible as a Caddyfile, not in a system directory. */
 export function manualPathProblem(path: string): string | undefined {
-  if (!path.startsWith('/') || path.includes('\0') || /(^|\/)\.\.(\/|$)/.test(path)) return msg('proxy_errors_absolute')
-  if (/^\/(proc|sys|dev|run|boot)(\/|$)/.test(path)) return msg('proxy_errors_systemDir')
+  if (!path.startsWith('/') || path.includes('\0') || /(^|\/)\.\.(\/|$)/.test(path)) return msg(m.proxy_errors_absolute)
+  if (/^\/(proc|sys|dev|run|boot)(\/|$)/.test(path)) return msg(m.proxy_errors_systemDir)
   const base = path.split('/').pop() ?? ''
-  if (!/caddy/i.test(base)) return msg('proxy_errors_fileName')
+  if (!/caddy/i.test(base)) return msg(m.proxy_errors_fileName)
   return undefined
 }
 
@@ -488,7 +489,7 @@ export function parseCaddyChange(v: unknown): CaddyChange {
       return { kind: 'site', previous: (o.previous as string | undefined) || undefined, addresses, upstreams, ...(options ? { options } : {}) }
     }
   }
-  throw new Error(msg('proxy_errors_invalidChange'))
+  throw new Error(msg(m.proxy_errors_invalidChange))
 }
 
 function parseOptions(v: unknown): SiteOptions | undefined {

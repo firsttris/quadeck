@@ -8,6 +8,7 @@ import { chmodSync, chownSync, copyFileSync, existsSync, lstatSync, mkdtempSync,
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { HttpError } from '../auth'
 import { run } from '../exec'
 import { describeConfigFile, parseConfigPath, replaceRisk, type ConfigAction, type ConfigFileInfo } from '~/shared/configfiles'
@@ -30,9 +31,9 @@ export interface ConfigFs {
 const isBinary = (s: string) => s.includes('\u0000')
 
 export async function configFileInfo(fs: ConfigFs, path: string): Promise<ConfigFileInfo> {
-  if (!(await fs.list()).includes(path)) throw new HttpError(404, msg('configfiles_error_notListed', { path }))
+  if (!(await fs.list()).includes(path)) throw new HttpError(404, msg(m.configfiles_error_notListed, { path }))
   const parsed = parseConfigPath(path)
-  if (!parsed) throw new HttpError(400, msg('configfiles_error_notConfigFile'))
+  if (!parsed) throw new HttpError(400, msg(m.configfiles_error_notConfigFile))
   const content = fs.read(path)
   const liveContent = fs.read(parsed.live)
   const binary = (content !== undefined && (content.length > MAX || isBinary(content))) || (liveContent !== undefined && (liveContent.length > MAX || isBinary(liveContent)))
@@ -52,24 +53,24 @@ export async function applyConfigAction(fs: ConfigFs, path: string, action: Conf
   const f = await configFileInfo(fs, path)
   if (action === 'keep') {
     fs.remove(path)
-    return { done: f.kind === 'save' ? msg('configfiles_done_deleted', { path }) : msg('configfiles_done_keptDeleted', { live: f.live, path }) }
+    return { done: f.kind === 'save' ? msg(m.configfiles_done_deleted, { path }) : msg(m.configfiles_done_keptDeleted, { live: f.live, path }) }
   }
-  if (f.kind === 'save') throw new HttpError(409, msg('configfiles_error_saveOnlyDelete'))
+  if (f.kind === 'save') throw new HttpError(409, msg(m.configfiles_error_saveOnlyDelete))
   if (f.noReplace) throw new HttpError(403, f.noReplace)
-  if (f.binary) throw new HttpError(409, msg('configfiles_error_binaryFile'))
+  if (f.binary) throw new HttpError(409, msg(m.configfiles_error_binaryFile))
   if (action === 'replace' && f.replaceRisk) throw new HttpError(409, f.replaceRisk)
   const text = action === 'replace' ? f.content! : merged
-  if (text === undefined || text.length > MAX || isBinary(text)) throw new HttpError(400, msg('common_errors_invalidContent'))
+  if (text === undefined || text.length > MAX || isBinary(text)) throw new HttpError(400, msg(m.common_errors_invalidContent))
   if (f.check) {
     const err = await fs.check(f.check, text)
-    if (err) throw new HttpError(422, msg('configfiles_error_checkRejected', { check: f.check, reason: err }))
+    if (err) throw new HttpError(422, msg(m.configfiles_error_checkRejected, { check: f.check, reason: err }))
   }
   fs.write(f.live, text.endsWith('\n') ? text : text + '\n')
   fs.remove(path)
   // Fast follow-ups right away; mkinitcpio takes a while and runs as a job from the page.
   let warning: string | undefined
   if (f.after && f.after !== 'mkinitcpio') warning = await fs.after(f.after)
-  return { done: action === 'replace' ? msg('configfiles_done_replaced', { live: f.live }) : msg('configfiles_done_saved', { live: f.live }), after: f.after, warning }
+  return { done: action === 'replace' ? msg(m.configfiles_done_replaced, { live: f.live }) : msg(m.configfiles_done_saved, { live: f.live }), after: f.after, warning }
 }
 
 export class SystemConfigFs implements ConfigFs {
@@ -93,7 +94,7 @@ export class SystemConfigFs implements ConfigFs {
   }
 
   write(path: string, content: string) {
-    if (existsSync(path) && lstatSync(path).isSymbolicLink()) throw new HttpError(409, msg('configfiles_error_symlink', { path }))
+    if (existsSync(path) && lstatSync(path).isSymbolicLink()) throw new HttpError(409, msg(m.configfiles_error_symlink, { path }))
     const st = existsSync(path) ? statSync(path) : undefined
     if (st) copyFileSync(path, `${path}.quadeck-bak`)
     const tmp = `${path}.quadeck-tmp`
@@ -135,7 +136,7 @@ export class SystemConfigFs implements ConfigFs {
     const argv = what === 'sshd-reload' ? ['systemctl', 'try-reload-or-restart', 'sshd.service', 'ssh.service'] : what === 'smb-reload' ? ['smbcontrol', 'smbd', 'reload-config'] : what === 'locale-gen' ? ['locale-gen'] : undefined
     if (!argv || !Bun.which(argv[0]!)) return undefined
     const r = await run(argv, { timeoutMs: 120_000 })
-    return r.code === 0 ? undefined : msg('configfiles_warn_afterFailed', { command: argv.join(' '), output: (r.stderr || r.stdout).trim().slice(0, 200) })
+    return r.code === 0 ? undefined : msg(m.configfiles_warn_afterFailed, { command: argv.join(' '), output: (r.stderr || r.stdout).trim().slice(0, 200) })
   }
 }
 

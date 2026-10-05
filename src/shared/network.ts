@@ -2,6 +2,7 @@
 // the firewall's view on them.
 
 import { msg } from './i18n'
+import { m } from '~/paraglide/messages'
 
 export type IfaceKind = 'ethernet' | 'wifi' | 'bridge' | 'container' | 'vpn' | 'thread' | 'loopback' | 'virtual'
 
@@ -116,7 +117,7 @@ export const knownPorts = (): Record<string, string> => ({
   '139/tcp': 'SMB (NetBIOS)',
   '445/tcp': 'SMB',
   '2049/tcp': 'NFS',
-  '631/tcp': msg('network_service_printer'),
+  '631/tcp': msg(m.network_service_printer),
   '5353/udp': 'mDNS/Avahi',
   '9090/tcp': 'Cockpit',
   '5355/udp': 'LLMNR',

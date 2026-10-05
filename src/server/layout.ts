@@ -3,6 +3,7 @@ import type { DashboardLayout, GridItem, LayoutScope } from '~/shared/layout'
 import { HttpError } from './auth'
 import { db, schema } from './db'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 
 const SCOPES: LayoutScope[] = ['page', 'tiles']
 const BREAKPOINT = /^[a-z]{1,8}$/
@@ -29,18 +30,18 @@ export function getLayout(): DashboardLayout {
 
 const int = (v: unknown, max: number) => {
   const n = Number(v)
-  if (!Number.isInteger(n) || n < 0 || n > max) throw new HttpError(400, msg('layout_error_invalidValues'))
+  if (!Number.isInteger(n) || n < 0 || n > max) throw new HttpError(400, msg(m.layout_error_invalidValues))
   return n
 }
 
 export function parseSave(body: Record<string, unknown>): { scope: LayoutScope; breakpoint: string; items: GridItem[] } {
   const scope = body.scope as LayoutScope
   const breakpoint = String(body.breakpoint ?? '')
-  if (!SCOPES.includes(scope) || !BREAKPOINT.test(breakpoint)) throw new HttpError(400, msg('layout_error_invalidScope'))
-  if (!Array.isArray(body.items) || body.items.length > 500) throw new HttpError(400, msg('layout_error_invalidEntries'))
+  if (!SCOPES.includes(scope) || !BREAKPOINT.test(breakpoint)) throw new HttpError(400, msg(m.layout_error_invalidScope))
+  if (!Array.isArray(body.items) || body.items.length > 500) throw new HttpError(400, msg(m.layout_error_invalidEntries))
   const items = body.items.map((raw) => {
     const it = raw as Record<string, unknown>
-    if (typeof it.i !== 'string' || !ID.test(it.i)) throw new HttpError(400, msg('layout_error_invalidId'))
+    if (typeof it.i !== 'string' || !ID.test(it.i)) throw new HttpError(400, msg(m.layout_error_invalidId))
     return { i: it.i, x: int(it.x, 100), y: int(it.y, 10_000), w: int(it.w, 100), h: int(it.h, 1000) }
   })
   return { scope, breakpoint, items }
@@ -60,7 +61,7 @@ export function saveLayout(scope: LayoutScope, bp: string, items: GridItem[]) {
 }
 
 export function setCardHidden(id: string, hidden: boolean) {
-  if (!ID.test(id)) throw new HttpError(400, msg('layout_error_invalidCardId'))
+  if (!ID.test(id)) throw new HttpError(400, msg(m.layout_error_invalidCardId))
   db()
     .insert(schema.widgets)
     .values({ id, type: 'card', config: { hidden } })

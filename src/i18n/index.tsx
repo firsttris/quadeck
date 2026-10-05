@@ -1,7 +1,7 @@
 /**
  * The UI language. Texts live in messages/{de,en}.json and are compiled by
  * Paraglide to src/paraglide: components call them directly (m.units_title()),
- * code outside of components uses msg('units_title') from ~/shared/i18n.
+ * code outside of components uses msg(m.units_title) from ~/shared/i18n.
  * The language comes from the qd_lang cookie, else from the browser
  * (Accept-Language), so the server renders the page in the right language.
  */

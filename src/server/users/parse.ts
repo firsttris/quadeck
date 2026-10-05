@@ -1,21 +1,22 @@
 import { HttpError } from '../auth'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import type { UserChange } from '~/shared/users'
 
 // Request bodies → UserChange at both boundaries (API route and helper). The
 // content checks (name rules, existing groups, lock-out) follow in the backend.
 
 const str = (v: unknown, max = 600) => {
-  if (typeof v !== 'string' || v.length > max) throw new HttpError(400, msg('fstab_error_invalidRequest'))
+  if (typeof v !== 'string' || v.length > max) throw new HttpError(400, msg(m.fstab_error_invalidRequest))
   return v
 }
 
 export function parseUserChange(v: unknown): UserChange {
-  if (!v || typeof v !== 'object') throw new HttpError(400, msg('fstab_error_changeMissing'))
+  if (!v || typeof v !== 'object') throw new HttpError(400, msg(m.fstab_error_changeMissing))
   const c = v as Record<string, unknown>
   const name = str(c.name, 32)
   const groups = () => {
-    if (!Array.isArray(c.groups) || c.groups.length > 50) throw new HttpError(400, msg('users_error_invalidGroups'))
+    if (!Array.isArray(c.groups) || c.groups.length > 50) throw new HttpError(400, msg(m.users_error_invalidGroups))
     return [...new Set(c.groups.map((g) => str(g, 32)))]
   }
   switch (c.kind) {
@@ -32,5 +33,5 @@ export function parseUserChange(v: unknown): UserChange {
     case 'delete':
       return { kind: 'delete', name, removeHome: c.removeHome === true }
   }
-  throw new HttpError(400, msg('fstab_error_unknownChange'))
+  throw new HttpError(400, msg(m.fstab_error_unknownChange))
 }

@@ -13,7 +13,7 @@ import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
 
 export const Route = createFileRoute('/_app/notifications')({
-  head: () => ({ meta: [{ title: msg('page_title_notifications') }] }),
+  head: () => ({ meta: [{ title: msg(m.page_title_notifications) }] }),
   component: NotificationsPage,
 })
 

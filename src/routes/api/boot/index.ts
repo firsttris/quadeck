@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { HttpError } from '~/server/auth'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { parseBootEntryChange } from '~/shared/boot'
 import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
@@ -52,14 +53,14 @@ export const Route = createFileRoute('/api/boot/')({
         if (typeof b.removeEntry === 'string') return Response.json(await p.removeBootEntry(token, b.removeEntry))
         if (b.entry !== undefined) {
           const change = parseBootEntryChange(b.entry)
-          if (!change) throw new HttpError(400, msg('common_errors_unknownRequest'))
+          if (!change) throw new HttpError(400, msg(m.common_errors_unknownRequest))
           return Response.json(await p.writeBootEntry(token, change))
         }
         if (b.reboot && typeof b.reboot === 'object') {
           const entry = typeof b.reboot.entry === 'string' && b.reboot.entry ? b.reboot.entry : undefined
           return Response.json(await p.reboot(token, { entry, firmware: b.reboot.firmware === true }))
         }
-        throw new HttpError(400, msg('common_errors_unknownRequest'))
+        throw new HttpError(400, msg(m.common_errors_unknownRequest))
       }),
     },
   },

@@ -6,6 +6,7 @@ import { privileged } from '~/server/privileged'
 import { parseSave, parseTimerAction } from '~/server/timers/backend'
 import { unlockToken } from '~/server/unlock-sessions'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 
 // GET: all timers · ?calendar=expr → next runs · ?files=x.timer → unit files.
 // POST (unlock): { save: { spec, previous?, enable } } · { delete: name } ·
@@ -41,7 +42,7 @@ export const Route = createFileRoute('/api/timers/')({
         if (b.delete !== undefined) return Response.json(await p.deleteTimer(token, str(b.delete)))
         if (b.schedule) return Response.json(await p.setTimerSchedule(token, str(b.schedule.name), str(b.schedule.calendar).trim()))
         if (b.action) return Response.json(await p.timerAction(token, str(b.action.name), parseTimerAction(b.action.action)))
-        throw new HttpError(400, msg('common_errors_unknownRequest'))
+        throw new HttpError(400, msg(m.common_errors_unknownRequest))
       }),
     },
   },

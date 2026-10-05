@@ -29,13 +29,13 @@ export const useJobs = () => useContext(JobCtx)
 /** Job status labels (getters: the language is read on use). Components can also use t.shell.jobs.status. */
 export const STATUS_LABEL: Record<JobInfo['status'], string> = {
   get running() {
-    return msg('ssh_access_running')
+    return msg(m.ssh_access_running)
   },
   get ok() {
-    return msg('shell_jobs_status_ok')
+    return msg(m.shell_jobs_status_ok)
   },
   get failed() {
-    return msg('notifications_failed')
+    return msg(m.notifications_failed)
   },
 }
 export const statusTone = (s: JobInfo['status']) => (s === 'ok' ? 'ok' : s === 'failed' ? 'bad' : 'warn')

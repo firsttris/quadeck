@@ -4,6 +4,7 @@ import { authed, readJson } from '~/server/http'
 import { LANG_SETTING } from '~/server/notify'
 import { setSetting } from '~/server/settings'
 import { isLang, msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 
 // The UI's language switch: e-mails and push messages follow it.
 export const Route = createFileRoute('/api/lang')({
@@ -11,7 +12,7 @@ export const Route = createFileRoute('/api/lang')({
     handlers: {
       POST: authed(async ({ request }) => {
         const { lang } = await readJson<{ lang?: unknown }>(request)
-        if (!isLang(lang)) throw new HttpError(400, msg('api_lang_invalid'))
+        if (!isLang(lang)) throw new HttpError(400, msg(m.api_lang_invalid))
         setSetting(LANG_SETTING, lang)
         return Response.json({ ok: true })
       }),

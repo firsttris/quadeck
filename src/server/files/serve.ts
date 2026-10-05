@@ -5,6 +5,7 @@
 import { fileKind } from '~/shared/files'
 import { HttpError } from '../auth'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 
 export interface OpenedFile {
   name: string
@@ -50,19 +51,19 @@ export function mimeOf(name: string): { type: string; inline: boolean } {
 
 /** "bytes=a-b" → the byte range, undefined for the whole file; throws 416 for a range outside it. */
 export function parseRange(header: string | null | undefined, size: number): { start: number; end: number } | undefined {
-  const m = /^bytes=(\d*)-(\d*)$/.exec((header ?? '').trim())
-  if (!m || (!m[1] && !m[2])) return undefined
+  const range = /^bytes=(\d*)-(\d*)$/.exec((header ?? '').trim())
+  if (!range || (!range[1] && !range[2])) return undefined
   let start: number
   let end: number
-  if (!m[1]) {
+  if (!range[1]) {
     // the last n bytes
-    start = Math.max(0, size - Number(m[2]))
+    start = Math.max(0, size - Number(range[2]))
     end = size - 1
   } else {
-    start = Number(m[1])
-    end = m[2] ? Math.min(Number(m[2]), size - 1) : size - 1
+    start = Number(range[1])
+    end = range[2] ? Math.min(Number(range[2]), size - 1) : size - 1
   }
-  if (start >= size || start > end) throw new HttpError(416, msg('files_error_range'))
+  if (start >= size || start > end) throw new HttpError(416, msg(m.files_error_range))
   return { start, end }
 }
 

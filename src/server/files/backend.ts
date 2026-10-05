@@ -8,6 +8,7 @@ import { contentHash } from '~/shared/caddy'
 import { join } from 'node:path'
 import { HttpError } from '../auth'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import type { FsOps } from './transfer'
 import { preparePack, previewExtract, systemArchiveHost, type ArchiveHost, type ExtractJob, type PackJob, assertExtractable } from './archives'
 import { normEntry, type ArchiveEntry, type ArchivePreview } from '~/shared/archives'
@@ -36,7 +37,7 @@ export interface FilesBackend extends FilesAdmin {
 
 /** Checks shared by the real machine and the demo, before a text file is shown. */
 function assertReadable(path: string, real: string, allowSensitive: boolean) {
-  if (!allowSensitive && (isSensitivePath(path) || isSensitivePath(real))) throw new HttpError(423, msg('files_error_sensitive'))
+  if (!allowSensitive && (isSensitivePath(path) || isSensitivePath(real))) throw new HttpError(423, msg(m.files_error_sensitive))
 }
 
 /** Raw bytes → what the editor gets. */
@@ -51,9 +52,9 @@ export function textFileFrom(path: string, raw: Uint8Array | undefined, info: { 
 
 /** The text to write: line endings as the file had them. */
 export function textToWrite(current: TextFile, content: string, expected: string): string {
-  if (current.refused) throw new HttpError(409, current.refused === 'binary' ? msg('files_error_notText') : msg('files_error_tooLarge'))
-  if (expected !== current.hash) throw new HttpError(409, msg('files_error_changedMeanwhile'))
-  if (new TextEncoder().encode(content).length > TEXT_MAX) throw new HttpError(413, msg('files_error_tooLarge'))
+  if (current.refused) throw new HttpError(409, current.refused === 'binary' ? msg(m.files_error_notText) : msg(m.files_error_tooLarge))
+  if (expected !== current.hash) throw new HttpError(409, msg(m.files_error_changedMeanwhile))
+  if (new TextEncoder().encode(content).length > TEXT_MAX) throw new HttpError(413, msg(m.files_error_tooLarge))
   return current.crlf ? content.replace(/\r?\n/g, '\r\n') : content
 }
 
@@ -108,11 +109,11 @@ export function resolveInRoots(path: string, roots: string[], opts: { parentOnly
   try {
     real = opts.parentOnly ? joinPath(realpathSync(parentOf(path)), baseName(path)) : realpathSync(path)
   } catch {
-    throw new HttpError(404, msg('files_error_notFound', { path }))
+    throw new HttpError(404, msg(m.files_error_notFound, { path }))
   }
   const root = roots.find((r) => real === r || real.startsWith(r + '/'))
-  if (!root) throw new HttpError(403, msg('files_error_outsideRoots', { path }))
-  if (real === root && !opts.allowRoot) throw new HttpError(403, msg('files_error_rootReadonly', { root }))
+  if (!root) throw new HttpError(403, msg(m.files_error_outsideRoots, { path }))
+  if (real === root && !opts.allowRoot) throw new HttpError(403, msg(m.files_error_rootReadonly, { root }))
   return { real, root }
 }
 
@@ -172,7 +173,7 @@ export class SystemFiles implements FilesBackend {
 
   async listDir(path: string): Promise<DirListing> {
     const { real, root } = resolveInRoots(path, this.rootsFn(), { allowRoot: true })
-    if (!statSync(real).isDirectory()) throw new HttpError(400, msg('files_error_notFolder', { path }))
+    if (!statSync(real).isDirectory()) throw new HttpError(400, msg(m.files_error_notFolder, { path }))
     const users = idNames('/etc/passwd')
     const groups = idNames('/etc/group')
     const names = readdirSync(real)
@@ -186,7 +187,7 @@ export class SystemFiles implements FilesBackend {
           try {
             target = realpathSync(p)
           } catch {
-            target = msg('files_label_targetMissing')
+            target = msg(m.files_label_targetMissing)
           }
         }
         entries.push(entryFrom(name, st, users, groups, target))
@@ -199,7 +200,7 @@ export class SystemFiles implements FilesBackend {
 
   private readFile(real: string): TextFile {
     const st = statSync(real)
-    if (!st.isFile()) throw new HttpError(400, msg('files_error_notAFile', { path: real }))
+    if (!st.isFile()) throw new HttpError(400, msg(m.files_error_notAFile, { path: real }))
     let raw: Uint8Array | undefined
     if (st.size <= TEXT_MAX) raw = readFileSync(real)
     else {
@@ -244,7 +245,7 @@ export class SystemFiles implements FilesBackend {
     const { real } = resolveInRoots(path, this.rootsFn())
     assertReadable(path, real, allowSensitive)
     const st = statSync(real)
-    if (!st.isFile()) throw new HttpError(400, msg('files_error_notAFile', { path }))
+    if (!st.isFile()) throw new HttpError(400, msg(m.files_error_notAFile, { path }))
     return { name: baseName(real), size: st.size, mtime: st.mtimeMs, blob: Bun.file(real) }
   }
 
@@ -252,7 +253,7 @@ export class SystemFiles implements FilesBackend {
     const bad = validateName(baseName(path))
     if (bad) throw new HttpError(400, bad)
     const { real } = resolveInRoots(path, this.rootsFn(), { parentOnly: true })
-    if (existsSync(real)) throw new HttpError(409, msg('files_error_exists', { name: baseName(path) }))
+    if (existsSync(real)) throw new HttpError(409, msg(m.files_error_exists, { name: baseName(path) }))
     mkdirSync(real, { mode: 0o775 })
     // Same owner as the folder it lives in (not root).
     const parent = statSync(parentOf(real))
@@ -265,11 +266,11 @@ export class SystemFiles implements FilesBackend {
     // The entry itself, not its symlink target, is renamed.
     const { real } = resolveInRoots(path, this.rootsFn(), { parentOnly: true })
     const dest = joinPath(parentOf(real), newName)
-    if (existsSync(dest)) throw new HttpError(409, msg('files_error_renameExists', { newName }))
+    if (existsSync(dest)) throw new HttpError(409, msg(m.files_error_renameExists, { newName }))
     try {
       lstatSync(real)
     } catch {
-      throw new HttpError(404, msg('files_error_notFound', { path }))
+      throw new HttpError(404, msg(m.files_error_notFound, { path }))
     }
     renameSync(real, dest)
   }
@@ -360,7 +361,7 @@ export class FixtureFiles implements FilesBackend {
     const bad = validatePath(path)
     if (bad) throw new HttpError(400, bad)
     const root = [...this.tree.keys()].find((r) => path === r || path.startsWith(r + '/'))
-    if (!root) throw new HttpError(403, msg('files_error_outsideRoots', { path }))
+    if (!root) throw new HttpError(403, msg(m.files_error_outsideRoots, { path }))
     return root
   }
 
@@ -371,8 +372,8 @@ export class FixtureFiles implements FilesBackend {
   async listDir(path: string): Promise<DirListing> {
     const root = this.rootOf(path)
     const n = this.node(path)
-    if (!n) throw new HttpError(404, msg('files_error_notFound', { path }))
-    if (n.type !== 'dir') throw new HttpError(400, msg('files_error_notFolder', { path }))
+    if (!n) throw new HttpError(404, msg(m.files_error_notFound, { path }))
+    if (n.type !== 'dir') throw new HttpError(400, msg(m.files_error_notFolder, { path }))
     const entries = [...n.children!].map(([name, c]) => ({ name, type: c.type, size: c.size, mtime: c.mtime, mode: c.type === 'dir' ? '775' : '664', owner: c.owner, group: c.owner === 'root' ? 'root' : 'users' }))
     return { path, root, entries, truncated: false }
   }
@@ -380,8 +381,8 @@ export class FixtureFiles implements FilesBackend {
   private fixtureText(path: string): TextFile {
     this.rootOf(path)
     const n = this.node(path)
-    if (!n) throw new HttpError(404, msg('files_error_notFound', { path }))
-    if (n.type !== 'file') throw new HttpError(400, msg('files_error_notAFile', { path }))
+    if (!n) throw new HttpError(404, msg(m.files_error_notFound, { path }))
+    if (n.type !== 'file') throw new HttpError(400, msg(m.files_error_notAFile, { path }))
     // Demo files without content (videos, archives) are binary.
     const raw = n.content !== undefined ? new TextEncoder().encode(n.content) : n.source ? new Uint8Array(readFileSync(n.source)) : new Uint8Array([0, 1, 2])
     return textFileFrom(path, n.content !== undefined || n.size <= TEXT_MAX ? raw : undefined, { size: n.size, mtime: n.mtime, owner: n.owner, mode: '664' })
@@ -397,11 +398,11 @@ export class FixtureFiles implements FilesBackend {
     this.rootOf(path)
     assertReadable(path, path, allowSensitive)
     const n = this.node(path)
-    if (!n) throw new HttpError(404, msg('files_error_notFound', { path }))
-    if (n.type !== 'file') throw new HttpError(400, msg('files_error_notAFile', { path }))
+    if (!n) throw new HttpError(404, msg(m.files_error_notFound, { path }))
+    if (n.type !== 'file') throw new HttpError(400, msg(m.files_error_notAFile, { path }))
     const blob = n.source ? Bun.file(n.source) : n.content !== undefined ? new Blob([n.content]) : undefined
     // The demo's films and archives are only names.
-    if (!blob) throw new HttpError(404, msg('files_error_demoNoContent'))
+    if (!blob) throw new HttpError(404, msg(m.files_error_demoNoContent))
     return { name: baseName(path), size: blob.size, mtime: n.mtime, blob }
   }
 
@@ -418,10 +419,10 @@ export class FixtureFiles implements FilesBackend {
     const bad = validateName(baseName(path))
     if (bad) throw new HttpError(400, bad)
     const root = this.rootOf(path)
-    if (path === root) throw new HttpError(403, msg('files_error_rootItself'))
+    if (path === root) throw new HttpError(403, msg(m.files_error_rootItself))
     const parent = this.node(parentOf(path))
-    if (!parent?.children) throw new HttpError(404, msg('files_error_parentNotFound', { path: parentOf(path) }))
-    if (parent.children.has(baseName(path))) throw new HttpError(409, msg('files_error_exists', { name: baseName(path) }))
+    if (!parent?.children) throw new HttpError(404, msg(m.files_error_parentNotFound, { path: parentOf(path) }))
+    if (parent.children.has(baseName(path))) throw new HttpError(409, msg(m.files_error_exists, { name: baseName(path) }))
     parent.children.set(baseName(path), { type: 'dir', size: 0, mtime: Date.now(), owner: parent.owner, children: new Map() })
   }
 
@@ -429,11 +430,11 @@ export class FixtureFiles implements FilesBackend {
     const bad = validateName(newName)
     if (bad) throw new HttpError(400, bad)
     const root = this.rootOf(path)
-    if (path === root) throw new HttpError(403, msg('files_error_rootReadonly', { root }))
+    if (path === root) throw new HttpError(403, msg(m.files_error_rootReadonly, { root }))
     const parent = this.node(parentOf(path))!
     const n = parent?.children?.get(baseName(path))
-    if (!n) throw new HttpError(404, msg('files_error_notFound', { path }))
-    if (parent.children!.has(newName)) throw new HttpError(409, msg('files_error_renameExists', { newName }))
+    if (!n) throw new HttpError(404, msg(m.files_error_notFound, { path }))
+    if (parent.children!.has(newName)) throw new HttpError(409, msg(m.files_error_renameExists, { newName }))
     parent.children!.delete(baseName(path))
     parent.children!.set(newName, n)
   }
@@ -444,20 +445,20 @@ export class FixtureFiles implements FilesBackend {
       file: (p) => {
         this.rootOf(p)
         const n = node(p)
-        if (!n) throw new HttpError(404, msg('files_error_notFound', { path: p }))
-        if (n.type !== 'file') throw new HttpError(400, msg('files_error_notAFile', { path: p }))
+        if (!n) throw new HttpError(404, msg(m.files_error_notFound, { path: p }))
+        if (n.type !== 'file') throw new HttpError(400, msg(m.files_error_notAFile, { path: p }))
         return p
       },
       dir: (p) => {
         this.rootOf(p)
         const n = node(p)
         if (n) {
-          if (n.type !== 'dir') throw new HttpError(400, msg('files_error_transferNotFolder', { path: p }))
+          if (n.type !== 'dir') throw new HttpError(400, msg(m.files_error_transferNotFolder, { path: p }))
           return { real: p, exists: true }
         }
         const bad = validateName(baseName(p))
         if (bad) throw new HttpError(400, bad)
-        if (node(parentOf(p))?.type !== 'dir') throw new HttpError(404, msg('files_error_notFound', { path: parentOf(p) }))
+        if (node(parentOf(p))?.type !== 'dir') throw new HttpError(404, msg(m.files_error_notFound, { path: parentOf(p) }))
         return { real: p, exists: false }
       },
       exists: (p) => !!node(p),
@@ -519,14 +520,14 @@ export class FixtureFiles implements FilesBackend {
     for (const p of paths) {
       const parent = this.node(parentOf(p))
       const n = parent?.children?.get(baseName(p))
-      if (!n || !parent?.children) throw new Error(msg('files_error_transferNotFound', { path: p }))
+      if (!n || !parent?.children) throw new Error(msg(m.files_error_transferNotFound, { path: p }))
       if (kind === 'delete') {
         parent.children.delete(baseName(p))
         lines.push(`removed '${p}'`)
         continue
       }
       const dest = this.node(toDir!)
-      if (!dest?.children) throw new Error(msg('files_error_targetNotFound', { toDir: toDir ?? '' }))
+      if (!dest?.children) throw new Error(msg(m.files_error_targetNotFound, { toDir: toDir ?? '' }))
       dest.children.set(baseName(p), kind === 'copy' ? structuredClone(n) : n)
       if (kind === 'move') parent.children.delete(baseName(p))
       lines.push(`'${p}' -> '${joinPath(toDir!, baseName(p))}'`)
@@ -543,13 +544,13 @@ export class FixtureFiles implements FilesBackend {
     return {
       entry: (p) => {
         const root = this.rootOf(p)
-        if (p === root) throw new HttpError(403, msg('files_error_rootReadonly', { root }))
-        if (!this.node(p)) throw new HttpError(404, msg('files_error_transferNotFound', { path: p }))
+        if (p === root) throw new HttpError(403, msg(m.files_error_rootReadonly, { root }))
+        if (!this.node(p)) throw new HttpError(404, msg(m.files_error_transferNotFound, { path: p }))
         return p
       },
       dir: (p) => {
         this.rootOf(p)
-        if (this.node(p)?.type !== 'dir') throw new HttpError(400, msg('files_error_transferNotFolder', { path: p }))
+        if (this.node(p)?.type !== 'dir') throw new HttpError(400, msg(m.files_error_transferNotFolder, { path: p }))
         return p
       },
       exists: (p) => this.exists(p),

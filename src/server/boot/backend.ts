@@ -10,6 +10,7 @@ import { release } from 'node:os'
 import { statfs } from 'node:fs/promises'
 import { dirname, join } from 'node:path'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { HttpError } from '../auth'
 import { run } from '../exec'
 import { UnitHistory } from '../systemd/editor'
@@ -69,16 +70,16 @@ export interface BootBackend extends BootAdmin {
 
 /** Checks shared by the real machine and the demo. */
 export function entryForFlavor(state: BootState, pkg: string, read: (p: string) => string | undefined, exists: (p: string) => boolean) {
-  if (!isFlavor(pkg)) throw new HttpError(400, msg('boot_error_unknownKernel'))
-  if (state.loader !== 'systemd-boot' || !state.canCreateEntries) throw new HttpError(409, msg('boot_error_entriesBySystem'))
+  if (!isFlavor(pkg)) throw new HttpError(400, msg(m.boot_error_unknownKernel))
+  if (state.loader !== 'systemd-boot' || !state.canCreateEntries) throw new HttpError(409, msg(m.boot_error_entriesBySystem))
   const k = state.kernels?.find((x) => x.pkg === pkg)
-  if (!k?.installed) throw new HttpError(409, msg('boot_error_notInstalled', { pkg }))
-  if (k.entries.length) throw new HttpError(409, msg('boot_error_alreadyHasEntry', { pkg }))
+  if (!k?.installed) throw new HttpError(409, msg(m.boot_error_notInstalled, { pkg }))
+  if (k.entries.length) throw new HttpError(409, msg(m.boot_error_alreadyHasEntry, { pkg }))
   const def = state.entries.find((e) => e.isDefault && e.type === 'type1' && e.path)
   const template = def?.path ? read(def.path) : undefined
-  if (!def?.path || !template) throw new HttpError(409, msg('boot_error_noTemplateEntry'))
+  if (!def?.path || !template) throw new HttpError(409, msg(m.boot_error_noTemplateEntry))
   const boot = state.boot?.path ?? dirname(dirname(dirname(def.path)))
-  for (const f of [`/vmlinuz-${pkg}`, `/initramfs-${pkg}.img`]) if (!exists(join(boot, f))) throw new HttpError(409, msg('boot_error_imageMissing', { boot, file: f }))
+  for (const f of [`/vmlinuz-${pkg}`, `/initramfs-${pkg}.img`]) if (!exists(join(boot, f))) throw new HttpError(409, msg(m.boot_error_imageMissing, { boot, file: f }))
   const dir = dirname(def.path)
   let path = join(dir, kernelEntryId(pkg as KernelFlavor))
   if (exists(path)) path = join(dir, `quadeck-${pkg}.conf`)
@@ -101,18 +102,18 @@ export interface EntryHost {
 const entryRoot = (path: string) => dirname(dirname(dirname(path)))
 
 function entriesDir(state: BootState): string {
-  if (state.loader !== 'systemd-boot') throw new HttpError(409, msg('boot_error_noSystemdBoot'))
+  if (state.loader !== 'systemd-boot') throw new HttpError(409, msg(m.boot_error_noSystemdBoot))
   const e = state.entries.find(isEditableEntry)
   if (e?.path) return dirname(e.path)
   if (state.boot) return join(state.boot.path, 'loader/entries')
-  throw new HttpError(409, msg('boot_error_noEntriesDir'))
+  throw new HttpError(409, msg(m.boot_error_noEntriesDir))
 }
 
 function editableEntry(state: BootState, id: string): BootEntry & { path: string } {
-  if (!ENTRY_ID.test(id)) throw new HttpError(400, msg('boot_error_invalidEntry'))
+  if (!ENTRY_ID.test(id)) throw new HttpError(400, msg(m.boot_error_invalidEntry))
   const e = state.entries.find((x) => x.id === id)
-  if (!e) throw new HttpError(404, msg('boot_error_entryNotFound', { id }))
-  if (!isEditableEntry(e)) throw new HttpError(409, msg('boot_error_notLoaderEntry'))
+  if (!e) throw new HttpError(404, msg(m.boot_error_entryNotFound, { id }))
+  if (!isEditableEntry(e)) throw new HttpError(409, msg(m.boot_error_notLoaderEntry))
   return e as BootEntry & { path: string }
 }
 
@@ -121,7 +122,7 @@ const locked = (e: BootEntry) => (e.isDefault ? 'default' : e.isSelected ? 'runn
 export function entryFile(state: BootState, id: string, host: EntryHost): BootEntryFile {
   const e = editableEntry(state, id)
   const content = host.read(e.path)
-  if (content === undefined) throw new HttpError(404, msg('boot_error_entryNotFound', { id }))
+  if (content === undefined) throw new HttpError(404, msg(m.boot_error_entryNotFound, { id }))
   return { id, path: e.path, content, hash: contentHash(content), locked: locked(e), history: host.history.list(e.path) }
 }
 
@@ -144,14 +145,14 @@ export function checkEntry(state: BootState, content: string, host: EntryHost, d
 
 function assertChecked(state: BootState, content: string, host: EntryHost, dir: string) {
   const errors = checkEntry(state, content, host, dir).filter((p) => p.level === 'error')
-  if (errors.length) throw new HttpError(422, msg('boot_error_invalidContent', { problems: errors.map((p) => (p.line ? `${msg('boot_check_line', { line: p.line })} ${p.text}` : p.text)).join('; ') }))
+  if (errors.length) throw new HttpError(422, msg(m.boot_error_invalidContent, { problems: errors.map((p) => (p.line ? `${msg(m.boot_check_line, { line: p.line })} ${p.text}` : p.text)).join('; ') }))
 }
 
 const withNewline = (s: string) => (s.endsWith('\n') ? s : `${s}\n`)
 
 function freeName(state: BootState, dir: string, name: string, host: EntryHost) {
-  if (!ENTRY_FILE.test(name)) throw new HttpError(400, msg('boot_error_invalidFileName'))
-  if (state.entries.some((e) => e.id === name) || host.read(join(dir, name)) !== undefined) throw new HttpError(409, msg('boot_error_nameTaken', { name }))
+  if (!ENTRY_FILE.test(name)) throw new HttpError(400, msg(m.boot_error_invalidFileName))
+  if (state.entries.some((e) => e.id === name) || host.read(join(dir, name)) !== undefined) throw new HttpError(409, msg(m.boot_error_nameTaken, { name }))
   return join(dir, name)
 }
 
@@ -172,10 +173,10 @@ export async function applyEntryChange(state: BootState, change: BootEntryChange
   }
   const e = editableEntry(state, change.id)
   const before = host.read(e.path)
-  if (before === undefined) throw new HttpError(404, msg('boot_error_entryNotFound', { id: change.id }))
+  if (before === undefined) throw new HttpError(404, msg(m.boot_error_entryNotFound, { id: change.id }))
   if (change.kind === 'edit') {
-    if (locked(e)) throw new HttpError(409, msg('boot_error_entryLocked'))
-    if (change.expected && change.expected !== contentHash(before)) throw new HttpError(409, msg('boot_error_changedMeanwhile'))
+    if (locked(e)) throw new HttpError(409, msg(m.boot_error_entryLocked))
+    if (change.expected && change.expected !== contentHash(before)) throw new HttpError(409, msg(m.boot_error_changedMeanwhile))
     const content = withNewline(change.content)
     assertChecked(state, content, host, dirname(e.path))
     if (content === before) return
@@ -198,9 +199,9 @@ export async function applyEntryChange(state: BootState, change: BootEntryChange
 /** Path of an entry that may go; its text is kept in the history. */
 export function removeEntry(state: BootState, id: string, host: EntryHost) {
   const e = editableEntry(state, id)
-  if (e.isDefault || e.isSelected) throw new HttpError(409, msg('boot_error_entryInUse'))
-  if (e.isOneshot) throw new HttpError(409, msg('boot_error_entryIsOneshot'))
-  if (!state.entries.some((x) => x.id !== id && x.type !== 'auto' && !x.missing.length)) throw new HttpError(409, msg('boot_error_lastEntry'))
+  if (e.isDefault || e.isSelected) throw new HttpError(409, msg(m.boot_error_entryInUse))
+  if (e.isOneshot) throw new HttpError(409, msg(m.boot_error_entryIsOneshot))
+  if (!state.entries.some((x) => x.id !== id && x.type !== 'auto' && !x.missing.length)) throw new HttpError(409, msg(m.boot_error_lastEntry))
   const content = host.read(e.path)
   if (content !== undefined) host.history.add(e.path, content, 'deleted')
   host.remove(e.path)
@@ -227,12 +228,12 @@ const read = (p: string) => {
 }
 
 export function assertEntry(id: string, entries: BootEntry[]) {
-  if (!ENTRY_ID.test(id)) throw new HttpError(400, msg('boot_error_invalidEntry'))
-  if (!entries.some((e) => e.id === id)) throw new HttpError(404, msg('boot_error_entryNotFound', { id }))
+  if (!ENTRY_ID.test(id)) throw new HttpError(400, msg(m.boot_error_invalidEntry))
+  if (!entries.some((e) => e.id === id)) throw new HttpError(404, msg(m.boot_error_entryNotFound, { id }))
 }
 
 export function assertTimeout(v: string) {
-  if (!TIMEOUT_VALUE.test(v) || (/^\d+$/.test(v) && Number(v) > 600)) throw new HttpError(400, msg('boot_error_invalidTimeout'))
+  if (!TIMEOUT_VALUE.test(v) || (/^\d+$/.test(v) && Number(v) > 600)) throw new HttpError(400, msg(m.boot_error_invalidTimeout))
 }
 
 export class SystemBoot implements BootBackend {
@@ -317,7 +318,7 @@ export class SystemBoot implements BootBackend {
 
   private async systemdBoot() {
     const s = await this.bootState()
-    if (s.loader !== 'systemd-boot') throw new HttpError(409, msg('boot_error_noSystemdBoot'))
+    if (s.loader !== 'systemd-boot') throw new HttpError(409, msg(m.boot_error_noSystemdBoot))
     return s
   }
 
@@ -546,13 +547,13 @@ export class FixtureBoot implements BootBackend {
         list: (p) => (this.revs.get(p) ?? []).map((r) => r.rev),
         read: (p, id) => {
           const r = this.revs.get(p)?.find((x) => x.rev.id === id)
-          if (!r) throw new HttpError(404, msg('common_errors_versionNotFound'))
+          if (!r) throw new HttpError(404, msg(m.common_errors_versionNotFound))
           return r.content
         },
-        add: (p, content) => add(p, content, msg('systemd_history_beforeDelete')),
+        add: (p, content) => add(p, content, msg(m.systemd_history_beforeDelete)),
         saved: (p, before, after) => {
-          if (before !== undefined && !this.revs.get(p)?.length) add(p, before, msg('common_history_original'))
-          add(p, after, msg('notifications_saved'))
+          if (before !== undefined && !this.revs.get(p)?.length) add(p, before, msg(m.common_history_original))
+          add(p, after, msg(m.notifications_saved))
         },
       },
     }

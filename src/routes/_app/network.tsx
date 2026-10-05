@@ -15,7 +15,7 @@ type Tab = 'interfaces' | 'devices' | 'ports' | 'firewall' | 'proxy' | 'speed'
 
 export const Route = createFileRoute('/_app/network')({
   validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({ tab: s.tab === 'devices' || s.tab === 'ports' || s.tab === 'firewall' || s.tab === 'proxy' || s.tab === 'speed' ? s.tab : undefined }),
-  head: () => ({ meta: [{ title: msg('page_title_network') }] }),
+  head: () => ({ meta: [{ title: msg(m.page_title_network) }] }),
   component: NetworkPage,
 })
 

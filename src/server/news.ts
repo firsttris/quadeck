@@ -7,6 +7,7 @@ import type { NewsItem } from '~/shared/packages'
 import { config } from './config'
 import { parseRss } from './packages/parse'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 
 const FEED = 'https://archlinux.org/feeds/news/'
 const TTL = 3 * 60 * 60_000
@@ -23,7 +24,7 @@ export async function archNews(): Promise<{ items: NewsItem[]; error?: string }>
     cache = { at: Date.now(), items: parseRss(text.slice(0, 2_000_000)).slice(0, 8) }
   } catch (e) {
     // Keep showing the last good list; retry in ten minutes.
-    cache = { at: Date.now() - TTL + 10 * 60_000, items: cache?.items ?? [], error: msg('news_error_unreachable') + (e as Error).message }
+    cache = { at: Date.now() - TTL + 10 * 60_000, items: cache?.items ?? [], error: msg(m.news_error_unreachable) + (e as Error).message }
   }
   return cache
 }

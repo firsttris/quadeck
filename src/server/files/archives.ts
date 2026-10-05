@@ -6,6 +6,7 @@
 import { chownSync, lstatSync, mkdirSync, statfsSync, statSync } from 'node:fs'
 import { HttpError } from '../auth'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { archiveFormat, checkEntries, extractBlocked, normEntry, packName, parseTarList, parseZipInfo, type ArchiveEntry, type ArchiveFormat, type ArchivePreview, type PackFormat } from '~/shared/archives'
 import { baseName, joinPath, parentOf, validateName } from '~/shared/files'
 import type { JobSpec } from '~/shared/packages'
@@ -32,7 +33,7 @@ const MAX_PREFIXES = 5000
 
 export async function previewExtract(archive: string, toDir: string, host: ArchiveHost): Promise<ArchivePreview> {
   const format = archiveFormat(archive)
-  if (!format) throw new HttpError(400, msg('files_archive_notArchive', { name: baseName(archive) }))
+  if (!format) throw new HttpError(400, msg(m.files_archive_notArchive, { name: baseName(archive) }))
   const real = host.file(archive)
   const target = host.dir(toDir)
   const base = { archive, format, toDir: target.real, create: !target.exists, free: host.free(target.exists ? target.real : parentOf(target.real)) }
@@ -64,11 +65,11 @@ export async function previewExtract(archive: string, toDir: string, host: Archi
 
 /** Why the preview can't be unpacked (for the job and API errors). */
 export function blockedReason(p: ArchivePreview): string {
-  if (p.missing) return msg('files_archive_needsUnzip')
-  if (p.problems.length) return msg('files_archive_unsafe', { paths: p.problems.slice(0, 3).map((x) => x.path).join(', ') })
-  if (p.linkInTarget) return msg('files_archive_linkInTarget', { path: p.linkInTarget })
-  if (p.free !== undefined && p.size > p.free) return msg('files_archive_noSpace')
-  return msg('files_archive_conflicts', { names: p.conflicts.slice(0, 5).join(', ') })
+  if (p.missing) return msg(m.files_archive_needsUnzip)
+  if (p.problems.length) return msg(m.files_archive_unsafe, { paths: p.problems.slice(0, 3).map((x) => x.path).join(', ') })
+  if (p.linkInTarget) return msg(m.files_archive_linkInTarget, { path: p.linkInTarget })
+  if (p.free !== undefined && p.size > p.free) return msg(m.files_archive_noSpace)
+  return msg(m.files_archive_conflicts, { names: p.conflicts.slice(0, 5).join(', ') })
 }
 
 export async function assertExtractable(spec: ExtractJob, host: ArchiveHost): Promise<ArchivePreview> {
@@ -82,15 +83,15 @@ export function preparePack(spec: PackJob, host: ArchiveHost): { dir: string; na
   const bad = validateName(spec.name)
   if (bad) throw new HttpError(400, bad)
   const dirs = new Set(spec.paths.map(parentOf))
-  if (dirs.size !== 1) throw new HttpError(400, msg('files_archive_sameFolder'))
+  if (dirs.size !== 1) throw new HttpError(400, msg(m.files_archive_sameFolder))
   const dir = host.dir([...dirs][0]!)
-  if (!dir.exists) throw new HttpError(404, msg('files_error_notFound', { path: [...dirs][0]! }))
+  if (!dir.exists) throw new HttpError(404, msg(m.files_error_notFound, { path: [...dirs][0]! }))
   const names = spec.paths.map((p) => {
-    if (!host.exists(p)) throw new HttpError(404, msg('files_error_transferNotFound', { path: p }))
+    if (!host.exists(p)) throw new HttpError(404, msg(m.files_error_transferNotFound, { path: p }))
     return baseName(p)
   })
   const out = joinPath(dir.real, packName(spec.name, spec.format))
-  if (host.exists(out)) throw new HttpError(409, msg('files_error_exists', { name: baseName(out) }))
+  if (host.exists(out)) throw new HttpError(409, msg(m.files_error_exists, { name: baseName(out) }))
   return { dir: dir.real, names, out }
 }
 
@@ -113,7 +114,7 @@ async function listSystem(real: string, format: ArchiveFormat): Promise<ArchiveE
   if (format === 'zip') {
     if (!Bun.which('unzip')) return 'zip'
     const r = await run(['unzip', '-Z', '-T', real])
-    if (r.code !== 0) throw new HttpError(422, msg('files_archive_unreadable', { error: (r.stderr || r.stdout).trim().split('\n')[0] ?? '' }))
+    if (r.code !== 0) throw new HttpError(422, msg(m.files_archive_unreadable, { error: (r.stderr || r.stdout).trim().split('\n')[0] ?? '' }))
     const entries = parseZipInfo(r.stdout)
     // zip keeps a symlink's target as its content
     for (const e of entries.filter((x) => x.type === 'link').slice(0, 1000)) {
@@ -123,7 +124,7 @@ async function listSystem(real: string, format: ArchiveFormat): Promise<ArchiveE
     return entries
   }
   const r = await run(['tar', '-t', '-v', '-f', real])
-  if (r.code !== 0) throw new HttpError(422, msg('files_archive_unreadable', { error: (r.stderr || r.stdout).trim().split('\n').pop() ?? '' }))
+  if (r.code !== 0) throw new HttpError(422, msg(m.files_archive_unreadable, { error: (r.stderr || r.stdout).trim().split('\n').pop() ?? '' }))
   return parseTarList(r.stdout)
 }
 
@@ -131,13 +132,13 @@ export function systemArchiveHost(roots: string[]): ArchiveHost {
   return {
     file: (path) => {
       const { real } = resolveInRoots(path, roots)
-      if (!statSync(real).isFile()) throw new HttpError(400, msg('files_error_notAFile', { path }))
+      if (!statSync(real).isFile()) throw new HttpError(400, msg(m.files_error_notAFile, { path }))
       return real
     },
     dir: (path) => {
       try {
         const { real } = resolveInRoots(path, roots, { allowRoot: true })
-        if (!statSync(real).isDirectory()) throw new HttpError(400, msg('files_error_transferNotFolder', { path }))
+        if (!statSync(real).isDirectory()) throw new HttpError(400, msg(m.files_error_transferNotFolder, { path }))
         return { real, exists: true }
       } catch (e) {
         if (!(e instanceof HttpError) || e.status !== 404) throw e

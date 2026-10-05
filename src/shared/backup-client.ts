@@ -3,6 +3,7 @@
 // configuration, a systemd user timer and the `quadeck-backup` command. No I/O here.
 
 import { msg } from './i18n'
+import { m } from '~/paraglide/messages'
 
 export type ClientPreset = 'caches' | 'trash' | 'dev' | 'temp' | 'downloads' | 'vms' | 'games' | 'nobackup'
 export const CLIENT_PRESETS: ClientPreset[] = ['caches', 'trash', 'dev', 'temp', 'downloads', 'vms', 'games', 'nobackup']
@@ -44,18 +45,18 @@ const CTRL = /[\x00-\x1f\x7f]/ // eslint-disable-line no-control-regex
 
 /** `~`, `~/a/b` or `/a/b`: no empty, `.` or `..` segments, no trailing slash, not `/` itself. */
 function folderProblem(f: unknown): string | undefined {
-  if (typeof f !== 'string' || f.length > 1024 || CTRL.test(f)) return msg('backup_error_path', { path: String(f) })
+  if (typeof f !== 'string' || f.length > 1024 || CTRL.test(f)) return msg(m.backup_error_path, { path: String(f) })
   if (f === '~') return undefined
   const rest = f.startsWith('~/') ? f.slice(2) : f.startsWith('/') ? f.slice(1) : undefined
-  if (!rest || rest.split('/').some((seg) => seg === '' || seg === '.' || seg === '..')) return msg('backup_error_path', { path: f })
+  if (!rest || rest.split('/').some((seg) => seg === '' || seg === '.' || seg === '..')) return msg(m.backup_error_path, { path: f })
   return undefined
 }
 
 export function parseClientPlan(v: unknown): { plan?: ClientPlan; error?: string } {
   const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>
   const folders = Array.isArray(o.folders) ? [...new Set((o.folders as unknown[]).map((f) => (typeof f === 'string' ? f.trim() : f)))] : []
-  if (!folders.length) return { error: msg('backup_error_noPaths') }
-  if (folders.length > 50) return { error: msg('backup_error_tooMany') }
+  if (!folders.length) return { error: msg(m.backup_error_noPaths) }
+  if (folders.length > 50) return { error: msg(m.backup_error_tooMany) }
   for (const f of folders) {
     const p = folderProblem(f)
     if (p) return { error: p }
@@ -63,19 +64,19 @@ export function parseClientPlan(v: unknown): { plan?: ClientPlan; error?: string
   const ex = (o.exclude && typeof o.exclude === 'object' ? o.exclude : {}) as Record<string, unknown>
   const presets = (Array.isArray(ex.presets) ? ex.presets : []).filter((x): x is ClientPreset => CLIENT_PRESETS.includes(x as ClientPreset))
   const patterns = (Array.isArray(ex.patterns) ? ex.patterns : []).map((x) => (typeof x === 'string' ? x.trim() : '')).filter(Boolean)
-  if (patterns.length > 200 || patterns.some((x) => x.length > 300 || CTRL.test(x))) return { error: msg('backup_error_pattern') }
+  if (patterns.length > 200 || patterns.some((x) => x.length > 300 || CTRL.test(x))) return { error: msg(m.backup_error_pattern) }
   let maxSizeGB: number | undefined
   if (ex.maxSizeGB !== undefined && ex.maxSizeGB !== null) {
     maxSizeGB = Number(ex.maxSizeGB)
-    if (!Number.isFinite(maxSizeGB) || maxSizeGB <= 0 || maxSizeGB > 100_000) return { error: msg('backup_error_maxSize') }
+    if (!Number.isFinite(maxSizeGB) || maxSizeGB <= 0 || maxSizeGB > 100_000) return { error: msg(m.backup_error_maxSize) }
   }
   const sched = (o.schedule && typeof o.schedule === 'object' ? o.schedule : {}) as Record<string, unknown>
   const every = sched.every as ClientEvery
-  if (!['hourly', '6h', 'daily', 'weekly'].includes(every) || typeof sched.time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(sched.time)) return { error: msg('backup_error_schedule') }
+  if (!['hourly', '6h', 'daily', 'weekly'].includes(every) || typeof sched.time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(sched.time)) return { error: msg(m.backup_error_schedule) }
   const k = (o.keep && typeof o.keep === 'object' ? o.keep : {}) as Record<string, unknown>
   const num = (x: unknown) => (Number.isInteger(x) && (x as number) >= 0 && (x as number) <= 1000 ? (x as number) : NaN)
   const keep = { daily: num(k.daily), weekly: num(k.weekly), monthly: num(k.monthly) }
-  if (Object.values(keep).some(Number.isNaN) || keep.daily + keep.weekly + keep.monthly === 0) return { error: msg('backup_error_keep') }
+  if (Object.values(keep).some(Number.isNaN) || keep.daily + keep.weekly + keep.monthly === 0) return { error: msg(m.backup_error_keep) }
   return { plan: { folders: folders as string[], exclude: { presets, patterns, ...(maxSizeGB ? { maxSizeGB } : {}) }, schedule: { every, time: sched.time }, keep, active: o.active !== false } }
 }
 

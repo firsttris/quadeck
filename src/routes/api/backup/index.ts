@@ -7,6 +7,7 @@ import { unlockToken } from '~/server/unlock-sessions'
 import { QUADECK_URL, parseClientPlan } from '~/shared/backup-client'
 import { CLIENT_NAME, parseBackupPlan, parseClientChange, parseSecrets, parseTargetConfig, parseWarnDays } from '~/shared/backup'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 
 // GET: the state (?refresh: read the snapshot list from the repository again), ?suggest: what the
 // Quadlets suggest, ?snapshot=…&dir=… a folder of a snapshot, ?snapshot=…&path=… a file (a folder as
@@ -71,7 +72,7 @@ export const Route = createFileRoute('/api/backup/')({
         if (b.target?.remove === true) return Response.json(await p.removeTarget(token))
         const c = b.client
         const name = (v: unknown) => {
-          if (typeof v !== 'string' || !CLIENT_NAME.test(v)) throw new HttpError(400, msg('backup_error_clientName'))
+          if (typeof v !== 'string' || !CLIENT_NAME.test(v)) throw new HttpError(400, msg(m.backup_error_clientName))
           return v
         }
         if (c?.add) return Response.json(await p.addBackupClient(token, name(c.add.name), parseWarnDays(c.add.warnDays) ?? undefined))
@@ -85,11 +86,11 @@ export const Route = createFileRoute('/api/backup/')({
         if (c?.link) {
           // The address the browser uses for Quadeck: the client fetches the script from there.
           const origin = typeof c.link.origin === 'string' ? c.link.origin : ''
-          if (!QUADECK_URL.test(origin)) throw new HttpError(400, msg('backup_error_url'))
+          if (!QUADECK_URL.test(origin)) throw new HttpError(400, msg(m.backup_error_url))
           return Response.json(await p.backupClientLink(token, name(c.link.name), origin))
         }
         if (c?.remove) return Response.json(await p.removeBackupClient(token, name(c.remove.name), c.remove.deleteData === true))
-        throw new HttpError(400, msg('common_errors_unknownRequest'))
+        throw new HttpError(400, msg(m.common_errors_unknownRequest))
       }),
     },
   },

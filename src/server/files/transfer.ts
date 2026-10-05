@@ -4,6 +4,7 @@
 import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from 'node:fs'
 import { HttpError } from '../auth'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { baseName, joinPath, parentOf } from '~/shared/files'
 import type { JobSpec } from '~/shared/packages'
 import { resolveInRoots } from './backend'
@@ -25,13 +26,13 @@ export function systemFsOps(roots: string[]): FsOps {
       try {
         lstatSync(real)
       } catch {
-        throw new HttpError(404, msg('files_error_transferNotFound', { path: p }))
+        throw new HttpError(404, msg(m.files_error_transferNotFound, { path: p }))
       }
       return real
     },
     dir: (p) => {
       const { real } = resolveInRoots(p, roots, { allowRoot: true })
-      if (!statSync(real).isDirectory()) throw new HttpError(400, msg('files_error_transferNotFolder', { path: p }))
+      if (!statSync(real).isDirectory()) throw new HttpError(400, msg(m.files_error_transferNotFolder, { path: p }))
       return real
     },
     exists: (p) => {
@@ -52,11 +53,11 @@ export function prepareFsJob(spec: FsJob, ops: FsOps): { sources: string[]; toDi
   const toDir = ops.dir(spec.toDir)
   const conflicts: string[] = []
   for (const s of sources) {
-    if (toDir === s || toDir.startsWith(s + '/')) throw new HttpError(400, spec.kind === 'fs-copy' ? msg('files_error_copyIntoItself', { name: baseName(s) }) : msg('files_error_moveIntoItself', { name: baseName(s) }))
-    if (spec.kind === 'fs-move' && parentOf(s) === toDir) throw new HttpError(400, msg('files_error_alreadyInFolder', { name: baseName(s) }))
+    if (toDir === s || toDir.startsWith(s + '/')) throw new HttpError(400, spec.kind === 'fs-copy' ? msg(m.files_error_copyIntoItself, { name: baseName(s) }) : msg(m.files_error_moveIntoItself, { name: baseName(s) }))
+    if (spec.kind === 'fs-move' && parentOf(s) === toDir) throw new HttpError(400, msg(m.files_error_alreadyInFolder, { name: baseName(s) }))
     if (ops.exists(joinPath(toDir, baseName(s)))) conflicts.push(baseName(s))
   }
-  if (conflicts.length && !spec.overwrite) throw new HttpError(409, msg('files_error_existsInTarget') + `${conflicts.slice(0, 5).join(', ')}${conflicts.length > 5 ? ` +${conflicts.length - 5}` : ''}`)
+  if (conflicts.length && !spec.overwrite) throw new HttpError(409, msg(m.files_error_existsInTarget) + `${conflicts.slice(0, 5).join(', ')}${conflicts.length > 5 ? ` +${conflicts.length - 5}` : ''}`)
   return { sources, toDir }
 }
 
@@ -101,7 +102,7 @@ export function fsJobSteps(spec: FsJob, prepared: { sources: string[]; toDir?: s
 /** Without --one-file-system, refuse to delete a tree with something mounted inside. */
 export function assertNoMountsInside(sources: string[], mounts: string = readMounts()) {
   const inside = mountsInside(sources, mounts)
-  if (inside.length) throw new HttpError(409, msg('files_error_mountInside', { path: inside[0]! }))
+  if (inside.length) throw new HttpError(409, msg(m.files_error_mountInside, { path: inside[0]! }))
 }
 
 function readMounts(): string {

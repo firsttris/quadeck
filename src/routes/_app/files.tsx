@@ -11,7 +11,7 @@ export const Route = createFileRoute('/_app/files')({
     path: typeof s.path === 'string' && s.path.startsWith('/') ? s.path : undefined,
     right: typeof s.right === 'string' && (s.right === '' || s.right.startsWith('/')) ? s.right : undefined,
   }),
-  head: () => ({ meta: [{ title: msg('page_title_files') }] }),
+  head: () => ({ meta: [{ title: msg(m.page_title_files) }] }),
   component: FilesPage,
 })
 
