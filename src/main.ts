@@ -65,6 +65,62 @@ const MIME: Record<string, string> = {
   txt: 'text/plain; charset=utf-8',
 }
 
+/** Encodings of the precompressed copies (vite.config.ts), best first. */
+const PRECOMPRESSED = [
+  ['br', '.br'],
+  ['gzip', '.gz'],
+] as const
+
+/** Content codings the client accepts (q=0 excluded). */
+function acceptedEncodings(req: Request): Set<string> {
+  const out = new Set<string>()
+  for (const part of (req.headers.get('accept-encoding') ?? '').split(',')) {
+    const [name, ...params] = part.trim().toLowerCase().split(';')
+    const q = params.map((p) => /^\s*q=([\d.]+)\s*$/.exec(p)?.[1]).find((v) => v !== undefined)
+    if (name && (q === undefined || Number(q) > 0)) out.add(name)
+  }
+  return out
+}
+
+/** A static asset, precompressed if the client takes it; plain otherwise. */
+function staticAsset(req: Request, pathname: string, assets: Map<string, string>): Response {
+  const ext = pathname.split('.').pop() ?? ''
+  const headers: Record<string, string> = {
+    'content-type': MIME[ext] ?? 'application/octet-stream',
+    'cache-control': pathname.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'public, max-age=3600',
+  }
+  let file = assets.get(pathname)!
+  const variants = PRECOMPRESSED.filter(([, suffix]) => assets.has(pathname + suffix))
+  if (variants.length) {
+    headers.vary = 'accept-encoding'
+    const accepted = acceptedEncodings(req)
+    const hit = variants.find(([enc]) => accepted.has(enc))
+    if (hit) {
+      headers['content-encoding'] = hit[0]
+      file = assets.get(pathname + hit[1])!
+    }
+  }
+  // Security headers set here directly: rebuilt by withHeaders(), the file would lose its length.
+  return new Response(Bun.file(file), { headers: { ...SECURITY_HEADERS, ...headers } })
+}
+
+/**
+ * Server-rendered pages are gzipped when the client takes it. Only complete
+ * HTML documents: event streams and other streamed or binary bodies pass as they are.
+ */
+async function compressHtml(req: Request, res: Response): Promise<Response> {
+  const type = res.headers.get('content-type') ?? ''
+  if (res.status !== 200 || !res.body || !type.startsWith('text/html') || res.headers.has('content-encoding') || req.method !== 'GET') return res
+  const h = new Headers(res.headers)
+  h.append('vary', 'accept-encoding')
+  if (!acceptedEncodings(req).has('gzip')) return new Response(res.body, { status: res.status, statusText: res.statusText, headers: h })
+  const body = new Uint8Array(await res.arrayBuffer())
+  if (body.length < 1024) return new Response(body, { status: res.status, statusText: res.statusText, headers: h })
+  h.set('content-encoding', 'gzip')
+  h.delete('content-length')
+  return new Response(Bun.gzipSync(body), { status: res.status, statusText: res.statusText, headers: h })
+}
+
 function withHeaders(res: Response): Response {
   // Responses from fetch()/static files may have immutable headers.
   const h = new Headers(res.headers)
@@ -83,24 +139,13 @@ export function serve(opts: MainOptions) {
     idleTimeout: 255, // SSE streams send a ping every 15–20 s
     async fetch(req, srv) {
       const url = new URL(req.url)
-      const file = (req.method === 'GET' || req.method === 'HEAD') && opts.assets.get(url.pathname)
-      if (file) {
-        const ext = url.pathname.split('.').pop() ?? ''
-        return withHeaders(
-          new Response(Bun.file(file), {
-            headers: {
-              'content-type': MIME[ext] ?? 'application/octet-stream',
-              'cache-control': url.pathname.startsWith('/assets/') ? 'public, max-age=31536000, immutable' : 'public, max-age=3600',
-            },
-          }),
-        )
-      }
+      if ((req.method === 'GET' || req.method === 'HEAD') && opts.assets.has(url.pathname)) return staticAsset(req, url.pathname, opts.assets)
       const headers = new Headers(req.headers)
       headers.delete(PEER_HEADER)
       headers.set(PEER_HEADER, srv.requestIP(req)?.address ?? 'unknown')
       const forwarded = new Request(req, { headers })
       try {
-        return withHeaders(await withRequestLang(req, () => opts.server.fetch(forwarded)))
+        return withHeaders(await compressHtml(req, await withRequestLang(req, () => opts.server.fetch(forwarded))))
       } catch (e) {
         console.error('[quadeck]', e)
         return withHeaders(new Response('Internal error', { status: 500 }))
