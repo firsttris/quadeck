@@ -101,6 +101,45 @@ describe('toml', () => {
   })
 })
 
+describe('toml with multi-line values and array tables', () => {
+  const conf = `unqualified-search-registries = [
+  "registry.fedoraproject.org", # Fedora
+  'docker.io',
+]
+short-name-mode = "enforcing"
+
+[[registry]]
+location = "docker.io"
+insecure = false
+
+[[registry.mirror]]
+location = "mirror.local"
+
+[engine] # runtime settings
+events_logger = "file"
+`
+
+  it('reads arrays over several lines and ignores keys of [[tables]]', () => {
+    expect(getToml(conf, '', 'unqualified-search-registries')).toEqual(['registry.fedoraproject.org', 'docker.io'])
+    expect(getToml(conf, '', 'location')).toBeUndefined()
+    expect(getToml(conf, 'registry', 'location')).toBeUndefined()
+    expect(getToml(conf, 'engine', 'events_logger')).toBe('file')
+  })
+
+  it('replaces and removes the whole entry and keeps the file valid', () => {
+    const set = setToml(conf, '', 'unqualified-search-registries', ['quay.io'])
+    expect(set).toContain('unqualified-search-registries = ["quay.io"]\nshort-name-mode')
+    expect(Bun.TOML.parse(set)).toMatchObject({ 'unqualified-search-registries': ['quay.io'], registry: [{ location: 'docker.io' }] })
+    const removed = setToml(conf, '', 'unqualified-search-registries', undefined)
+    expect(removed.startsWith('short-name-mode')).toBe(true)
+    expect(() => Bun.TOML.parse(removed)).not.toThrow()
+    const engine = setToml(conf, 'engine', 'image_parallel_copies', 4)
+    expect(Bun.TOML.parse(engine)).toMatchObject({ engine: { events_logger: 'file', image_parallel_copies: 4 } })
+    const top = setToml('[[registry]]\nlocation = "a"\n', '', 'short-name-mode', 'permissive')
+    expect(top.startsWith('short-name-mode = "permissive"\n[[registry]]')).toBe(true)
+  })
+})
+
 describe('diff', () => {
   it('produces a minimal line diff with context hunks', () => {
     const a = 'a\nb\nc\nd\ne\nf\ng\nh\ni'
