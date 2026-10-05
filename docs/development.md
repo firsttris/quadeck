@@ -100,17 +100,19 @@ binary on Alpine.
 
 ## Releases
 
-A release is a tag. Set the version in `package.json`, commit, tag `vX.Y.Z` with the same number
-and push the tag:
+A release is a tag `vX.Y.Z`, as in the other projects
+([firsttris/workflows](https://github.com/firsttris/workflows)). Either way creates it:
 
-```bash
-git tag v0.4.0 && git push origin v0.4.0
-```
+- without a checkout: Actions → *Bump version* → patch, minor or major (`bump.yml`) raises the
+  version in `package.json`, commits it as `Release vX.Y.Z` on `main`, tags it and starts the
+  release workflow on the tag;
+- on a checkout: `bun run release:patch` (or `:minor`, `:major`) does the same and pushes commit and
+  tag.
 
-The release workflow checks that the tag matches `package.json`, runs typecheck and tests, builds
+The release workflow runs typecheck and tests, builds
 `quadeck-linux-x64-baseline`, `-arm64`, `-x64-musl` and `-arm64-musl` with `bun build --compile`,
 writes `SHA256SUMS` and publishes everything together with `install.sh` as a GitHub release with
-generated notes. `quadeck update` and `install.sh` pick the newest release from there.
+generated notes, after checking that the tag matches `package.json`. `quadeck update` and `install.sh` pick the newest release from there.
 
 ## Screenshots
 
