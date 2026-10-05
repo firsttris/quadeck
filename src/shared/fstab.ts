@@ -506,12 +506,13 @@ export const FS_PACKAGE: Record<string, string> = { 'ntfs-3g': 'ntfs-3g', ntfs: 
 export function mountUnit(path: string, suffix: 'mount' | 'automount' = 'mount'): string {
   if (path === '/') return `-.${suffix}`
   const p = path.replace(/^\/+|\/+$/g, '').replace(/\/+/g, '/')
+  const utf8 = new TextEncoder()
   let out = ''
-  for (let i = 0; i < p.length; i++) {
-    const c = p[i]!
+  // by code point: a character outside the BMP (emoji) is one UTF-8 sequence, not two halves
+  for (const [i, c] of Array.from(p).entries()) {
     if (c === '/') out += '-'
     else if (/[A-Za-z0-9:_]/.test(c) || (c === '.' && i > 0)) out += c
-    else for (const b of new TextEncoder().encode(c)) out += `\\x${b.toString(16).padStart(2, '0')}`
+    else for (const b of utf8.encode(c)) out += `\\x${b.toString(16).padStart(2, '0')}`
   }
   return `${out}.${suffix}`
 }

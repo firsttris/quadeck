@@ -72,9 +72,11 @@ export const getValue = (text: string, section: string, key: string) => getValue
 export function setValues(text: string, section: string, key: string, values: string[]): string {
   const lines = text.split('\n')
   const entries = parseIni(text)
+  // new lines take the file's line ending (CRLF stays CRLF)
+  const cr = text.includes('\r\n') ? '\r' : ''
   // Empty entries stay (an added, not yet filled list entry); pass [] to remove the key.
   const vals = values.map((v) => v.replace(/[\r\n]+/g, ' ').trim())
-  const fresh = vals.map((v) => `${key}=${v}`)
+  const fresh = vals.map((v) => `${key}=${v}${cr}`)
   const existing = entries.filter((e) => e.kind === 'kv' && e.section === section && e.key === key)
   if (existing.length) {
     // From the bottom so earlier indices stay valid.
@@ -95,13 +97,17 @@ export function setValues(text: string, section: string, key: string, values: st
     lines.splice(last + 1, 0, ...fresh)
     return lines.join('\n')
   }
-  const block = [`[${section}]`, ...fresh]
+  const block = [`[${section}]${cr}`, ...fresh]
   if (section === 'Unit') {
-    // [Unit] conventionally comes first.
-    return [...block, '', ...lines].join('\n').replace(/\n{3,}/g, '\n\n')
+    // [Unit] conventionally comes first; only blank lines at the very top make way for it.
+    let first = 0
+    while (first < lines.length && !lines[first]!.trim()) first++
+    const rest = lines.slice(first)
+    return [...block, ...(rest.length && rest.some((l) => l.trim()) ? [cr, ...rest] : [''])].join('\n')
   }
   const body = text.replace(/\s*$/, '')
-  return (body ? `${body}\n\n` : '') + block.join('\n') + '\n'
+  const nl = `${cr}\n`
+  return (body ? `${body}${nl}${nl}` : '') + block.join('\n') + '\n'
 }
 
 const SYSTEMD_SECTIONS = new Set(['Unit', 'Service', 'Install', 'Timer', 'Socket', 'Path', 'Quadlet'])
