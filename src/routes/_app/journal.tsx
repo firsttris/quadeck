@@ -1,5 +1,5 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { useEffect, useRef, useState } from 'react'
+import { memo, useEffect, useRef, useState } from 'react'
 import { PageHeader } from '~/components/PageHeader'
 import { clock } from '~/lib/format'
 import { useLive } from '~/lib/live'
@@ -15,6 +15,10 @@ const PRIOS = [
 ] as const
 type Prio = (typeof PRIOS)[number][0]
 const MAX_LINES = 1000
+const RETRY_MIN_MS = 5_000
+const RETRY_MAX_MS = 60_000
+
+type Line = JournalEntry & { fresh?: boolean; id: number }
 
 export const Route = createFileRoute('/_app/journal')({
   validateSearch: (s: Record<string, unknown>): { unit?: string; prio?: Prio } => ({
@@ -33,7 +37,7 @@ function Journal() {
   const { snapshot } = useLive()
   const { unit, prio = 'all' } = Route.useSearch()
   const navigate = useNavigate({ from: '/journal' })
-  const [lines, setLines] = useState<(JournalEntry & { fresh?: boolean; id: number })[]>([])
+  const [lines, setLines] = useState<Line[]>([])
   const [live, setLive] = useState(true)
   const [status, setStatus] = useState<'connecting' | 'live' | 'paused' | 'error'>('connecting')
   const [query, setQuery] = useState('')
@@ -41,13 +45,24 @@ function Journal() {
   const stick = useRef(true)
   const seq = useRef(0)
   const [attempt, setAttempt] = useState(0)
+  // What a reconnect of the same view must not show twice, and how long to wait before the next try.
+  const view = useRef('')
+  const seen = useRef(new Set<string>())
+  const delay = useRef(RETRY_MIN_MS)
 
   useEffect(() => {
     if (!live) {
       setStatus('paused')
       return
     }
-    setLines([])
+    // A new unit/priority filter starts empty; a reconnect or "follow" again keeps what is shown.
+    const key = `${unit ?? ''}|${prio}`
+    if (view.current !== key) {
+      view.current = key
+      seen.current.clear()
+      delay.current = RETRY_MIN_MS
+      setLines([])
+    }
     setStatus('connecting')
     const q = new URLSearchParams()
     if (unit) q.set('unit', unit)
@@ -56,24 +71,45 @@ function Journal() {
     const es = new EventSource(`/api/journal?${q}`)
     let initial = true
     const settle = setTimeout(() => (initial = false), 1500)
-    es.addEventListener('open', () => setStatus('live'))
+    es.addEventListener('open', () => {
+      setStatus('live')
+      delay.current = RETRY_MIN_MS
+    })
+    // The backlog arrives as hundreds of events in a row: collect them and render once per frame.
+    let pending: Line[] = []
+    let frame: number | undefined
+    const flush = () => {
+      frame = undefined
+      const add = pending
+      pending = []
+      setLines((l) => [...l, ...add].slice(-MAX_LINES))
+    }
     es.addEventListener('entry', (e) => {
       const entry = JSON.parse((e as MessageEvent).data) as JournalEntry
-      setLines((l) => [...l.slice(-(MAX_LINES - 1)), { ...entry, fresh: !initial, id: seq.current++ }])
+      if (entry.cursor) {
+        if (seen.current.has(entry.cursor)) return // replayed after a reconnect
+        seen.current.add(entry.cursor)
+        if (seen.current.size > 4 * MAX_LINES) seen.current = new Set([...seen.current].slice(-2 * MAX_LINES))
+      }
+      pending.push({ ...entry, fresh: !initial, id: seq.current++ })
+      if (pending.length > MAX_LINES) pending = pending.slice(-MAX_LINES)
+      frame ??= requestAnimationFrame(flush)
     })
     // EventSource would reconnect on its own and replay the backlog (duplicates):
-    // close instead and start a fresh stream after a pause.
+    // close instead and start a fresh stream after a pause that grows while it keeps failing.
     let retry: ReturnType<typeof setTimeout> | undefined
     const stop = () => {
       es.close()
       setStatus('error')
-      retry = setTimeout(() => setAttempt((a) => a + 1), 5000)
+      retry = setTimeout(() => setAttempt((a) => a + 1), delay.current)
+      delay.current = Math.min(RETRY_MAX_MS, delay.current * 2)
     }
     es.addEventListener('end', stop)
     es.addEventListener('error', stop)
     return () => {
       clearTimeout(settle)
       clearTimeout(retry)
+      if (frame !== undefined) cancelAnimationFrame(frame)
       es.close()
     }
   }, [unit, prio, live, attempt])
@@ -131,13 +167,20 @@ function Journal() {
       >
         {shown.length === 0 && <p className="m-0 px-4 py-2 text-[13px] text-muted">{status === 'connecting' ? m.journal_loading() : m.journal_empty()}</p>}
         {shown.map((l) => (
-          <div key={l.id} className={`jl ${lineClass(l.priority)} ${l.fresh ? 'new' : ''}`}>
-            <span className="text-faint">{clock(l.ts)}</span>
-            <span className="truncate text-accent">{l.unit}</span>
-            <span className="m break-words whitespace-pre-wrap">{l.message}</span>
-          </div>
+          <JournalLine key={l.id} line={l} />
         ))}
       </div>
     </>
   )
 }
+
+/** Lines never change once shown: only new ones render. */
+const JournalLine = memo(function JournalLine({ line: l }: { line: Line }) {
+  return (
+    <div className={`jl ${lineClass(l.priority)} ${l.fresh ? 'new' : ''}`}>
+      <span className="text-faint">{clock(l.ts)}</span>
+      <span className="truncate text-accent">{l.unit}</span>
+      <span className="m break-words whitespace-pre-wrap">{l.message}</span>
+    </div>
+  )
+})
