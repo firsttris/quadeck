@@ -13,6 +13,7 @@ import { relative } from '~/lib/format'
 import { validateSettings, type RootLogin, type SshSettings, type SshState } from '~/shared/ssh'
 import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
+import { usePolling } from '~/lib/polling'
 
 export const Route = createFileRoute('/_app/ssh')({
   head: () => ({ meta: [{ title: 'SSH · Quadeck' }] }),
@@ -35,11 +36,7 @@ function SshPage() {
       setError((e as Error).message)
     }
   }, [])
-  useEffect(() => {
-    void load()
-    const t = setInterval(load, 60_000)
-    return () => clearInterval(t)
-  }, [load])
+  usePolling(load, 60_000)
 
   return (
     <>

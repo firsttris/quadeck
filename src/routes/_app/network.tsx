@@ -1,5 +1,5 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { PageHeader } from '~/components/PageHeader'
 import { SpeedTest } from '~/components/SpeedTest'
 import { ReverseProxy } from '~/components/ReverseProxy'
@@ -10,6 +10,7 @@ import { msg } from '~/shared/i18n'
 import { knownPorts, type IfaceKind, type ListeningPort, type NetInterface, type NetworkState } from '~/shared/network'
 import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
+import { usePolling } from '~/lib/polling'
 
 type Tab = 'interfaces' | 'devices' | 'ports' | 'firewall' | 'proxy' | 'speed'
 
@@ -39,11 +40,7 @@ function NetworkPage() {
       setError((e as Error).message)
     }
   }, [])
-  useEffect(() => {
-    void load()
-    const t = setInterval(load, 30_000)
-    return () => clearInterval(t)
-  }, [load])
+  usePolling(load, 30_000)
 
   const s = state
   const ifaces = s?.interfaces.filter((i) => allIfaces || MAIN.includes(i.kind)) ?? []

@@ -1,8 +1,7 @@
 import { useEffect, useState } from 'react'
 import { api, ApiError } from '~/lib/api'
-import { bytes } from '~/lib/format'
+import { bytes, dateTime } from '~/lib/format'
 import { baseName, type TextFile } from '~/shared/files'
-import { localeOf } from '~/shared/i18n'
 import { useActions } from './Actions'
 import { BusyButton } from './Busy'
 import { ConfirmDialog, Modal } from './Modal'
@@ -10,8 +9,6 @@ import { DiffView, TextView } from './QuadletEditor'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
 import { m } from '~/paraglide/messages'
-
-const dateFmt = (ts: number) => new Date(ts).toLocaleString(localeOf(), { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 /**
  * A text file from the explorer in the editor: read as root, saved after the
@@ -104,7 +101,7 @@ export function TextFileEditor({ path, onClose, onSaved }: { path: string; onClo
         <p className="m-0 font-mono text-[12px] text-muted">{path}</p>
         {file && (
           <p className="m-0 flex flex-wrap items-center gap-2 text-[12px] text-muted">
-            {m.files_editor_meta({ size: bytes(file.size), owner: file.owner, mode: file.mode, date: dateFmt(file.mtime) })}
+            {m.files_editor_meta({ size: bytes(file.size), owner: file.owner, mode: file.mode, date: dateTime(file.mtime) })}
             {file.crlf && <span className="chip">{m.files_editor_crlf()}</span>}
             {readonly && <span className="chip">{m.files_editor_readonly()}</span>}
           </p>

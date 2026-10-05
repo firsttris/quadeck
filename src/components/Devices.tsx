@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useMemo, useState } from 'react'
 import { api } from '~/lib/api'
 import { relative } from '~/lib/format'
 import { serviceLabels, type DeviceView, type ScanResult } from '~/shared/devices'
@@ -8,6 +8,7 @@ import { Modal } from './Modal'
 import { Dot } from './Status'
 import { useToast } from './Toast'
 import { m } from '~/paraglide/messages'
+import { usePolling } from '~/lib/polling'
 
 type SweepMinutes = 0 | 15 | 30 | 60 | 360
 interface View {
@@ -42,11 +43,7 @@ export function Devices() {
       setError((e as Error).message)
     }
   }, [])
-  useEffect(() => {
-    void load()
-    const t = setInterval(load, 60_000)
-    return () => clearInterval(t)
-  }, [load])
+  usePolling(load, 60_000)
 
   const post = async (body: Record<string, unknown>) => {
     try {

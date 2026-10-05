@@ -29,13 +29,15 @@ import {
 import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
+import { usePolling } from '~/lib/polling'
+import { fieldLabel } from '~/lib/classes'
 
 export const Route = createFileRoute('/_app/shares')({
   head: () => ({ meta: [{ title: msg(m.page_title_shares) }] }),
   component: SharesPage,
 })
 
-const label = 'flex flex-col gap-1 text-[12px] font-medium text-muted'
+const label = fieldLabel
 
 function SharesPage() {
   const [state, setState] = useState<SharesState | null>(null)
@@ -55,11 +57,7 @@ function SharesPage() {
       setError((e as Error).message)
     }
   }, [])
-  useEffect(() => {
-    void load()
-    const timer = setInterval(load, 30_000)
-    return () => clearInterval(timer)
-  }, [load])
+  usePolling(load, 30_000)
 
   return (
     <>

@@ -1,5 +1,5 @@
 import { Link } from '@tanstack/react-router'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { api } from '~/lib/api'
 import { num } from '~/lib/format'
 import { COMPONENTS, sumSplit, type Component, type DiskKind, type EnergySettings, type HourEnergy, type PowerNow } from '~/shared/energy'
@@ -9,6 +9,7 @@ import { Modal } from './Modal'
 import { useToast } from './Toast'
 import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
+import { usePolling } from '~/lib/polling'
 
 interface Report {
   now?: PowerNow
@@ -52,11 +53,7 @@ export function PowerUsage() {
       setError((e as Error).message)
     }
   }, [])
-  useEffect(() => {
-    void load()
-    const t = setInterval(load, 30_000)
-    return () => clearInterval(t)
-  }, [load])
+  usePolling(load, 30_000)
 
   if (error) return <p className="m-0 text-[13px] text-[#e3b341]">{error}</p>
   if (!r) return <p className="m-0 text-muted">{m.energy_loading()}</p>

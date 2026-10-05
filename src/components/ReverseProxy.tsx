@@ -1,5 +1,4 @@
 import { useCallback, useEffect, useId, useMemo, useState } from 'react'
-import { localeOf } from '~/shared/i18n'
 import { applyCaddyChange, NO_OPTIONS, type CaddyBlock, type CaddyChange, type CaddyResult, type CaddyState, type SiteOptions } from '~/shared/caddy'
 import { useLive } from '~/lib/live'
 import { useActions } from './Actions'
@@ -11,10 +10,9 @@ import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
 import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
+import { dateTime } from '~/lib/format'
 
 type Pending = { change: CaddyChange; after: string; title: string }
-
-const dateFmt = (ts: number) => new Date(ts).toLocaleString(localeOf(), { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 /**
  * Reverse proxy tab: the Caddyfile as a list of domains (simple
@@ -180,7 +178,7 @@ export function ReverseProxy() {
               <ul className="m-0 mt-1.5 flex list-none flex-col gap-1 p-0">
                 {state.history.map((r) => (
                   <li key={r.id} className="flex items-center gap-3">
-                    <span className="w-[140px] font-mono">{dateFmt(r.date)}</span>
+                    <span className="w-[140px] font-mono">{dateTime(r.date)}</span>
                     <span className="grow">{r.message}</span>
                     {editable && (
                       <button type="button" className="border-0 bg-transparent p-0 text-accent hover:underline" onClick={() => void viewRevision(r.id, r.date)}>
@@ -268,7 +266,7 @@ export function ReverseProxy() {
       const r = await fetch(`/api/caddy?revision=${encodeURIComponent(id)}`)
       const d = (await r.json()) as { content?: string; error?: string }
       if (!r.ok || d.content === undefined) throw new Error(d.error ?? m.common_http({ status: r.status }))
-      setText({ content: d.content, jump: null, note: m.proxy_text_revision({ date: dateFmt(date) }) })
+      setText({ content: d.content, jump: null, note: m.proxy_text_revision({ date: dateTime(date) }) })
     } catch (e) {
       say((e as Error).message, 'bad')
     }

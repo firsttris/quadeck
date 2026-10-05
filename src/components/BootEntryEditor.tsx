@@ -1,14 +1,12 @@
 import { useEffect, useId, useState } from 'react'
 import { api } from '~/lib/api'
-import { localeOf } from '~/shared/i18n'
 import { ENTRY_FILE, applyEntryForm, bootFileKinds, entryForm, explainParam, knownParams, parseEntryConf, splitOptions, type BootEntryFile, type BootState, type EntryForm, type EntryProblem } from '~/shared/boot'
 import { BusyButton } from './Busy'
 import { Modal } from './Modal'
 import { DiffView, TextView } from './QuadletEditor'
 import { useGuardedApi } from './Unlock'
 import { m } from '~/paraglide/messages'
-
-const dateFmt = (ts: number) => new Date(ts).toLocaleString(localeOf(), { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
+import { dateTime } from '~/lib/format'
 
 export interface EntryEditorInit {
   /** create: a new file (also a copy); edit: the file in place. */
@@ -89,7 +87,7 @@ export function BootEntryEditor({ init, onClose, onSaved }: { init: EntryEditorI
       if (!r.ok) throw new Error(d.error ?? m.common_http({ status: r.status }))
       setContent(d.content ?? '')
       setJump(null)
-      setNote(m.boot_editor_loaded({ date: dateFmt(date) }))
+      setNote(m.boot_editor_loaded({ date: dateTime(date) }))
     } catch (e) {
       setError((e as Error).message)
     }
@@ -168,7 +166,7 @@ export function BootEntryEditor({ init, onClose, onSaved }: { init: EntryEditorI
           <ul className="m-0 mt-1.5 flex list-none flex-col gap-1 p-0">
             {init.file.history.map((r) => (
               <li key={r.id} className="flex items-center gap-3">
-                <span className="w-[140px] font-mono">{dateFmt(r.date)}</span>
+                <span className="w-[140px] font-mono">{dateTime(r.date)}</span>
                 <span className="grow">{r.message}</span>
                 <button type="button" className="border-0 bg-transparent p-0 text-accent hover:underline" onClick={() => void load(r.id, r.date)}>
                   {m.boot_editor_load()}

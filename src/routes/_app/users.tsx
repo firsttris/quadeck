@@ -9,19 +9,18 @@ import { SshKeys, SshPreviewDialog, type SshPending } from '~/components/SshKeys
 import { Dot, Pill } from '~/components/Status'
 import { useToast } from '~/components/Toast'
 import { useGuardedApi } from '~/components/Unlock'
-import { relative } from '~/lib/format'
-import { localeOf, msg } from '~/shared/i18n'
+import { dateTime, relative } from '~/lib/format'
+import { msg } from '~/shared/i18n'
 import type { SshState } from '~/shared/ssh'
 import { USER_NAME, changeProblem, describeChange, fullNameProblem, nameProblem, passwordProblem, type Account, type UserChange, type UsersState } from '~/shared/users'
 import { m } from '~/paraglide/messages'
+import { fieldLabel } from '~/lib/classes'
 
 export const Route = createFileRoute('/_app/users')({
   validateSearch: (s: Record<string, unknown>): { user?: string } => ({ user: typeof s.user === 'string' && USER_NAME.test(s.user) ? s.user : undefined }),
   head: () => ({ meta: [{ title: msg(m.page_title_users) }] }),
   component: UsersPage,
 })
-
-const dateFmt = (ts: number) => new Date(ts).toLocaleString(localeOf(), { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 
 function UsersPage() {
   const { user } = Route.useSearch()
@@ -206,7 +205,7 @@ function AccountDetail({
   const offered = state.groups.filter((g) => g.name !== state.adminGroup)
   const history = state.history.filter((h) => h.user === a.name)
   const shells = state.shells.includes(a.shell) ? state.shells : [a.shell, ...state.shells]
-  const label = 'flex flex-col gap-1 text-[12px] font-medium text-muted'
+  const label = fieldLabel
   return (
     <div className="flex min-w-0 flex-col gap-[18px]">
       <section className="panel flex flex-col gap-3 p-[18px]" aria-label={m.users_detail_account({ name: a.name })}>
@@ -315,10 +314,10 @@ function AccountDetail({
           <div key={i} className="flex flex-wrap items-center gap-x-3 border-t border-line px-[18px] py-[7px] text-[13px]" data-testid="login-record">
             <Dot tone={h.active ? 'ok' : 'idle'} label={h.active ? m.users_history_loggedIn() : m.users_history_ended()} />
             <span className="font-mono text-[12px]" suppressHydrationWarning>
-              {dateFmt(h.start)}
+              {dateTime(h.start)}
             </span>
             <span className="text-[12px] text-muted" suppressHydrationWarning>
-              {h.active ? m.users_history_loggedIn() : h.end ? m.users_history_until({ when: dateFmt(h.end) }) : ''}
+              {h.active ? m.users_history_loggedIn() : h.end ? m.users_history_until({ when: dateTime(h.end) }) : ''}
             </span>
             <span className="ml-auto font-mono text-[12px] text-subtle">
               {h.tty}
@@ -431,7 +430,7 @@ function CreateDialog({ state, onClose, onCreate }: { state: UsersState; onClose
   const change: Extract<UserChange, { kind: 'create' }> = { kind: 'create', name, fullName, admin, password: withPassword ? pw : undefined, shell, groups }
   const problem = !name ? undefined : (nameProblem(name) ?? (withPassword && pw ? (passwordProblem(pw) ?? (again && pw !== again ? m.users_create_mismatch() : undefined)) : undefined) ?? changeProblem(state, change))
   const ready = !!name && !problem && (!withPassword || (!!pw && pw === again))
-  const label = 'flex flex-col gap-1 text-[12px] font-medium text-muted'
+  const label = fieldLabel
   return (
     <Modal open onClose={onClose} title={m.users_create_title()} wide busy={busy}>
       <form

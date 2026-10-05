@@ -6,6 +6,7 @@ import { Glyph } from './Glyph'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
 import { m } from '~/paraglide/messages'
+import { fieldLabel } from '~/lib/classes'
 
 /** Icon picker over the dashboard-icons index; empty value = automatic. */
 export function IconPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -77,7 +78,7 @@ export function IconPicker({ value, onChange }: { value: string; onChange: (v: s
   )
 }
 
-const label = 'flex flex-col gap-1 text-[12px] font-medium text-muted'
+const label = fieldLabel
 
 /**
  * Edit a tile: discovered services get an override (empty field = follow

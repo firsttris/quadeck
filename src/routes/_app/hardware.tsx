@@ -1,11 +1,12 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
-import { useCallback, useEffect, useState, type ReactNode } from 'react'
+import { useCallback, useState, type ReactNode } from 'react'
 import { PageHeader } from '~/components/PageHeader'
 import { PowerUsage } from '~/components/PowerUsage'
 import { useToast } from '~/components/Toast'
 import { num } from '~/lib/format'
 import { gpuQuadletLine, pcieGen, sensorUnit, shortGpuName, type Hardware, type SensorRaw } from '~/shared/hardware'
 import { m } from '~/paraglide/messages'
+import { usePolling } from '~/lib/polling'
 
 type Tab = 'overview' | 'power'
 
@@ -78,11 +79,7 @@ function HardwarePage() {
       setError((e as Error).message)
     }
   }, [])
-  useEffect(() => {
-    void load()
-    const t = setInterval(load, 15_000) // sensors
-    return () => clearInterval(t)
-  }, [load])
+  usePolling(load, 15_000) // sensors
 
   const s = hw?.system
   return (
