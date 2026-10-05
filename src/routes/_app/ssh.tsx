@@ -8,6 +8,7 @@ import { Dot, Pill, type Tone } from '~/components/Status'
 import { SshKeys, SshPreviewDialog, type SshPending } from '~/components/SshKeys'
 import { useToast } from '~/components/Toast'
 import { useGuardedApi } from '~/components/Unlock'
+import { useDraft } from '~/lib/draft'
 import { relative } from '~/lib/format'
 import { validateSettings, type RootLogin, type SshSettings, type SshState } from '~/shared/ssh'
 import { m } from '~/paraglide/messages'
@@ -165,12 +166,9 @@ function Row({ tone, label, value, help }: { tone: Tone; label: string; value: s
 function Hardening({ state, onPreview }: { state: SshState; onPreview: (p: SshPending) => void }) {
   const { readonly } = useActions()
   const e = state.effective
-  const [form, setForm] = useState<SshSettings>({ passwordAuthentication: e.passwordAuthentication, permitRootLogin: e.permitRootLogin, allowUsers: e.allowUsers })
-  const [users, setUsers] = useState(e.allowUsers.join(' '))
-  useEffect(() => {
-    setForm({ passwordAuthentication: e.passwordAuthentication, permitRootLogin: e.permitRootLogin, allowUsers: e.allowUsers })
-    setUsers(e.allowUsers.join(' '))
-  }, [e.passwordAuthentication, e.permitRootLogin, e.allowUsers])
+  const [form, setForm] = useDraft({ passwordAuthentication: e.passwordAuthentication, permitRootLogin: e.permitRootLogin, allowUsers: e.allowUsers.join(' ') })
+  const users = form.allowUsers
+  const setUsers = (allowUsers: string) => setForm((f) => ({ ...f, allowUsers }))
   const next: SshSettings = { ...form, allowUsers: users.split(/[\s,]+/).filter(Boolean) }
   const changed = next.passwordAuthentication !== e.passwordAuthentication || next.permitRootLogin !== e.permitRootLogin || next.allowUsers.join(' ') !== e.allowUsers.join(' ')
   const errors = validateSettings(next)
