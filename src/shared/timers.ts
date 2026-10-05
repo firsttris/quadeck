@@ -239,18 +239,26 @@ function dayList(days: Day[]) {
   return parts.join(',')
 }
 
+/** A whole number in min..max (a step of 0 or minute 75 is no valid calendar). */
+const clamp = (n: number, min: number, max: number) => Math.min(max, Math.max(min, Math.round(Number.isFinite(n) ? n : min)))
+
 export function buildCalendar(s: Schedule): string {
   switch (s.kind) {
-    case 'minutes':
-      return s.every === 1 ? '*-*-* *:*:00' : `*-*-* *:00/${s.every}:00`
-    case 'hours':
-      return s.every === 1 ? `*-*-* *:${two(s.minute)}:00` : `*-*-* 00/${s.every}:${two(s.minute)}:00`
+    case 'minutes': {
+      const every = clamp(s.every, 1, 59)
+      return every === 1 ? '*-*-* *:*:00' : `*-*-* *:00/${every}:00`
+    }
+    case 'hours': {
+      const every = clamp(s.every, 1, 23)
+      const minute = two(clamp(s.minute, 0, 59))
+      return every === 1 ? `*-*-* *:${minute}:00` : `*-*-* 00/${every}:${minute}:00`
+    }
     case 'daily':
       return `*-*-* ${clock(s.time) ?? '00:00:00'}`
     case 'weekly':
       return `${dayList(s.days.length ? s.days : ['Mon'])} *-*-* ${clock(s.time) ?? '00:00:00'}`
     case 'monthly':
-      return `*-*-${two(s.day)} ${clock(s.time) ?? '00:00:00'}`
+      return `*-*-${two(clamp(s.day, 1, 31))} ${clock(s.time) ?? '00:00:00'}`
     case 'custom':
       return s.expr.trim()
   }
@@ -291,10 +299,11 @@ export function parseCalendar(expr: string): Schedule {
   if (!dow && dom === '*') {
     if (h === '*' && mi === '*') return { kind: 'minutes', every: 1 }
     const step = mi.match(/^0?0\/(\d{1,2})$/)
-    if (h === '*' && step) return { kind: 'minutes', every: Number(step[1]) }
-    if (h === '*' && num(mi) !== undefined) return { kind: 'hours', every: 1, minute: num(mi)! }
+    const minute = num(mi) !== undefined && num(mi)! <= 59 ? num(mi) : undefined
+    if (h === '*' && step && Number(step[1]) >= 1 && Number(step[1]) <= 59) return { kind: 'minutes', every: Number(step[1]) }
+    if (h === '*' && minute !== undefined) return { kind: 'hours', every: 1, minute }
     const hstep = h.match(/^0?0\/(\d{1,2})$/)
-    if (hstep && num(mi) !== undefined) return { kind: 'hours', every: Number(hstep[1]), minute: num(mi)! }
+    if (hstep && Number(hstep[1]) >= 1 && Number(hstep[1]) <= 23 && minute !== undefined) return { kind: 'hours', every: Number(hstep[1]), minute }
   }
   if (num(h) === undefined || num(mi) === undefined || num(h)! > 23 || num(mi)! > 59) return custom
   const hhmm = `${two(num(h)!)}:${two(num(mi)!)}`
@@ -362,11 +371,13 @@ function cronField(f: string, min: number, max: number, names?: string[]): strin
     .split(',')
     .map((part) => {
       const [range, step] = part.split('/') as [string, string | undefined]
-      if (step !== undefined && !/^\d+$/.test(step)) throw new Error(msg(m.timers_cron_invalidStep, { step }))
+      if (step !== undefined && (!/^\d+$/.test(step) || Number(step) < 1)) throw new Error(msg(m.timers_cron_invalidStep, { step }))
       let out: string
       if (range === '*') out = step ? two(min) : '*'
       else if (range.includes('-')) {
         const [a, b] = range.split('-') as [string, string]
+        // cron has no wrap-around ranges outside the weekday; systemd rejects 22..02 as well
+        if (value(a) > value(b)) throw new Error(msg(m.timers_cron_outOfRange, { value: range, min, max }))
         out = `${two(value(a))}..${two(value(b))}`
       } else out = two(value(range))
       return step ? `${out}/${Number(step)}` : out
@@ -391,6 +402,8 @@ function cronDays(f: string): string {
       // Sun is 0 in cron but last in systemd: 0-2 → Sun,Mon..Tue
       if (a === 0 && b > 0) return b === 1 ? 'Sun,Mon' : `Sun,Mon..${name(b)}`
       if (b === 0 && a > 0) return a === 6 ? 'Sat,Sun' : `${name(a)}..Sun`
+      // a range across the weekend (5-1 = Fri..Mon) is not valid in systemd: list the days
+      if (a > b) return [...Array.from({ length: 7 - a }, (_, i) => a + i), ...Array.from({ length: b + 1 }, (_, i) => i)].map(name).join(',')
       return `${name(a)}..${name(b)}`
     })
     .join(',')

@@ -170,3 +170,23 @@ describe('FixtureTimers', () => {
     await expect(t.timerAction('../x.timer', 'run')).rejects.toThrow(/Ungültig/)
   })
 })
+
+describe('only calendars systemd accepts', () => {
+  it('lists the days of a weekday range across the weekend', () => {
+    expect(cronToCalendar('0 0 * * 5-1 cmd').calendar).toBe('Fri,Sat,Sun,Mon *-*-* 00:00:00')
+    expect(cronToCalendar('0 0 * * sat-tue cmd').calendar).toBe('Sat,Sun,Mon,Tue *-*-* 00:00:00')
+    expect(cronToCalendar('0 0 * * 0-2 cmd').calendar).toBe('Sun,Mon..Tue *-*-* 00:00:00')
+  })
+
+  it('refuses a step of 0 and reversed ranges', () => {
+    for (const l of ['*/0 * * * * x', '1-31/0 * * * * x', '0 */0 * * * x', '0 22-2 * * * x']) expect(cronToCalendar(l).error).toBeTruthy()
+  })
+
+  it('builds no step 0 or out-of-range values', () => {
+    expect(buildCalendar({ kind: 'minutes', every: 0 })).toBe('*-*-* *:*:00')
+    expect(buildCalendar({ kind: 'hours', every: 0, minute: 75 })).toBe('*-*-* *:59:00')
+    expect(buildCalendar({ kind: 'monthly', day: 40, time: '03:00' })).toBe('*-*-31 03:00:00')
+    expect(parseCalendar('*-*-* 00/0:00:00').kind).toBe('custom')
+    expect(parseCalendar('*-*-* *:00/0:00').kind).toBe('custom')
+  })
+})
