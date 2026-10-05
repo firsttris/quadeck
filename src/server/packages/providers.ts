@@ -2,7 +2,7 @@
 // (root helper or single root process); changes are described as fixed argv
 // steps that only the `quadeck job` runner executes.
 
-import { existsSync, mkdirSync, readFileSync, readlinkSync, symlinkSync, unlinkSync } from 'node:fs'
+import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, symlinkSync, unlinkSync } from 'node:fs'
 import { release } from 'node:os'
 import { join } from 'node:path'
 import type { InstalledPackage, ManagerId, PackageDetail, PackageUpdate } from '~/shared/packages'
@@ -48,11 +48,27 @@ const tail = (file: string, bytes = 2 * 1024 * 1024) => {
   }
 }
 
-/** Kernel modules of the running kernel are gone → the kernel was updated. */
-function kernelReplaced(): string | undefined {
-  const r = release()
-  const dirs = [`/usr/lib/modules/${r}`, `/lib/modules/${r}`]
-  return existsSync('/usr/lib/modules') || existsSync('/lib/modules') ? (dirs.some(existsSync) ? undefined : msg(m.packages_reboot_kernelUpdated, { version: r })) : undefined
+/**
+ * Kernel modules of the running kernel are gone → the kernel was updated.
+ * The helper runs with ProtectKernelModules=yes, which turns /usr/lib/modules into an empty,
+ * inaccessible directory: there the running kernel's folder always looks missing. So the host's
+ * view through init's root (/proc/1/root) comes first; a modules folder that is empty or
+ * unreadable proves nothing, and then no reboot is claimed.
+ */
+export function kernelReplaced(r = release(), roots = ['/proc/1/root', '']): string | undefined {
+  for (const root of roots) {
+    for (const dir of [`${root}/usr/lib/modules`, `${root}/lib/modules`]) {
+      let entries: string[]
+      try {
+        entries = readdirSync(dir)
+      } catch {
+        continue
+      }
+      if (!entries.length) continue // hidden by the sandbox (or no modules at all)
+      return entries.includes(r) ? undefined : msg(m.packages_reboot_kernelUpdated, { version: r })
+    }
+  }
+  return undefined
 }
 
 const lines = (s: string) =>
