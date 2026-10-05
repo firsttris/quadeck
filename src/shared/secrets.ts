@@ -32,36 +32,42 @@ export interface SecretsState {
 export const SENSITIVE_KEY = /(PASS(WORD|WD)?|SECRET|TOKEN|API_?KEY|PRIVATE_?KEY|CREDENTIALS?)$/i
 export const isSensitive = (key: string) => SENSITIVE_KEY.test(key) && !/_FILE$/i.test(key)
 
+const ESCAPES: Record<string, string> = { n: '\n', t: '\t', r: '\r', s: ' ', a: '\x07', b: '\b', f: '\f', v: '\v' }
+
 /**
- * systemd's Environment= syntax: assignments separated by spaces, each may be quoted
- * ("A=b c" or 'A=b c'). Returns the assignments with their key and value.
+ * systemd's Environment= syntax, word by word: words are separated by blanks, quotes ("…" or '…')
+ * may start anywhere inside a word (FOO="a b" is one word) and a backslash escapes the next
+ * character. `raw` is the word as written, `text` the unquoted, unescaped value.
  */
-export function splitEnvironment(value: string): { raw: string; key: string; value: string }[] {
-  const out: { raw: string; key: string; value: string }[] = []
+export function environmentWords(value: string): { raw: string; text: string }[] {
+  const out: { raw: string; text: string }[] = []
   let i = 0
   while (i < value.length) {
     while (value[i] === ' ' || value[i] === '\t') i++
     if (i >= value.length) break
-    let raw = ''
+    const start = i
     let text = ''
-    const q = value[i] === '"' || value[i] === "'" ? value[i] : undefined
-    if (q) {
-      const end = value.indexOf(q, i + 1)
-      const stop = end < 0 ? value.length : end
-      text = value.slice(i + 1, stop)
-      raw = value.slice(i, Math.min(value.length, stop + 1))
-      i = stop + 1
-    } else {
-      let j = i
-      while (j < value.length && value[j] !== ' ' && value[j] !== '\t') j++
-      raw = value.slice(i, j)
-      text = raw
-      i = j
+    let quote: string | undefined
+    for (; i < value.length; i++) {
+      const c = value[i]!
+      if (!quote && (c === ' ' || c === '\t')) break
+      if (c === '\\' && i + 1 < value.length) {
+        const n = value[++i]!
+        text += ESCAPES[n] ?? n
+      } else if (quote ? c === quote : c === '"' || c === "'") quote = quote ? undefined : c
+      else text += c
     }
-    const eq = text.indexOf('=')
-    if (eq > 0) out.push({ raw, key: text.slice(0, eq), value: text.slice(eq + 1) })
+    out.push({ raw: value.slice(start, i), text })
   }
   return out
+}
+
+/** The assignments of an Environment= value with their key and value (words without "=" are skipped). */
+export function splitEnvironment(value: string): { raw: string; key: string; value: string }[] {
+  return environmentWords(value).flatMap(({ raw, text }) => {
+    const eq = text.indexOf('=')
+    return eq > 0 ? [{ raw, key: text.slice(0, eq), value: text.slice(eq + 1) }] : []
+  })
 }
 
 interface Line {
@@ -138,8 +144,12 @@ export function moveToSecret(content: string, key: string, name: string): string
   const all = content.split('\n')
   const hit = lines(content).find((l) => l.section === 'Container' && l.key === 'Environment' && splitEnvironment(l.value).some((a) => a.key === key))
   if (!hit) throw new Error(`no ${key}`)
-  const rest = splitEnvironment(hit.value).filter((a) => a.key !== key)
+  // every other word stays as written, also ones systemd would ignore
+  const rest = environmentWords(hit.value).filter((w) => {
+    const eq = w.text.indexOf('=')
+    return eq <= 0 || w.text.slice(0, eq) !== key
+  })
   const secret = `Secret=${name},type=env,target=${key}`
-  all.splice(hit.index, 1, ...(rest.length ? [`Environment=${rest.map((a) => a.raw).join(' ')}`, secret] : [secret]))
+  all.splice(hit.index, 1, ...(rest.length ? [`Environment=${rest.map((w) => w.raw).join(' ')}`, secret] : [secret]))
   return all.join('\n')
 }

@@ -29,6 +29,18 @@ describe('finding passwords in plain text', () => {
     ])
     expect(splitEnvironment('novalue')).toEqual([])
   })
+  it('reads quotes inside a word and escapes like systemd', () => {
+    expect(splitEnvironment('FOO="hello world" B=\\"x\\" C=a\\ b')).toEqual([
+      { raw: 'FOO="hello world"', key: 'FOO', value: 'hello world' },
+      { raw: 'B=\\"x\\"', key: 'B', value: '"x"' },
+      { raw: 'C=a\\ b', key: 'C', value: 'a b' },
+    ])
+    expect(plainValue('[Container]\nEnvironment=DB_PASSWORD="p w"\n', 'DB_PASSWORD')).toBe('p w')
+  })
+  it('keeps every other word of the line when moving one out', () => {
+    expect(moveToSecret('[Container]\nEnvironment=DB_PASSWORD=x FOO="hello world" LONELY\n', 'DB_PASSWORD', 's')).toBe('[Container]\nEnvironment=FOO="hello world" LONELY\nSecret=s,type=env,target=DB_PASSWORD\n')
+    expect(moveToSecret('[Container]\nEnvironment=A=1 DB_PASSWORD="two words" B=2\n', 'DB_PASSWORD', 's')).toBe('[Container]\nEnvironment=A=1 B=2\nSecret=s,type=env,target=DB_PASSWORD\n')
+  })
   it('knows which keys hold credentials', () => {
     for (const k of ['DB_PASSWORD', 'POSTGRES_PASSWORD', 'MYSQL_ROOT_PASSWD', 'APP_SECRET', 'API_TOKEN', 'OPENAI_API_KEY', 'SMTP_PASS', 'PRIVATE_KEY']) expect(isSensitive(k)).toBe(true)
     for (const k of ['DB_PASSWORD_FILE', 'TZ', 'PASSWORD_MIN_LENGTH', 'TOKEN_TTL']) expect(isSensitive(k)).toBe(false)
