@@ -76,6 +76,25 @@ describe('problems', () => {
     expect(currentAlerts(disk(86), s, new Set(['disk:/srv'])).alerts).toHaveLength(0)
   })
 
+  it('warns when the trend says full soon, below the usage threshold', () => {
+    const disk = (used: number, fullInDays?: number) =>
+      snap({ disks: [{ dev: 'sda', path: '', mount: '/mnt/disk1', fstype: 'xfs', size: 100, used, role: '', trend: { perDay: 2e9, steady: false, spark: [], ...(fullInDays !== undefined ? { fullInDays } : {}) } }] })
+    const soon = currentAlerts(disk(70, 10), s).alerts
+    expect(soon.map((a) => a.key)).toEqual(['disk-soon:/mnt/disk1'])
+    expect(soon[0]).toMatchObject({ rule: 'disk-full', severity: 'warning', title: '/mnt/disk1 ist in etwa 10 Tagen voll' })
+    expect(currentAlerts(disk(70, 30), s).alerts).toHaveLength(0)
+    expect(currentAlerts(disk(70, 16), s, new Set(['disk-soon:/mnt/disk1'])).alerts).toHaveLength(1) // stays until clearly later
+    expect(currentAlerts(disk(70), s).alerts).toHaveLength(0) // steady or no history
+    expect(currentAlerts(disk(95, 3), s).alerts.map((a) => a.key)).toEqual(['disk:/mnt/disk1']) // already full: one alert
+    expect(currentAlerts(disk(70, 10), { ...s, diskDays: 0 }).alerts).toHaveLength(0) // switched off
+  })
+
+  it('keeps the days setting in range (0 = off, default 14)', () => {
+    expect(parseSettings({}, defaultSettings()).diskDays).toBe(14)
+    expect(parseSettings({ diskDays: 0 }, defaultSettings()).diskDays).toBe(0)
+    expect(parseSettings({ diskDays: 500 }, defaultSettings()).diskDays).toBe(14)
+  })
+
   it('marks rules whose source is unreadable as unknown', () => {
     const r = currentAlerts(snap({ sources: { ...snap().sources, systemd: { ok: false, error: 'x' } } }), s)
     expect(r.unknown.has('unit-failed')).toBe(true)

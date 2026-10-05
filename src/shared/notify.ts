@@ -39,6 +39,8 @@ export interface NotifySettings {
   rules: Record<RuleKey, boolean>
   /** Percent. */
   diskThreshold: number
+  /** Also warn when the 30-day trend says full in fewer days than this (0 = off). */
+  diskDays: number
   /** Also send "wieder in Ordnung". */
   recovery: boolean
   /** Hour of the day for the update summary. */
@@ -164,6 +166,7 @@ export const defaultSettings = (): NotifySettings => ({
   channels: [],
   rules: { 'unit-failed': true, 'service-down': true, 'container-unhealthy': true, smart: true, 'disk-full': true, updates: true, internet: false, backup: true, 'device-new': false },
   diskThreshold: 90,
+  diskDays: 14,
   recovery: true,
   updatesHour: 9,
   speedMode: 'relative',
@@ -244,6 +247,7 @@ export function parseSettings(v: unknown, previous: NotifySettings): NotifySetti
   // New rules that cost something (the internet one measures) or are chatty (new devices) start switched off.
   const rules = Object.fromEntries(RULE_KEYS.map((key) => [key, key === 'internet' || key === 'device-new' ? r[key] === true : r[key] !== false])) as Record<RuleKey, boolean>
   const threshold = Number(o.diskThreshold)
+  const diskDays = o.diskDays === undefined ? 14 : Number(o.diskDays)
   const hour = Number(o.updatesHour)
   const percent = Number(o.speedPercent)
   const mbit = Number(o.speedMbit)
@@ -252,6 +256,7 @@ export function parseSettings(v: unknown, previous: NotifySettings): NotifySetti
     channels,
     rules,
     diskThreshold: Number.isInteger(threshold) && threshold >= 50 && threshold <= 99 ? threshold : 90,
+    diskDays: Number.isInteger(diskDays) && diskDays >= 0 && diskDays <= 90 ? diskDays : 14,
     recovery: o.recovery !== false,
     updatesHour: Number.isInteger(hour) && hour >= 0 && hour <= 23 ? hour : 9,
     speedMode: o.speedMode === 'fixed' ? 'fixed' : 'relative',
@@ -326,6 +331,13 @@ export function currentAlerts(snap: Snapshot, s: NotifySettings, active: Set<str
       const key = `disk:${d.mount}`
       const limit = (active.has(key) ? s.diskThreshold - 3 : s.diskThreshold) / 100
       if (used >= limit) alerts.push({ key, rule: 'disk-full', severity: used >= 0.97 ? 'critical' : 'warning', title: msg(m.notify_alert_diskFull, { mount: d.mount, percent: pct(used) }), detail: `${d.dev} · ${d.fstype}` })
+      else if (s.diskDays > 0 && d.trend?.fullInDays !== undefined) {
+        // not full yet, but at the pace of the last 30 days it will be soon
+        const soon = `disk-soon:${d.mount}`
+        const days = d.trend.fullInDays
+        if (days <= (active.has(soon) ? s.diskDays + 3 : s.diskDays))
+          alerts.push({ key: soon, rule: 'disk-full', severity: 'warning', title: msg(m.notify_alert_diskSoon, { mount: d.mount, days }), detail: `${d.dev} · ${pct(used)} · +${(d.trend.perDay / 1e9).toFixed(1)} GB/d` })
+      }
     }
   }
   if (on('internet') && snap.speed?.alert)

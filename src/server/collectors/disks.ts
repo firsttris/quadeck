@@ -28,6 +28,8 @@ export interface MountedFs {
   mount: string
   fstype: string
   size: number
+  /** The physical disks underneath (several for RAID, LVM over more than one disk). */
+  disks: string[]
 }
 
 const SKIP_FS = new Set(['swap', 'squashfs', 'iso9660', 'vfat', 'erofs'])
@@ -37,7 +39,8 @@ const SKIP_MOUNT = /^(\/boot|\/efi|\/snap\/|\/var\/lib\/containers|\/run\/|\[SWA
 export function parseLsblk(json: string): MountedFs[] {
   const data = JSON.parse(json) as { blockdevices?: LsblkDev[] }
   const out = new Map<string, MountedFs>()
-  const walk = (d: LsblkDev, disk: string) => {
+  const walk = (d: LsblkDev, disk: string, phys: string[]) => {
+    if (d.type === 'disk') phys = [d.name]
     const whole = d.type === 'disk' || d.type === 'raid1' || d.type.startsWith('raid') || d.type === 'md' ? d.name : disk
     const mounts = (d.mountpoints ?? [d.mountpoint]).filter((m): m is string => !!m && !SKIP_MOUNT.test(m))
     const fstype = d.fstype ?? ''
@@ -45,11 +48,14 @@ export function parseLsblk(json: string): MountedFs[] {
       const mount = mounts.sort((a, b) => a.length - b.length)[0]!
       const path = d.path ?? `/dev/${d.name}`
       const prev = out.get(path)
-      if (!prev || mount.length < prev.mount.length) out.set(path, { dev: whole || d.name, path, mount, fstype, size: Number(d.size) || 0 })
+      // a RAID or LVM volume shows up under each of its disks: collect them
+      const disks = [...new Set([...(prev?.disks ?? []), ...phys])]
+      if (!prev || mount.length < prev.mount.length) out.set(path, { dev: whole || d.name, path, mount, fstype, size: Number(d.size) || 0, disks })
+      else prev.disks = disks
     }
-    for (const c of d.children ?? []) walk(c, whole || d.name)
+    for (const c of d.children ?? []) walk(c, whole || d.name, phys)
   }
-  for (const d of data.blockdevices ?? []) walk(d, d.name)
+  for (const d of data.blockdevices ?? []) walk(d, d.name, [])
   return [...out.values()].sort((a, b) => (a.mount === '/' ? -1 : b.mount === '/' ? 1 : a.mount.localeCompare(b.mount)))
 }
 
@@ -101,7 +107,7 @@ export async function collectDisks(): Promise<Disk[]> {
     } catch {
       continue
     }
-    disks.push({ dev: fs.dev, path: fs.path, mount: fs.mount, fstype: fs.fstype, size, used, tempC: temps.get(fs.dev), role: diskRole(fs.mount) })
+    disks.push({ dev: fs.dev, path: fs.path, mount: fs.mount, fstype: fs.fstype, size, used, tempC: temps.get(fs.dev), role: diskRole(fs.mount), disks: fs.disks.length ? fs.disks : [fs.dev] })
   }
   return disks
 }
