@@ -6,7 +6,7 @@
 import { randomBytes } from 'node:crypto'
 import { and, asc, gte, sql } from 'drizzle-orm'
 import { getSetting, setSetting } from './settings'
-import { db, schema } from './db'
+import { db, metricPrefix, schema } from './db'
 import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
 import { DEFAULT_SCHEDULE, judgeSpeed, lastSlot, mbps, pingStats, SPEED_HISTORY, usualDown, type SpeedResult, type SpeedSchedule } from '~/shared/speedtest'
@@ -211,7 +211,7 @@ export function speedSeries(days = 365, now = Date.now()): Record<'down' | 'up' 
   const rows = db()
     .select({ ts: t.ts, metric: t.metric, value: t.value })
     .from(t)
-    .where(and(gte(t.ts, now - days * 86_400_000), sql`${t.metric} LIKE 'speed:%'`))
+    .where(and(gte(t.ts, now - days * 86_400_000), metricPrefix('speed:')))
     .orderBy(asc(t.ts))
     .all()
   const out: Record<'down' | 'up' | 'ping', [number, number][]> = { down: [], up: [], ping: [] }
@@ -283,7 +283,7 @@ export function seedSpeedHistory(now = Date.now()) {
     db()
       .select({ n: sql<number>`count(*)` })
       .from(t)
-      .where(sql`${t.metric} LIKE 'speed:%'`)
+      .where(metricPrefix('speed:'))
       .get()!.n > 0
   )
     return

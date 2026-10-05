@@ -4,7 +4,8 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { smoothPath } from '~/components/HistoryChart'
 import { parseLspciName, parseNvidiaSmi, readDrmCard } from '~/server/collectors/gpu'
-import { openDb, schema } from '~/server/db'
+import { and, gte, inArray } from 'drizzle-orm'
+import { metricPrefix, openDb, schema } from '~/server/db'
 import { metricRows, parseRange, pruneHistory, queryHistory } from '~/server/metrics'
 import type { SystemMetrics } from '~/shared/types'
 import { GpuCollector, NVIDIA_EVERY_MS } from '~/server/collectors/gpu'
@@ -124,5 +125,26 @@ describe('chart', () => {
     expect(Math.min(...ys)).toBeGreaterThanOrEqual(0)
     expect(smoothPath([[1, 2]])).toBe('M1.0,2.0')
     expect(smoothPath([])).toBe('')
+  })
+})
+
+describe('history queries use the (metric, ts) index', () => {
+  const plan = (q: { sql: string; params: unknown[] }) => {
+    const { sqlite } = openDb(':memory:')
+    return (sqlite.query(`EXPLAIN QUERY PLAN ${q.sql}`).all(...(q.params as never[])) as { detail: string }[]).map((r) => r.detail).join(' | ')
+  }
+  it('for a name prefix (LIKE never could) and for the system metrics', () => {
+    const { db } = openDb(':memory:')
+    const t = schema.metricSamples
+    expect(plan(db.select().from(t).where(and(metricPrefix('ct:'), gte(t.ts, 0))).toSQL())).toMatch(/SEARCH metric_samples USING (COVERING )?INDEX/)
+    expect(plan(db.select().from(t).where(and(inArray(t.metric, ['cpu', 'ram']), gte(t.ts, 0))).toSQL())).toMatch(/SEARCH metric_samples USING (COVERING )?INDEX/)
+  })
+  it('matches exactly the prefix', () => {
+    const { db } = openDb(':memory:')
+    const t = schema.metricSamples
+    db.insert(t).values(['ct:a:cpu', 'ct;x', 'cs:z', 'ct:', 'smart:sda:temp', 'smart:sdab:temp', 'CT:a'].map((metric) => ({ ts: 1, metric, value: 1 }))).run()
+    const names = (p: string) => db.select({ m: t.metric }).from(t).where(metricPrefix(p)).all().map((r) => r.m).sort()
+    expect(names('ct:')).toEqual(['ct:', 'ct:a:cpu'])
+    expect(names('smart:sda:')).toEqual(['smart:sda:temp'])
   })
 })

@@ -51,7 +51,8 @@ export const metricSamples = sqliteTable(
     metric: text('metric').notNull(),
     value: real('value').notNull(),
   },
-  (t) => [index('metric_samples_metric_ts').on(t.metric, t.ts)],
+  // value included: history reads are answered from the index alone (no row lookups)
+  (t) => [index('metric_samples_metric_ts_value').on(t.metric, t.ts, t.value)],
 )
 
 export const manualServices = sqliteTable('manual_services', {

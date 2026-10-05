@@ -7,7 +7,7 @@ import { and, gte, sql } from 'drizzle-orm'
 import { FS_BUCKET_MS, TREND_SPAN_MS, fsTrend, type FsTrend } from '~/shared/disk-usage'
 import type { Disk } from '~/shared/types'
 import type { DB } from './db'
-import { schema } from './db'
+import { metricPrefix, schema } from './db'
 
 export const fsMetric = (mount: string) => `fs:${mount}`
 
@@ -33,7 +33,7 @@ export function fsTrends(d: DB, disks: Pick<Disk, 'mount' | 'size' | 'used'>[], 
   const rows = d
     .select()
     .from(t)
-    .where(and(gte(t.ts, now - TREND_SPAN_MS), sql`${t.metric} LIKE 'fs:%'`))
+    .where(and(gte(t.ts, now - TREND_SPAN_MS), metricPrefix('fs:')))
     .all()
   const byMount = new Map<string, [number, number][]>()
   for (const r of rows) {
@@ -56,7 +56,7 @@ export function fsTrends(d: DB, disks: Pick<Disk, 'mount' | 'size' | 'used'>[], 
  */
 export function seedFsHistory(d: DB, disks: Pick<Disk, 'mount' | 'size' | 'used'>[], now = Date.now()) {
   const t = schema.metricSamples
-  if (d.select({ n: sql<number>`count(*)` }).from(t).where(sql`${t.metric} LIKE 'fs:%'`).get()!.n > 0) return
+  if (d.select({ n: sql<number>`count(*)` }).from(t).where(metricPrefix('fs:')).get()!.n > 0) return
   const end = Math.floor(now / FS_BUCKET_MS) * FS_BUCKET_MS
   const rows: { ts: number; metric: string; value: number }[] = []
   for (const [i, x] of disks.entries()) {

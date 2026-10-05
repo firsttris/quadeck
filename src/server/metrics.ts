@@ -2,12 +2,12 @@
 // read back averaged into at most ~300 buckets per range.
 
 import { FS_KEEP_MS } from '~/shared/disk-usage'
-import { and, asc, eq, gte, lt, sql } from 'drizzle-orm'
+import { and, asc, eq, gte, inArray, lt, sql } from 'drizzle-orm'
 import { CRC_WINDOW_DAYS, type SmartBaseline } from '~/shared/smart'
 import { HISTORY_RANGES, METRICS, type HistoryRange, type MetricHistory, type MetricName, type SystemMetrics } from '~/shared/types'
 export { metricRows } from '~/shared/metrics'
 import type { DB } from './db'
-import { schema } from './db'
+import { metricPrefix, schema } from './db'
 
 export const SAMPLE_EVERY_MS = 30_000
 export const KEEP_MS = HISTORY_RANGES['7d']
@@ -26,7 +26,8 @@ export function queryHistory(d: DB, range: HistoryRange, now = Date.now()): Metr
   const rows = d
     .select({ metric: t.metric, b, v: sql<number>`avg(${t.value})` })
     .from(t)
-    .where(gte(t.ts, now - span))
+    // per metric through the index, not every ct:/smart:/energy: row of the range
+    .where(and(inArray(t.metric, [...METRICS]), gte(t.ts, now - span)))
     .groupBy(t.metric, b)
     .orderBy(asc(b))
     .all()
@@ -43,15 +44,20 @@ export const SMART_KEEP_MS = 365 * 24 * 3600_000
 
 export function pruneHistory(d: DB, now = Date.now()) {
   const t = schema.metricSamples
-  // SMART trends and speed tests are kept for a year, energy for two, fill levels 400 days (below), everything else for KEEP_MS.
-  d.delete(t).where(and(lt(t.ts, now - KEEP_MS), sql`${t.metric} NOT LIKE 'smart:%'`, sql`${t.metric} NOT LIKE 'speed:%'`, sql`${t.metric} NOT LIKE 'energy:%'`, sql`${t.metric} NOT LIKE 'ct:%'`, sql`${t.metric} NOT LIKE 'fs:%'`)).run()
-  d.delete(t).where(and(lt(t.ts, now - SMART_KEEP_MS), sql`${t.metric} NOT LIKE 'energy:%'`, sql`${t.metric} NOT LIKE 'fs:%'`)).run()
-  // per container: 30 days
-  d.delete(t).where(and(lt(t.ts, now - 30 * 86_400_000), sql`${t.metric} LIKE 'ct:%'`)).run()
-  // energy per hour: two years
-  d.delete(t).where(and(lt(t.ts, now - 2 * SMART_KEEP_MS), sql`${t.metric} LIKE 'energy:%'`)).run()
-  // fill level per file system and hour: 400 days
-  d.delete(t).where(and(lt(t.ts, now - FS_KEEP_MS), sql`${t.metric} LIKE 'fs:%'`)).run()
+  // One transaction, and every delete walks the (metric, ts) index of its own family only.
+  // A new metric family needs its line here.
+  d.transaction((tx) => {
+    // system history (cpu, ram …): KEEP_MS
+    tx.delete(t).where(and(inArray(t.metric, [...METRICS]), lt(t.ts, now - KEEP_MS))).run()
+    // SMART trends and speed tests: a year
+    for (const p of ['smart:', 'speed:']) tx.delete(t).where(and(metricPrefix(p), lt(t.ts, now - SMART_KEEP_MS))).run()
+    // per container: 30 days
+    tx.delete(t).where(and(metricPrefix('ct:'), lt(t.ts, now - 30 * 86_400_000))).run()
+    // energy per hour: two years
+    tx.delete(t).where(and(metricPrefix('energy:'), lt(t.ts, now - 2 * SMART_KEEP_MS))).run()
+    // fill level per file system and hour: 400 days
+    tx.delete(t).where(and(metricPrefix('fs:'), lt(t.ts, now - FS_KEEP_MS))).run()
+  })
 }
 
 export const SMART_METRICS = ['temp', 'realloc', 'pending', 'uncorrectable', 'crc', 'wear', 'media', 'startstop'] as const
@@ -65,7 +71,7 @@ export function querySmartHistory(d: DB, diskId: string, days: number, now = Dat
   const rows = d
     .select({ metric: t.metric, b, v: sql<number>`max(${t.value})` })
     .from(t)
-    .where(and(gte(t.ts, now - days * 24 * 3600_000), sql`${t.metric} LIKE ${`smart:${diskId}:%`}`))
+    .where(and(gte(t.ts, now - days * 24 * 3600_000), metricPrefix(`smart:${diskId}:`)))
     .groupBy(t.metric, b)
     .orderBy(asc(b))
     .all()
@@ -145,7 +151,7 @@ export function smartBaselines(d: DB, ids: string[], now = Date.now()): Record<s
 /** Demo: three months of SMART trends (fixtures only, once). */
 export function seedSmartHistory(d: DB, disks: { id: string; samples: { key: string; value: number }[] }[], now = Date.now()) {
   const t = schema.metricSamples
-  if (d.select({ n: sql<number>`count(*)` }).from(t).where(sql`${t.metric} LIKE 'smart:%'`).get()!.n > 0) return
+  if (d.select({ n: sql<number>`count(*)` }).from(t).where(metricPrefix('smart:')).get()!.n > 0) return
   const rows: { ts: number; metric: string; value: number }[] = []
   const days = 90
   for (const disk of disks) {
