@@ -1,5 +1,5 @@
 import { Link, Outlet, createFileRoute, redirect, useRouterState } from '@tanstack/react-router'
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActionsProvider } from '~/components/Actions'
 import { CommandPalette } from '~/components/CommandPalette'
 import { JobChip, JobsProvider } from '~/components/Jobs'
@@ -84,7 +84,7 @@ function useNav(): { title?: string; items: NavItem[] }[] {
         { to: '/disks', label: m.shell_nav_disks(), glyph: 'disk', badge: smart },
         { to: '/files', label: m.shell_nav_files(), glyph: 'file', badge: 0 },
         { to: '/shares', label: m.shell_nav_shares(), glyph: 'folder', badge: 0 },
-        { to: '/backups', label: 'Backups', glyph: 'shield', badge: (snapshot.backup?.lastStatus === 'failed' ? 1 : 0) + (snapshot.backup?.stale?.length ?? 0) },
+        { to: '/backups', label: m.shell_nav_backups(), glyph: 'shield', badge: (snapshot.backup?.lastStatus === 'failed' ? 1 : 0) + (snapshot.backup?.stale?.length ?? 0) },
       ],
     },
     {
@@ -142,14 +142,23 @@ function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => vo
 
   // The drawer closes when a page is chosen, on Escape, and doesn't let the page behind scroll.
   useEffect(() => onClose(), [path]) // eslint-disable-line react-hooks/exhaustive-deps
+  const closeButton = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     if (!open) return
     const key = (e: KeyboardEvent) => e.key === 'Escape' && onClose()
     window.addEventListener('keydown', key)
     document.documentElement.style.overflow = 'hidden'
+    // A modal drawer: focus moves into it, the page behind can't be reached with Tab or a screen
+    // reader, and focus goes back where it was when the drawer closes.
+    const before = document.activeElement as HTMLElement | null
+    const behind = [...document.querySelectorAll<HTMLElement>('main, header')]
+    for (const el of behind) el.inert = true
+    closeButton.current?.focus()
     return () => {
       window.removeEventListener('keydown', key)
       document.documentElement.style.overflow = ''
+      for (const el of behind) el.inert = false
+      before?.focus?.()
     }
   }, [open, onClose])
 
@@ -164,7 +173,7 @@ function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => vo
         <div className="flex items-center gap-[10px] px-[6px]">
           <Logo />
           <div className="grow font-cond text-[21px] font-semibold tracking-[.01em]">Quadeck</div>
-          <button type="button" className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-[#161c24] md:hidden" onClick={onClose} aria-label={m.shell_bar_closeMenu()}>
+          <button ref={closeButton} type="button" className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-[#161c24] md:hidden" onClick={onClose} aria-label={m.shell_bar_closeMenu()}>
             <Glyph name="close" size={18} strokeWidth={2} />
           </button>
         </div>
@@ -183,7 +192,8 @@ function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => vo
             {h.systemdVersion ? ` · systemd ${h.systemdVersion}` : ''}
           </span>
           <span>
-            {h.podmanVersion ? `Podman ${h.podmanVersion} · ` : ''}up {duration(h.uptimeSec)}
+            {h.podmanVersion ? `Podman ${h.podmanVersion} · ` : ''}
+            {m.shell_bar_uptime({ duration: duration(h.uptimeSec) })}
           </span>
         </Link>
         <button type="button" className="btn mx-1 justify-start text-muted" onClick={onSearch} aria-keyshortcuts="Control+K">

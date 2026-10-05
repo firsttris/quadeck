@@ -45,12 +45,13 @@ export function ConfirmDialog(props: { open: boolean; title: string; body: React
     <Modal open={props.open} onClose={props.onClose} title={props.title} busy={busy}>
       <div className="text-[#c9d1d9]">{props.body}</div>
       <div className="flex justify-end gap-2">
-        <button type="button" className="btn" disabled={busy} onClick={props.onClose}>
+        {/* A destructive action never has the focus: a stray Enter cancels instead of deleting. */}
+        <button type="button" className="btn" disabled={busy} onClick={props.onClose} autoFocus={!!props.danger}>
           {m.common_cancel()}
         </button>
         <BusyButton
           className={props.danger ? 'btn danger' : 'btn primary'}
-          autoFocus
+          autoFocus={!props.danger}
           busy={busy}
           busyLabel={props.busyLabel ?? m.common_working()}
           onClick={async () => {

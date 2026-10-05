@@ -182,7 +182,7 @@ export function PackDialog({ dir, paths, onClose }: { dir: string; paths: string
   const jobs = useJobs()
   const work = useBusy()
   const [format, setFormat] = useState<PackFormat>('zip')
-  const [name, setName] = useState(paths.length === 1 ? baseName(paths[0]!) : baseName(dir) || 'archiv')
+  const [name, setName] = useState(paths.length === 1 ? baseName(paths[0]!) : baseName(dir) || m.files_archive_defaultName())
   const [zip, setZip] = useState<boolean | null>(null)
   const checkTools = useCallback(() => {
     fetch('/api/files?tools')
