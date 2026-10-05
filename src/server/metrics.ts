@@ -1,6 +1,7 @@
 // Metric history: one sample per metric every 30 s in SQLite (kept 7 days),
 // read back averaged into at most ~300 buckets per range.
 
+import { FS_KEEP_MS } from '~/shared/disk-usage'
 import { and, asc, eq, gte, lt, sql } from 'drizzle-orm'
 import { CRC_WINDOW_DAYS, type SmartBaseline } from '~/shared/smart'
 import { HISTORY_RANGES, METRICS, type HistoryRange, type MetricHistory, type MetricName, type SystemMetrics } from '~/shared/types'
@@ -42,13 +43,15 @@ export const SMART_KEEP_MS = 365 * 24 * 3600_000
 
 export function pruneHistory(d: DB, now = Date.now()) {
   const t = schema.metricSamples
-  // SMART trends and speed tests are kept for a year, energy for two (below), everything else for KEEP_MS.
-  d.delete(t).where(and(lt(t.ts, now - KEEP_MS), sql`${t.metric} NOT LIKE 'smart:%'`, sql`${t.metric} NOT LIKE 'speed:%'`, sql`${t.metric} NOT LIKE 'energy:%'`, sql`${t.metric} NOT LIKE 'ct:%'`)).run()
-  d.delete(t).where(and(lt(t.ts, now - SMART_KEEP_MS), sql`${t.metric} NOT LIKE 'energy:%'`)).run()
+  // SMART trends and speed tests are kept for a year, energy for two, fill levels 400 days (below), everything else for KEEP_MS.
+  d.delete(t).where(and(lt(t.ts, now - KEEP_MS), sql`${t.metric} NOT LIKE 'smart:%'`, sql`${t.metric} NOT LIKE 'speed:%'`, sql`${t.metric} NOT LIKE 'energy:%'`, sql`${t.metric} NOT LIKE 'ct:%'`, sql`${t.metric} NOT LIKE 'fs:%'`)).run()
+  d.delete(t).where(and(lt(t.ts, now - SMART_KEEP_MS), sql`${t.metric} NOT LIKE 'energy:%'`, sql`${t.metric} NOT LIKE 'fs:%'`)).run()
   // per container: 30 days
   d.delete(t).where(and(lt(t.ts, now - 30 * 86_400_000), sql`${t.metric} LIKE 'ct:%'`)).run()
   // energy per hour: two years
   d.delete(t).where(and(lt(t.ts, now - 2 * SMART_KEEP_MS), sql`${t.metric} LIKE 'energy:%'`)).run()
+  // fill level per file system and hour: 400 days
+  d.delete(t).where(and(lt(t.ts, now - FS_KEEP_MS), sql`${t.metric} LIKE 'fs:%'`)).run()
 }
 
 export const SMART_METRICS = ['temp', 'realloc', 'pending', 'uncorrectable', 'crc', 'wear', 'media', 'startstop'] as const

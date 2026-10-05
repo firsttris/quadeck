@@ -1,5 +1,7 @@
 // Types shared between server (collectors, registry) and UI.
 
+import type { FsTrend } from './disk-usage'
+
 export type Health = 'ok' | 'warn' | 'bad' | 'unknown'
 
 export interface SourceStatus {
@@ -65,6 +67,10 @@ export interface Disk {
   /** Temperature from the last SMART read (every 30 min) when the kernel has no sensor for the disk. */
   tempFromSmart?: boolean
   role: string
+  /** Physical disks underneath (sda for sda1; several for RAID/LVM over more disks). */
+  disks?: string[]
+  /** Growth over the last 30 days and when it is full at that pace. */
+  trend?: FsTrend
 }
 
 export interface ContainerPort {

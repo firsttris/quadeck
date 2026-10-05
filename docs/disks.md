@@ -18,6 +18,22 @@ Model, serial, capacity, type (HDD, SSD, NVMe), temperature, power-on hours, wea
 reallocated and pending sectors, uncorrectable and CRC errors, the result of the last self-test,
 and a verdict.
 
+### Usage
+
+Each card also shows what is mounted from that disk: partition → mount point → file system, how
+full it is (the bar turns yellow at 85 %, red at 90 % or when it is full within two weeks) and at
+what pace it fills up – "+1.8 TB a month · full in about 4 weeks", with a small line of the last
+30 days. A file system on RAID or LVM over several disks shows on each of them, "shared with sdb".
+A disk without a mounted partition links to **Mounts**; from 85 % there is a link to the folder in
+the file explorer.
+
+The fill level comes from `statfs` of the mounted file systems, which only reads the kernel's
+numbers: no disk access, sleeping disks stay asleep. Quadeck keeps one value per file system and
+hour for 400 days; the forecast is a straight line through the last 30 days and appears after two
+days of history. Below about 0.6 % a month the disk counts as "steady", and forecasts beyond ten
+years are not shown. Fragmentation is not shown on purpose: on SSDs it doesn't matter, ext4 and
+XFS keep it low by themselves, and measuring it would read the whole disk (and wake it).
+
 ### Temperature sensor
 
 SATA disks report their temperature to the kernel only with the `drivetemp` module. When a disk

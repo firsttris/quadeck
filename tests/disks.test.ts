@@ -17,7 +17,7 @@ describe('lsblk', () => {
 
   it('accepts the old single MOUNTPOINT column', () => {
     const old = parseLsblk(JSON.stringify({ blockdevices: [{ name: 'sdb', type: 'disk', size: '10', fstype: 'ext4', mountpoint: '/data' }] }))
-    expect(old).toEqual([{ dev: 'sdb', path: '/dev/sdb', mount: '/data', fstype: 'ext4', size: 10 }])
+    expect(old).toEqual([{ dev: 'sdb', path: '/dev/sdb', mount: '/data', fstype: 'ext4', size: 10, disks: ['sdb'] }])
   })
 
   it('derives roles from mountpoints', () => {

@@ -33,6 +33,8 @@ import { notifier } from './notify'
 import { freshDevices, markSwept, recordScan, sweepDue } from './devices'
 import { EnergyMeter, energyHours, energySettings, seedEnergyHistory } from './energy'
 import { UsageRecorder, seedUsageHistory } from './container-usage'
+import { FsHistory, fsTrends, seedFsHistory } from './disk-history'
+import type { FsTrend } from '~/shared/disk-usage'
 import { dailyAverage } from '~/shared/energy'
 import { bilingual, localize, outsideRequest } from './lang'
 
@@ -192,6 +194,7 @@ export class Hub {
       seedSpeedHistory()
       seedEnergyHistory(db())
       seedUsageHistory(db(), this.fixtures.containers ?? [])
+      seedFsHistory(db(), this.fixtures.disks ?? [])
     }
     // First round right away (timers are already registered, so a failure here
     // does not leave the hub dead).
@@ -265,8 +268,14 @@ export class Hub {
 
   private async collectDisks() {
     try {
-      this.disks = this.fixtures?.disks?.map((d) => ({ ...d, role: diskRole(d.mount) })) ?? (await collectDisks())
+      this.disks = this.fixtures?.disks?.map((d) => ({ ...d, role: diskRole(d.mount), disks: d.disks ?? [d.dev] })) ?? (await collectDisks())
       this.ok('disks')
+      this.fsHistory.record(this.disks)
+      // the 30-day trend changes slowly: once an hour is plenty
+      if (Date.now() - this.fsTrendsAt > 3600_000) {
+        this.fsTrends = fsTrends(db(), this.disks)
+        this.fsTrendsAt = Date.now()
+      }
     } catch (e) {
       this.fail('disks', e)
     }
@@ -320,6 +329,9 @@ export class Hub {
   readonly energy = new EnergyMeter()
   /** CPU and RAM per container in 5-minute buckets (Units → Usage). */
   readonly usage = new UsageRecorder(db)
+  readonly fsHistory = new FsHistory(db)
+  private fsTrends = new Map<string, FsTrend>()
+  private fsTrendsAt = 0
   private power: Snapshot['power']
   private energyAvg = { at: 0, kwh: undefined as number | undefined }
 
@@ -455,7 +467,7 @@ export class Hub {
     return {
       host: this.host,
       system: this.system,
-      disks: this.disks.map((d) => withSmartTemp(d, this.smartTemps.get(d.dev))),
+      disks: this.disks.map((d) => ({ ...withSmartTemp(d, this.smartTemps.get(d.dev)), trend: this.fsTrends.get(d.mount) })),
       containers: this.containers,
       units: this.units,
       services,

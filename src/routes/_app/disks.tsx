@@ -19,6 +19,9 @@ import { m } from '~/paraglide/messages'
 import { PowerDialog, PowerRow, type PowerInfo } from '~/components/DiskPower'
 import { dailyWakes, type DiskPower } from '~/shared/power'
 import { pickMsg } from '~/i18n'
+import { DiskUsage } from '~/components/DiskUsage'
+import { useLive } from '~/lib/live'
+import type { Disk } from '~/shared/types'
 
 export const Route = createFileRoute('/_app/disks')({
   // The file explorer used to be a tab here; old links land on its own page.
@@ -64,6 +67,7 @@ function DisksPage() {
 }
 
 function Smart() {
+  const { snapshot } = useLive()
   const [report, setReport] = useState<SmartReport | null>(null)
   const [error, setError] = useState('')
   const [reading, setReading] = useState(false)
@@ -141,7 +145,17 @@ function Smart() {
         <>
           <div className="grid grid-cols-1 gap-[18px] xl:grid-cols-2">
             {assessed.map(({ disk, a }) => (
-              <DiskCard key={disk.name} disk={disk} a={a} onDetail={() => setDetail(disk)} onReport={setReport} power={power?.disks.find((p) => p.name === disk.name)} wakes={power?.wakes[disk.name]} onPower={() => setPowerDisk(disk.name)} />
+              <DiskCard
+                key={disk.name}
+                disk={disk}
+                a={a}
+                onDetail={() => setDetail(disk)}
+                onReport={setReport}
+                power={power?.disks.find((p) => p.name === disk.name)}
+                wakes={power?.wakes[disk.name]}
+                onPower={() => setPowerDisk(disk.name)}
+                filesystems={snapshot?.disks.filter((f) => (f.disks ?? [f.dev]).includes(disk.name))}
+              />
             ))}
           </div>
           <p className="m-0 text-[12px] text-muted" suppressHydrationWarning>
@@ -170,7 +184,7 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: Ton
   )
 }
 
-function DiskCard({ disk: d, a, onDetail, onReport, power, wakes, onPower }: { disk: SmartDisk; a: SmartAssessment; onDetail: () => void; onReport: (r: SmartReport) => void; power?: DiskPower; wakes?: number; onPower: () => void }) {
+function DiskCard({ disk: d, a, onDetail, onReport, power, wakes, onPower, filesystems }: { disk: SmartDisk; a: SmartAssessment; onDetail: () => void; onReport: (r: SmartReport) => void; power?: DiskPower; wakes?: number; onPower: () => void; filesystems?: Disk[] }) {
   const say = useToast()
   const guarded = useGuardedApi()
   const { readonly } = useActions()
@@ -240,6 +254,7 @@ function DiskCard({ disk: d, a, onDetail, onReport, power, wakes, onPower }: { d
         </ul>
       )}
       {(!d.supported || d.standby) && <p className="m-0 text-[12px] text-muted">{d.standby ? m.disks_card_standbyText() : m.disks_card_unsupportedText({ msg: d.message ?? m.disks_card_noSmartCap() })}</p>}
+      {filesystems && <DiskUsage name={d.name} filesystems={filesystems} />}
       {power && <PowerRow disk={power} wakes={wakes} onEdit={onPower} />}
       {d.supported && !d.standby && !readonly && (
         <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3 text-[12px] text-muted">

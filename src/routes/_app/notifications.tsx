@@ -240,6 +240,18 @@ function Rules({ settings, onSave }: { settings: NotifySettings; onSave: (s: Not
                   onChange={(e) => setDraft({ ...draft, diskThreshold: Math.min(99, Math.max(50, Number(e.target.value) || 90)) })}
                 />
                 {m.notifications_rules_usage()}
+                <span className="mx-1">·</span>
+                {m.notifications_rules_soonBefore()}
+                <input
+                  className="field w-[70px]"
+                  type="number"
+                  min={0}
+                  max={90}
+                  aria-label={m.notifications_rules_soonDays()}
+                  value={draft.diskDays}
+                  onChange={(e) => setDraft({ ...draft, diskDays: Math.min(90, Math.max(0, Math.floor(Number(e.target.value)) || 0)) })}
+                />
+                {m.notifications_rules_soonAfter()}
               </span>
             )}
             {r.key === 'internet' && (
@@ -303,7 +315,7 @@ function Rules({ settings, onSave }: { settings: NotifySettings; onSave: (s: Not
           onClick={async () => {
             setSaving(true)
             try {
-              await onSave({ ...settings, rules: draft.rules, diskThreshold: draft.diskThreshold, recovery: draft.recovery, updatesHour: draft.updatesHour, speedMode: draft.speedMode, speedPercent: draft.speedPercent, speedMbit: draft.speedMbit, backupDays: draft.backupDays })
+              await onSave({ ...settings, rules: draft.rules, diskThreshold: draft.diskThreshold, diskDays: draft.diskDays, recovery: draft.recovery, updatesHour: draft.updatesHour, speedMode: draft.speedMode, speedPercent: draft.speedPercent, speedMbit: draft.speedMbit, backupDays: draft.backupDays })
             } finally {
               setSaving(false)
             }

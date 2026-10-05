@@ -40,7 +40,7 @@ Each rule can be switched off:
 | Web service not reachable | the HTTP check of a service tile fails for more than 2 minutes |
 | Container unhealthy | a healthcheck reports unhealthy, or a container without a unit exited with an error, for more than 2 minutes |
 | Disk reports problems (SMART) | the [SMART verdict](disks.md#the-verdict) is warning or critical |
-| Disk almost full | usage is above the threshold (50–99 %, default 90 %) |
+| Disk almost full | usage is above the threshold (50–99 %, default 90 %), or at the pace of the last 30 days it is full in fewer than N days (default 14, 0 = off) |
 | Backup failed or too old | the last [server backup](backups.md) failed, or none succeeded for a number of days (2 by default), or a [client](backups.md#backup-target-for-clients) has not backed up for its warning days; on by default |
 | New device in the network | an unknown device turns up in the LAN after the first scan ([Network → Devices](network.md#devices)); naming it or marking it as known ends the alert, no all-clear is sent; off by default |
 | Internet slow or down | only with the automatic [speed test](network.md#speed-test): two runs in a row below the limit (relative to the usual speed or a fixed Mbit/s value) or Cloudflare not reachable; off by default |
@@ -55,7 +55,8 @@ Each rule can be switched off:
 - Web service and container checks must fail for **2 minutes** before they count, so a restart
   does not page you.
 - A nearly full disk is reported at the threshold and counts as resolved only **3 % below** it,
-  so a disk hovering around 90 % does not ping-pong.
+  so a disk hovering around 90 % does not ping-pong. The "full in N days" warning likewise ends
+  only when the forecast is **3 days** later than the limit.
 - What was reported is stored in the database and **survives a restart** of Quadeck.
 - When a source is not readable at the moment (systemd unreachable, SMART not installed), its
   problems are neither reported nor cleared; no false all-clear.
