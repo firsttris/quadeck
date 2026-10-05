@@ -3,9 +3,10 @@ import { HttpError } from '~/server/auth'
 import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
 import { assertWritable } from '~/server/guard'
-import { authed, readJson } from '~/server/http'
+import { authed, JSON_MAX, readJson } from '~/server/http'
 import { privileged } from '~/server/privileged'
 import { unlockToken } from '~/server/unlock-sessions'
+import { TEXT_MAX } from '~/shared/files'
 
 // GET: roots, ?path=… the folder content, ?read=… a text file, ?raw=…[&download=1] the file itself
 // for the browser (Range for video; keys and secrets only when unlocked), ?archive=…&toDir=… what
@@ -31,7 +32,8 @@ export const Route = createFileRoute('/api/files/')({
       }),
       POST: authed(async ({ request }, session) => {
         assertWritable()
-        const b = await readJson<{ mkdir?: unknown; rename?: { path?: unknown; name?: unknown }; write?: { path?: unknown; content?: unknown; expected?: unknown } }>(request)
+        // the editor saves files up to TEXT_MAX; JSON escaping (\n, \", \\) makes the body somewhat larger
+        const b = await readJson<{ mkdir?: unknown; rename?: { path?: unknown; name?: unknown }; write?: { path?: unknown; content?: unknown; expected?: unknown } }>(request, 2 * TEXT_MAX + JSON_MAX)
         const p = privileged()
         const token = unlockToken(session.id)
         const w = b.write

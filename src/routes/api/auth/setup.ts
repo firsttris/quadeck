@@ -13,8 +13,13 @@ export const Route = createFileRoute('/api/auth/setup')({
           const body = await readJson<{ token?: unknown; password?: unknown }>(request)
           if (typeof body.token !== 'string' || typeof body.password !== 'string') throw new HttpError(400, msg(m.api_auth_tokenPasswordRequired))
           const finish = beginAttempt(request)
-          const ok = checkSetupToken(body.token)
-          finish(ok)
+          let ok = false
+          try {
+            ok = checkSetupToken(body.token)
+          } finally {
+            // also when reading the token file throws, or the parallel-attempt slot stays taken
+            finish(ok)
+          }
           if (!ok) throw new HttpError(403, msg(m.api_auth_wrongSetupToken))
           await setPassword(body.password).catch((e) => {
             throw new HttpError(400, (e as Error).message)

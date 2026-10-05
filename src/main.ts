@@ -137,6 +137,8 @@ export function serve(opts: MainOptions) {
     hostname: cfg.host,
     port: cfg.port,
     idleTimeout: 255, // SSE streams send a ping every 15–20 s
+    // largest body: the speed test's upload (drain() reads up to 64 MiB); JSON routes limit themselves
+    maxRequestBodySize: 65 * 1024 * 1024,
     async fetch(req, srv) {
       const url = new URL(req.url)
       // .br/.gz copies are served in place of their file (content-encoding), never as files of their own

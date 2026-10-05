@@ -121,3 +121,35 @@ describe('login throttling', () => {
     expect(auth.loginBlockedFor('10.0.0.10')).toBe(0)
   })
 })
+
+describe('request parsing', () => {
+  it('keeps a malformed cookie of another app raw instead of failing', () => {
+    expect(auth.parseCookies('other=%E0%A4; qd_session=abc%20d')).toEqual({ other: '%E0%A4', qd_session: 'abc d' })
+    expect(auth.getSession(req('GET', { cookie: 'broken=100%; qd_session=nope' }))).toBeUndefined()
+  })
+
+  const post = (body: BodyInit, headers: Record<string, string> = {}) => new Request('http://nas:8484/api/x', { method: 'POST', body, headers: { 'content-type': 'application/json', ...headers } })
+
+  it('reads JSON up to the limit and refuses more without buffering it', async () => {
+    const { JSON_MAX, readJson } = await import('~/server/http')
+    expect(await readJson(post('{"a":1}'))).toEqual({ a: 1 })
+    await expect(readJson(post(JSON.stringify({ a: 'x'.repeat(JSON_MAX) })))).rejects.toMatchObject({ status: 413 })
+    await expect(readJson(post('{}', { 'content-length': String(500 * 1024 * 1024) }))).rejects.toMatchObject({ status: 413 })
+    // a stream without Content-Length is cut off as soon as it passes the limit
+    let pulled = 0
+    const endless = new ReadableStream<Uint8Array>({
+      pull(c) {
+        pulled++
+        c.enqueue(new Uint8Array(16 * 1024).fill(32))
+      },
+    })
+    await expect(readJson(new Request('http://nas:8484/api/x', { method: 'POST', body: endless, headers: { 'content-type': 'application/json' }, duplex: 'half' } as RequestInit))).rejects.toMatchObject({ status: 413 })
+    expect(pulled).toBeLessThan(10)
+  })
+
+  it('lets a route accept a larger body (the text editor saves files up to 2 MB)', async () => {
+    const { readJson } = await import('~/server/http')
+    const content = 'line\n'.repeat(100_000)
+    expect(await readJson<{ content: string }>(post(JSON.stringify({ content })), 2 * 1024 * 1024)).toEqual({ content })
+  })
+})
