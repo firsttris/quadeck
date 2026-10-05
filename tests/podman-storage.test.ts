@@ -185,3 +185,12 @@ describe('cleaning up', () => {
     await expect(readStorage(down, refs)).rejects.toThrow(/Podman-API/)
   })
 })
+
+describe('quadletKey', () => {
+  it('reads the key of the right section, the last one wins', () => {
+    expect(quadletKey('[Unit]\nDescription=Image=foo\n[Container]\nImage=docker.io/a\nImage=docker.io/b\n', 'Image')).toBe('docker.io/b')
+    expect(quadletKey('[Image]\nImage=quay.io/x:1\n', 'Image')).toBe('quay.io/x:1')
+    expect(quadletKey('[Unit]\nVolumeName=nope\n[Volume]\n', 'VolumeName')).toBeUndefined()
+    expect(quadletKey('[Network]\r\nNetworkName=lan\r\n', 'NetworkName')).toBe('lan')
+  })
+})
