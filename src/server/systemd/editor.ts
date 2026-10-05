@@ -3,7 +3,7 @@
 // (vendor files stay untouched), keep earlier versions. SystemUnitEditor runs
 // where root is; FixtureUnitEditor keeps demo files in memory.
 
-import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmdirSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { HttpError } from '../auth'
@@ -16,6 +16,7 @@ import { m } from '~/paraglide/messages'
 import type { Diagnostic, Revision } from '~/shared/quadlets'
 import { NEW_UNIT, PROTECTED_UNIT, UNIT_DIR, assertUnit, lintUnit, originOf, writablePath, type UnitDetail, type UnitFilePart, type UnitValidateResult, type UnitWriteResult } from '~/shared/unit-files'
 import { LEGACY_MANAGED_HEADER, MANAGED_HEADER } from '~/shared/timers'
+import { writeFileAtomic } from '../atomic'
 
 export interface UnitEditorAdmin {
   unitDetail(unit: string): Promise<UnitDetail>
@@ -160,10 +161,7 @@ const read = (p: string) => {
 }
 
 function atomicWrite(path: string, content: string) {
-  mkdirSync(dirname(path), { recursive: true, mode: 0o755 })
-  const tmp = `${path}.quadeck-tmp`
-  writeFileSync(tmp, content.endsWith('\n') ? content : content + '\n', { mode: 0o644 })
-  renameSync(tmp, path)
+  writeFileAtomic(path, content.endsWith('\n') ? content : content + '\n', { mkdir: 0o755 })
 }
 
 const isManagedTimer = (content: string | undefined) => !!content && (content.includes(MANAGED_HEADER) || content.includes(LEGACY_MANAGED_HEADER))

@@ -4,7 +4,7 @@
 // with sshd -t / testparm before they are written; the previous file stays as
 // <file>.quadeck-bak.
 
-import { chmodSync, chownSync, copyFileSync, existsSync, lstatSync, mkdtempSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { copyFileSync, existsSync, lstatSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { msg } from '~/shared/i18n'
@@ -12,6 +12,7 @@ import { m } from '~/paraglide/messages'
 import { HttpError } from '../auth'
 import { run } from '../exec'
 import { describeConfigFile, parseConfigPath, replaceRisk, type ConfigAction, type ConfigFileInfo } from '~/shared/configfiles'
+import { writeFileAtomic } from '../atomic'
 
 const MAX = 512 * 1024
 
@@ -97,13 +98,7 @@ export class SystemConfigFs implements ConfigFs {
     if (existsSync(path) && lstatSync(path).isSymbolicLink()) throw new HttpError(409, msg(m.configfiles_error_symlink, { path }))
     const st = existsSync(path) ? statSync(path) : undefined
     if (st) copyFileSync(path, `${path}.quadeck-bak`)
-    const tmp = `${path}.quadeck-tmp`
-    writeFileSync(tmp, content, { mode: st ? st.mode & 0o7777 : 0o644 })
-    if (st) {
-      chownSync(tmp, st.uid, st.gid)
-      chmodSync(tmp, st.mode & 0o7777)
-    }
-    renameSync(tmp, path)
+    writeFileAtomic(path, content, st ? { mode: st.mode & 0o7777, owner: { uid: st.uid, gid: st.gid } } : {})
   }
 
   remove(path: string) {

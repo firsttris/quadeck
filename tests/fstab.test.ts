@@ -185,6 +185,25 @@ describe('manager (demo machine)', () => {
     expect(s.history.map((h) => h.message)).toEqual(['Gespeichert', 'Ursprünglicher Stand'])
   })
 
+  it('puts the file back when mounting fails, keeps the good backup and records the restore', async () => {
+    class FailingMount extends FixtureFstabHost {
+      writes: (boolean | undefined)[] = []
+      write(text: string, backup?: boolean) {
+        this.writes.push(backup)
+        super.write(text)
+      }
+      async systemctl(args: string[]) {
+        return args[0] === 'start' ? { ok: false, message: 'wrong fs type' } : super.systemctl(args)
+      }
+    }
+    const host = new FailingMount('fixtures/demo')
+    const before = host.read()
+    await expect(new FstabManager(host).applyFstab({ kind: 'add', entry: newEntry() }, false)).rejects.toMatchObject({ status: 422 })
+    expect(host.read()).toBe(before)
+    expect(host.writes).toEqual([undefined, false]) // the undo does not overwrite the backup
+    expect(host.history.read(host.history.list()[0]!.id)).toBe(before) // newest revision = the file
+  })
+
   it('refuses wrong devices, file systems, missing drivers and taken targets', async () => {
     const m = manager()
     const msg = async (e: Partial<EntryInput>) => (await m.validateFstab({ kind: 'add', entry: newEntry(e) })).diagnostics.filter((d) => d.severity === 'error').map((d) => d.message)

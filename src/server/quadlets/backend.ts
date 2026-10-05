@@ -1,9 +1,9 @@
 // Quadlet files and Podman settings. SystemPodmanAdmin works on the host (root
 // helper or single root process); FixturePodmanAdmin keeps demo data in memory.
 
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
 import { lineOf, lintQuadlet, parseIni } from '~/shared/ini'
@@ -28,6 +28,7 @@ import { HttpError } from '../auth'
 import { contentHash } from '~/shared/caddy'
 import { calendarOf } from '../collectors/systemd'
 import { run, runOk } from '../exec'
+import { writeFileAtomic } from '../atomic'
 
 export interface PodmanAdmin {
   quadlets(): Promise<QuadletFile[]>
@@ -144,10 +145,7 @@ export function commitLabel(message: string): string {
 const GENERATORS = ['/usr/lib/systemd/system-generators/podman-system-generator', '/usr/libexec/podman/quadlet', '/usr/lib/podman/quadlet']
 
 function atomicWrite(path: string, content: string) {
-  mkdirSync(dirname(path), { recursive: true, mode: 0o755 })
-  const tmp = `${path}.quadeck-tmp`
-  writeFileSync(tmp, content, { mode: 0o644 })
-  renameSync(tmp, path)
+  writeFileAtomic(path, content, { mkdir: 0o755 })
 }
 
 export const managerCall = (method: string, sig?: string, ...args: string[]) =>

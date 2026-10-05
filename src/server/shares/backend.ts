@@ -2,15 +2,16 @@
 // reload, service control. SystemShares runs where root is; FixtureShares
 // keeps demo files in memory.
 
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { join } from 'node:path'
 import { HttpError } from '../auth'
 import { run } from '../exec'
 import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
 import { validateNfs, validateSmb, type NfsExportInfo, type ShareChange, type ShareConnection, type SharePreview, type ShareService, type ShareServiceAction, type SharesState } from '~/shared/shares'
 import { parseExportsFile, parseNfsdClientInfo, parseSmbstatusShares, setExport, setSmbShare, smbShares } from './config'
+import { writeFileAtomic } from '../atomic'
 
 export interface SharesAdmin {
   sharesState(): Promise<SharesState>
@@ -76,10 +77,7 @@ const read = (p: string) => {
 }
 
 function atomicWrite(path: string, content: string) {
-  mkdirSync(dirname(path), { recursive: true, mode: 0o755 })
-  const tmp = `${path}.quadeck-tmp`
-  writeFileSync(tmp, content, { mode: 0o644 })
-  renameSync(tmp, path)
+  writeFileAtomic(path, content, { mkdir: 0o755 })
 }
 
 /** testparm on a candidate smb.conf (private temp directory). */
