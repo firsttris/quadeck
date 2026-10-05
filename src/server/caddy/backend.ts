@@ -83,6 +83,15 @@ interface Located {
   readonly?: string
 }
 
+/**
+ * A volume of the real Caddy container, read-only for the throw-away validation run. Other options
+ * go: z/Z would relabel and U chown the data under the running container.
+ */
+export function readOnlyMount(volume: string): string {
+  const [src, dst] = volume.split(':')
+  return dst === undefined ? volume : `${src}:${dst}:ro`
+}
+
 export class CaddyManager implements CaddyBackend {
   constructor(private host: CaddyHost) {}
 
@@ -399,7 +408,7 @@ export class SystemCaddyHost implements CaddyHost {
       const file = join(dir, 'Caddyfile')
       writeFileSync(file, content, { mode: 0o644 })
       // Same mounts as the real container (imports keep working), the candidate over the Caddyfile.
-      const mounts = q.volumes.flatMap((v) => ['-v', v.replace(/:(ro|rw|z|Z)(,(ro|rw|z|Z))*$/, ':ro')])
+      const mounts = q.volumes.flatMap((v) => ['-v', readOnlyMount(v)])
       const r = await run(['podman', 'run', '--rm', '--network=none', '--pull=never', ...mounts, '-v', `${file}:${q.containerPath}:ro`, q.image, 'caddy', 'validate', '--config', q.containerPath, '--adapter', 'caddyfile'], {
         timeoutMs: 60_000,
       })

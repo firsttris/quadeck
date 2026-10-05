@@ -2654,6 +2654,7 @@
   "quadlets_error_revisionNotFound": "Revision not found",
   "quadlets_warn_savedNotStarted": "Saved, but {unit} does not start",
   "quadlets_warn_volumeKept": "Volume {name} not removed",
+  "quadlets_error_stillRunning": "{unit} could not be stopped, nothing was deleted: {error}",
   "quadlets_warn_imageKept": "Image {name} not removed",
   "quadlets_check_invalidSchedule": "Invalid schedule",
   "quadlets_error_notEditable": "{name} cannot be edited here",

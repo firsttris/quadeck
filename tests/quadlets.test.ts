@@ -273,6 +273,31 @@ describe('SystemPodmanAdmin on a temp directory', () => {
     expect(r2.warnings).toEqual([])
   })
 
+  it('deletes nothing when the unit does not stop, but lets a never-loaded unit go', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'qd-remove-stuck-'))
+    const dir = join(root, 'systemd')
+    mkdirSync(dir)
+    writeFileSync(join(dir, 'app.container'), '[Container]\nImage=docker.io/library/app:1\nVolume=app-data.volume:/data\n')
+    writeFileSync(join(dir, 'app-data.volume'), '[Volume]\n')
+    let state = 'deactivating'
+    const calls: string[] = []
+    const exec = async (argv: string[]) => {
+      calls.push(argv.join(' '))
+      if (argv[1] === 'stop') return { code: 1, stdout: '', stderr: 'Job for app.service canceled.' }
+      if (argv[1] === 'is-active') return { code: 3, stdout: `${state}\n`, stderr: '' }
+      return { code: 0, stdout: '', stderr: '' }
+    }
+    const admin = new SystemPodmanAdmin({ dir, gitDir: join(root, 'git'), confDir: root, manager: async () => '', exec })
+    await expect(admin.deleteQuadlet('app.container', { image: true, volumes: true })).rejects.toMatchObject({ status: 409 })
+    expect(existsSync(join(dir, 'app.container'))).toBe(true)
+    expect(existsSync(join(dir, 'app-data.volume'))).toBe(true)
+    expect(calls.some((c) => c.startsWith('podman'))).toBe(false)
+
+    state = 'inactive' // e.g. "Unit app.service not loaded."
+    await admin.deleteQuadlet('app.container', { image: true, volumes: true })
+    expect(existsSync(join(dir, 'app.container'))).toBe(false)
+  })
+
   it('validates TOML before writing podman configs and keeps a backup', async () => {
     const root = mkdtempSync(join(tmpdir(), 'qd-conf-'))
     writeFileSync(join(root, 'registries.conf'), 'unqualified-search-registries = ["docker.io"]\n')
