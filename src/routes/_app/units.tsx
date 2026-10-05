@@ -12,7 +12,7 @@ import { TimersView } from '~/components/Timers'
 import { ContainerUsageView } from '~/components/ContainerUsage'
 import { containerState, Pill, unitState, unitTone, type Tone } from '~/components/Status'
 import { age, bytes, num } from '~/lib/format'
-import { useLive } from '~/lib/live'
+import { useLiveState } from '~/lib/live'
 import { failureReason } from '~/shared/units'
 import { buildRows, FILTER_KEYS, failed, filters, matches, type Filter, type Row } from '~/lib/unit-rows'
 import { m } from '~/paraglide/messages'
@@ -49,7 +49,7 @@ function status(r: Row): { tone: Tone; label: string } {
 }
 
 function Units() {
-  const { snapshot } = useLive()
+  const { snapshot } = useLiveState()
   const rows = buildRows(snapshot.units, snapshot.containers)
   const hasContainers = rows.some((r) => matches(r, 'container'))
   const { filter = hasContainers ? 'container' : 'all', view, container } = Route.useSearch()

@@ -1,6 +1,7 @@
 // The hub runs all collectors on their own intervals, merges the result into
 // one Snapshot and pushes changes to SSE subscribers.
 
+import { liveStats, structureKey, type LiveStats } from '~/shared/live-stats'
 import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
 import { asc } from 'drizzle-orm'
@@ -42,7 +43,7 @@ import { pruneUnlockTokens } from './unlock-sessions'
 import { pruneTerminals } from './terminal/web'
 
 type Source = keyof Snapshot['sources']
-export type HubEvent = { type: 'system'; data: SystemMetrics } | { type: 'state'; data: Snapshot }
+export type HubEvent = { type: 'system'; data: SystemMetrics } | { type: 'state'; data: Snapshot } | { type: 'stats'; data: LiveStats }
 
 export class ActionError extends Error {
   constructor(
@@ -93,6 +94,7 @@ export class Hub {
   private lastSmartSampleAt = 0
   private current?: Snapshot
   private lastStateJson = ''
+  private lastStatsJson = ''
   private listeners = new Set<(e: HubEvent) => void>()
   private timers: ReturnType<typeof setInterval>[] = []
   private lastSampleAt = 0
@@ -501,11 +503,15 @@ export class Hub {
     notifier()
       .evaluate(snap)
       .catch((e) => console.warn('[quadeck] notification:', localize((e as Error).message, 'en')))
-    const json = JSON.stringify({ ...snap, system: null, host: { ...snap.host, uptimeSec: 0 } })
-    if (json !== this.lastStateJson) {
-      this.lastStateJson = json
-      this.emit({ type: 'state', data: snap })
-    }
+    // CPU/RAM per container and unit change on every tick: those go out as a small "stats"
+    // event; the whole snapshot only when something else changed.
+    const key = structureKey(snap)
+    const stats = liveStats(snap)
+    const statsJson = JSON.stringify(stats)
+    if (key !== this.lastStateJson) this.emit({ type: 'state', data: snap })
+    else if (statsJson !== this.lastStatsJson) this.emit({ type: 'stats', data: stats })
+    this.lastStateJson = key
+    this.lastStatsJson = statsJson
   }
 
   snapshot(): Snapshot {

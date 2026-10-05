@@ -18,7 +18,7 @@ export interface PaletteItem {
 }
 
 /** Everything the palette can jump to or run, from the live snapshot. */
-export function paletteItems(s: Snapshot, readonly: boolean): PaletteItem[] {
+export function paletteItems(s: Omit<Snapshot, 'system'>, readonly: boolean): PaletteItem[] {
   const items: PaletteItem[] = [
     { id: 'p:/', section: 'Seiten', label: msg(m.overview_title), keywords: 'dashboard start home übersicht overview', action: { kind: 'navigate', to: '/' } },
     { id: 'p:/units', section: 'Seiten', label: 'Units', keywords: 'container dienste systemd quadlets services', action: { kind: 'navigate', to: '/units' } },

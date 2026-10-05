@@ -3,11 +3,23 @@ import { getSession } from '~/server/auth'
 import { authed } from '~/server/http'
 import { hubReady, type HubEvent } from '~/server/hub'
 import { localizeDeep, requestLang } from '~/server/lang'
+import type { Lang } from '~/shared/i18n'
 
 const encoder = new TextEncoder()
 
+// Every subscriber gets the same event object: encode it once per language, not once per tab.
+const encoded = new WeakMap<object, Map<Lang, Uint8Array>>()
+function encode(e: HubEvent, lang: Lang): Uint8Array {
+  let byLang = encoded.get(e)
+  if (!byLang) encoded.set(e, (byLang = new Map()))
+  let bytes = byLang.get(lang)
+  if (!bytes) byLang.set(lang, (bytes = encoder.encode(`event: ${e.type}\ndata: ${JSON.stringify(localizeDeep(e.data, lang))}\n\n`)))
+  return bytes
+}
+
 // Server-Sent Events: a full "state" snapshot on connect and whenever
-// something changes, plus "system" metrics every 2 s.
+// something changes, "stats" (CPU/RAM per container and unit) when only those
+// changed, plus "system" metrics every 2 s.
 export const Route = createFileRoute('/api/events')({
   server: {
     handlers: {
@@ -23,7 +35,7 @@ export const Route = createFileRoute('/api/events')({
           start(controller) {
             const send = (e: HubEvent) => {
               try {
-                controller.enqueue(encoder.encode(`event: ${e.type}\ndata: ${JSON.stringify(localizeDeep(e.data, lang))}\n\n`))
+                controller.enqueue(encode(e, lang))
               } catch {
                 unsubscribe()
               }

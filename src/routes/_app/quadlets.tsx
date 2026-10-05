@@ -10,7 +10,7 @@ import { Dot, unitTone } from '~/components/Status'
 import { useToast } from '~/components/Toast'
 import { useGuardedApi } from '~/components/Unlock'
 import { api } from '~/lib/api'
-import { useLive } from '~/lib/live'
+import { useLiveState } from '~/lib/live'
 import { templates } from '~/lib/quadlet-templates'
 import { QUADLET_NAME, QUADLET_TYPES, type ComposeResult, type QuadletFile, type QuadletType, type Revision } from '~/shared/quadlets'
 import { m } from '~/paraglide/messages'
@@ -55,7 +55,7 @@ function Files() {
   const { file } = search
   const navigate = useNavigate()
   const { readonly } = useActions()
-  const { snapshot } = useLive()
+  const { snapshot } = useLiveState()
   const [files, setFiles] = useState<QuadletFile[] | null>(null)
   const [error, setError] = useState('')
   const [loaded, setLoaded] = useState<Loaded | null>(null)

@@ -10,7 +10,7 @@ import { Dot } from '~/components/Status'
 import { ToastProvider } from '~/components/Toast'
 import { api, setCsrfToken } from '~/lib/api'
 import { duration } from '~/lib/format'
-import { LiveProvider, useLive } from '~/lib/live'
+import { LiveProvider, useLiveState } from '~/lib/live'
 import { getInitialSnapshot } from '~/lib/server-fns'
 import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
@@ -66,7 +66,7 @@ function AppLayout() {
 type NavItem = { to: '/' | '/units' | '/journal' | '/disks' | '/files' | '/shares' | '/backups' | '/ssh' | '/terminal' | '/network' | '/system' | '/notifications' | '/users'; label: string; glyph: string; badge: number }
 
 function useNav(): { title?: string; items: NavItem[] }[] {
-  const { snapshot } = useLive()
+  const { snapshot } = useLiveState()
   const failed = snapshot.units.filter((u) => u.active === 'failed').length
   const smart = (snapshot.smart ?? []).filter((d) => d.level !== 'ok').length
   return [
@@ -105,7 +105,7 @@ const Badge = ({ n }: { n: number }) => <span className="rounded-full bg-[rgba(2
 
 /** Phones: a slim bar with the menu, the page's state and search instead of the whole sidebar above the content. */
 function MobileBar({ onMenu, onSearch }: { onMenu: () => void; onSearch: () => void }) {
-  const { snapshot, connected } = useLive()
+  const { snapshot, connected } = useLiveState()
   const problems = useNav()
     .flatMap((g) => g.items)
     .reduce((n, i) => n + i.badge, 0)
@@ -135,7 +135,7 @@ function MobileBar({ onMenu, onSearch }: { onMenu: () => void; onSearch: () => v
 }
 
 function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => void; onSearch: () => void }) {
-  const { snapshot, connected } = useLive()
+  const { snapshot, connected } = useLiveState()
   const path = useRouterState({ select: (s) => s.location.pathname })
   const nav = useNav()
   const h = snapshot.host

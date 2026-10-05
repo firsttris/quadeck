@@ -1,7 +1,7 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLang } from '~/i18n'
-import { useLive } from '~/lib/live'
+import { useLiveState } from '~/lib/live'
 import { filterPalette, paletteItems, sectionLabel, type PaletteItem } from '~/lib/palette'
 import { useActions } from './Actions'
 import { Glyph } from './Glyph'
@@ -9,7 +9,7 @@ import { m } from '~/paraglide/messages'
 
 /** Strg+K / ⌘K: jump to services, pages and units, or run unit actions. */
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
-  const { snapshot } = useLive()
+  const { snapshot } = useLiveState()
   const { run, readonly } = useActions()
   const navigate = useNavigate()
   const lang = useLang()
@@ -40,7 +40,8 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
     if (!open && d.open) d.close()
   }, [open])
 
-  const all = useMemo(() => paletteItems(snapshot, readonly), [snapshot, readonly, lang]) // eslint-disable-line react-hooks/exhaustive-deps
+  // only while open: the items change with every live update
+  const all = useMemo(() => (open ? paletteItems(snapshot, readonly) : []), [open, snapshot, readonly, lang]) // eslint-disable-line react-hooks/exhaustive-deps
   const results = useMemo(() => filterPalette(all, query), [all, query])
   useEffect(() => setActive(0), [query])
   useEffect(() => {

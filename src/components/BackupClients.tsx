@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '~/lib/api'
 import { bytes, relative } from '~/lib/format'
-import { useLive } from '~/lib/live'
+import { useLiveState } from '~/lib/live'
 import { CLIENT_PRESETS, clientCalendar, defaultClientPlan, type ClientPlan, type ClientPreset } from '~/shared/backup-client'
 import { pickMsg } from '~/i18n'
 import { CLIENT_NAME, TARGET_UNIT, clientRepo, staleClients, type BackupClient, type TargetConfig, type TargetState } from '~/shared/backup'
@@ -29,7 +29,7 @@ export function BackupClients() {
   const { readonly } = useActions()
   const guarded = useGuardedApi()
   const say = useToast()
-  const { snapshot } = useLive()
+  const { snapshot } = useLiveState()
   const unit = snapshot.units.find((u) => u.name === TARGET_UNIT)
 
   const load = useCallback(async (refresh = false) => {

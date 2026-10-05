@@ -2,7 +2,7 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { memo, useEffect, useRef, useState } from 'react'
 import { PageHeader } from '~/components/PageHeader'
 import { clock } from '~/lib/format'
-import { useLive } from '~/lib/live'
+import { useLiveState } from '~/lib/live'
 import type { JournalEntry } from '~/shared/types'
 import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
@@ -34,7 +34,7 @@ function lineClass(p: number) {
 }
 
 function Journal() {
-  const { snapshot } = useLive()
+  const { snapshot } = useLiveState()
   const { unit, prio = 'all' } = Route.useSearch()
   const navigate = useNavigate({ from: '/journal' })
   const [lines, setLines] = useState<Line[]>([])
