@@ -12,7 +12,11 @@
     "typecheck": "bun run i18n && tsc --noEmit",
     "test": "bun run i18n && bun --bun vitest run",
     "test:e2e": "playwright test",
-    "db:generate": "drizzle-kit generate && bun scripts/gen-migrations.ts"
+    "db:generate": "drizzle-kit generate && bun scripts/gen-migrations.ts",
+    "release:patch": "npm version patch",
+    "release:minor": "npm version minor",
+    "release:major": "npm version major",
+    "postversion": "git push --follow-tags"
   },
   "dependencies": {
     "@tanstack/react-router": "^1.170.41",
