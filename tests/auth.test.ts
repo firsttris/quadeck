@@ -23,6 +23,27 @@ describe('same-origin check', () => {
   })
 })
 
+describe('expired logins are cleaned up', () => {
+  it('drops sessions, their unlock tokens and terminal entries', async () => {
+    const { pruneUnlockTokens, setUnlockToken, unlockToken } = await import('~/server/unlock-sessions')
+    const { owned, pruneTerminals, remember } = await import('~/server/terminal/web')
+    const { session } = auth.createSession()
+    setUnlockToken(session.id, 'tok')
+    setUnlockToken('gone', 'old')
+    remember({ id: 't1', target: { kind: 'shell' } } as never, session.id)
+    remember({ id: 't2', target: { kind: 'shell' } } as never, 'gone')
+    const live = auth.pruneSessions()
+    expect(live.has(session.id)).toBe(true)
+    pruneUnlockTokens(live)
+    pruneTerminals(live)
+    expect(unlockToken(session.id)).toBe('tok')
+    expect(unlockToken('gone')).toBeUndefined()
+    expect(owned('t1', session.id)).toBe('t1')
+    expect(() => owned('t2', 'gone')).toThrow()
+    expect(auth.pruneSessions(Date.now() + 365 * 86_400_000).has(session.id)).toBe(false)
+  })
+})
+
 describe('setup, password and sessions', () => {
   let token = ''
   beforeAll(() => {

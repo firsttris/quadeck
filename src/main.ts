@@ -139,7 +139,8 @@ export function serve(opts: MainOptions) {
     idleTimeout: 255, // SSE streams send a ping every 15–20 s
     async fetch(req, srv) {
       const url = new URL(req.url)
-      if ((req.method === 'GET' || req.method === 'HEAD') && opts.assets.has(url.pathname)) return staticAsset(req, url.pathname, opts.assets)
+      // .br/.gz copies are served in place of their file (content-encoding), never as files of their own
+      if ((req.method === 'GET' || req.method === 'HEAD') && opts.assets.has(url.pathname) && !PRECOMPRESSED.some(([, suffix]) => url.pathname.endsWith(suffix))) return staticAsset(req, url.pathname, opts.assets)
       const headers = new Headers(req.headers)
       headers.delete(PEER_HEADER)
       headers.set(PEER_HEADER, srv.requestIP(req)?.address ?? 'unknown')

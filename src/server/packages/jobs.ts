@@ -134,7 +134,7 @@ export function selfArgv(): string[] {
   return /^bun(-debug)?$/.test(basename(process.execPath)) ? [process.execPath, Bun.main] : [process.execPath]
 }
 
-const FORWARD_ENV = ['QUADECK_BACKUP_DIR', 'QUADECK_PACKAGE_MANAGER', 'QUADECK_AUR_USER', 'QUADECK_SHADOW', 'QUADECK_GROUP', 'QUADECK_FILE_ROOTS']
+const FORWARD_ENV = ['QUADECK_BACKUP_DIR', 'QUADECK_PACKAGE_MANAGER', 'QUADECK_AUR_USER', 'QUADECK_SHADOW', 'QUADECK_GROUP', 'QUADECK_PASSWD', 'QUADECK_FILE_ROOTS']
 
 /** Reading a job's output broke: the job must still end, or every later job is refused with 409. */
 function failJob(sink: JobSink, e: unknown) {

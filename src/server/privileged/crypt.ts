@@ -58,18 +58,30 @@ export const ADMIN_GROUPS = ['wheel', 'sudo', 'admin']
 export interface SystemAuthFiles {
   shadow: string
   group: string
+  /** For the primary group of an account (an admin group can be that, too). */
+  passwd?: string
 }
 
 export function readAuthFiles(): SystemAuthFiles {
   return {
     shadow: readFileSync(process.env.QUADECK_SHADOW || '/etc/shadow', 'utf8'),
     group: readFileSync(process.env.QUADECK_GROUP || '/etc/group', 'utf8'),
+    passwd: readFileSync(process.env.QUADECK_PASSWD || '/etc/passwd', 'utf8'),
   }
 }
 
 /** Accounts allowed to unlock: root and members of wheel/sudo/admin. */
 export function isAdmin(files: SystemAuthFiles, user: string) {
-  return user === 'root' || ADMIN_GROUPS.some((g) => groupMembers(files.group, g).includes(user))
+  if (user === 'root' || ADMIN_GROUPS.some((g) => groupMembers(files.group, g).includes(user))) return true
+  // /etc/group lists supplementary members only; the primary group is the gid in /etc/passwd
+  const gid = files.passwd?.split('\n').map((l) => l.split(':')).find((f) => f[0] === user)?.[3]
+  if (gid === undefined) return false
+  const adminGids = files.group
+    .split('\n')
+    .map((l) => l.split(':'))
+    .filter((f) => ADMIN_GROUPS.includes(f[0]!))
+    .map((f) => f[2])
+  return adminGids.includes(gid)
 }
 
 /** First admin user that is not root (the person's own account), else root. */

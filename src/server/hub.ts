@@ -37,6 +37,9 @@ import { FsHistory, fsTrends, seedFsHistory } from './disk-history'
 import type { FsTrend } from '~/shared/disk-usage'
 import { dailyAverage } from '~/shared/energy'
 import { bilingual, localize, outsideRequest } from './lang'
+import { pruneSessions } from './auth'
+import { pruneUnlockTokens } from './unlock-sessions'
+import { pruneTerminals } from './terminal/web'
 
 type Source = keyof Snapshot['sources']
 export type HubEvent = { type: 'system'; data: SystemMetrics } | { type: 'state'; data: Snapshot }
@@ -165,7 +168,13 @@ export class Hub {
       this.publish()
     })
     const gpu = every(5000, async () => this.collectGpus())
-    every(3600_000, async () => pruneHistory(db()))
+    every(3600_000, async () => {
+      pruneHistory(db())
+      // expired logins: their rows, unlock tokens and terminal entries
+      const live = pruneSessions()
+      pruneUnlockTokens(live)
+      pruneTerminals(live)
+    })
     const updates = every(15 * 60_000, () => notifier().checkUpdates(this.host.hostname, this.priv))
     // Automatic speed test (Network → Speed test), when switched on.
     every(60_000, async () => {

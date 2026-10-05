@@ -1,8 +1,5 @@
-import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 import { createFileRoute } from '@tanstack/react-router'
-import { HttpError } from '~/server/auth'
-import { config } from '~/server/config'
+import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
 import { parseJobSpec } from '~/server/packages/job'
 import { privileged } from '~/server/privileged'
@@ -13,7 +10,7 @@ export const Route = createFileRoute('/api/jobs/')({
     handlers: {
       GET: authed(async () => Response.json({ jobs: await privileged().jobs() })),
       POST: authed(async ({ request }, session) => {
-        if (config().readonly) throw new HttpError(403, msg(m.hub_error_readonly))
+        assertWritable()
         const spec = parseJobSpec((await readJson<{ spec?: unknown }>(request)).spec)
         return Response.json(await privileged().startJob(unlockToken(session.id), spec))
       }),

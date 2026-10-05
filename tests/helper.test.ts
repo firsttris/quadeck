@@ -48,6 +48,12 @@ describe('system password check (crypt + /etc/shadow)', () => {
     expect(isAdmin(files, 'tristan')).toBe(true)
     expect(suggestedUser(files)).toBe('tristan')
   })
+  it('counts an admin group that is the primary group in /etc/passwd', () => {
+    const f = { shadow: '', group: 'wheel:x:10:tristan\nusers:x:100:', passwd: 'ops:x:1001:10::/home/ops:/bin/bash\nbob:x:1002:100::/home/bob:/bin/bash' }
+    expect(isAdmin(f, 'ops')).toBe(true)
+    expect(isAdmin(f, 'bob')).toBe(false)
+    expect(isAdmin({ ...f, passwd: undefined }, 'ops')).toBe(false)
+  })
 })
 
 describe('gate', () => {

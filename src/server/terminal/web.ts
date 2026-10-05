@@ -40,3 +40,7 @@ export function owned(id: unknown, session: string): string {
 export const forget = (id: string) => owners.delete(id)
 export const ownedBy = (session: string) => [...owners.values()].filter((o) => o.session === session).map((o) => o.info)
 export const allTerminals = () => [...owners.keys()]
+/** Forgets terminals of login sessions that are gone (expired without closing them). */
+export const pruneTerminals = (live: Set<string>) => {
+  for (const [id, o] of [...owners]) if (!live.has(o.session)) owners.delete(id)
+}

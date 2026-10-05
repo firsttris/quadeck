@@ -268,7 +268,7 @@ export const HELPER_ROUTES: Record<string, Handler> = {
 export async function handleHelperRequest(req: Request, p: Privileged, routes = HELPER_ROUTES): Promise<Response> {
   const path = new URL(req.url).pathname
   const route = routes[path]
-  if (!route) return Response.json({ error: msg(m.podman_all_unknownVersion) }, { status: 404 })
+  if (!route) return Response.json({ error: msg(m.common_errors_unknownRequest) }, { status: 404 })
   try {
     const body = req.method === 'POST' ? ((await req.json().catch(() => ({}))) as Record<string, unknown>) : {}
     const result = await route(body, p)
