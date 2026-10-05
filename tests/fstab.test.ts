@@ -256,3 +256,13 @@ describe.skipIf(!hasGenerator)('systemd fstab generator', () => {
     expect([...(crit ?? [])].sort()).toEqual(['mnt-a.mount', 'mnt-my\\x20disk.mount'])
   })
 })
+
+describe('mount unit names', () => {
+  it('escape like systemd-escape --path, also outside the BMP', () => {
+    // expected values from `systemd-escape --path --suffix=mount`
+    expect(mountUnit('/mnt/😀')).toBe('mnt-\\xf0\\x9f\\x98\\x80.mount')
+    expect(mountUnit('/mnt/Füße')).toBe('mnt-F\\xc3\\xbc\\xc3\\x9fe.mount')
+    expect(mountUnit('/srv/.hidden')).toBe('srv-.hidden.mount')
+    expect(mountUnit('/mnt/x-y')).toBe('mnt-x\\x2dy.mount')
+  })
+})

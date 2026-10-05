@@ -390,3 +390,15 @@ describe('removalPlan', () => {
     expect(removalPlan('db.volume', files)).toEqual({ volumes: [], binds: [] })
   })
 })
+
+describe('ini line endings and blank lines', () => {
+  it('keeps CRLF files CRLF', () => {
+    expect(setValues('[A]\r\nK=1\r\n', 'A', 'X', ['2'])).toBe('[A]\r\nK=1\r\nX=2\r\n')
+    expect(setValues('[Service]\r\nA=1\r\n', 'Install', 'WantedBy', ['default.target'])).toBe('[Service]\r\nA=1\r\n\r\n[Install]\r\nWantedBy=default.target\r\n')
+    expect(setValues('[Service]\r\nA=1\r\n', 'Unit', 'Description', ['x'])).toBe('[Unit]\r\nDescription=x\r\n\r\n[Service]\r\nA=1\r\n')
+  })
+  it("leaves the user's blank lines alone when [Unit] is added on top", () => {
+    expect(setValues('[Service]\nA=1\n\n\n\nB=2\n', 'Unit', 'Description', ['x'])).toBe('[Unit]\nDescription=x\n\n[Service]\nA=1\n\n\n\nB=2\n')
+    expect(setValues('', 'Unit', 'Description', ['x'])).toBe('[Unit]\nDescription=x\n')
+  })
+})
