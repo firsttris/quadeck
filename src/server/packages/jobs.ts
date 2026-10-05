@@ -95,7 +95,11 @@ export class JobManager {
       exit: (code) => {
         if (job.info.status !== 'running') return
         job.info = { ...job.info, status: code === 0 ? 'ok' : 'failed', exitCode: code, endedAt: Date.now() }
-        this.onEnd?.(job.info)
+        try {
+          this.onEnd?.(job.info)
+        } catch (e) {
+          console.error('[quadeck] after job', e)
+        }
       },
     }
     try {
@@ -132,6 +136,12 @@ export function selfArgv(): string[] {
 
 const FORWARD_ENV = ['QUADECK_BACKUP_DIR', 'QUADECK_PACKAGE_MANAGER', 'QUADECK_AUR_USER', 'QUADECK_SHADOW', 'QUADECK_GROUP', 'QUADECK_FILE_ROOTS']
 
+/** Reading a job's output broke: the job must still end, or every later job is refused with 409. */
+function failJob(sink: JobSink, e: unknown) {
+  sink.line(msg(m.packages_job_error, { message: (e as Error).message }))
+  sink.exit(1)
+}
+
 /** Child process of the helper (containers, systems without systemd-run). */
 export class SpawnLauncher implements Launcher {
   async start(_id: string, spec: JobSpec, sink: JobSink) {
@@ -143,7 +153,9 @@ export class SpawnLauncher implements Launcher {
       split.flush()
     }
     // Normally the exit marker has ended the job already; without it the job failed.
-    void Promise.all([pump(proc.stdout), pump(proc.stderr), proc.exited]).then(([, , code]) => sink.exit(code || 1))
+    void Promise.all([pump(proc.stdout), pump(proc.stderr), proc.exited])
+      .then(([, , code]) => sink.exit(code || 1))
+      .catch((e) => failJob(sink, e))
   }
 }
 
@@ -168,7 +180,7 @@ export class SystemdLauncher implements Launcher {
     })
     if (r.code !== 0) throw new Error(`systemd-run: ${r.stderr.trim()}`)
     sink.line(msg(m.packages_job_runningAsUnit, { unit }))
-    void this.follow(unit, sink)
+    void this.follow(unit, sink).catch((e) => failJob(sink, e))
   }
 
   private async follow(unit: string, sink: JobSink) {

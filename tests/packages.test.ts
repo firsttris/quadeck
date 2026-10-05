@@ -293,6 +293,17 @@ describe('jobs', () => {
     expect((await m.updates(false)).repo).toEqual([])
   })
 
+  it('ends a job and frees the slot even when the after-job hook throws', async () => {
+    let sink: JobSink | undefined
+    const m = new JobManager({ start: async (_id, _spec, s) => void (sink = s) }, () => {
+      throw new Error('hook broke')
+    })
+    const j = await m.start({ kind: 'upgrade' })
+    expect(() => sink!.line('::quadeck-exit 0')).not.toThrow()
+    expect(m.get(j.id, 0)!.status).toBe('ok')
+    await m.start({ kind: 'images-update' })
+  })
+
   it('marks a job failed when the launcher throws', async () => {
     const m = new JobManager({ start: async () => Promise.reject(new Error('kein systemd-run')) })
     const j = await m.start({ kind: 'upgrade' })

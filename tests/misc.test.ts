@@ -4,6 +4,7 @@ import { journalArgs, parseJournalLine } from '~/server/journal'
 import { validateLink } from '~/server/links'
 import { assertUnitName } from '~/server/privileged/actions'
 import { assetName, newer } from '~/server/update'
+import { GIVE_UP_MS, KILL_GRACE_MS, run } from '~/server/exec'
 
 describe('privileged action guard', () => {
   it('accepts unit names and rejects anything else', () => {
@@ -74,5 +75,26 @@ describe('systemd units', () => {
     const { HELPER_UNIT, WEB_UNIT } = await import('~/unit-file')
     expect(HELPER_UNIT).toMatch(/^UMask=0022$/m)
     expect(WEB_UNIT).toMatch(/^UMask=0077$/m)
+  })
+})
+
+describe('run with a timeout', () => {
+  it('kills a process that ignores SIGTERM', async () => {
+    const t = Date.now()
+    const r = await run(['sh', '-c', 'trap "" TERM; while :; do sleep 0.1; done'], { timeoutMs: 200 })
+    expect(r.code).not.toBe(0)
+    expect(Date.now() - t).toBeLessThan(200 + KILL_GRACE_MS + 1500)
+  }, 15_000)
+
+  it('gives up when a grandchild keeps the output open', async () => {
+    const t = Date.now()
+    const r = await run(['sh', '-c', 'sleep 30 & echo started; wait'], { timeoutMs: 200 })
+    expect(r.code).toBe(124)
+    expect(r.stderr).toContain('no result')
+    expect(Date.now() - t).toBeLessThan(200 + GIVE_UP_MS + 1500)
+  }, 15_000)
+
+  it('returns output and exit code as before', async () => {
+    expect(await run(['sh', '-c', 'echo out; echo err >&2; exit 3'])).toEqual({ code: 3, stdout: 'out\n', stderr: 'err\n' })
   })
 })
