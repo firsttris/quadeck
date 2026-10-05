@@ -76,7 +76,7 @@ export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAd
   cleanPodman(token: string | undefined, items: { kind: CleanupKind; id: string }[]): Promise<{ results: CleanupResult[]; skipped: number }>
   setPodmanPrune(token: string | undefined, every: PruneEvery | null): Promise<PodmanStorage>
   startJob(token: string | undefined, spec: JobSpec): Promise<JobInfo>
-  writeQuadlet(token: string | undefined, name: string, content: string, restart: boolean): Promise<WriteResult>
+  writeQuadlet(token: string | undefined, name: string, content: string, restart: boolean, expected?: string): Promise<WriteResult>
   deleteQuadlet(token: string | undefined, name: string, also?: RemoveAlso): Promise<{ warnings: string[] }>
   setAutoUpdateTimer(token: string | undefined, enabled: boolean, calendar: string): Promise<void>
   setAutoUpdateDefault(token: string | undefined, enabled: boolean): Promise<void>
@@ -100,7 +100,7 @@ export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAd
   deleteTimer(token: string | undefined, name: string): Promise<TimersState>
   setTimerSchedule(token: string | undefined, name: string, calendar: string): Promise<TimersState>
   timerAction(token: string | undefined, name: string, action: TimerAction): Promise<TimersState>
-  writeUnitFile(token: string | undefined, unit: string, path: string, content: string, restart: boolean): Promise<UnitWriteResult>
+  writeUnitFile(token: string | undefined, unit: string, path: string, content: string, restart: boolean, expected?: string): Promise<UnitWriteResult>
   deleteUnitFile(token: string | undefined, unit: string, path: string): Promise<void>
   createUnit(token: string | undefined, unit: string, content: string, enable: boolean): Promise<UnitWriteResult>
   setUnitEnabled(token: string | undefined, unit: string, enabled: boolean): Promise<void>

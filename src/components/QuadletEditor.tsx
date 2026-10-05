@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
+import { contentHash } from '~/shared/caddy'
 import { api } from '~/lib/api'
 import { diffLines, hunks } from '~/lib/diff'
 import { relative } from '~/lib/format'
@@ -224,7 +225,8 @@ export function QuadletEditor({ name, initial, isNew, history, readonly, onSaved
   const save = async () => {
     setSaving(true)
     try {
-      const r = await guarded<{ unit: string; restarted: boolean; warning?: string }>('/api/quadlets/file', { method: 'PUT', body: { name, content: text, restart } })
+      // the hash of what was loaded: a save from elsewhere in between gives 409 instead of being overwritten
+      const r = await guarded<{ unit: string; restarted: boolean; warning?: string }>('/api/quadlets/file', { method: 'PUT', body: { name, content: text, restart, expected: contentHash(isNew ? '' : initial) } })
       if (!r) return
       setReview(false)
       if (r.warning) say(r.warning, 'bad')

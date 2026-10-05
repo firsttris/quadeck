@@ -129,8 +129,8 @@ export class HelperClient implements Privileged {
   podmanSettings() {
     return this.call<PodmanSettings>('POST', '/podman/settings', {})
   }
-  writeQuadlet(token: string | undefined, name: string, content: string, restart: boolean) {
-    return this.call<WriteResult>('POST', '/quadlets/write', { token, name, content, restart }, 180_000)
+  writeQuadlet(token: string | undefined, name: string, content: string, restart: boolean, expected?: string) {
+    return this.call<WriteResult>('POST', '/quadlets/write', { token, name, content, restart, expected }, 180_000)
   }
   removalPlan(name: string) {
     return this.call<RemovalPlan>('POST', '/quadlets/plan', { name })
@@ -306,8 +306,8 @@ export class HelperClient implements Privileged {
   async unitFileRevision(unit: string, path: string, id: string) {
     return (await this.call<{ data: string }>('POST', '/units/revision', { unit, path, id })).data
   }
-  writeUnitFile(token: string | undefined, unit: string, path: string, content: string, restart: boolean) {
-    return this.call<UnitWriteResult>('POST', '/units/write', { token, unit, path, content, restart }, 180_000)
+  writeUnitFile(token: string | undefined, unit: string, path: string, content: string, restart: boolean, expected?: string) {
+    return this.call<UnitWriteResult>('POST', '/units/write', { token, unit, path, content, restart, expected }, 180_000)
   }
   async deleteUnitFile(token: string | undefined, unit: string, path: string) {
     await this.call('POST', '/units/delete', { token, unit, path }, 180_000)

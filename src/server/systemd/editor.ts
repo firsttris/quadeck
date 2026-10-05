@@ -7,6 +7,7 @@ import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSyn
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import { HttpError } from '../auth'
+import { contentHash } from '~/shared/caddy'
 import { run } from '../exec'
 import { parseShow, quadletOf } from '../collectors/systemd'
 import { validContent } from '../quadlets/backend'
@@ -25,7 +26,8 @@ export interface UnitEditorAdmin {
 
 /** Writes; the caller has checked the unlock. */
 export interface UnitEditorBackend extends UnitEditorAdmin {
-  writeUnitFile(unit: string, path: string, content: string, restart: boolean): Promise<UnitWriteResult>
+  /** expected: hash of the content the editor loaded ('' for a new file); undefined = no check. */
+  writeUnitFile(unit: string, path: string, content: string, restart: boolean, expected?: string): Promise<UnitWriteResult>
   deleteUnitFile(unit: string, path: string): Promise<void>
   createUnit(unit: string, content: string, enable: boolean): Promise<UnitWriteResult>
   setUnitEnabled(unit: string, enabled: boolean): Promise<void>
@@ -256,11 +258,14 @@ export class SystemUnitEditor implements UnitEditorBackend {
     return { restarted: true }
   }
 
-  async writeUnitFile(unit: string, path: string, content: string, restart: boolean) {
+  async writeUnitFile(unit: string, path: string, content: string, restart: boolean, expected?: string) {
     const check = await this.validateUnitFile(unit, path, content)
     const err = check.diagnostics.find((d) => d.severity === 'error')
     if (err) throw new HttpError(422, `${err.line ? msg(m.fstab_label_linePrefix, { line: err.line }) : ''}${err.message}`)
     const before = read(path)
+    // The editor sends the hash of what it loaded: someone else's save in between is not overwritten.
+    if (expected !== undefined && contentHash(before ?? '') !== expected) throw new HttpError(409, msg(m.files_error_changedMeanwhile))
+
     atomicWrite(path, content)
     this.history.saved(path, before, content)
     await this.reload()
@@ -440,11 +445,14 @@ export class FixtureUnitEditor implements UnitEditorBackend {
     this.history.set(path, list.slice(0, 30))
   }
 
-  async writeUnitFile(unit: string, path: string, content: string, restart: boolean) {
+  async writeUnitFile(unit: string, path: string, content: string, restart: boolean, expected?: string) {
     const check = await this.validateUnitFile(unit, path, content)
     const err = check.diagnostics.find((d) => d.severity === 'error')
     if (err) throw new HttpError(422, `${err.line ? msg(m.fstab_label_linePrefix, { line: err.line }) : ''}${err.message}`)
     const before = this.files.get(path)
+    // The editor sends the hash of what it loaded: someone else's save in between is not overwritten.
+    if (expected !== undefined && contentHash(before ?? '') !== expected) throw new HttpError(409, msg(m.files_error_changedMeanwhile))
+
     if (before !== undefined && !this.history.get(path)?.length) this.record(path, before, msg(m.common_history_original))
     const text = content.endsWith('\n') ? content : content + '\n'
     this.files.set(path, text)

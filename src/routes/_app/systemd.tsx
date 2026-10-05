@@ -1,4 +1,5 @@
 import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
+import { contentHash } from '~/shared/caddy'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useActions } from '~/components/Actions'
 import { Spinner, useBusy } from '~/components/Busy'
@@ -296,7 +297,8 @@ function PartEditor({
   const save = async () => {
     setSaving(true)
     try {
-      const r = await guarded<UnitWriteResult>('/api/systemd', { body: { write: { unit, path: part.path, content: text, restart } } })
+      // the hash of what was loaded: a save from elsewhere in between gives 409 instead of being overwritten
+      const r = await guarded<UnitWriteResult>('/api/systemd', { body: { write: { unit, path: part.path, content: text, restart, expected: contentHash(isNew ? '' : part.content) } } })
       if (!r) return
       setReview(false)
       if (r.warning) say(r.warning, 'bad')

@@ -32,7 +32,7 @@ export const Route = createFileRoute('/api/systemd/')({
         if (b.validate) return Response.json(await p.validateUnitFile(str(b.validate.unit), str(b.validate.path), str(b.validate.content)))
         assertWritable()
         const token = unlockToken(session.id)
-        if (b.write) return Response.json(await p.writeUnitFile(token, str(b.write.unit), str(b.write.path), str(b.write.content), b.write.restart === true))
+        if (b.write) return Response.json(await p.writeUnitFile(token, str(b.write.unit), str(b.write.path), str(b.write.content), b.write.restart === true, typeof b.write.expected === 'string' ? b.write.expected : undefined))
         if (b.delete) {
           await p.deleteUnitFile(token, str(b.delete.unit), str(b.delete.path))
           return Response.json({ ok: true })

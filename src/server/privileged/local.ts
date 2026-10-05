@@ -339,9 +339,9 @@ export class LocalPrivileged implements Privileged {
   podmanSettings() {
     return this.admin.podmanSettings()
   }
-  async writeQuadlet(token: string | undefined, name: string, content: string, restart: boolean) {
+  async writeQuadlet(token: string | undefined, name: string, content: string, restart: boolean, expected?: string) {
     this.gate.check(token)
-    return this.admin.writeQuadlet(name, content, restart)
+    return this.admin.writeQuadlet(name, content, restart, expected)
   }
   async deleteQuadlet(token: string | undefined, name: string, also?: RemoveAlso) {
     this.gate.check(token)
@@ -486,9 +486,9 @@ export class LocalPrivileged implements Privileged {
   unitFileRevision(unit: string, path: string, id: string) {
     return this.editor.unitFileRevision(unit, path, id)
   }
-  async writeUnitFile(token: string | undefined, unit: string, path: string, content: string, restart: boolean) {
+  async writeUnitFile(token: string | undefined, unit: string, path: string, content: string, restart: boolean, expected?: string) {
     this.gate.check(token)
-    return this.editor.writeUnitFile(unit, path, content, restart)
+    return this.editor.writeUnitFile(unit, path, content, restart, expected)
   }
   async deleteUnitFile(token: string | undefined, unit: string, path: string) {
     this.gate.check(token)
