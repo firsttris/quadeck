@@ -2,7 +2,8 @@
 // knowing before the next kernel update, and the running kernel command line
 // explained. Pure functions, shared by the page and the root helper.
 
-import { msg, type MsgKey } from './i18n'
+import { msg, type Message } from './i18n'
+import { m } from '~/paraglide/messages'
 
 export type BootLoader = 'systemd-boot' | 'grub' | 'unknown'
 
@@ -186,18 +187,18 @@ export function decodeEfiString(buf: Uint8Array): string {
 }
 
 export const timeoutChoices = (): { value: string; label: string }[] => [
-  { value: 'menu-hidden', label: msg('boot_timeout_menuHidden') },
-  { value: '1', label: msg('boot_timeout_oneSecond') },
-  { value: '3', label: msg('boot_timeout_threeSeconds') },
-  { value: '5', label: msg('boot_timeout_fiveSeconds') },
-  { value: '10', label: msg('boot_timeout_tenSeconds') },
-  { value: 'menu-force', label: msg('boot_timeout_menuForce') },
+  { value: 'menu-hidden', label: msg(m.boot_timeout_menuHidden) },
+  { value: '1', label: msg(m.boot_timeout_oneSecond) },
+  { value: '3', label: msg(m.boot_timeout_threeSeconds) },
+  { value: '5', label: msg(m.boot_timeout_fiveSeconds) },
+  { value: '10', label: msg(m.boot_timeout_tenSeconds) },
+  { value: 'menu-force', label: msg(m.boot_timeout_menuForce) },
 ]
 
 export function describeTimeout(t: BootState['timeout']): string {
-  if (t === undefined) return msg('boot_status_timeoutDefault')
-  if (t === 'menu-force') return msg('boot_status_waitsForChoice')
-  if (t === 'menu-hidden' || t === 0) return msg('boot_status_menuHidden')
+  if (t === undefined) return msg(m.boot_status_timeoutDefault)
+  if (t === 'menu-force') return msg(m.boot_status_waitsForChoice)
+  if (t === 'menu-hidden' || t === 0) return msg(m.boot_status_menuHidden)
   return `${t} s`
 }
 
@@ -210,41 +211,41 @@ export function bootWarnings(s: Omit<BootState, 'warnings'>): BootWarning[] {
     if (e.missing.length)
       out.push({
         level: e.isDefault ? 'critical' : 'warning',
-        text: msg('boot_warn_missingFiles', { title: e.title, files: e.missing.join(', '), isDefault: String(!!e.isDefault) }),
+        text: msg(m.boot_warn_missingFiles, { title: e.title, files: e.missing.join(', '), isDefault: String(!!e.isDefault) }),
       })
-  for (const k of s.kernels ?? []) if (k.installed && !k.entries.length && s.canCreateEntries) out.push({ level: 'warning', text: msg('boot_warn_kernelNoEntry', { pkg: k.pkg }) })
+  for (const k of s.kernels ?? []) if (k.installed && !k.entries.length && s.canCreateEntries) out.push({ level: 'warning', text: msg(m.boot_warn_kernelNoEntry, { pkg: k.pkg }) })
   if (s.boot) {
     const biggest = Math.max(0, ...s.entries.map((e) => e.size ?? 0))
     if (biggest && s.boot.free < biggest)
       out.push({
         level: 'critical',
-        text: msg('boot_warn_espTooSmall', { path: s.boot.path, free: mib(s.boot.free), needed: mib(biggest) }),
+        text: msg(m.boot_warn_espTooSmall, { path: s.boot.path, free: mib(s.boot.free), needed: mib(biggest) }),
       })
     else if (s.boot.size && s.boot.free / s.boot.size < 0.15)
       out.push({
         level: 'warning',
-        text: msg('boot_warn_espFull', { path: s.boot.path, percent: Math.round(100 - (s.boot.free / s.boot.size) * 100), free: mib(s.boot.free) }),
+        text: msg(m.boot_warn_espFull, { path: s.boot.path, percent: Math.round(100 - (s.boot.free / s.boot.size) * 100), free: mib(s.boot.free) }),
       })
   }
   if (s.espVersion && s.packageVersion && versionOlder(s.espVersion, s.packageVersion))
     out.push({
       level: 'warning',
-      text: msg('boot_warn_loaderOutdated', { espVersion: s.espVersion, packageVersion: s.packageVersion }),
+      text: msg(m.boot_warn_loaderOutdated, { espVersion: s.espVersion, packageVersion: s.packageVersion }),
     })
   const kernels = new Set(s.entries.filter((e) => e.type !== 'auto' && e.linux).map((e) => e.linux))
   const ukis = s.entries.filter((e) => e.type === 'type2').length
   if (kernels.size + ukis === 1)
     out.push({
       level: 'info',
-      text: msg('boot_warn_oneKernel', { canInstall: String(!!s.kernels) }),
+      text: msg(m.boot_warn_oneKernel, { canInstall: String(!!s.kernels) }),
     })
-  if (!s.entries.some((e) => e.isDefault)) out.push({ level: 'warning', text: msg('boot_warn_noDefaultEntry') })
+  if (!s.entries.some((e) => e.isDefault)) out.push({ level: 'warning', text: msg(m.boot_warn_noDefaultEntry) })
   return out
 }
 
 // Both languages are built at once (the helper has no viewer), so no localeOf() here.
 /** Size in the viewer's number format (rendered with the message, also later on the server). */
-const mib = (b: number) => (b >= 1024 ** 3 ? msg('format_size_gib', { size: b / 1024 ** 3 }) : msg('format_size_mib', { size: Math.round(b / 1024 ** 2) }))
+const mib = (b: number) => (b >= 1024 ** 3 ? msg(m.format_size_gib, { size: b / 1024 ** 3 }) : msg(m.format_size_mib, { size: Math.round(b / 1024 ** 2) }))
 
 // ---------- kernel command line ----------
 
@@ -269,68 +270,68 @@ export function parseCmdline(cmdline: string): CmdlineParam[] {
 }
 
 const params = (): Record<string, string | ((v?: string) => string)> => ({
-  root: msg('boot_param_root'),
-  rootflags: msg('boot_param_rootflags'),
-  rootfstype: msg('boot_param_rootfstype'),
-  rw: msg('boot_param_rw'),
-  ro: msg('boot_param_ro'),
-  resume: msg('boot_param_resume'),
-  cryptdevice: msg('boot_param_cryptdevice'),
-  'rd.luks.uuid': msg('boot_param_cryptdevice'),
-  'rd.luks.name': msg('boot_param_cryptdevice'),
-  initrd: msg('boot_param_initrd'),
-  quiet: msg('boot_param_quiet'),
-  splash: msg('boot_param_splash'),
-  loglevel: (v) => msg('boot_param_loglevel', { level: v ?? '?' }),
-  nowatchdog: msg('boot_param_nowatchdog'),
-  nmi_watchdog: msg('boot_param_nmiWatchdog'),
-  mitigations: (v) => (v === 'off' ? msg('boot_param_mitigationsOff') : msg('boot_param_mitigations')),
-  'i915.enable_guc': msg('boot_param_i915Guc'),
-  'i915.enable_fbc': msg('boot_param_i915Fbc'),
-  'xe.force_probe': msg('boot_param_xeForceProbe'),
-  'i915.force_probe': msg('boot_param_i915ForceProbe'),
-  'amdgpu.ppfeaturemask': msg('boot_param_amdgpuFeatureMask'),
-  'nvidia-drm.modeset': msg('boot_param_nvidiaModeset'),
-  'nvidia_drm.modeset': msg('boot_param_nvidiaModeset'),
-  'usbcore.autosuspend': (v) => (v === '-1' ? msg('boot_param_usbAutosuspendOff') : msg('boot_param_usbAutosuspend')),
-  'nvme_core.default_ps_max_latency_us': (v) => (v === '0' ? msg('boot_param_nvmeApstOff') : msg('boot_param_nvmeApst')),
-  pcie_aspm: (v) => (v === 'off' ? msg('boot_param_pcieAspmOff') : v === 'force' ? msg('boot_param_pcieAspmForce') : msg('boot_param_pcieAspm')),
-  'pcie_aspm.policy': msg('boot_param_pcieAspmPolicy'),
-  intel_iommu: (v) => (v === 'on' ? msg('boot_param_intelIommuOn') : msg('boot_param_intelIommu')),
-  amd_iommu: msg('boot_param_amdIommu'),
-  iommu: (v) => (v === 'pt' ? msg('boot_param_iommuPassthrough') : msg('boot_param_iommu')),
-  'vfio-pci.ids': msg('boot_param_vfioPciIds'),
-  consoleblank: (v) => msg('boot_param_consoleblank', { seconds: v ?? '?' }),
-  console: msg('boot_param_console'),
-  'zswap.enabled': (v) => (v === '1' ? msg('boot_param_zswapOn') : msg('boot_param_zswap')),
-  'zswap.compressor': msg('boot_param_zswapCompressor'),
-  'systemd.unified_cgroup_hierarchy': msg('boot_param_unifiedCgroup'),
-  'systemd.show_status': msg('boot_param_showStatus'),
-  'rd.udev.log_level': msg('boot_param_rdUdevLogLevel'),
-  'rd.systemd.show_status': msg('boot_param_rdShowStatus'),
-  'udev.log_level': msg('boot_param_udevLogLevel'),
+  root: msg(m.boot_param_root),
+  rootflags: msg(m.boot_param_rootflags),
+  rootfstype: msg(m.boot_param_rootfstype),
+  rw: msg(m.boot_param_rw),
+  ro: msg(m.boot_param_ro),
+  resume: msg(m.boot_param_resume),
+  cryptdevice: msg(m.boot_param_cryptdevice),
+  'rd.luks.uuid': msg(m.boot_param_cryptdevice),
+  'rd.luks.name': msg(m.boot_param_cryptdevice),
+  initrd: msg(m.boot_param_initrd),
+  quiet: msg(m.boot_param_quiet),
+  splash: msg(m.boot_param_splash),
+  loglevel: (v) => msg(m.boot_param_loglevel, { level: v ?? '?' }),
+  nowatchdog: msg(m.boot_param_nowatchdog),
+  nmi_watchdog: msg(m.boot_param_nmiWatchdog),
+  mitigations: (v) => (v === 'off' ? msg(m.boot_param_mitigationsOff) : msg(m.boot_param_mitigations)),
+  'i915.enable_guc': msg(m.boot_param_i915Guc),
+  'i915.enable_fbc': msg(m.boot_param_i915Fbc),
+  'xe.force_probe': msg(m.boot_param_xeForceProbe),
+  'i915.force_probe': msg(m.boot_param_i915ForceProbe),
+  'amdgpu.ppfeaturemask': msg(m.boot_param_amdgpuFeatureMask),
+  'nvidia-drm.modeset': msg(m.boot_param_nvidiaModeset),
+  'nvidia_drm.modeset': msg(m.boot_param_nvidiaModeset),
+  'usbcore.autosuspend': (v) => (v === '-1' ? msg(m.boot_param_usbAutosuspendOff) : msg(m.boot_param_usbAutosuspend)),
+  'nvme_core.default_ps_max_latency_us': (v) => (v === '0' ? msg(m.boot_param_nvmeApstOff) : msg(m.boot_param_nvmeApst)),
+  pcie_aspm: (v) => (v === 'off' ? msg(m.boot_param_pcieAspmOff) : v === 'force' ? msg(m.boot_param_pcieAspmForce) : msg(m.boot_param_pcieAspm)),
+  'pcie_aspm.policy': msg(m.boot_param_pcieAspmPolicy),
+  intel_iommu: (v) => (v === 'on' ? msg(m.boot_param_intelIommuOn) : msg(m.boot_param_intelIommu)),
+  amd_iommu: msg(m.boot_param_amdIommu),
+  iommu: (v) => (v === 'pt' ? msg(m.boot_param_iommuPassthrough) : msg(m.boot_param_iommu)),
+  'vfio-pci.ids': msg(m.boot_param_vfioPciIds),
+  consoleblank: (v) => msg(m.boot_param_consoleblank, { seconds: v ?? '?' }),
+  console: msg(m.boot_param_console),
+  'zswap.enabled': (v) => (v === '1' ? msg(m.boot_param_zswapOn) : msg(m.boot_param_zswap)),
+  'zswap.compressor': msg(m.boot_param_zswapCompressor),
+  'systemd.unified_cgroup_hierarchy': msg(m.boot_param_unifiedCgroup),
+  'systemd.show_status': msg(m.boot_param_showStatus),
+  'rd.udev.log_level': msg(m.boot_param_rdUdevLogLevel),
+  'rd.systemd.show_status': msg(m.boot_param_rdShowStatus),
+  'udev.log_level': msg(m.boot_param_udevLogLevel),
   ipv6: 'IPv6',
-  'ipv6.disable': (v) => (v === '1' ? msg('boot_param_ipv6Disable') : 'IPv6'),
-  transparent_hugepage: msg('boot_param_transparentHugepage'),
-  hugepages: msg('boot_param_hugepages'),
-  amd_pstate: msg('boot_param_amdPstate'),
-  intel_pstate: msg('boot_param_intelPstate'),
-  acpi_osi: msg('boot_param_acpiOsi'),
-  acpi_enforce_resources: msg('boot_param_acpiEnforceResources'),
-  'libata.force': msg('boot_param_libataForce'),
-  'random.trust_cpu': msg('boot_param_randomTrustCpu'),
-  apparmor: msg('boot_param_apparmor'),
-  lsm: msg('boot_param_lsm'),
+  'ipv6.disable': (v) => (v === '1' ? msg(m.boot_param_ipv6Disable) : 'IPv6'),
+  transparent_hugepage: msg(m.boot_param_transparentHugepage),
+  hugepages: msg(m.boot_param_hugepages),
+  amd_pstate: msg(m.boot_param_amdPstate),
+  intel_pstate: msg(m.boot_param_intelPstate),
+  acpi_osi: msg(m.boot_param_acpiOsi),
+  acpi_enforce_resources: msg(m.boot_param_acpiEnforceResources),
+  'libata.force': msg(m.boot_param_libataForce),
+  'random.trust_cpu': msg(m.boot_param_randomTrustCpu),
+  apparmor: msg(m.boot_param_apparmor),
+  lsm: msg(m.boot_param_lsm),
   selinux: 'SELinux',
-  audit: msg('boot_param_audit'),
-  module_blacklist: msg('boot_param_moduleBlacklist'),
-  'modprobe.blacklist': msg('boot_param_moduleBlacklist'),
-  fbcon: msg('boot_param_fbcon'),
-  nomodeset: msg('boot_param_nomodeset'),
-  init: msg('boot_param_init'),
-  panic: (v) => msg('boot_param_panic', { seconds: v ?? '?' }),
-  'kvm.ignore_msrs': msg('boot_param_kvmIgnoreMsrs'),
-  split_lock_detect: msg('boot_param_splitLockDetect'),
+  audit: msg(m.boot_param_audit),
+  module_blacklist: msg(m.boot_param_moduleBlacklist),
+  'modprobe.blacklist': msg(m.boot_param_moduleBlacklist),
+  fbcon: msg(m.boot_param_fbcon),
+  nomodeset: msg(m.boot_param_nomodeset),
+  init: msg(m.boot_param_init),
+  panic: (v) => msg(m.boot_param_panic, { seconds: v ?? '?' }),
+  'kvm.ignore_msrs': msg(m.boot_param_kvmIgnoreMsrs),
+  split_lock_detect: msg(m.boot_param_splitLockDetect),
 })
 
 export function explainParam(name: string, value?: string): string | undefined {
@@ -342,7 +343,7 @@ export function explainParam(name: string, value?: string): string | undefined {
 
 export type KernelFlavor = 'linux' | 'linux-lts' | 'linux-zen' | 'linux-hardened'
 
-const flavor = (pkg: KernelFlavor, label: MsgKey, text: MsgKey) => ({
+const flavor = (pkg: KernelFlavor, label: Message, text: Message) => ({
   pkg,
   get label() {
     return msg(label)
@@ -354,10 +355,10 @@ const flavor = (pkg: KernelFlavor, label: MsgKey, text: MsgKey) => ({
 
 /** `label` and `text` are getters: read in the viewer's language. */
 export const KERNEL_FLAVORS: { pkg: KernelFlavor; readonly label: string; readonly text: string }[] = [
-  flavor('linux', 'boot_flavor_linux_label', 'boot_flavor_linux_text'),
-  flavor('linux-lts', 'boot_flavor_linuxlts_label', 'boot_flavor_linuxlts_text'),
-  flavor('linux-zen', 'boot_flavor_linuxzen_label', 'boot_flavor_linuxzen_text'),
-  flavor('linux-hardened', 'boot_flavor_linuxhardened_label', 'boot_flavor_linuxhardened_text'),
+  flavor('linux', m.boot_flavor_linux_label, m.boot_flavor_linux_text),
+  flavor('linux-lts', m.boot_flavor_linuxlts_label, m.boot_flavor_linuxlts_text),
+  flavor('linux-zen', m.boot_flavor_linuxzen_label, m.boot_flavor_linuxzen_text),
+  flavor('linux-hardened', m.boot_flavor_linuxhardened_label, m.boot_flavor_linuxhardened_text),
 ]
 
 export const isFlavor = (v: unknown): v is KernelFlavor => KERNEL_FLAVORS.some((k) => k.pkg === v)
@@ -401,9 +402,9 @@ export function kernelInfos(installed: Map<string, string>, release: string, ent
 
 /** Why a flavour may not be removed, or undefined. */
 export function kernelRemoveProblem(k: KernelInfo, all: KernelInfo[]): string | undefined {
-  if (k.running) return msg('boot_note_kernelRunning')
-  if (k.isDefault) return msg('boot_note_kernelIsDefault')
-  if (!all.some((x) => x.installed && x.pkg !== k.pkg)) return msg('boot_note_lastKernel')
+  if (k.running) return msg(m.boot_note_kernelRunning)
+  if (k.isDefault) return msg(m.boot_note_kernelIsDefault)
+  if (!all.some((x) => x.installed && x.pkg !== k.pkg)) return msg(m.boot_note_lastKernel)
   return undefined
 }
 
@@ -467,27 +468,27 @@ export interface EntryProblem {
  */
 export function checkEntryConf(text: string, opts: { exists?: (file: string) => boolean; needsRoot?: boolean } = {}): EntryProblem[] {
   const out: EntryProblem[] = []
-  if (text.length > ENTRY_MAX) return [{ level: 'error', text: msg('boot_check_tooLarge') }]
+  if (text.length > ENTRY_MAX) return [{ level: 'error', text: msg(m.boot_check_tooLarge) }]
   const lines = parseEntryConf(text)
   const seen = new Set<string>()
   for (const l of lines) {
-    if (!ENTRY_KEYS.includes(l.key)) out.push({ level: 'warning', line: l.line, text: msg('boot_check_unknownKey', { key: l.key }) })
-    else if (!l.value) out.push({ level: 'error', line: l.line, text: msg('boot_check_noValue', { key: l.key }) })
+    if (!ENTRY_KEYS.includes(l.key)) out.push({ level: 'warning', line: l.line, text: msg(m.boot_check_unknownKey, { key: l.key }) })
+    else if (!l.value) out.push({ level: 'error', line: l.line, text: msg(m.boot_check_noValue, { key: l.key }) })
     else if (FILE_KEYS.includes(l.key)) {
-      if (!l.value.startsWith('/')) out.push({ level: 'error', line: l.line, text: msg('boot_check_relativePath', { file: l.value }) })
-      else if (opts.exists && !opts.exists(l.value)) out.push({ level: 'error', line: l.line, text: msg('boot_check_fileMissing', { file: l.value }) })
+      if (!l.value.startsWith('/')) out.push({ level: 'error', line: l.line, text: msg(m.boot_check_relativePath, { file: l.value }) })
+      else if (opts.exists && !opts.exists(l.value)) out.push({ level: 'error', line: l.line, text: msg(m.boot_check_fileMissing, { file: l.value }) })
     }
-    if (SINGLE_KEYS.includes(l.key) && seen.has(l.key)) out.push({ level: 'warning', line: l.line, text: msg('boot_check_repeated', { key: l.key }) })
+    if (SINGLE_KEYS.includes(l.key) && seen.has(l.key)) out.push({ level: 'warning', line: l.line, text: msg(m.boot_check_repeated, { key: l.key }) })
     seen.add(l.key)
   }
   const has = (k: string) => lines.some((l) => l.key === k && l.value)
-  if (!has('linux') && !has('efi') && !has('uki')) out.push({ level: 'error', text: msg('boot_check_noKernel') })
+  if (!has('linux') && !has('efi') && !has('uki')) out.push({ level: 'error', text: msg(m.boot_check_noKernel) })
   const options = lines
     .filter((l) => l.key === 'options')
     .map((l) => l.value)
     .join(' ')
-  if (has('linux') && opts.needsRoot && !/(^|\s)root=\S/.test(options)) out.push({ level: 'error', line: lines.find((l) => l.key === 'options')?.line, text: msg('boot_check_noRoot') })
-  if (!has('title')) out.push({ level: 'warning', text: msg('boot_check_noTitle') })
+  if (has('linux') && opts.needsRoot && !/(^|\s)root=\S/.test(options)) out.push({ level: 'error', line: lines.find((l) => l.key === 'options')?.line, text: msg(m.boot_check_noRoot) })
+  if (!has('title')) out.push({ level: 'warning', text: msg(m.boot_check_noTitle) })
   return out.sort((a, b) => (a.line ?? 1e9) - (b.line ?? 1e9))
 }
 

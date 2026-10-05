@@ -2,6 +2,7 @@
 // the web app and the root helper.
 
 import { msg } from './i18n'
+import { m } from '~/paraglide/messages'
 import { parseIni } from './ini'
 import { k, type KeyDoc } from './quadlet-keys'
 import type { Diagnostic, Revision } from './quadlets'
@@ -62,7 +63,7 @@ export const DROPIN_NAME = /^[A-Za-z0-9_.@-]{1,100}\.conf$/
 export const PROTECTED_UNIT = /^quadeck(-helper)?\.service$|^quadeck-job-/
 
 export function assertUnit(name: string) {
-  if (!EDITABLE_UNIT.test(name) || name.startsWith('-') || name.includes('..')) throw new Error(msg('helper_error_invalidUnitName', { unit: name }))
+  if (!EDITABLE_UNIT.test(name) || name.startsWith('-') || name.includes('..')) throw new Error(msg(m.helper_error_invalidUnitName, { unit: name }))
 }
 
 export const unitType = (name: string) => name.slice(name.lastIndexOf('.') + 1)
@@ -84,64 +85,64 @@ export function originOf(path: string): UnitOrigin {
 }
 
 const UNIT: Record<string, KeyDoc> = {
-  Description: k('unitHelp_unit_Description', { form: true }),
-  After: k('unitHelp_unit_After', { multi: true, form: true }),
-  Wants: k('unitHelp_unit_Wants', { multi: true, form: true }),
-  Requires: k('unitHelp_unit_Requires', { multi: true, form: true }),
-  ConditionPathExists: k('unitHelp_unit_ConditionPathExists', { form: true }),
+  Description: k(m.unitHelp_unit_Description, { form: true }),
+  After: k(m.unitHelp_unit_After, { multi: true, form: true }),
+  Wants: k(m.unitHelp_unit_Wants, { multi: true, form: true }),
+  Requires: k(m.unitHelp_unit_Requires, { multi: true, form: true }),
+  ConditionPathExists: k(m.unitHelp_unit_ConditionPathExists, { form: true }),
 }
 
 const SERVICE: Record<string, KeyDoc> = {
-  Type: k('unitHelp_service_Type', {
+  Type: k(m.unitHelp_service_Type, {
     form: true,
     options: ['', 'simple', 'exec', 'oneshot', 'notify', 'forking', 'idle'],
   }),
-  ExecStart: k('unitHelp_service_ExecStart', {
+  ExecStart: k(m.unitHelp_service_ExecStart, {
     multi: true,
     form: true,
     placeholder: '/usr/local/bin/my-service --port 8080',
   }),
-  ExecStartPre: k('unitHelp_service_ExecStartPre', { multi: true, form: true }),
-  User: k('unitHelp_service_User', { form: true }),
-  Group: k('unitHelp_service_Group', { form: true }),
-  WorkingDirectory: k('unitHelp_service_WorkingDirectory', { form: true }),
-  Environment: k('unitHelp_service_Environment', { multi: true, form: true, placeholder: 'TZ=Europe/Berlin' }),
-  EnvironmentFile: k('unitHelp_service_EnvironmentFile', { multi: true, form: true }),
-  Restart: k('unitHelp_service_Restart', { form: true, options: ['', 'no', 'on-failure', 'on-abnormal', 'always'] }),
-  RestartSec: k('unitHelp_service_RestartSec', { form: true }),
-  TimeoutStartSec: k('unitHelp_service_TimeoutStartSec', { form: true }),
-  MemoryMax: k('unitHelp_service_MemoryMax', { form: true }),
-  CPUQuota: k('unitHelp_service_CPUQuota', { form: true }),
-  Nice: k('unitHelp_service_Nice', { form: true }),
-  NoNewPrivileges: k('unitHelp_service_NoNewPrivileges', { form: true, options: ['', 'yes', 'no'] }),
-  ProtectSystem: k('unitHelp_service_ProtectSystem', {
+  ExecStartPre: k(m.unitHelp_service_ExecStartPre, { multi: true, form: true }),
+  User: k(m.unitHelp_service_User, { form: true }),
+  Group: k(m.unitHelp_service_Group, { form: true }),
+  WorkingDirectory: k(m.unitHelp_service_WorkingDirectory, { form: true }),
+  Environment: k(m.unitHelp_service_Environment, { multi: true, form: true, placeholder: 'TZ=Europe/Berlin' }),
+  EnvironmentFile: k(m.unitHelp_service_EnvironmentFile, { multi: true, form: true }),
+  Restart: k(m.unitHelp_service_Restart, { form: true, options: ['', 'no', 'on-failure', 'on-abnormal', 'always'] }),
+  RestartSec: k(m.unitHelp_service_RestartSec, { form: true }),
+  TimeoutStartSec: k(m.unitHelp_service_TimeoutStartSec, { form: true }),
+  MemoryMax: k(m.unitHelp_service_MemoryMax, { form: true }),
+  CPUQuota: k(m.unitHelp_service_CPUQuota, { form: true }),
+  Nice: k(m.unitHelp_service_Nice, { form: true }),
+  NoNewPrivileges: k(m.unitHelp_service_NoNewPrivileges, { form: true, options: ['', 'yes', 'no'] }),
+  ProtectSystem: k(m.unitHelp_service_ProtectSystem, {
     form: true,
     options: ['', 'yes', 'full', 'strict'],
   }),
-  ProtectHome: k('unitHelp_service_ProtectHome', { form: true, options: ['', 'yes', 'read-only', 'tmpfs'] }),
-  PrivateTmp: k('unitHelp_service_PrivateTmp', { form: true, options: ['', 'yes', 'no'] }),
-  ReadWritePaths: k('unitHelp_service_ReadWritePaths', { multi: true, form: true }),
+  ProtectHome: k(m.unitHelp_service_ProtectHome, { form: true, options: ['', 'yes', 'read-only', 'tmpfs'] }),
+  PrivateTmp: k(m.unitHelp_service_PrivateTmp, { form: true, options: ['', 'yes', 'no'] }),
+  ReadWritePaths: k(m.unitHelp_service_ReadWritePaths, { multi: true, form: true }),
 }
 
 const TIMER: Record<string, KeyDoc> = {
-  OnCalendar: k('unitHelp_timer_OnCalendar', {
+  OnCalendar: k(m.unitHelp_timer_OnCalendar, {
     multi: true,
     form: true,
   }),
-  OnBootSec: k('unitHelp_timer_OnBootSec', { form: true }),
-  OnUnitActiveSec: k('unitHelp_timer_OnUnitActiveSec', { form: true }),
-  Persistent: k('unitHelp_timer_Persistent', { form: true, options: ['', 'true', 'false'] }),
-  RandomizedDelaySec: k('unitHelp_timer_RandomizedDelaySec', { form: true }),
-  Unit: k('unitHelp_timer_Unit', { form: true }),
+  OnBootSec: k(m.unitHelp_timer_OnBootSec, { form: true }),
+  OnUnitActiveSec: k(m.unitHelp_timer_OnUnitActiveSec, { form: true }),
+  Persistent: k(m.unitHelp_timer_Persistent, { form: true, options: ['', 'true', 'false'] }),
+  RandomizedDelaySec: k(m.unitHelp_timer_RandomizedDelaySec, { form: true }),
+  Unit: k(m.unitHelp_timer_Unit, { form: true }),
 }
 
 const SOCKET: Record<string, KeyDoc> = {
-  ListenStream: k('unitHelp_socket_ListenStream', { multi: true, form: true }),
-  Accept: k('unitHelp_socket_Accept', { form: true, options: ['', 'yes', 'no'] }),
+  ListenStream: k(m.unitHelp_socket_ListenStream, { multi: true, form: true }),
+  Accept: k(m.unitHelp_socket_Accept, { form: true, options: ['', 'yes', 'no'] }),
 }
 
 const INSTALL: Record<string, KeyDoc> = {
-  WantedBy: k('unitHelp_install_WantedBy', {
+  WantedBy: k(m.unitHelp_install_WantedBy, {
     multi: true,
     form: true,
     options: ['', 'multi-user.target', 'timers.target', 'sockets.target', 'default.target'],
@@ -163,10 +164,10 @@ export function lintUnit(text: string, kind: 'fragment' | 'dropin'): Diagnostic[
   const out: Diagnostic[] = []
   const reset = new Set<string>()
   for (const e of parseIni(text)) {
-    if (e.kind === 'invalid') out.push({ line: e.start + 1, severity: 'error', message: msg('unitFiles_check_invalidLine') })
+    if (e.kind === 'invalid') out.push({ line: e.start + 1, severity: 'error', message: msg(m.unitFiles_check_invalidLine) })
     if (e.kind !== 'kv') continue
     if (!e.section) {
-      out.push({ line: e.start + 1, severity: 'error', message: msg('unitFiles_check_keyBeforeSection', { key: e.key ?? '' }) })
+      out.push({ line: e.start + 1, severity: 'error', message: msg(m.unitFiles_check_keyBeforeSection, { key: e.key ?? '' }) })
       continue
     }
     const id = `${e.section}.${e.key}`
@@ -175,10 +176,10 @@ export function lintUnit(text: string, kind: 'fragment' | 'dropin'): Diagnostic[
       out.push({
         line: e.start + 1,
         severity: 'warning',
-        message: msg('unitFiles_check_overrideAppends', { key: e.key ?? '' }),
+        message: msg(m.unitFiles_check_overrideAppends, { key: e.key ?? '' }),
       })
   }
-  if (kind === 'fragment' && !parseIni(text).some((e) => e.kind === 'section')) out.push({ severity: 'error', message: msg('unitFiles_check_noSection') })
+  if (kind === 'fragment' && !parseIni(text).some((e) => e.kind === 'section')) out.push({ severity: 'error', message: msg(m.unitFiles_check_noSection) })
   return out
 }
 
@@ -187,7 +188,7 @@ export const UNIT_TEMPLATES: { id: string; readonly label: string; suffix: strin
   {
     id: 'daemon',
     get label() {
-      return msg('unitFiles_template_service')
+      return msg(m.unitFiles_template_service)
     },
     suffix: 'service',
     content: (n) => `[Unit]\nDescription=${n}\nAfter=network-online.target\nWants=network-online.target\n\n[Service]\nType=simple\nExecStart=/usr/local/bin/${n}\nRestart=on-failure\nRestartSec=5s\n\n[Install]\nWantedBy=multi-user.target\n`,
@@ -195,7 +196,7 @@ export const UNIT_TEMPLATES: { id: string; readonly label: string; suffix: strin
   {
     id: 'oneshot',
     get label() {
-      return msg('unitFiles_template_oneshot')
+      return msg(m.unitFiles_template_oneshot)
     },
     suffix: 'service',
     content: (n) => `[Unit]\nDescription=${n}\nAfter=local-fs.target\n\n[Service]\nType=oneshot\nRemainAfterExit=yes\nExecStart=/usr/local/bin/${n}.sh\n\n[Install]\nWantedBy=multi-user.target\n`,
@@ -203,7 +204,7 @@ export const UNIT_TEMPLATES: { id: string; readonly label: string; suffix: strin
   {
     id: 'hardened',
     get label() {
-      return msg('unitFiles_template_hardened')
+      return msg(m.unitFiles_template_hardened)
     },
     suffix: 'service',
     content: (n) =>
@@ -212,7 +213,7 @@ export const UNIT_TEMPLATES: { id: string; readonly label: string; suffix: strin
   {
     id: 'empty',
     get label() {
-      return msg('timers_cron_empty')
+      return msg(m.timers_cron_empty)
     },
     suffix: 'service',
     content: (n) => `[Unit]\nDescription=${n}\n\n[Service]\nExecStart=\n\n[Install]\nWantedBy=multi-user.target\n`,

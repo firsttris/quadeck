@@ -3,6 +3,7 @@
 // survives reboots and replugging. No I/O here.
 
 import { msg } from './i18n'
+import { m } from '~/paraglide/messages'
 
 export const STANDBY_MINUTES = [0, 10, 20, 30, 60, 120] as const
 export type StandbyMinutes = (typeof STANDBY_MINUTES)[number]
@@ -120,7 +121,7 @@ export function wakeRate(points: [number, number][], now = Date.now(), days = 7)
 export const WAKE_WARN_PER_DAY = 24
 
 export function standbyLabel(minutes: StandbyMinutes): string {
-  return minutes === 0 ? msg('power_never') : minutes < 60 ? msg('power_afterMin', { n: minutes }) : msg('power_afterHours', { n: minutes / 60 })
+  return minutes === 0 ? msg(m.power_never) : minutes < 60 ? msg(m.power_afterMin, { n: minutes }) : msg(m.power_afterHours, { n: minutes / 60 })
 }
 
 /** Spin-ups per day as a series, from the counter's samples (one point per day boundary crossed). */

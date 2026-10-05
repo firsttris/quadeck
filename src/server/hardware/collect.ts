@@ -7,6 +7,7 @@ import { existsSync, readdirSync, readFileSync, readlinkSync, realpathSync } fro
 import { basename, join } from 'node:path'
 import { run } from '../exec'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { buildHardware, lookupIds, type AtaRaw, type Hardware, type HardwareRaw, type PciRaw, type SensorRaw, type UsbRaw } from '~/shared/hardware'
 
 export interface HardwareAdmin {
@@ -154,22 +155,22 @@ export function readHwmon(root = '/sys/class/hwmon'): SensorRaw[] {
     const d = join(root, h)
     const chip = read(join(d, 'name')) ?? h
     for (const f of ls(d)) {
-      const m = f.match(/^(temp|fan|in|power)(\d+)_(input|average)$/)
-      if (!m) continue
-      const kind = m[1] as SensorRaw['kind']
+      const match = f.match(/^(temp|fan|in|power)(\d+)_(input|average)$/)
+      if (!match) continue
+      const kind = match[1] as SensorRaw['kind']
       const raw = Number(read(join(d, f)))
       if (!Number.isFinite(raw)) continue
-      const label = read(join(d, `${m[1]}${m[2]}_label`))
+      const label = read(join(d, `${match[1]}${match[2]}_label`))
       if (kind === 'in' && !label) continue // unlabeled voltages are just noise
       const scale = kind === 'temp' || kind === 'in' ? 1000 : kind === 'power' ? 1e6 : 1
       const extra = (s: string) => {
-        const v = Number(read(join(d, `${m[1]}${m[2]}_${s}`)))
+        const v = Number(read(join(d, `${match[1]}${match[2]}_${s}`)))
         return Number.isFinite(v) && v > 0 ? v / scale : undefined
       }
       if (kind === 'temp' && (raw <= -40_000 || raw >= 150_000)) continue // unconnected sensor
       out.push({
         chip,
-        label: label ?? (kind === 'fan' ? msg('hardware_sensor_fan', { index: m[2] }) : kind === 'temp' ? msg('hardware_sensor_temperature', { index: m[2] }) : `${kind} ${m[2]}`),
+        label: label ?? (kind === 'fan' ? msg(m.hardware_sensor_fan, { index: match[2] }) : kind === 'temp' ? msg(m.hardware_sensor_temperature, { index: match[2] }) : `${kind} ${match[2]}`),
         kind,
         value: raw / scale,
         max: extra('max'),

@@ -2,6 +2,7 @@
 // else is reported as a warning so nothing disappears silently.
 
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import type { ComposeResult } from '~/shared/quadlets'
 
 type Obj = Record<string, unknown>
@@ -42,7 +43,7 @@ function ports(v: unknown, warn: (s: string) => void): string[] {
       return [`${host}${p.target}${p.protocol && p.protocol !== 'tcp' ? `/${p.protocol}` : ''}`]
     }
     const s = oneLine(p)
-    if (!s.includes(':')) warn(msg('quadlets_compose_portNotPublished', { port: s }))
+    if (!s.includes(':')) warn(msg(m.quadlets_compose_portNotPublished, { port: s }))
     return [s]
   })
 }
@@ -50,7 +51,7 @@ function ports(v: unknown, warn: (s: string) => void): string[] {
 export function composeToQuadlets(doc: unknown, project: string): ComposeResult {
   const warnings: string[] = []
   const files: { name: string; content: string }[] = []
-  if (!isObj(doc) || !isObj(doc.services)) return { files, warnings: [msg('quadlets_compose_noServices')] }
+  if (!isObj(doc) || !isObj(doc.services)) return { files, warnings: [msg(m.quadlets_compose_noServices)] }
   const prefix = slug(project)
   const services = doc.services as Record<string, unknown>
   const namedVolumes = isObj(doc.volumes) ? Object.keys(doc.volumes) : []
@@ -63,7 +64,7 @@ export function composeToQuadlets(doc: unknown, project: string): ComposeResult 
   for (const n of networks) {
     const spec = (doc.networks as Obj)[n]
     if (isObj(spec) && spec.external) {
-      warnings.push(msg('quadlets_compose_externalNetwork', { network: n }))
+      warnings.push(msg(m.quadlets_compose_externalNetwork, { network: n }))
       continue
     }
     files.push({ name: `${slug(n)}.network`, content: `[Network]\nNetworkName=${slug(n)}\n` })
@@ -71,7 +72,7 @@ export function composeToQuadlets(doc: unknown, project: string): ComposeResult 
   for (const v of namedVolumes) {
     const spec = (doc.volumes as Obj)[v]
     if (isObj(spec) && spec.external) {
-      warnings.push(msg('quadlets_compose_externalVolume', { volume: v }))
+      warnings.push(msg(m.quadlets_compose_externalVolume, { volume: v }))
       continue
     }
     files.push({ name: `${slug(v)}.volume`, content: `[Volume]\nVolumeName=${slug(v)}\n` })
@@ -125,8 +126,8 @@ export function composeToQuadlets(doc: unknown, project: string): ComposeResult 
     const service: string[] = []
 
     if (!s.image) {
-      if (s.build) warn(msg('quadlets_compose_buildNotConverted'))
-      else warn(msg('quadlets_compose_noImage'))
+      if (s.build) warn(msg(m.quadlets_compose_buildNotConverted))
+      else warn(msg(m.quadlets_compose_noImage))
     }
     let image = oneLine(s.image)
     // Short names break AutoUpdate=registry and need a search registry.
@@ -148,14 +149,14 @@ export function composeToQuadlets(doc: unknown, project: string): ComposeResult 
         }
         const parts = oneLine(v).split(':')
         if (parts.length >= 2 && namedVolumes.includes(parts[0]!)) parts[0] = `${slug(parts[0]!)}.volume`
-        else if (parts.length >= 2 && parts[0]!.startsWith('.')) warn(msg('quadlets_compose_relativePath', { path: parts[0] }))
+        else if (parts.length >= 2 && parts[0]!.startsWith('.')) warn(msg(m.quadlets_compose_relativePath, { path: parts[0] }))
         c.push(`Volume=${parts.join(':')}`)
       }
     }
     for (const e of kvList(s.environment)) c.push(`Environment=${e}`)
     for (const f of Array.isArray(s.env_file) ? s.env_file : s.env_file ? [s.env_file] : []) {
       const p = isObj(f) ? str(f.path) : str(f)
-      if (p.startsWith('.')) warn(msg('quadlets_compose_relativeEnvFile', { path: p }))
+      if (p.startsWith('.')) warn(msg(m.quadlets_compose_relativeEnvFile, { path: p }))
       c.push(`EnvironmentFile=${oneLine(p)}`)
     }
     for (const l of kvList(s.labels)) c.push(`Label=${l}`)
@@ -176,13 +177,13 @@ export function composeToQuadlets(doc: unknown, project: string): ComposeResult 
     for (const d of kvList(s.sysctls)) c.push(`Sysctl=${d}`)
     for (const h of Array.isArray(s.extra_hosts) ? s.extra_hosts : []) c.push(`PodmanArgs=--add-host=${oneLine(h)}`)
     if (s.privileged) {
-      warn(msg('quadlets_compose_privileged'))
+      warn(msg(m.quadlets_compose_privileged))
       c.push('PodmanArgs=--privileged')
     }
     if (s.network_mode) {
-      const m = oneLine(s.network_mode)
-      if (m === 'host' || m === 'none') c.push(`Network=${m}`)
-      else warn(msg('quadlets_compose_networkMode', { mode: m }))
+      const mode = oneLine(s.network_mode)
+      if (mode === 'host' || mode === 'none') c.push(`Network=${mode}`)
+      else warn(msg(m.quadlets_compose_networkMode, { mode }))
     } else if (Array.isArray(s.networks) || isObj(s.networks)) {
       const nets = Array.isArray(s.networks) ? s.networks.map(str) : Object.keys(s.networks as Obj)
       for (const n of nets) c.push(`Network=${networks.includes(n) ? `${slug(n)}.network` : slug(n)}`)
@@ -204,8 +205,8 @@ export function composeToQuadlets(doc: unknown, project: string): ComposeResult 
     const restart = oneLine(s.restart)
     service.push(`Restart=${restart === 'no' ? 'no' : restart.startsWith('on-failure') ? 'on-failure' : 'always'}`)
     service.push('TimeoutStartSec=900')
-    for (const k of Object.keys(s)) if (!KNOWN.has(k)) warn(msg('quadlets_compose_keyNotConverted', { key: k }))
-    for (const k of ['secrets', 'logging', 'ulimits', 'security_opt', 'expose']) if (s[k]) warn(msg('quadlets_compose_transferManually', { key: k }))
+    for (const k of Object.keys(s)) if (!KNOWN.has(k)) warn(msg(m.quadlets_compose_keyNotConverted, { key: k }))
+    for (const k of ['secrets', 'logging', 'ulimits', 'security_opt', 'expose']) if (s[k]) warn(msg(m.quadlets_compose_transferManually, { key: k }))
 
     files.push({
       name: `${svc}.container`,

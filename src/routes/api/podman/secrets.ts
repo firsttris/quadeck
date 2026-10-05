@@ -5,6 +5,7 @@ import { authed, readJson } from '~/server/http'
 import { privileged } from '~/server/privileged'
 import { unlockToken } from '~/server/unlock-sessions'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 
 // GET: Podman secrets (names, dates, which Quadlet uses them – never values) and passwords in
 // plain text in Quadlet files. POST (unlock): { action: 'create' | 'replace', name, value } |
@@ -26,10 +27,10 @@ export const Route = createFileRoute('/api/podman/secrets')({
           case 'remove':
             return Response.json(await p.removeSecret(token, name))
           case 'move':
-            if (typeof b.file !== 'string' || typeof b.key !== 'string') throw new HttpError(400, msg('secrets_error_noKey', { key: '', file: '' }))
+            if (typeof b.file !== 'string' || typeof b.key !== 'string') throw new HttpError(400, msg(m.secrets_error_noKey, { key: '', file: '' }))
             return Response.json(await p.moveSecret(token, b.file, b.key, name, b.restart !== false))
           default:
-            throw new HttpError(400, msg('api_shares_nothingToChange'))
+            throw new HttpError(400, msg(m.api_shares_nothingToChange))
         }
       }),
     },

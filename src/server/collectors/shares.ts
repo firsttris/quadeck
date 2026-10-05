@@ -4,6 +4,7 @@
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import type { SharesState } from '~/shared/shares'
 import type { Share } from '~/shared/types'
 
@@ -48,10 +49,10 @@ export function parseSmbConf(text: string): Share[] {
     const writable = [opts['writable'], opts['writeable'], opts['write ok']].some(yes) || no(opts['read only'])
     const readonly = yes(opts['read only']) || !writable
     const notes: string[] = []
-    if (yes(opts['guest ok']) || yes(opts['public'])) notes.push(msg('shares_note_guestsAllowed'))
-    if (opts['valid users']) notes.push(msg('shares_note_onlyUsers', { users: opts['valid users'] }))
-    if (no(opts['browseable']) || no(opts['browsable'])) notes.push(msg('shares_smb_hidden'))
-    shares.push({ type: 'SMB', name, path: opts['path'], access: readonly ? msg('shares_smb_read') : msg('shares_smb_readWrite'), note: notes.join(' · ') || undefined })
+    if (yes(opts['guest ok']) || yes(opts['public'])) notes.push(msg(m.shares_note_guestsAllowed))
+    if (opts['valid users']) notes.push(msg(m.shares_note_onlyUsers, { users: opts['valid users'] }))
+    if (no(opts['browseable']) || no(opts['browsable'])) notes.push(msg(m.shares_smb_hidden))
+    shares.push({ type: 'SMB', name, path: opts['path'], access: readonly ? msg(m.shares_smb_read) : msg(m.shares_smb_readWrite), note: notes.join(' · ') || undefined })
   }
   return shares
 }
@@ -104,12 +105,12 @@ export function collectShares(paths: { smbConf: string; exports: string; exports
 export function sharesSummary(st: SharesState): Share[] {
   const smb: Share[] = st.smb.shares.map((s) => {
     const notes = [
-      s.guestOk ? msg('shares_note_guestsAllowed') : '',
-      s.validUsers ? msg('shares_note_onlyValidUsers', { users: s.validUsers }) : '',
-      s.browseable ? '' : msg('shares_smb_hidden'),
-      s.connections ? msg('shares_note_connected', { count: s.connections }) : '',
+      s.guestOk ? msg(m.shares_note_guestsAllowed) : '',
+      s.validUsers ? msg(m.shares_note_onlyValidUsers, { users: s.validUsers }) : '',
+      s.browseable ? '' : msg(m.shares_smb_hidden),
+      s.connections ? msg(m.shares_note_connected, { count: s.connections }) : '',
     ].filter(Boolean)
-    return { type: 'SMB', name: s.name, path: s.path, access: s.readOnly ? msg('shares_smb_read') : msg('shares_smb_readWrite'), note: notes.join(' · ') || undefined }
+    return { type: 'SMB', name: s.name, path: s.path, access: s.readOnly ? msg(m.shares_smb_read) : msg(m.shares_smb_readWrite), note: notes.join(' · ') || undefined }
   })
   const nfs: Share[] = st.nfs.exports.map((e) => ({
     type: 'NFS',

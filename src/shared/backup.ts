@@ -3,6 +3,7 @@
 // Quadlets, and restic's JSON output. No I/O here.
 
 import { msg } from './i18n'
+import { m } from '~/paraglide/messages'
 import { quadletMounts, quadletType, quadletUnit, quadletValues } from './quadlets'
 
 export type RepoKind = 'local' | 'sftp' | 's3' | 'b2' | 'rest'
@@ -132,27 +133,27 @@ const SECRET_VALUE = /^[^\x00-\x1f\x7f]{0,500}$/ // eslint-disable-line no-contr
 
 /** An absolute, normalized path without control characters; `/` itself is not allowed. */
 export function absPathProblem(p: unknown): string | undefined {
-  if (typeof p !== 'string' || !p.startsWith('/') || p.length > 1024 || CTRL.test(p)) return msg('backup_error_path', { path: String(p) })
-  if (p === '/' || p.endsWith('/') || p.split('/').some((s, i) => i > 0 && (s === '' || s === '.' || s === '..'))) return msg('backup_error_path', { path: p })
+  if (typeof p !== 'string' || !p.startsWith('/') || p.length > 1024 || CTRL.test(p)) return msg(m.backup_error_path, { path: String(p) })
+  if (p === '/' || p.endsWith('/') || p.split('/').some((s, i) => i > 0 && (s === '' || s === '.' || s === '..'))) return msg(m.backup_error_path, { path: p })
   return undefined
 }
 
 const inside = (child: string, parent: string) => child === parent || child.startsWith(parent + '/')
 
 function repoProblem(kind: RepoKind, location: string): string | undefined {
-  if (!location || location.length > 500 || CTRL.test(location) || /\s/.test(location)) return msg('backup_error_repo')
+  if (!location || location.length > 500 || CTRL.test(location) || /\s/.test(location)) return msg(m.backup_error_repo)
   switch (kind) {
     case 'local':
       return absPathProblem(location)
     case 'sftp':
       // User and host start with a letter or digit: ssh must never see them as an option (-oProxyCommand …).
-      return /^([A-Za-z0-9][A-Za-z0-9._-]*@)?[A-Za-z0-9][A-Za-z0-9.-]*:.+$/.test(location) ? undefined : msg('backup_error_repo')
+      return /^([A-Za-z0-9][A-Za-z0-9._-]*@)?[A-Za-z0-9][A-Za-z0-9.-]*:.+$/.test(location) ? undefined : msg(m.backup_error_repo)
     case 's3':
-      return /^[A-Za-z0-9][A-Za-z0-9.-]*(:\d+)?\/[A-Za-z0-9._-]+(\/.*)?$/.test(location) ? undefined : msg('backup_error_repo')
+      return /^[A-Za-z0-9][A-Za-z0-9.-]*(:\d+)?\/[A-Za-z0-9._-]+(\/.*)?$/.test(location) ? undefined : msg(m.backup_error_repo)
     case 'b2':
-      return /^[A-Za-z0-9][A-Za-z0-9-]*:.*$/.test(location) ? undefined : msg('backup_error_repo')
+      return /^[A-Za-z0-9][A-Za-z0-9-]*:.*$/.test(location) ? undefined : msg(m.backup_error_repo)
     case 'rest':
-      return /^https?:\/\/[^@/\s]+(\/.*)?$/.test(location) ? undefined : msg('backup_error_repo')
+      return /^https?:\/\/[^@/\s]+(\/.*)?$/.test(location) ? undefined : msg(m.backup_error_repo)
   }
 }
 
@@ -161,14 +162,14 @@ export function parseBackupPlan(v: unknown): { plan?: BackupPlan; error?: string
   const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>
   const repo = (o.repo && typeof o.repo === 'object' ? o.repo : {}) as Record<string, unknown>
   const kind = repo.kind as RepoKind
-  if (!REPO_KINDS.includes(kind)) return { error: msg('backup_error_repo') }
+  if (!REPO_KINDS.includes(kind)) return { error: msg(m.backup_error_repo) }
   const location = typeof repo.location === 'string' ? repo.location.trim() : ''
   const rp = repoProblem(kind, location)
   if (rp) return { error: rp }
 
   const paths = Array.isArray(o.paths) ? [...new Set(o.paths as unknown[])] : []
-  if (!paths.length) return { error: msg('backup_error_noPaths') }
-  if (paths.length > 50) return { error: msg('backup_error_tooMany') }
+  if (!paths.length) return { error: msg(m.backup_error_noPaths) }
+  if (paths.length > 50) return { error: msg(m.backup_error_tooMany) }
   for (const p of paths) {
     if (typeof p === 'string' && VOLUME_PATH.test(p)) continue
     const pr = absPathProblem(p)
@@ -176,36 +177,36 @@ export function parseBackupPlan(v: unknown): { plan?: BackupPlan; error?: string
   }
   if (kind === 'local') {
     const clash = (paths as string[]).find((p) => p.startsWith('/') && (inside(location, p) || inside(p, location)))
-    if (clash) return { error: msg('backup_error_repoInside', { path: clash }) }
+    if (clash) return { error: msg(m.backup_error_repoInside, { path: clash }) }
   }
 
   const ex = (o.exclude && typeof o.exclude === 'object' ? o.exclude : {}) as Record<string, unknown>
   const presets = (Array.isArray(ex.presets) ? ex.presets : []).filter((x): x is ExcludePreset => EXCLUDE_PRESETS.includes(x as ExcludePreset))
   const dirs = Array.isArray(ex.dirs) ? [...new Set(ex.dirs as unknown[])] : []
-  if (dirs.length > 50) return { error: msg('backup_error_tooMany') }
+  if (dirs.length > 50) return { error: msg(m.backup_error_tooMany) }
   for (const d of dirs) {
     const pr = absPathProblem(d)
     if (pr) return { error: pr }
   }
   const patterns = (Array.isArray(ex.patterns) ? ex.patterns : []).map((x) => (typeof x === 'string' ? x.trim() : '')).filter(Boolean)
-  if (patterns.length > 200 || patterns.some((x) => x.length > 300 || CTRL.test(x))) return { error: msg('backup_error_pattern') }
+  if (patterns.length > 200 || patterns.some((x) => x.length > 300 || CTRL.test(x))) return { error: msg(m.backup_error_pattern) }
   let maxSizeGB: number | undefined
   if (ex.maxSizeGB !== undefined && ex.maxSizeGB !== null) {
     maxSizeGB = Number(ex.maxSizeGB)
-    if (!Number.isFinite(maxSizeGB) || maxSizeGB <= 0 || maxSizeGB > 100_000) return { error: msg('backup_error_maxSize') }
+    if (!Number.isFinite(maxSizeGB) || maxSizeGB <= 0 || maxSizeGB > 100_000) return { error: msg(m.backup_error_maxSize) }
   }
 
   const stop = Array.isArray(o.stop) ? [...new Set(o.stop as unknown[])] : []
-  if (stop.length > 30 || !stop.every((u) => typeof u === 'string' && STOP_UNIT.test(u) && !u.startsWith('-'))) return { error: msg('backup_error_unit') }
+  if (stop.length > 30 || !stop.every((u) => typeof u === 'string' && STOP_UNIT.test(u) && !u.startsWith('-'))) return { error: msg(m.backup_error_unit) }
 
   const sched = (o.schedule && typeof o.schedule === 'object' ? o.schedule : {}) as Record<string, unknown>
   const every = sched.every as BackupEvery
-  if (!['daily', '6h', 'weekly'].includes(every) || typeof sched.time !== 'string' || !TIME.test(sched.time)) return { error: msg('backup_error_schedule') }
+  if (!['daily', '6h', 'weekly'].includes(every) || typeof sched.time !== 'string' || !TIME.test(sched.time)) return { error: msg(m.backup_error_schedule) }
 
   const k = (o.keep && typeof o.keep === 'object' ? o.keep : {}) as Record<string, unknown>
   const num = (x: unknown) => (Number.isInteger(x) && (x as number) >= 0 && (x as number) <= 1000 ? (x as number) : NaN)
   const keep = { daily: num(k.daily), weekly: num(k.weekly), monthly: num(k.monthly) }
-  if (Object.values(keep).some(Number.isNaN) || keep.daily + keep.weekly + keep.monthly === 0) return { error: msg('backup_error_keep') }
+  if (Object.values(keep).some(Number.isNaN) || keep.daily + keep.weekly + keep.monthly === 0) return { error: msg(m.backup_error_keep) }
 
   const check = (['monthly', 'weekly', 'never'].includes(o.check as string) ? o.check : 'monthly') as CheckEvery
   return {
@@ -229,7 +230,7 @@ export function parseSecrets(kind: RepoKind, v: unknown): { secrets?: Record<str
   for (const key of REPO_SECRETS[kind]) {
     const val = o[key]
     if (val === undefined || val === '') continue
-    if (typeof val !== 'string' || !SECRET_VALUE.test(val)) return { error: msg('backup_error_secret', { key }) }
+    if (typeof val !== 'string' || !SECRET_VALUE.test(val)) return { error: msg(m.backup_error_secret, { key }) }
     out[key] = val
   }
   return { secrets: out }
@@ -320,8 +321,8 @@ const SKIP_SOURCES = /^\/(run|dev|proc|sys|tmp)(\/|$)|^\/var\/run(\/|$)|\.sock$/
 
 /** Directories an app rebuilds by itself: [image pattern, path inside the container, sub-directory, label key]. */
 const REBUILDABLE: { image: RegExp; dest: string[]; sub: string[]; label: () => string }[] = [
-  { image: /jellyfin/i, dest: ['/cache'], sub: [''], label: () => msg('backup_app_jellyfinCache') },
-  { image: /immich-server|immich-app\/immich$/i, dest: ['/usr/src/app/upload', '/data'], sub: ['thumbs', 'encoded-video'], label: () => msg('backup_app_immichThumbs') },
+  { image: /jellyfin/i, dest: ['/cache'], sub: [''], label: () => msg(m.backup_app_jellyfinCache) },
+  { image: /immich-server|immich-app\/immich$/i, dest: ['/usr/src/app/upload', '/data'], sub: ['thumbs', 'encoded-video'], label: () => msg(m.backup_app_immichThumbs) },
 ]
 
 export function suggestBackup(files: { name: string; content: string }[]): BackupSuggestion {
@@ -479,12 +480,12 @@ export function backupAlert(state: Pick<BackupState, 'plan' | 'runs'>, days: num
   if (!state.plan) return undefined
   const backups = state.runs.filter((r) => r.kind === 'backup')
   const last = backups[0]
-  if (last?.status === 'failed') return msg('backup_alert_failed', { message: last.message ?? '' })
+  if (last?.status === 'failed') return msg(m.backup_alert_failed, { message: last.message ?? '' })
   const ok = backups.find((r) => r.status !== 'failed')
   const since = ok?.endedAt
-  if (since === undefined) return backups.length ? msg('backup_alert_never') : undefined
+  if (since === undefined) return backups.length ? msg(m.backup_alert_never) : undefined
   const age = (now - since) / 86_400_000
-  return age >= days ? msg('backup_alert_old', { days: Math.floor(age) }) : undefined
+  return age >= days ? msg(m.backup_alert_old, { days: Math.floor(age) }) : undefined
 }
 
 // ---------- backup target for clients (restic rest-server) ----------
@@ -535,9 +536,9 @@ export function parseTargetConfig(v: unknown): { config?: TargetConfig; error?: 
   const pp = absPathProblem(dataDir)
   if (pp) return { error: pp }
   const port = Number(o.port)
-  if (!Number.isInteger(port) || port < 1 || port > 65535) return { error: msg('backup_error_port') }
+  if (!Number.isInteger(port) || port < 1 || port > 65535) return { error: msg(m.backup_error_port) }
   const url = typeof o.url === 'string' ? o.url.trim().replace(/\/+$/, '') : ''
-  if (!/^https?:\/\/[A-Za-z0-9.-]+(:\d{1,5})?(\/[A-Za-z0-9._~\/-]*)?$/.test(url)) return { error: msg('backup_error_url') }
+  if (!/^https?:\/\/[A-Za-z0-9.-]+(:\d{1,5})?(\/[A-Za-z0-9._~\/-]*)?$/.test(url)) return { error: msg(m.backup_error_url) }
   return { config: { dataDir, port, appendOnly: o.appendOnly === true, url } }
 }
 

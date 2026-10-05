@@ -7,6 +7,7 @@ import { querySmartHistory } from '~/server/metrics'
 import { privileged } from '~/server/privileged'
 import { unlockToken } from '~/server/unlock-sessions'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { parsePowerSetting, wakeRate } from '~/shared/power'
 
 // GET: hard disks with standby state, Quadeck's setting and spin-ups per day (from the SMART
@@ -33,9 +34,9 @@ export const Route = createFileRoute('/api/disks/power')({
       POST: authed(async ({ request }, session) => {
         assertWritable()
         const b = await readJson<{ serial?: unknown; setting?: unknown }>(request)
-        if (typeof b.serial !== 'string') throw new HttpError(400, msg('power_error_setting'))
+        if (typeof b.serial !== 'string') throw new HttpError(400, msg(m.power_error_setting))
         const setting = b.setting === null ? null : parsePowerSetting(b.setting)
-        if (setting === undefined) throw new HttpError(400, msg('power_error_setting'))
+        if (setting === undefined) throw new HttpError(400, msg(m.power_error_setting))
         return Response.json(await privileged().setDiskPower(unlockToken(session.id), b.serial, setting))
       }),
     },

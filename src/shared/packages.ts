@@ -4,6 +4,7 @@
 import type { KernelFlavor } from './boot'
 import type { PackFormat } from './archives'
 import { msg } from './i18n'
+import { m } from '~/paraglide/messages'
 
 export type ManagerId = 'pacman' | 'apt' | 'dnf' | 'zypper' | 'apk' | 'rpm-ostree' | 'transactional-update'
 
@@ -210,25 +211,25 @@ export type Feature = 'smart' | 'samba' | 'nfs' | 'ssh' | 'restic' | 'hdparm' | 
 export const FEATURES: Record<Feature, { label: string; packages: Record<ManagerId, string[]>; service?: Record<ManagerId, string> }> = {
   smart: {
     get label() {
-      return msg('packages_feature_smartmontools')
+      return msg(m.packages_feature_smartmontools)
     },
     packages: { pacman: ['smartmontools'], apt: ['smartmontools'], dnf: ['smartmontools'], zypper: ['smartmontools'], apk: ['smartmontools'], 'rpm-ostree': ['smartmontools'], 'transactional-update': ['smartmontools'] },
   },
   samba: {
     get label() {
-      return msg('packages_feature_samba')
+      return msg(m.packages_feature_samba)
     },
     packages: { pacman: ['samba'], apt: ['samba'], dnf: ['samba'], zypper: ['samba'], apk: ['samba'], 'rpm-ostree': ['samba'], 'transactional-update': ['samba'] },
   },
   nfs: {
     get label() {
-      return msg('packages_feature_nfs')
+      return msg(m.packages_feature_nfs)
     },
     packages: { pacman: ['nfs-utils'], apt: ['nfs-kernel-server'], dnf: ['nfs-utils'], zypper: ['nfs-kernel-server'], apk: ['nfs-utils'], 'rpm-ostree': ['nfs-utils'], 'transactional-update': ['nfs-kernel-server'] },
   },
   ssh: {
     get label() {
-      return msg('packages_feature_openssh')
+      return msg(m.packages_feature_openssh)
     },
     packages: { pacman: ['openssh'], apt: ['openssh-server'], dnf: ['openssh-server'], zypper: ['openssh-server'], apk: ['openssh'], 'rpm-ostree': ['openssh-server'], 'transactional-update': ['openssh-server'] },
   },

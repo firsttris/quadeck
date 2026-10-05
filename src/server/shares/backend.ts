@@ -8,6 +8,7 @@ import { dirname, join } from 'node:path'
 import { HttpError } from '../auth'
 import { run } from '../exec'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { validateNfs, validateSmb, type NfsExportInfo, type ShareChange, type ShareConnection, type SharePreview, type ShareService, type ShareServiceAction, type SharesState } from '~/shared/shares'
 import { parseExportsFile, parseNfsdClientInfo, parseSmbstatusShares, setExport, setSmbShare, smbShares } from './config'
 
@@ -37,7 +38,7 @@ export function parseShareChange(v: unknown): ShareChange {
       const errs = validateSmb(spec)
       if (errs.length) throw new HttpError(400, errs.join(' · '))
     }
-    if (!spec && !str(o.original)) throw new HttpError(400, msg('api_shares_nothingToChange'))
+    if (!spec && !str(o.original)) throw new HttpError(400, msg(m.api_shares_nothingToChange))
     return { kind: 'smb', original: str(o.original) || undefined, spec }
   }
   if (o.kind === 'nfs') {
@@ -60,10 +61,10 @@ export function parseShareChange(v: unknown): ShareChange {
     }
     const orig = o.original as Record<string, unknown> | undefined
     const original = orig ? { file: str(orig.file), path: str(orig.path) } : undefined
-    if (!spec && !original) throw new HttpError(400, msg('api_shares_nothingToChange'))
+    if (!spec && !original) throw new HttpError(400, msg(m.api_shares_nothingToChange))
     return { kind: 'nfs', original, spec }
   }
-  throw new HttpError(400, msg('helper_error_invalidShareKind'))
+  throw new HttpError(400, msg(m.helper_error_invalidShareKind))
 }
 
 const read = (p: string) => {
@@ -195,21 +196,21 @@ export class SystemShares implements SharesBackend {
       try {
         if (!statSync(path).isDirectory()) throw new Error()
       } catch {
-        throw new HttpError(422, msg('shares_error_pathNotDir', { path }))
+        throw new HttpError(422, msg(m.shares_error_pathNotDir, { path }))
       }
     }
     try {
       if (change.kind === 'smb') {
         const before = read(this.smbConf) ?? ''
-        if (change.spec?.guestOk && !change.spec.readOnly) warnings.push(msg('shares_warn_guestWrite'))
+        if (change.spec?.guestOk && !change.spec.readOnly) warnings.push(msg(m.shares_warn_guestWrite))
         return { file: this.smbConf, before, after: setSmbShare(before, change.original, change.spec), warnings }
       }
       // NFS: changes stay in the file the export lives in; new ones go to quadeck.exports.
       const file = change.original?.file || this.managedExports
-      if (!this.exportFiles().includes(file)) throw new HttpError(400, msg('shares_error_unknownExportsFile', { file }))
+      if (!this.exportFiles().includes(file)) throw new HttpError(400, msg(m.shares_error_unknownExportsFile, { file }))
       const before = read(file) ?? ''
-      if (change.spec?.clients.some((c) => c.host === '*' && c.options.includes('rw'))) warnings.push(msg('shares_warn_worldWritable'))
-      if (change.spec?.clients.some((c) => c.options.includes('no_root_squash'))) warnings.push(msg('shares_warn_noRootSquash'))
+      if (change.spec?.clients.some((c) => c.host === '*' && c.options.includes('rw'))) warnings.push(msg(m.shares_warn_worldWritable))
+      if (change.spec?.clients.some((c) => c.options.includes('no_root_squash'))) warnings.push(msg(m.shares_warn_noRootSquash))
       return { file, before, after: setExport(before, change.original?.path, change.spec), warnings }
     } catch (e) {
       if (e instanceof HttpError) throw e
@@ -231,7 +232,7 @@ export class SystemShares implements SharesBackend {
     const t = this.target(change)
     if (change.kind === 'smb' && Bun.which('testparm')) {
       const r = await testparm(t.after)
-      if (r.code !== 0) throw new HttpError(422, msg('shares_error_testparmRejected') + (r.stderr || r.stdout).trim().split('\n').slice(-3).join(' · '))
+      if (r.code !== 0) throw new HttpError(422, msg(m.shares_error_testparmRejected) + (r.stderr || r.stdout).trim().split('\n').slice(-3).join(' · '))
     }
     if (existsSync(t.file)) writeFileSync(`${t.file}.quadeck-bak`, t.before, { mode: 0o644 })
     atomicWrite(t.file, t.after)
@@ -244,7 +245,7 @@ export class SystemShares implements SharesBackend {
         // Roll back so NFS keeps working with the old exports.
         atomicWrite(t.file, t.before)
         await run(['exportfs', '-ra'], { timeoutMs: 30_000 })
-        throw new HttpError(422, msg('shares_error_exportfsRejected') + (r.stderr || r.stdout).trim())
+        throw new HttpError(422, msg(m.shares_error_exportfsRejected) + (r.stderr || r.stdout).trim())
       }
     }
     return this.sharesState()
@@ -252,7 +253,7 @@ export class SystemShares implements SharesBackend {
 
   async shareService(kind: 'smb' | 'nfs', action: ShareServiceAction): Promise<SharesState> {
     const units = (await this.services(kind === 'smb' ? SMB_UNITS : NFS_UNITS)).map((s) => s.unit)
-    if (!units.length) throw new HttpError(404, kind === 'smb' ? msg('shares_error_sambaMissing') : msg('shares_error_nfsMissing'))
+    if (!units.length) throw new HttpError(404, kind === 'smb' ? msg(m.shares_error_sambaMissing) : msg(m.shares_error_nfsMissing))
     const argv = action === 'enable' ? ['systemctl', 'enable', '--now', ...units] : ['systemctl', action, ...units]
     const r = await run(argv, { timeoutMs: 60_000 })
     if (r.code !== 0) throw new HttpError(500, `${argv.join(' ')}: ${r.stderr.trim()}`)
@@ -312,17 +313,17 @@ export class FixtureShares implements SharesBackend {
 
   private target(change: ShareChange) {
     const warnings: string[] = []
-    if (change.spec?.path && !this.dirExists(change.spec.path)) throw new HttpError(422, msg('shares_error_pathNotDir', { path: change.spec.path }))
+    if (change.spec?.path && !this.dirExists(change.spec.path)) throw new HttpError(422, msg(m.shares_error_pathNotDir, { path: change.spec.path }))
     try {
       if (change.kind === 'smb') {
         const before = this.files.get('/etc/samba/smb.conf') ?? ''
-        if (change.spec?.guestOk && !change.spec.readOnly) warnings.push(msg('shares_warn_guestWrite'))
+        if (change.spec?.guestOk && !change.spec.readOnly) warnings.push(msg(m.shares_warn_guestWrite))
         return { file: '/etc/samba/smb.conf', before, after: setSmbShare(before, change.original, change.spec), warnings }
       }
       const file = change.original?.file || this.managed
       const before = this.files.get(file) ?? ''
-      if (change.spec?.clients.some((c) => c.host === '*' && c.options.includes('rw'))) warnings.push(msg('shares_warn_worldWritable'))
-      if (change.spec?.clients.some((c) => c.options.includes('no_root_squash'))) warnings.push(msg('shares_warn_noRootSquash'))
+      if (change.spec?.clients.some((c) => c.host === '*' && c.options.includes('rw'))) warnings.push(msg(m.shares_warn_worldWritable))
+      if (change.spec?.clients.some((c) => c.options.includes('no_root_squash'))) warnings.push(msg(m.shares_warn_noRootSquash))
       return { file, before, after: setExport(before, change.original?.path, change.spec), warnings }
     } catch (e) {
       if (e instanceof HttpError) throw e

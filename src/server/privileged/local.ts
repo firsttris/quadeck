@@ -1,4 +1,5 @@
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { existsSync } from 'node:fs'
 import type { JobSpec } from '~/shared/packages'
 import type { MaintenanceBackend } from '../packages/maintenance'
@@ -120,7 +121,7 @@ export class LocalPrivileged implements Privileged {
   }
 
   private podman(path: string, init: RequestInit = {}, timeoutMs = 15_000) {
-    if (!existsSync(this.podmanSocket)) throw new HttpError(503, msg('helper_error_podmanSocketMissing', { socket: this.podmanSocket }))
+    if (!existsSync(this.podmanSocket)) throw new HttpError(503, msg(m.helper_error_podmanSocketMissing, { socket: this.podmanSocket }))
     return fetch(`http://podman${path}`, { ...init, unix: this.podmanSocket, signal: AbortSignal.timeout(timeoutMs) } as RequestInit)
   }
 
@@ -168,7 +169,7 @@ export class LocalPrivileged implements Privileged {
     const idleMs = Math.min(240, Math.max(1, idleMinutes)) * 60_000
     const env = { PATH: process.env.PATH ?? '/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin', LANG: process.env.LANG ?? 'C.UTF-8' }
     if (target.kind === 'container') {
-      if (!CONTAINER_NAME.test(target.name)) throw new HttpError(400, msg('terminal_error_container'))
+      if (!CONTAINER_NAME.test(target.name)) throw new HttpError(400, msg(m.terminal_error_container))
       // --detach-keys= : Ctrl-P Ctrl-Q stays with the program inside
       const argv = ['podman', 'exec', '-it', '--detach-keys=', target.name, 'sh', '-c', 'if command -v bash >/dev/null 2>&1; then exec bash; else exec sh; fi']
       return this.terminal.open({ argv, env, cols, rows, owner: token ?? 'none', label: target.name, kind: 'container', user: 'root', idleMs })
@@ -211,7 +212,7 @@ export class LocalPrivileged implements Privileged {
   async removeSecret(token: string | undefined, name: string) {
     this.gate.check(token)
     const used = (await this.secretsState()).secrets.find((s) => s.name === name)?.usedBy ?? []
-    if (used.length) throw new HttpError(409, msg('secrets_error_inUse', { files: used.join(', ') }))
+    if (used.length) throw new HttpError(409, msg(m.secrets_error_inUse, { files: used.join(', ') }))
     await removeSecret(this.storageApi(), name)
     return this.secretsState()
   }
@@ -219,10 +220,10 @@ export class LocalPrivileged implements Privileged {
   /** KEY=value from a .container file into a new secret, the line rewritten to Secret=…; undone if the file cannot be saved. */
   async moveSecret(token: string | undefined, file: string, key: string, name: string, restart: boolean): Promise<{ state: SecretsState; write: WriteResult }> {
     this.gate.check(token)
-    if (!file.endsWith('.container')) throw new HttpError(400, msg('secrets_error_notContainer'))
+    if (!file.endsWith('.container')) throw new HttpError(400, msg(m.secrets_error_notContainer))
     const content = await this.admin.readQuadlet(file)
     const value = plainValue(content, key)
-    if (value === undefined) throw new HttpError(404, msg('secrets_error_noKey', { key, file }))
+    if (value === undefined) throw new HttpError(404, msg(m.secrets_error_noKey, { key, file }))
     const api = this.storageApi()
     await createSecret(api, name, value)
     let write: WriteResult
@@ -274,7 +275,7 @@ export class LocalPrivileged implements Privileged {
       throw new HttpError(400, (e as Error).message)
     }
     const res = await this.podman(`/containers/${id}/${action}`, { method: 'POST' })
-    if (!res.ok && res.status !== 304) throw new Error(msg('helper_error_podmanFailed', { action, status: res.status, body: await res.text() }))
+    if (!res.ok && res.status !== 304) throw new Error(msg(m.helper_error_podmanFailed, { action, status: res.status, body: await res.text() }))
   }
 
   // ---------- packages & images ----------

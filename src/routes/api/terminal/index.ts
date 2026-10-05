@@ -6,6 +6,7 @@ import { privileged } from '~/server/privileged'
 import { allTerminals, assertTerminalAllowed, forget, owned, ownedBy, remember, setTerminalSettings, terminalSettings } from '~/server/terminal/web'
 import { unlockToken } from '~/server/unlock-sessions'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { CONTAINER_NAME } from '~/shared/terminal'
 
 // GET: settings and this login's open terminals.
@@ -23,7 +24,7 @@ export const Route = createFileRoute('/api/terminal/')({
         switch (b.action) {
           case 'settings': {
             assertWritable()
-            if ((await p.unlockedUntil(token)) === null) throw new HttpError(423, msg('terminal_error_unlock'))
+            if ((await p.unlockedUntil(token)) === null) throw new HttpError(423, msg(m.terminal_error_unlock))
             const before = terminalSettings()
             const s = setTerminalSettings({ ...before, ...b })
             // switched off: every open terminal ends
@@ -38,7 +39,7 @@ export const Route = createFileRoute('/api/terminal/')({
             assertWritable()
             assertTerminalAllowed(request)
             const t = b.target ?? {}
-            if (t.kind === 'container' && (typeof t.name !== 'string' || !CONTAINER_NAME.test(t.name))) throw new HttpError(400, msg('terminal_error_container'))
+            if (t.kind === 'container' && (typeof t.name !== 'string' || !CONTAINER_NAME.test(t.name))) throw new HttpError(400, msg(m.terminal_error_container))
             const info = await p.terminalOpen(token, t.kind === 'container' ? { kind: 'container', name: t.name as string } : { kind: 'shell' }, Number(b.cols) || 80, Number(b.rows) || 24, terminalSettings().idleMinutes)
             remember(info, session.id)
             return Response.json(info)
@@ -57,7 +58,7 @@ export const Route = createFileRoute('/api/terminal/')({
             return Response.json({ ok: true })
           }
           default:
-            throw new HttpError(400, msg('api_shares_nothingToChange'))
+            throw new HttpError(400, msg(m.api_shares_nothingToChange))
         }
       }),
     },

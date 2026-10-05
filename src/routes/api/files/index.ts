@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { HttpError } from '~/server/auth'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
 import { privileged } from '~/server/privileged'
@@ -37,7 +38,7 @@ export const Route = createFileRoute('/api/files/')({
         if (w && typeof w.path === 'string' && typeof w.content === 'string' && typeof w.expected === 'string') return Response.json(await p.writeTextFile(token, w.path, w.content, w.expected))
         if (typeof b.mkdir === 'string') await p.makeDir(token, b.mkdir)
         else if (b.rename && typeof b.rename.path === 'string' && typeof b.rename.name === 'string') await p.renamePath(token, b.rename.path, b.rename.name)
-        else throw new HttpError(400, msg('api_files_mkdirOrRename'))
+        else throw new HttpError(400, msg(m.api_files_mkdirOrRename))
         return Response.json({ ok: true })
       }),
     },

@@ -144,8 +144,10 @@ top). It sets the password, restarts the two failed demo units for a healthy ove
     `pickMsg({ ok: m.x_ok, failed: m.x_failed }, status)`, text around React elements through
     `rich(m.key, { file: <code>…</code> })`.
   - Code outside of components (`src/shared`, `src/server`, `src/lib`) uses
-    `msg('proxy_errors_exists', { a, line })` from `src/shared/i18n.ts` – typed by the same
-    generated functions. In a request it answers in the viewer's language (cookie `qd_lang`, else
+    `msg(m.proxy_errors_exists, { a, line })` from `src/shared/i18n.ts`. Messages are always
+    named statically (`m.key`, never by a key string), so the browser bundle carries only the
+    messages its pages use; the table from key to message is registered on the server only
+    (`src/server/lang.ts`). In a request it answers in the viewer's language (cookie `qd_lang`, else
     `Accept-Language`); in the root helper and in background work it returns the key and its
     inputs (marked), and JSON responses, the event stream and notifications render it in the
     right language at the end – inputs can be messages themselves. Never call `msg()` at module

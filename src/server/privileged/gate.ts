@@ -4,6 +4,7 @@
 // so a compromised web app cannot act without the password.
 
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { HttpError } from '../auth'
 import { readAuthFiles, suggestedUser, verifySystemPassword, type SystemAuthFiles } from './crypt'
 
@@ -18,7 +19,7 @@ export interface UnlockInfo {
 
 export class LockedError extends HttpError {
   constructor() {
-    super(423, msg('helper_error_locked'))
+    super(423, msg(m.helper_error_locked))
   }
 }
 
@@ -52,7 +53,7 @@ export class Gate {
   async unlock(user: string, password: string): Promise<{ token: string; expiresAt: number }> {
     if (this.mode === 'none') return { token: 'none', expiresAt: Number.MAX_SAFE_INTEGER }
     const now = Date.now()
-    if (this.blockedUntil > now) throw new HttpError(429, msg('helper_error_tooManyAttempts', { seconds: Math.ceil((this.blockedUntil - now) / 1000) }))
+    if (this.blockedUntil > now) throw new HttpError(429, msg(m.helper_error_tooManyAttempts, { seconds: Math.ceil((this.blockedUntil - now) / 1000) }))
     // Count before verifying, so parallel attempts cannot all slip through.
     this.failures++
     if (this.failures >= 5) this.blockedUntil = now + Math.min(15 * 60_000, 30_000 * 2 ** (this.failures - 5))
@@ -61,12 +62,12 @@ export class Gate {
       ok = !!(await this.opts.verifyQuadeck?.(password))
     } else {
       const r = verifySystemPassword((this.opts.authFiles ?? readAuthFiles)(), user.trim(), password)
-      if (r === 'not-admin') throw new HttpError(403, msg('helper_error_notAdmin', { user }))
-      if (r === 'no-password') throw new HttpError(403, msg('helper_error_noPassword', { user }))
-      if (r === 'unsupported') throw new HttpError(501, msg('helper_error_cryptUnavailable'))
+      if (r === 'not-admin') throw new HttpError(403, msg(m.helper_error_notAdmin, { user }))
+      if (r === 'no-password') throw new HttpError(403, msg(m.helper_error_noPassword, { user }))
+      if (r === 'unsupported') throw new HttpError(501, msg(m.helper_error_cryptUnavailable))
       ok = r === 'ok'
     }
-    if (!ok) throw new HttpError(401, msg('api_auth_wrongPassword'))
+    if (!ok) throw new HttpError(401, msg(m.api_auth_wrongPassword))
     this.failures = 0
     this.blockedUntil = 0
     const token = randomToken()

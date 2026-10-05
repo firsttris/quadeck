@@ -3,6 +3,7 @@
 // total is therefore always an estimate. No I/O here.
 
 import { msg } from './i18n'
+import { m } from '~/paraglide/messages'
 
 export type DiskKind = 'hdd' | 'ssd' | 'nvme'
 
@@ -119,7 +120,7 @@ export function parseEnergySettings(v: unknown): EnergySettings {
   const price = num(o.price)
   const baseW = num(o.baseW)
   const lossPct = num(o.lossPct)
-  if (!(price >= 0 && price <= 5) || !(baseW >= 0 && baseW <= 500) || !(lossPct >= 0 && lossPct <= 50)) throw new Error(msg('energy_error_settings'))
+  if (!(price >= 0 && price <= 5) || !(baseW >= 0 && baseW <= 500) || !(lossPct >= 0 && lossPct <= 50)) throw new Error(msg(m.energy_error_settings))
   return { price: Math.round(price * 10000) / 10000, baseW: Math.round(baseW * 10) / 10, lossPct: Math.round(lossPct * 10) / 10 }
 }
 

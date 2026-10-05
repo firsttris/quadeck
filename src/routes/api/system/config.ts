@@ -1,6 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { HttpError } from '~/server/auth'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
 import { privileged } from '~/server/privileged'
@@ -15,8 +16,8 @@ export const Route = createFileRoute('/api/system/config')({
       POST: authed(async ({ request }, session) => {
         const b = await readJson<{ path?: unknown; action?: unknown; content?: unknown }>(request)
         assertWritable()
-        if (typeof b.path !== 'string' || (b.action !== 'replace' && b.action !== 'keep' && b.action !== 'merge')) throw new HttpError(400, msg('api_config_pathActionRequired'))
-        if (b.content !== undefined && typeof b.content !== 'string') throw new HttpError(400, msg('common_errors_invalidContent'))
+        if (typeof b.path !== 'string' || (b.action !== 'replace' && b.action !== 'keep' && b.action !== 'merge')) throw new HttpError(400, msg(m.api_config_pathActionRequired))
+        if (b.content !== undefined && typeof b.content !== 'string') throw new HttpError(400, msg(m.common_errors_invalidContent))
         return Response.json(await privileged().applyConfigFile(unlockToken(session.id), b.path, b.action, b.content as string | undefined))
       }),
     },

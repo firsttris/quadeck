@@ -1,6 +1,7 @@
 // SSH access: types shared by the page, the web app and the root helper.
 
 import { msg } from './i18n'
+import { m } from '~/paraglide/messages'
 
 export interface SshKey {
   type: string
@@ -81,7 +82,7 @@ export const USER_NAME = /^[a-z_][a-z0-9_.-]{0,31}$/
 
 export function validateSettings(s: SshSettings): string[] {
   const e: string[] = []
-  if (!['yes', 'prohibit-password', 'no'].includes(s.permitRootLogin)) e.push(msg('ssh_error_permitRootLogin'))
-  if (s.allowUsers.length > 50 || s.allowUsers.some((u) => !USER_NAME.test(u))) e.push(msg('ssh_error_allowUsers'))
+  if (!['yes', 'prohibit-password', 'no'].includes(s.permitRootLogin)) e.push(msg(m.ssh_error_permitRootLogin))
+  if (s.allowUsers.length > 50 || s.allowUsers.some((u) => !USER_NAME.test(u))) e.push(msg(m.ssh_error_allowUsers))
   return e
 }

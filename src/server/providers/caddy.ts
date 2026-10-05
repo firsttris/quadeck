@@ -7,6 +7,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { run } from '../exec'
 import type { DiscoveryProvider, ServiceCandidate } from './types'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 
 interface CaddyRoute {
   match?: { host?: string[]; path?: string[] }[]
@@ -247,7 +248,7 @@ export class CaddyProvider implements DiscoveryProvider {
       this.lastSource = 'caddyfile'
       return candidatesFromCaddyfile(readFileSync(this.caddyfile, 'utf8'))
     }
-    errors.push(msg('providers_error_noCaddyfile', { path: this.caddyfile }))
+    errors.push(msg(m.providers_error_noCaddyfile, { path: this.caddyfile }))
     this.lastSource = undefined
     throw new Error(errors.join('; '))
   }

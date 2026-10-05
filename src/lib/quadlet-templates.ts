@@ -1,4 +1,5 @@
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import type { QuadletType } from '~/shared/quadlets'
 
 export interface Template {
@@ -12,7 +13,7 @@ export interface Template {
 export const templates = (): Template[] => [
   {
     id: 'web',
-    label: msg('quadlets_template_webService'),
+    label: msg(m.quadlets_template_webService),
     type: 'container',
     content: (n) => `[Unit]
 Description=${n}
@@ -36,7 +37,7 @@ WantedBy=multi-user.target
   },
   {
     id: 'postgres',
-    label: msg('quadlets_template_postgres'),
+    label: msg(m.quadlets_template_postgres),
     type: 'container',
     content: (n) => `[Unit]
 Description=${n} (PostgreSQL)
@@ -62,7 +63,7 @@ WantedBy=multi-user.target
   },
   {
     id: 'container',
-    label: msg('quadlets_template_empty'),
+    label: msg(m.quadlets_template_empty),
     type: 'container',
     content: (n) => `[Unit]
 Description=${n}
@@ -78,7 +79,7 @@ Restart=always
 WantedBy=multi-user.target
 `,
   },
-  { id: 'network', label: msg('network_title'), type: 'network', content: (n) => `[Network]\nNetworkName=${n}\n` },
+  { id: 'network', label: msg(m.network_title), type: 'network', content: (n) => `[Network]\nNetworkName=${n}\n` },
   { id: 'volume', label: 'Volume', type: 'volume', content: (n) => `[Volume]\nVolumeName=${n}\n` },
   { id: 'pod', label: 'Pod', type: 'pod', content: (n) => `[Pod]\nPodName=${n}\nPublishPort=8080:80\n\n[Install]\nWantedBy=multi-user.target\n` },
 ]

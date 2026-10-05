@@ -5,6 +5,7 @@ import { createSocket } from 'node:dgram'
 import { connect } from 'node:net'
 import { CHECK_PORTS, MAC, deviceViews, forgetOld, inSubnets, magicPacket, mergeScan, type DeviceView, type KnownDevice, type ScanResult } from '~/shared/devices'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { HttpError } from './auth'
 import { getSetting, setSetting } from './settings'
 
@@ -31,7 +32,7 @@ export function deviceSettings(): DeviceSettings {
 }
 export function setDeviceSettings(v: unknown): DeviceSettings {
   const n = Number((v as { sweepMinutes?: unknown })?.sweepMinutes)
-  if (!SWEEP_MINUTES.includes(n as SweepMinutes)) throw new HttpError(400, msg('devices_error_interval'))
+  if (!SWEEP_MINUTES.includes(n as SweepMinutes)) throw new HttpError(400, msg(m.devices_error_interval))
   setSetting(SETTINGS, { sweepMinutes: n })
   return deviceSettings()
 }
@@ -117,9 +118,9 @@ export function freshDevices(): {
 
 const clean = (v: unknown, max: number) => {
   if (v === undefined || v === null) return undefined
-  if (typeof v !== 'string') throw new HttpError(400, msg('devices_error_text'))
+  if (typeof v !== 'string') throw new HttpError(400, msg(m.devices_error_text))
   const t = v.trim()
-  if (t.length > max || /[\u0000-\u001f]/.test(t.replace(/\n/g, ''))) throw new HttpError(400, msg('devices_error_text'))
+  if (t.length > max || /[\u0000-\u001f]/.test(t.replace(/\n/g, ''))) throw new HttpError(400, msg(m.devices_error_text))
   return t || undefined
 }
 
@@ -127,7 +128,7 @@ const clean = (v: unknown, max: number) => {
 export function editDevice(key: string, b: { label?: unknown; note?: unknown; known?: unknown }): KnownDevice {
   const list = knownDevices()
   const d = list.find((k) => k.key === key)
-  if (!d) throw new HttpError(404, msg('devices_error_unknown'))
+  if (!d) throw new HttpError(404, msg(m.devices_error_unknown))
   if ('label' in b) {
     const label = clean(b.label, 60)
     if (label) d.label = label
@@ -148,7 +149,7 @@ export function editDevice(key: string, b: { label?: unknown; note?: unknown; kn
 
 export function forgetDevice(key: string) {
   const list = knownDevices()
-  if (!list.some((k) => k.key === key)) throw new HttpError(404, msg('devices_error_unknown'))
+  if (!list.some((k) => k.key === key)) throw new HttpError(404, msg(m.devices_error_unknown))
   setSetting(
     KNOWN,
     list.filter((k) => k.key !== key),
@@ -158,7 +159,7 @@ export function forgetDevice(key: string) {
 /** Only devices in the server's own subnets (no port scanning of the internet through Quadeck). */
 function ownSubnet(ip: string) {
   const subnets = lastScan()?.subnets ?? []
-  if (!inSubnets(ip, subnets)) throw new HttpError(400, msg('devices_error_subnet'))
+  if (!inSubnets(ip, subnets)) throw new HttpError(400, msg(m.devices_error_subnet))
 }
 
 const tcpOpen = (ip: string, port: number, timeoutMs: number) =>
@@ -206,9 +207,9 @@ export function broadcastOf(cidr: string): string {
 
 /** Wake-on-LAN: the magic packet to UDP 9 on the broadcast of every own subnet. */
 export async function wake(mac: string, demo = false, send = sendUdp): Promise<string[]> {
-  const m = mac.toLowerCase()
-  if (!MAC.test(m)) throw new HttpError(400, msg('devices_error_mac'))
-  const packet = magicPacket(m)
+  const addr = mac.toLowerCase()
+  if (!MAC.test(addr)) throw new HttpError(400, msg(m.devices_error_mac))
+  const packet = magicPacket(addr)
   const targets = [...new Set([...(lastScan()?.subnets ?? []).map(broadcastOf), '255.255.255.255'])]
   if (!demo) for (const t of targets) await send(packet, t, 9)
   return targets

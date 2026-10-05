@@ -9,6 +9,7 @@ import type { ImageUpdatesReport, UpdatesReport } from '~/shared/packages'
 import type { Snapshot } from '~/shared/types'
 import { sendMail, type Mail } from './mail'
 import { isLang, localizeDeep, msg, type Lang } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { DELAY_MS, buildMail, buildRequest, currentAlerts, defaultSettings, problemNotice, recoveryNotice, type Alert, type Channel, type Notice, type NotifySettings, type NotifyState, type SentNotice } from '~/shared/notify'
 import { bilingual } from './lang'
 
@@ -163,11 +164,11 @@ export class Notifier {
       setSetting(UPDATES, { day, hash })
       if ((!pkgs.length && !images.length) || hash === last?.hash) return
       const lines = [
-        pkgs.length ? msg('notify_updates_packages', { count: pkgs.length, plural: pkgs.length === 1 ? '' : 's' }) : '',
-        images.length ? msg('notify_updates_images', { images: images.join(', ') }) : '',
-        msg('notify_updates_installHint'),
+        pkgs.length ? msg(m.notify_updates_packages, { count: pkgs.length, plural: pkgs.length === 1 ? '' : 's' }) : '',
+        images.length ? msg(m.notify_updates_images, { images: images.join(', ') }) : '',
+        msg(m.notify_updates_installHint),
       ].filter(Boolean)
-      await this.deliver({ title: msg('notify_updates_title', { host }), body: lines.join('\n'), severity: 'info' }, channels)
+      await this.deliver({ title: msg(m.notify_updates_title, { host }), body: lines.join('\n'), severity: 'info' }, channels)
     } finally {
       this.updatesRunning = false
     }

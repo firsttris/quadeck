@@ -1,4 +1,5 @@
 import { localeOf, msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import type { Snapshot } from '~/shared/types'
 
 export type PaletteAction =
@@ -19,42 +20,42 @@ export interface PaletteItem {
 /** Everything the palette can jump to or run, from the live snapshot. */
 export function paletteItems(s: Snapshot, readonly: boolean): PaletteItem[] {
   const items: PaletteItem[] = [
-    { id: 'p:/', section: 'Seiten', label: msg('overview_title'), keywords: 'dashboard start home übersicht overview', action: { kind: 'navigate', to: '/' } },
+    { id: 'p:/', section: 'Seiten', label: msg(m.overview_title), keywords: 'dashboard start home übersicht overview', action: { kind: 'navigate', to: '/' } },
     { id: 'p:/units', section: 'Seiten', label: 'Units', keywords: 'container dienste systemd quadlets services', action: { kind: 'navigate', to: '/units' } },
-    { id: 'p:/units?failed', section: 'Seiten', label: msg('palette_page_failedUnits'), keywords: 'failed fehler error', action: { kind: 'navigate', to: '/units', search: { filter: 'failed' } } },
+    { id: 'p:/units?failed', section: 'Seiten', label: msg(m.palette_page_failedUnits), keywords: 'failed fehler error', action: { kind: 'navigate', to: '/units', search: { filter: 'failed' } } },
     { id: 'p:/journal', section: 'Seiten', label: 'Journal', keywords: 'logs journalctl', action: { kind: 'navigate', to: '/journal' } },
-    { id: 'p:/quadlets', section: 'Seiten', label: msg('palette_page_editQuadlets'), keywords: 'editor container datei compose import file edit', action: { kind: 'navigate', to: '/quadlets' } },
-    { id: 'p:/quadlets?new', section: 'Seiten', label: msg('palette_page_newContainer'), keywords: 'quadlet container anlegen neu new create', action: { kind: 'navigate', to: '/quadlets', search: { new: 'true' } } },
+    { id: 'p:/quadlets', section: 'Seiten', label: msg(m.palette_page_editQuadlets), keywords: 'editor container datei compose import file edit', action: { kind: 'navigate', to: '/quadlets' } },
+    { id: 'p:/quadlets?new', section: 'Seiten', label: msg(m.palette_page_newContainer), keywords: 'quadlet container anlegen neu new create', action: { kind: 'navigate', to: '/quadlets', search: { new: 'true' } } },
     {
       id: 'p:/system?boot',
       section: 'Seiten',
-      label: msg('palette_page_bootRestart'),
+      label: msg(m.palette_page_bootRestart),
       keywords: 'neustart reboot boot systemd-boot bootctl kernel parameter cmdline uefi bios restart',
       action: { kind: 'navigate', to: '/system', search: { tab: 'boot' } },
     },
     {
       id: 'p:/system?podman',
       section: 'Seiten',
-      label: msg('palette_page_podmanSettings'),
+      label: msg(m.palette_page_podmanSettings),
       keywords: 'auto-update timer registries containers.conf podman settings',
       action: { kind: 'navigate', to: '/system', search: { tab: 'podman' } },
     },
-    { id: 'p:/shares', section: 'Seiten', label: msg('shares_page_title'), keywords: 'shares smb samba nfs exports netzlaufwerk freigaben network drive', action: { kind: 'navigate', to: '/shares' } },
+    { id: 'p:/shares', section: 'Seiten', label: msg(m.shares_page_title), keywords: 'shares smb samba nfs exports netzlaufwerk freigaben network drive', action: { kind: 'navigate', to: '/shares' } },
     {
       id: 'p:/disks',
       section: 'Seiten',
-      label: msg('palette_page_disksSmart'),
+      label: msg(m.palette_page_disksSmart),
       keywords: 'smart smartctl platten disks hdd ssd nvme selbsttest sektoren festplatten self-test sectors',
       action: { kind: 'navigate', to: '/disks' },
     },
     {
       id: 'p:/disks?mounts',
       section: 'Seiten',
-      label: msg('palette_page_mountDisks'),
+      label: msg(m.palette_page_mountDisks),
       keywords: 'fstab mount einhängen mounten platte festplatte nofail uuid disk',
       action: { kind: 'navigate', to: '/disks', search: { tab: 'mounts' } },
     },
-    { id: 'p:/files', section: 'Seiten', label: msg('files_explorer_files'), keywords: 'dateien explorer ordner kopieren verschieben umbenennen löschen files folder copy move rename delete', action: { kind: 'navigate', to: '/files' } },
+    { id: 'p:/files', section: 'Seiten', label: msg(m.files_explorer_files), keywords: 'dateien explorer ordner kopieren verschieben umbenennen löschen files folder copy move rename delete', action: { kind: 'navigate', to: '/files' } },
     {
       id: 'p:/hardware',
       section: 'Seiten',
@@ -65,7 +66,7 @@ export function paletteItems(s: Snapshot, readonly: boolean): PaletteItem[] {
     {
       id: 'p:/users',
       section: 'Seiten',
-      label: msg('users_title'),
+      label: msg(m.users_title),
       keywords: 'benutzer konten user account passwort gruppen sudo wheel admin sperren samba useradd users password groups lock',
       action: { kind: 'navigate', to: '/users' },
     },
@@ -75,7 +76,7 @@ export function paletteItems(s: Snapshot, readonly: boolean): PaletteItem[] {
     {
       id: 'p:/system?packages',
       section: 'Seiten',
-      label: msg('palette_page_installedPackages'),
+      label: msg(m.palette_page_installedPackages),
       keywords: 'system pakete deinstallieren entfernen verwaist orphans packages installed uninstall remove',
       action: { kind: 'navigate', to: '/system', search: { tab: 'packages' } },
     },
@@ -91,14 +92,14 @@ export function paletteItems(s: Snapshot, readonly: boolean): PaletteItem[] {
     const active = u.active === 'active'
     if (!readonly) {
       if (active) {
-        items.push({ id: `u:restart:${u.name}`, section: 'Units', label: msg('units_restartAria', { name: u.name }), keywords: `restart neustart ${u.description}`, action: { kind: 'unit', action: 'restart', name: u.name } })
-        items.push({ id: `u:stop:${u.name}`, section: 'Units', label: msg('palette_action_stopUnit', { unit: u.name }), keywords: `stop stopp ${u.description}`, action: { kind: 'unit', action: 'stop', name: u.name } })
+        items.push({ id: `u:restart:${u.name}`, section: 'Units', label: msg(m.units_restartAria, { name: u.name }), keywords: `restart neustart ${u.description}`, action: { kind: 'unit', action: 'restart', name: u.name } })
+        items.push({ id: `u:stop:${u.name}`, section: 'Units', label: msg(m.palette_action_stopUnit, { unit: u.name }), keywords: `stop stopp ${u.description}`, action: { kind: 'unit', action: 'stop', name: u.name } })
       } else {
         const a = u.active === 'failed' ? 'restart' : 'start'
         items.push({
           id: `u:${a}:${u.name}`,
           section: 'Units',
-          label: a === 'restart' ? msg('units_restartAria', { name: u.name }) : msg('units_startAria', { name: u.name }),
+          label: a === 'restart' ? msg(m.units_restartAria, { name: u.name }) : msg(m.units_startAria, { name: u.name }),
           keywords: `start ${u.description}`,
           action: { kind: 'unit', action: a, name: u.name },
         })
@@ -111,7 +112,7 @@ export function paletteItems(s: Snapshot, readonly: boolean): PaletteItem[] {
 
 /** Visible heading of a palette section. */
 export function sectionLabel(section: PaletteItem['section']): string {
-  return section === 'Seiten' ? msg('palette_section_pages') : section
+  return section === 'Seiten' ? msg(m.palette_section_pages) : section
 }
 
 /**

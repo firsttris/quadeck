@@ -5,6 +5,7 @@ import { authed, readJson } from '~/server/http'
 import { privileged } from '~/server/privileged'
 import { unlockToken } from '~/server/unlock-sessions'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 
 // Unit editor.
 // GET ?unit=x → files · ?unit&path&history → versions · ?unit&path&revision=id → content.
@@ -41,7 +42,7 @@ export const Route = createFileRoute('/api/systemd/')({
           await p.setUnitEnabled(token, str(b.enable.unit), b.enable.enabled === true)
           return Response.json({ ok: true })
         }
-        throw new HttpError(400, msg('common_errors_unknownRequest'))
+        throw new HttpError(400, msg(m.common_errors_unknownRequest))
       }),
     },
   },

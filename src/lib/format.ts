@@ -2,6 +2,7 @@
 
 import { describeCalendar } from '~/shared/timers'
 import { localeOf, msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 
 const nf = (digits: number) => new Intl.NumberFormat(localeOf(), { maximumFractionDigits: digits, minimumFractionDigits: digits })
 
@@ -60,29 +61,29 @@ export function relative(ts: number | undefined, now = Date.now()): string {
   if (!ts) return '–'
   const diff = ts - now
   const abs = Math.abs(diff) / 1000
-  if (abs < 60) return msg('format_time_justNow')
+  if (abs < 60) return msg(m.format_time_justNow)
   const fmt = span(abs)
-  return diff < 0 ? msg('format_time_ago', { duration: fmt }) : msg('format_time_in', { duration: fmt })
+  return diff < 0 ? msg(m.format_time_ago, { duration: fmt }) : msg(m.format_time_in, { duration: fmt })
 }
 
 /** Short age without preposition, as in the units table ("23 d"). */
 export function age(ts: number | undefined, now = Date.now()): string {
   if (!ts) return '–'
   const abs = Math.abs(ts - now) / 1000
-  return abs < 60 ? msg('format_time_justNow') : span(abs)
+  return abs < 60 ? msg(m.format_time_justNow) : span(abs)
 }
 
 export function clock(ts: number): string {
   const d = new Date(ts)
   const p = (n: number) => String(n).padStart(2, '0')
-  const mon = msg('format_date_months').split(' ')[d.getMonth()]
+  const mon = msg(m.format_date_months).split(' ')[d.getMonth()]
   return `${mon} ${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`
 }
 
 export function weekdayTime(ts: number | undefined): string {
   if (!ts) return '–'
   const d = new Date(ts)
-  const day = msg('timers_label_weekdays').split(' ')[d.getDay()]
+  const day = msg(m.timers_label_weekdays).split(' ')[d.getDay()]
   return `${day} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 

@@ -7,6 +7,7 @@ import { basename } from 'node:path'
 import type { SmartDisk, TempSensorGap } from '~/shared/smart'
 import type { Disk } from '~/shared/types'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { runOk } from '../exec'
 
 interface LsblkDev {
@@ -54,8 +55,8 @@ export function parseLsblk(json: string): MountedFs[] {
 
 export function diskRole(mount: string): string {
   if (mount === '/' || mount === '/sysroot' || mount === '/var' || mount === '/home') return 'System'
-  if (/parit/i.test(mount)) return msg('disks_label_parity')
-  return msg('disks_label_data')
+  if (/parit/i.test(mount)) return msg(m.disks_label_parity)
+  return msg(m.disks_label_data)
 }
 
 /** Maps whole-disk names (sda, nvme0n1) to their temperature in °C. */

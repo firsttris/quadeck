@@ -1,4 +1,5 @@
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import type { Health, Unit } from '~/shared/types'
 
 export type Tone = 'ok' | 'warn' | 'bad' | 'idle'
@@ -34,8 +35,8 @@ export function unitState(u: Pick<Unit, 'active' | 'sub'>): string {
 
 /** Status pill for a container: health from the Podman healthcheck beats "running". */
 export function containerState(c: { state: string; status: string; health?: 'healthy' | 'unhealthy' | 'starting' }): { tone: Tone; label: string } {
-  if (c.state !== 'running') return { tone: c.state === 'exited' && /Exited \((?!0\))/.test(c.status) ? 'bad' : 'idle', label: c.state === 'exited' ? msg('shares_services_stopped') : c.state }
+  if (c.state !== 'running') return { tone: c.state === 'exited' && /Exited \((?!0\))/.test(c.status) ? 'bad' : 'idle', label: c.state === 'exited' ? msg(m.shares_services_stopped) : c.state }
   if (c.health === 'unhealthy') return { tone: 'bad', label: 'unhealthy' }
-  if (c.health === 'starting') return { tone: 'warn', label: msg('shell_container_starting') }
+  if (c.health === 'starting') return { tone: 'warn', label: msg(m.shell_container_starting) }
   return { tone: 'ok', label: c.health ?? 'running' }
 }

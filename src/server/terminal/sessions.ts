@@ -6,6 +6,7 @@
 
 import { randomBytes } from 'node:crypto'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import type { TerminalInfo } from '~/shared/terminal'
 import { HttpError } from '../auth'
 
@@ -78,7 +79,7 @@ export class TerminalManager {
   ) {}
 
   open(spec: OpenSpec): TerminalInfo {
-    if ([...this.sessions.values()].filter((s) => s.owner === spec.owner).length >= MAX_SESSIONS) throw new HttpError(429, msg('terminal_error_tooMany', { n: MAX_SESSIONS }))
+    if ([...this.sessions.values()].filter((s) => s.owner === spec.owner).length >= MAX_SESSIONS) throw new HttpError(429, msg(m.terminal_error_tooMany, { n: MAX_SESSIONS }))
     const id = randomBytes(24).toString('base64url')
     let session: Session | undefined
     const pending: Uint8Array[] = []
@@ -165,7 +166,7 @@ export class TerminalManager {
 
   private get(id: string, owner?: string): Session {
     const s = this.sessions.get(id)
-    if (!s || (owner !== undefined && s.owner !== owner)) throw new HttpError(404, msg('terminal_error_gone'))
+    if (!s || (owner !== undefined && s.owner !== owner)) throw new HttpError(404, msg(m.terminal_error_gone))
     return s
   }
 
@@ -198,7 +199,7 @@ export class TerminalManager {
 
   input(id: string, data: string) {
     const s = this.get(id)
-    if (data.length > 64 * 1024) throw new HttpError(413, msg('terminal_error_input'))
+    if (data.length > 64 * 1024) throw new HttpError(413, msg(m.terminal_error_input))
     s.term.write(data)
     this.touch(s)
   }

@@ -21,7 +21,7 @@ export const Route = createFileRoute('/_app/systemd')({
     unit: typeof s.unit === 'string' && EDITABLE_UNIT.test(s.unit) ? s.unit : undefined,
     new: s.new === true || s.new === 'true' || s.new === 1 ? true : undefined,
   }),
-  head: () => ({ meta: [{ title: msg('page_title_editUnit') }] }),
+  head: () => ({ meta: [{ title: msg(m.page_title_editUnit) }] }),
   component: SystemdPage,
 })
 
@@ -530,7 +530,7 @@ function NewUnit() {
         <div className="flex flex-wrap items-end gap-3">
           <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
             {m.systemd_create_name()}
-            <input className="field w-[280px] font-mono" value={name} placeholder={msg('systemd_placeholder_unitName')} onChange={(e) => setName(e.target.value.trim())} autoFocus />
+            <input className="field w-[280px] font-mono" value={name} placeholder={msg(m.systemd_placeholder_unitName)} onChange={(e) => setName(e.target.value.trim())} autoFocus />
           </label>
           {name && !validName && <span className="pb-2 text-[12px] text-[#ff8a80]">{m.systemd_create_invalidName()}</span>}
         </div>

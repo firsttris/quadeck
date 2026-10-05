@@ -7,6 +7,7 @@ import { hubReady } from '~/server/hub'
 import { notifier } from '~/server/notify'
 import { assertWritable } from '~/server/guard'
 import { currentLang, localize, msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import type { SpeedResult } from '~/shared/speedtest'
 
 // Speed test. GET → { history, schedule, next, series, alert } · ?ping → { t } · ?down=<bytes> → test data.
@@ -40,7 +41,7 @@ export const Route = createFileRoute('/api/speedtest/')({
         }
         if (b.internet === true) {
           // One run at a time. The answer is a stream: progress lines, then the result (NDJSON).
-          if (speedRunning()) throw new HttpError(409, msg('speed_error_running'))
+          if (speedRunning()) throw new HttpError(409, msg(m.speed_error_running))
           const enc = new TextEncoder()
           const stream = new ReadableStream<Uint8Array>({
             start(ctrl) {
@@ -74,7 +75,7 @@ export const Route = createFileRoute('/api/speedtest/')({
           const r: SpeedResult = { at: Date.now(), kind: 'client', down: num(c.down)!, up: num(c.up)!, ping: num(c.ping)!, jitter: num(c.jitter) ?? 0, where: typeof c.where === 'string' ? c.where.slice(0, 60) : undefined }
           return Response.json({ result: r, history: saveSpeed(r) })
         }
-        throw new HttpError(400, msg('common_errors_unknownRequest'))
+        throw new HttpError(400, msg(m.common_errors_unknownRequest))
       }),
     },
   },

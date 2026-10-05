@@ -5,6 +5,7 @@ import { authed, readJson } from '~/server/http'
 import { privileged } from '~/server/privileged'
 import { unlockToken } from '~/server/unlock-sessions'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import type { PodmanConfigName } from '~/shared/quadlets'
 
 // GET: everything; POST: { timer: {enabled, calendar} } | { autoUpdateDefault: boolean } | { config: {name, content} }
@@ -20,7 +21,7 @@ export const Route = createFileRoute('/api/podman/settings')({
         if (b.timer) await p.setAutoUpdateTimer(token, b.timer.enabled === true, typeof b.timer.calendar === 'string' ? b.timer.calendar.trim() : '')
         else if (typeof b.autoUpdateDefault === 'boolean') await p.setAutoUpdateDefault(token, b.autoUpdateDefault)
         else if (b.config && typeof b.config.name === 'string' && typeof b.config.content === 'string') await p.writePodmanConfig(token, b.config.name as PodmanConfigName, b.config.content)
-        else throw new HttpError(400, msg('api_shares_nothingToChange'))
+        else throw new HttpError(400, msg(m.api_shares_nothingToChange))
         return Response.json(await p.podmanSettings())
       }),
     },

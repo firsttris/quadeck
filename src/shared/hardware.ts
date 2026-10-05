@@ -4,6 +4,7 @@
 // buildHardware() is pure: the root helper reads sysfs into HardwareRaw.
 
 import { localize, msg } from './i18n'
+import { m } from '~/paraglide/messages'
 
 export interface PciRaw {
   address: string
@@ -161,7 +162,7 @@ export function parseDmidecode(text: string): { slots: MemorySlot[]; ecc?: boole
       const clean = (v?: string) => (v && !/^(Unknown|Not Specified|NO DIMM|None|Undefined|0000|\s*)$/i.test(v) ? v : undefined)
       const mts = (v?: string) => (v && /^\d+/.test(v) ? Number(v.match(/^\d+/)![0]) : undefined)
       slots.push({
-        locator: f('Locator') ?? f('Bank Locator') ?? msg('hardware_label_slot', { number: slots.length + 1 }),
+        locator: f('Locator') ?? f('Bank Locator') ?? msg(m.hardware_label_slot, { number: slots.length + 1 }),
         size: installed ? bytesOf(size) : undefined,
         type: installed ? clean(f('Type')) : undefined,
         speed: installed ? mts(f('Speed')) : undefined,
@@ -197,7 +198,7 @@ export function parseCpu(lscpu: string | undefined, cpuinfo: string): Hardware['
   const virt = fields.get('Virtualization') ?? (/\bvmx\b/.test(flags) ? 'VT-x' : /\bsvm\b/.test(flags) ? 'AMD-V' : undefined)
   const max = Number(fields.get('CPU max MHz'))
   return {
-    model: (fields.get('Model name') ?? info('model name') ?? info('Model') ?? msg('podman_all_unknownVersion')).replace(/\s+/g, ' '),
+    model: (fields.get('Model name') ?? info('model name') ?? info('Model') ?? msg(m.podman_all_unknownVersion)).replace(/\s+/g, ' '),
     vendor: fields.get('Vendor ID') ?? info('vendor_id'),
     sockets,
     cores: coresPerSocket * sockets,
@@ -221,20 +222,20 @@ const gbps = (s?: string) => Number(s?.match(/^([\d.]+)\s*Gbps/)?.[1]) || undefi
 export const chassisName = (type: string): string | undefined =>
   ({
     '3': 'Desktop',
-    '4': msg('hardware_chassis_lowProfileDesktop'),
+    '4': msg(m.hardware_chassis_lowProfileDesktop),
     '6': 'Mini-Tower',
     '7': 'Tower',
     '8': 'Laptop',
     '9': 'Laptop',
     '10': 'Notebook',
     '13': 'All-in-One',
-    '17': msg('hardware_chassis_rackServer'),
+    '17': msg(m.hardware_chassis_rackServer),
     '23': 'Rack',
     '24': 'Tower',
     '30': 'Tablet',
     '31': 'Convertible',
     '35': 'Mini-PC',
-    '36': msg('hardware_chassis_stickPc'),
+    '36': msg(m.hardware_chassis_stickPc),
   })[type]
 
 export type PciKind = 'nvme' | 'storage' | 'network' | 'graphics' | 'media' | 'usb' | 'bridge' | 'other'
@@ -259,19 +260,19 @@ export function pciGroup(cls: string): string {
     case 'nvme':
       return 'NVMe'
     case 'storage':
-      return msg('hardware_category_storage')
+      return msg(m.hardware_category_storage)
     case 'network':
-      return msg('network_title')
+      return msg(m.network_title)
     case 'graphics':
-      return msg('hardware_graphics')
+      return msg(m.hardware_graphics)
     case 'media':
-      return msg('hardware_category_audioVideo')
+      return msg(m.hardware_category_audioVideo)
     case 'usb':
-      return msg('hardware_category_usb')
+      return msg(m.hardware_category_usb)
     case 'bridge':
-      return msg('hardware_category_bridges')
+      return msg(m.hardware_category_bridges)
     case 'other':
-      return msg('hardware_category_other')
+      return msg(m.hardware_category_other)
   }
 }
 
@@ -323,9 +324,9 @@ export function buildHardware(raw: HardwareRaw, now = Date.now()): Hardware {
       const kind = pciKind(p.class)
       const group = pciGroup(p.class)
       let downgraded: string | undefined
-      if ((kind === 'nvme' || kind === 'storage' || kind === 'network') && p.linkWidth && p.maxLinkWidth && p.linkWidth < p.maxLinkWidth) downgraded = msg('hardware_status_linkWidthDown', { linkWidth: p.linkWidth, maxLinkWidth: p.maxLinkWidth })
+      if ((kind === 'nvme' || kind === 'storage' || kind === 'network') && p.linkWidth && p.maxLinkWidth && p.linkWidth < p.maxLinkWidth) downgraded = msg(m.hardware_status_linkWidthDown, { linkWidth: p.linkWidth, maxLinkWidth: p.maxLinkWidth })
       else if (kind === 'nvme' && pcieGen(p.linkSpeed) && pcieGen(p.maxLinkSpeed) && pcieGen(p.linkSpeed)! < pcieGen(p.maxLinkSpeed)!)
-        downgraded = msg('hardware_status_pcieGenDown', { gen: pcieGen(p.linkSpeed) ?? '', maxGen: pcieGen(p.maxLinkSpeed) ?? '' })
+        downgraded = msg(m.hardware_status_pcieGenDown, { gen: pcieGen(p.linkSpeed) ?? '', maxGen: pcieGen(p.maxLinkSpeed) ?? '' })
       return { ...p, group, kind, downgraded }
     })
     .sort((a, b) => a.group.localeCompare(b.group) || a.address.localeCompare(b.address))
@@ -348,30 +349,30 @@ export function buildHardware(raw: HardwareRaw, now = Date.now()): Hardware {
       const who = p.names?.[0] ?? p.deviceName ?? p.address
       warnings.push({
         level: 'warning',
-        text: msg('hardware_warn_pcieDowngraded', { device: who, link: p.downgraded }),
+        text: msg(m.hardware_warn_pcieDowngraded, { device: who, link: p.downgraded }),
       })
     }
   for (const a of sata)
     if (a.slow && a.disk)
       warnings.push({
         level: 'warning',
-        text: msg('hardware_warn_sataSlowLink', { disk: a.disk, model: a.model ? ` (${a.model})` : '', speed: a.speed ?? '', limit: a.limit ?? '' }),
+        text: msg(m.hardware_warn_sataSlowLink, { disk: a.disk, model: a.model ? ` (${a.model})` : '', speed: a.speed ?? '', limit: a.limit ?? '' }),
       })
   for (const s of raw.sensors)
     if (s.kind === 'temp' && s.crit && s.value >= s.crit - 5)
       warnings.push({
         level: 'warning',
-        text: msg('hardware_warn_tempNearCritical', { chip: s.chip, label: s.label, temp: Math.round(s.value), crit: s.crit }),
+        text: msg(m.hardware_warn_tempNearCritical, { chip: s.chip, label: s.label, temp: Math.round(s.value), crit: s.crit }),
       })
   if (year && new Date(now).getUTCFullYear() - year >= 4)
     warnings.push({
       level: 'info',
-      text: msg('hardware_warn_biosOld', { year }),
+      text: msg(m.hardware_warn_biosOld, { year }),
     })
   if (raw.virt && raw.virt !== 'none')
     warnings.push({
       level: 'info',
-      text: msg('hardware_note_virtualMachine', { virt: raw.virt }),
+      text: msg(m.hardware_note_virtualMachine, { virt: raw.virt }),
     })
 
   return {
@@ -406,4 +407,4 @@ export function gpuQuadletLine(nodes: string[]): string | undefined {
   return render ? `AddDevice=${render}` : 'AddDevice=/dev/dri'
 }
 
-export const sensorUnit = (kind: SensorRaw['kind']): string => ({ temp: '°C', fan: msg('hardware_unit_rpm'), in: 'V', power: 'W' })[kind]
+export const sensorUnit = (kind: SensorRaw['kind']): string => ({ temp: '°C', fan: msg(m.hardware_unit_rpm), in: 'V', power: 'W' })[kind]

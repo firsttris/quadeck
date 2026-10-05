@@ -3,6 +3,7 @@
 // containers that have no systemd unit.
 
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { existsSync } from 'node:fs'
 import type { Container, ContainerPort } from '~/shared/types'
 
@@ -99,7 +100,7 @@ export class PodmanCollector {
   }
 
   async collect(): Promise<Container[]> {
-    if (this.socket && !existsSync(this.socket)) throw new Error(msg('podman_error_socketMissing', { socket: this.socket }))
+    if (this.socket && !existsSync(this.socket)) throw new Error(msg(m.podman_error_socketMissing, { socket: this.socket }))
     const list = await this.get<CompatContainer[]>('/containers/json?all=true')
     const stats = await this.get<LibpodStats>('/v4.0.0/libpod/containers/stats?stream=false')
       .then((s) => new Map((s.Stats ?? []).map((x) => [x.ContainerID, x])))

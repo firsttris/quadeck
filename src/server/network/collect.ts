@@ -7,6 +7,7 @@ import { hostname, networkInterfaces } from 'node:os'
 import { join } from 'node:path'
 import { run } from '../exec'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import type { ScanResult, SeenDevice } from '~/shared/devices'
 import { scanLan } from './devices'
 import { firewallVerdict, scopeOf, type FirewallInfo, type IfaceKind, type ListeningPort, type NetInterface, type NetRoute, type NetworkState } from '~/shared/network'
@@ -213,7 +214,7 @@ async function firewall(): Promise<FirewallInfo> {
         active: true,
         ports: u.ports,
         services: u.services,
-        note: u.services.length ? msg('network_note_appProfiles') : undefined,
+        note: u.services.length ? msg(m.network_note_appProfiles) : undefined,
       }
   }
   if (Bun.which('nft')) {
@@ -225,7 +226,7 @@ async function firewall(): Promise<FirewallInfo> {
         active: true,
         ports: [],
         services: [],
-        note: msg('network_note_customNftables'),
+        note: msg(m.network_note_customNftables),
       }
   }
   return { kind: 'none', active: false, ports: [], services: [] }
@@ -239,7 +240,7 @@ export class SystemNetwork implements NetworkAdmin {
     if (addr.code === 0) interfaces = parseIpAddr(addr.stdout)
     else {
       interfaces = fallbackInterfaces()
-      if (addr.code === 127) errors.push(msg('network_error_ipMissing'))
+      if (addr.code === 127) errors.push(msg(m.network_error_ipMissing))
     }
     const routes = [...parseRoutes((await run(['ip', '-j', 'route', 'show'])).stdout, 'inet'), ...parseRoutes((await run(['ip', '-6', '-j', 'route', 'show', 'default'])).stdout, 'inet6')]
 
@@ -253,7 +254,7 @@ export class SystemNetwork implements NetworkAdmin {
     let ports: ListeningPort[] = []
     const ss = await run(['ss', '-H', '-tulpn'])
     if (ss.code === 0) ports = parseSs(ss.stdout)
-    else errors.push(ss.code === 127 ? msg('network_error_ssMissing') : `ss: ${ss.stderr.trim()}`)
+    else errors.push(ss.code === 127 ? msg(m.network_error_ssMissing) : `ss: ${ss.stderr.trim()}`)
     for (const p of ports) {
       if (!p.pid) continue
       const owner = cgroupOwner(read(`/proc/${p.pid}/cgroup`) ?? '')

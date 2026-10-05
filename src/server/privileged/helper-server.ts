@@ -4,6 +4,7 @@
 
 import { parseItems } from '~/shared/podman-storage'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { chmodSync, chownSync, existsSync, readFileSync, rmSync } from 'node:fs'
 import { HttpError } from '../auth'
 import { PACKAGE_NAME } from '~/shared/packages'
@@ -27,11 +28,11 @@ type Handler = (body: Record<string, unknown>, p: Privileged) => Promise<unknown
 const str = (v: unknown) => (typeof v === 'string' ? v : undefined)
 const strs = (v: unknown) => (Array.isArray(v) && v.length <= 200 && v.every((x) => typeof x === 'string') ? (v as string[]) : [])
 const names = (v: unknown) => {
-  if (!Array.isArray(v) || !v.length || v.length > 200 || !v.every((n) => typeof n === 'string' && PACKAGE_NAME.test(n))) throw new HttpError(400, msg('api_packages_invalidNames'))
+  if (!Array.isArray(v) || !v.length || v.length > 200 || !v.every((n) => typeof n === 'string' && PACKAGE_NAME.test(n))) throw new HttpError(400, msg(m.api_packages_invalidNames))
   return v as string[]
 }
 const action = (v: unknown): UnitAction => {
-  if (!UNIT_ACTIONS.includes(v as UnitAction)) throw new HttpError(400, msg('helper_error_invalidUnitAction'))
+  if (!UNIT_ACTIONS.includes(v as UnitAction)) throw new HttpError(400, msg(m.helper_error_invalidUnitAction))
   return v as UnitAction
 }
 
@@ -68,7 +69,7 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/pkg/config-file': (b, p) => p.configFile(str(b.path) ?? ''),
   '/pkg/config-apply': (b, p) => {
     const a = b.action
-    if (a !== 'replace' && a !== 'keep' && a !== 'merge') throw new HttpError(400, msg('helper_error_invalidConfigAction'))
+    if (a !== 'replace' && a !== 'keep' && a !== 'merge') throw new HttpError(400, msg(m.helper_error_invalidConfigAction))
     return p.applyConfigFile(str(b.token), str(b.path) ?? '', a, str(b.content))
   },
   '/images/updates': (b, p) => p.imageUpdates(b.refresh === true),
@@ -96,20 +97,20 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/shares/preview': (b, p) => p.previewShare(parseShareChange(b.change)),
   '/shares/apply': (b, p) => p.applyShare(str(b.token), parseShareChange(b.change)),
   '/shares/service': (b, p) => {
-    if (b.kind !== 'smb' && b.kind !== 'nfs') throw new HttpError(400, msg('helper_error_invalidShareKind'))
-    if (!['start', 'stop', 'restart', 'enable'].includes(str(b.action) ?? '')) throw new HttpError(400, msg('helper_error_invalidServiceAction'))
+    if (b.kind !== 'smb' && b.kind !== 'nfs') throw new HttpError(400, msg(m.helper_error_invalidShareKind))
+    if (!['start', 'stop', 'restart', 'enable'].includes(str(b.action) ?? '')) throw new HttpError(400, msg(m.helper_error_invalidServiceAction))
     return p.shareService(str(b.token), b.kind, b.action as 'start')
   },
   '/ssh/state': (_b, p) => p.sshState(),
   '/ssh/preview': (b, p) => p.previewSsh(parseSshChange(b.change)),
   '/ssh/apply': (b, p) => p.applySsh(str(b.token), parseSshChange(b.change)),
   '/ssh/service': (b, p) => {
-    if (!['start', 'restart', 'enable'].includes(str(b.action) ?? '')) throw new HttpError(400, msg('helper_error_invalidServiceAction'))
+    if (!['start', 'restart', 'enable'].includes(str(b.action) ?? '')) throw new HttpError(400, msg(m.helper_error_invalidServiceAction))
     return p.sshService(str(b.token), b.action as 'start')
   },
   '/smart/report': (b, p) => p.smartReport(b.refresh === true),
   '/smart/selftest': (b, p) => {
-    if (!DISK_NAME.test(str(b.disk) ?? '') || (b.type !== 'short' && b.type !== 'long')) throw new HttpError(400, msg('api_disks_diskTypeRequired'))
+    if (!DISK_NAME.test(str(b.disk) ?? '') || (b.type !== 'short' && b.type !== 'long')) throw new HttpError(400, msg(m.api_disks_diskTypeRequired))
     return p.smartSelfTest(str(b.token), str(b.disk)!, b.type)
   },
   '/files/roots': async (_b, p) => ({ data: await p.fileRoots() }),
@@ -175,7 +176,7 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/boot/entry-check': (b, p) => p.checkBootEntry(str(b.content) ?? ''),
   '/boot/entry-write': async (b, p) => {
     const change = parseBootEntryChange(b.change)
-    if (!change) throw new HttpError(400, msg('common_errors_unknownRequest'))
+    if (!change) throw new HttpError(400, msg(m.common_errors_unknownRequest))
     return p.writeBootEntry(str(b.token), change)
   },
   '/users/state': (_b, p) => p.usersState(),
@@ -189,7 +190,7 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/power/history': async (_b, p) => ({ data: await p.powerHistory() }),
   '/power/set': (b, p) => {
     const setting = b.setting === null ? null : parsePowerSetting(b.setting)
-    if (setting === undefined) throw new HttpError(400, msg('power_error_setting'))
+    if (setting === undefined) throw new HttpError(400, msg(m.power_error_setting))
     return p.setDiskPower(str(b.token), str(b.serial) ?? '', setting)
   },
   '/backup/state': (b, p) => p.backupState(b.refresh === true),
@@ -228,7 +229,7 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   },
   '/backup/client/link': (b, p) => {
     const url = str(b.url) ?? ''
-    if (!QUADECK_URL.test(url)) throw new HttpError(400, msg('backup_error_url'))
+    if (!QUADECK_URL.test(url)) throw new HttpError(400, msg(m.backup_error_url))
     return p.backupClientLink(str(b.token), str(b.name) ?? '', url)
   },
   '/backup/client/redeem': async (b, p) => ({ script: await p.redeemBackupClientLink(str(b.link) ?? '') }),
@@ -267,7 +268,7 @@ export const HELPER_ROUTES: Record<string, Handler> = {
 export async function handleHelperRequest(req: Request, p: Privileged, routes = HELPER_ROUTES): Promise<Response> {
   const path = new URL(req.url).pathname
   const route = routes[path]
-  if (!route) return Response.json({ error: msg('podman_all_unknownVersion') }, { status: 404 })
+  if (!route) return Response.json({ error: msg(m.podman_all_unknownVersion) }, { status: 404 })
   try {
     const body = req.method === 'POST' ? ((await req.json().catch(() => ({}))) as Record<string, unknown>) : {}
     const result = await route(body, p)

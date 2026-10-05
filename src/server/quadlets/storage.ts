@@ -4,6 +4,7 @@
 import { readFileSync, statfsSync } from 'node:fs'
 import { join } from 'node:path'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { confirmItems, normalizeImage, type CleanupItem, type CleanupResult, type PodmanContainer, type PodmanImage, type PodmanNetwork, type PodmanStorage, type PodmanVolume } from '~/shared/podman-storage'
 
 export type PodmanApi = (path: string, init?: RequestInit) => Promise<Response>
@@ -199,7 +200,7 @@ export async function cleanStorage(api: PodmanApi, refs: QuadletRefs, requested:
         } catch {
           // plain text
         }
-        results.push({ item, ok: false, error: res.status === 409 ? msg('podstore_error_inUse') : message.trim().slice(0, 300) || `HTTP ${res.status}` })
+        results.push({ item, ok: false, error: res.status === 409 ? msg(m.podstore_error_inUse) : message.trim().slice(0, 300) || `HTTP ${res.status}` })
       }
     } catch (e) {
       results.push({ item, ok: false, error: (e as Error).message })

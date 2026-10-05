@@ -3,6 +3,7 @@
 // into what Quadeck remembers. No I/O here.
 
 import { msg } from './i18n'
+import { m } from '~/paraglide/messages'
 import type { NetInterface } from './network'
 
 export interface SeenDevice {
@@ -211,12 +212,12 @@ export const BUILTIN_OUI: Record<string, string> = Object.fromEntries(
 // ---------- services ----------
 
 const SERVICES: Record<string, () => string> = {
-  _ipp: () => msg('devices_service_printer'),
-  _ipps: () => msg('devices_service_printer'),
-  _printer: () => msg('devices_service_printer'),
-  '_pdl-datastream': () => msg('devices_service_printer'),
-  _scanner: () => msg('devices_service_scanner'),
-  _uscan: () => msg('devices_service_scanner'),
+  _ipp: () => msg(m.devices_service_printer),
+  _ipps: () => msg(m.devices_service_printer),
+  _printer: () => msg(m.devices_service_printer),
+  '_pdl-datastream': () => msg(m.devices_service_printer),
+  _scanner: () => msg(m.devices_service_scanner),
+  _uscan: () => msg(m.devices_service_scanner),
   _airplay: () => 'AirPlay',
   _raop: () => 'AirPlay',
   _googlecast: () => 'Chromecast',
@@ -233,7 +234,7 @@ const SERVICES: Record<string, () => string> = {
   _nfs: () => 'NFS',
   _http: () => 'Web',
   _https: () => 'Web',
-  _workstation: () => msg('devices_service_computer'),
+  _workstation: () => msg(m.devices_service_computer),
   '_device-info': () => '',
   '_home-assistant': () => 'Home Assistant',
   _esphomelib: () => 'ESPHome',
@@ -317,7 +318,7 @@ export function forgetOld(known: KnownDevice[], now: number): KnownDevice[] {
 
 /** The magic packet: 6 × 0xFF, then the MAC 16 times. */
 export function magicPacket(mac: string): Uint8Array {
-  if (!MAC.test(mac)) throw new Error(msg('devices_error_mac'))
+  if (!MAC.test(mac)) throw new Error(msg(m.devices_error_mac))
   const bytes = mac.split(':').map((h) => parseInt(h, 16))
   const out = new Uint8Array(102)
   out.fill(0xff, 0, 6)

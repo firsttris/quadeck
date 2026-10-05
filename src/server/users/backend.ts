@@ -9,6 +9,7 @@ import { HttpError } from '../auth'
 import { run } from '../exec'
 import { parseAuthorizedKeys } from '../ssh/keys'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { changeProblem, isHuman, knownGroups, parseGroup, parseLast, parsePasswd, parseShadow, passwordState, type Account, type GroupInfo, type LoginRecord, type UserChange, type UsersState } from '~/shared/users'
 
 export interface UsersAdmin {
@@ -63,7 +64,7 @@ export function buildUsersState(files: { passwd: string; group: string; shadow: 
       keys: extra.keys(p.name, p.home),
       samba: extra.samba ? extra.samba.has(p.name) : undefined,
       lastLogin: last || undefined,
-      protected: p.uid === 0 ? msg('users_note_rootProtected') : undefined,
+      protected: p.uid === 0 ? msg(m.users_note_rootProtected) : undefined,
     }
   })
   // Personal groups (same name and gid as a user) are not offered.
@@ -79,9 +80,9 @@ export function buildUsersState(files: { passwd: string; group: string; shadow: 
 
 /** userdel/usermod messages in plain words. */
 export function shadowError(tool: string, out: string): string {
-  if (/currently used by process|is currently logged in/i.test(out)) return msg('users_error_inUse')
-  if (/already exists/i.test(out)) return msg('users_error_nameExists')
-  return `${tool}: ${out.trim() || msg('notifications_failed')}`
+  if (/currently used by process|is currently logged in/i.test(out)) return msg(m.users_error_inUse)
+  if (/already exists/i.test(out)) return msg(m.users_error_nameExists)
+  return `${tool}: ${out.trim() || msg(m.notifications_failed)}`
 }
 
 export class SystemUsers implements UsersBackend {
@@ -161,7 +162,7 @@ export class SystemUsers implements UsersBackend {
         break
       }
       case 'samba-password':
-        if (!Bun.which('smbpasswd')) throw new HttpError(409, msg('users_error_sambaMissing'))
+        if (!Bun.which('smbpasswd')) throw new HttpError(409, msg(m.users_error_sambaMissing))
         await this.tool(['smbpasswd', '-a', '-s', c.name], `${c.password}\n${c.password}\n`)
         break
       case 'delete': {

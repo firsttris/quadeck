@@ -1,4 +1,5 @@
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { HttpError } from '../auth'
 import type { Privileged, UnitAction } from './actions'
 import type { ImageUpdatesReport, InstalledPackage, JobInfo, JobSpec, JobState, PackageDetail, PackageOverview, RemovePreview, UpdatesReport } from '~/shared/packages'
@@ -47,10 +48,10 @@ export class HelperClient implements Privileged {
         signal: AbortSignal.timeout(timeoutMs),
       } as RequestInit)
     } catch (e) {
-      throw new HttpError(503, msg('helper_error_unreachable', { socket: this.socket, message: (e as Error).message }))
+      throw new HttpError(503, msg(m.helper_error_unreachable, { socket: this.socket, message: (e as Error).message }))
     }
     const data = (await res.json().catch(() => ({}))) as { error?: string }
-    if (!res.ok) throw new HttpError(res.status, data.error ?? msg('helper_error_http', { status: res.status }))
+    if (!res.ok) throw new HttpError(res.status, data.error ?? msg(m.helper_error_http, { status: res.status }))
     return data as T
   }
 
@@ -216,11 +217,11 @@ export class HelperClient implements Privileged {
         body: JSON.stringify(body),
       } as RequestInit)
     } catch (e) {
-      throw new HttpError(503, msg('helper_error_unreachable', { socket: this.socket, message: (e as Error).message }))
+      throw new HttpError(503, msg(m.helper_error_unreachable, { socket: this.socket, message: (e as Error).message }))
     }
     if (!res.ok && res.status !== 416 && (res.headers.get('content-type') ?? '').includes('application/json')) {
       const data = (await res.json().catch(() => ({}))) as { error?: string }
-      throw new HttpError(res.status, data.error ?? msg('helper_error_http', { status: res.status }))
+      throw new HttpError(res.status, data.error ?? msg(m.helper_error_http, { status: res.status }))
     }
     // Streamed through: the body is read from the helper while the browser receives it.
     return new Response(res.body, { status: res.status, headers: res.headers })

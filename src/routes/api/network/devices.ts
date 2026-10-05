@@ -6,6 +6,7 @@ import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
 import { hub } from '~/server/hub'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 
 let scanning: Promise<void> | undefined
 let scannedAt = 0
@@ -40,29 +41,29 @@ export const Route = createFileRoute('/api/network/devices')({
             await scanning
             return Response.json(devicesView())
           case 'edit': {
-            if (typeof b.key !== 'string') throw new HttpError(400, msg('devices_error_unknown'))
+            if (typeof b.key !== 'string') throw new HttpError(400, msg(m.devices_error_unknown))
             const { action: _a, key, ...rest } = b
             editDevice(key, rest)
             hub().publish()
             return Response.json(devicesView())
           }
           case 'forget':
-            if (typeof b.key !== 'string') throw new HttpError(400, msg('devices_error_unknown'))
+            if (typeof b.key !== 'string') throw new HttpError(400, msg(m.devices_error_unknown))
             forgetDevice(b.key)
             hub().publish()
             return Response.json(devicesView())
           case 'ports':
-            if (typeof b.ip !== 'string') throw new HttpError(400, msg('devices_error_subnet'))
+            if (typeof b.ip !== 'string') throw new HttpError(400, msg(m.devices_error_subnet))
             return Response.json({ ports: await checkPorts(b.ip, demo) })
           case 'wake':
             assertWritable()
-            if (typeof b.mac !== 'string') throw new HttpError(400, msg('devices_error_mac'))
+            if (typeof b.mac !== 'string') throw new HttpError(400, msg(m.devices_error_mac))
             return Response.json({ sent: await wake(b.mac, demo) })
           case 'settings':
             setDeviceSettings(b)
             return Response.json(devicesView())
           default:
-            throw new HttpError(400, msg('devices_error_action'))
+            throw new HttpError(400, msg(m.devices_error_action))
         }
       }),
     },

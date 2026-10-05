@@ -2,6 +2,7 @@
 // app and the root helper.
 
 import { msg } from './i18n'
+import { m } from '~/paraglide/messages'
 
 export const QUADLET_TYPES = ['container', 'pod', 'network', 'volume', 'kube', 'image', 'build'] as const
 export type QuadletType = (typeof QUADLET_TYPES)[number]
@@ -10,7 +11,7 @@ export type QuadletType = (typeof QUADLET_TYPES)[number]
 export const QUADLET_NAME = /^(?:[A-Za-z0-9][A-Za-z0-9_.-]{0,63}\/)?[A-Za-z0-9][A-Za-z0-9_.@-]{0,100}\.(container|pod|network|volume|kube|image|build)$/
 
 export function assertQuadletName(name: string) {
-  if (!QUADLET_NAME.test(name) || name.includes('..')) throw new Error(msg('quadlets_error_invalidFileName', { name }))
+  if (!QUADLET_NAME.test(name) || name.includes('..')) throw new Error(msg(m.quadlets_error_invalidFileName, { name }))
 }
 
 export function quadletType(name: string): QuadletType {

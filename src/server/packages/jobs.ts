@@ -6,6 +6,7 @@ import { existsSync } from 'node:fs'
 import { basename } from 'node:path'
 import type { JobInfo, JobSpec, JobState } from '~/shared/packages'
 import { localize, msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { HttpError } from '../auth'
 import { run } from '../exec'
 import { EXIT_MARKER, encodeSpec, jobTitle } from './job'
@@ -61,7 +62,7 @@ export class JobManager {
   }
 
   async start(spec: JobSpec): Promise<JobInfo> {
-    if (this.running()) throw new HttpError(409, msg('packages_error_jobBusy'))
+    if (this.running()) throw new HttpError(409, msg(m.packages_error_jobBusy))
     const id = `${Date.now().toString(36)}-${randomBytes(3).toString('hex')}`
     const job: Job = { info: { id, spec, title: jobTitle(spec), status: 'running', startedAt: Date.now() }, lines: [] }
     this.jobs.unshift(job)
@@ -71,7 +72,7 @@ export class JobManager {
         if (job.info.status !== 'running') return
         if (s.startsWith(EXIT_MARKER)) return sink.exit(Number(s.slice(EXIT_MARKER.length)) || 0)
         if (job.lines.length < MAX_LINES) job.lines.push(s)
-        else if (job.lines.length === MAX_LINES) job.lines.push(msg('packages_job_outputCut'))
+        else if (job.lines.length === MAX_LINES) job.lines.push(msg(m.packages_job_outputCut))
       },
       exit: (code) => {
         if (job.info.status !== 'running') return
@@ -87,7 +88,7 @@ export class JobManager {
         this.jobs = this.jobs.filter((j) => j !== job)
         throw e
       }
-      sink.line(msg('packages_job_error', { message: (e as Error).message }))
+      sink.line(msg(m.packages_job_error, { message: (e as Error).message }))
       sink.exit(1)
     }
     return job.info
@@ -142,13 +143,13 @@ export class SystemdLauncher implements Launcher {
     // A job from before a restart of the helper may still be running.
     const active = await run(['systemctl', 'list-units', '--plain', '--no-legend', '--state=active,activating', 'quadeck-job-*'])
     const other = active.stdout.trim().split(/\s+/)[0]
-    if (other) throw new HttpError(409, msg('packages_error_jobRunning', { job: other }))
+    if (other) throw new HttpError(409, msg(m.packages_error_jobRunning, { job: other }))
     const env = FORWARD_ENV.filter((k) => process.env[k]).map((k) => `--setenv=${k}=${process.env[k]}`)
     const r = await run(['systemd-run', `--unit=${unit}`, '--collect', '--quiet', `--description=Quadeck: ${localize(jobTitle(spec), 'en')}`, '--property=Type=exec', ...env, '--', ...selfArgv(), 'job', encodeSpec(spec)], {
       timeoutMs: 30_000,
     })
     if (r.code !== 0) throw new Error(`systemd-run: ${r.stderr.trim()}`)
-    sink.line(msg('packages_job_runningAsUnit', { unit }))
+    sink.line(msg(m.packages_job_runningAsUnit, { unit }))
     void this.follow(unit, sink)
   }
 
@@ -176,7 +177,7 @@ export class SystemdLauncher implements Launcher {
       inactivePolls = active === 'active' || active === 'activating' ? 0 : inactivePolls + 1
       // Gone without the exit marker (killed, journal lost): give the journal a moment, then give up.
       if (inactivePolls >= 4) {
-        sink.line(msg('packages_job_noResult', { unit, state: active || msg('packages_status_unknown') }))
+        sink.line(msg(m.packages_job_noResult, { unit, state: active || msg(m.packages_status_unknown) }))
         sink.exit(1)
         return
       }

@@ -8,6 +8,7 @@ import { and, asc, gte, sql } from 'drizzle-orm'
 import { getSetting, setSetting } from './settings'
 import { db, schema } from './db'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { DEFAULT_SCHEDULE, judgeSpeed, lastSlot, mbps, pingStats, SPEED_HISTORY, usualDown, type SpeedResult, type SpeedSchedule } from '~/shared/speedtest'
 
 const CHUNK = randomBytes(1024 * 1024)
@@ -273,7 +274,7 @@ export async function speedTick(opts: { demo: boolean; rule: { enabled: boolean;
 }
 
 export const speedCheckMessage = (c: SpeedCheck | undefined) =>
-  c?.alert === 'down' ? msg('speed_alert_down', { detail: c.detail ?? '' }) : c?.alert === 'slow' ? msg('speed_alert_slow', { down: Math.round(c.down ?? 0), expected: Math.round(c.expected ?? 0) }) : undefined
+  c?.alert === 'down' ? msg(m.speed_alert_down, { detail: c.detail ?? '' }) : c?.alert === 'slow' ? msg(m.speed_alert_slow, { down: Math.round(c.down ?? 0), expected: Math.round(c.expected ?? 0) }) : undefined
 
 /** Demo: two months of daily measurements for the graph (once). */
 export function seedSpeedHistory(now = Date.now()) {

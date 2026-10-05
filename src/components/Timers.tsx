@@ -40,7 +40,7 @@ const two = (n: number) => String(n).padStart(2, '0')
 /** "Mo 05.10. 03:00" / "Mon 05 Oct 03:00" */
 export function runLabel(ts: number) {
   const d = new Date(ts)
-  const day = msg('timers_label_weekdays').split(' ')[d.getDay()]
+  const day = msg(m.timers_label_weekdays).split(' ')[d.getDay()]
   const time = `${two(d.getHours())}:${two(d.getMinutes())}`
   const date = currentLang() === 'en' ? `${two(d.getDate())} ${new Intl.DateTimeFormat('en-GB', { month: 'short' }).format(d)}` : `${two(d.getDate())}.${two(d.getMonth() + 1)}.`
   return `${day} ${date} ${time}`
@@ -60,11 +60,11 @@ function lastRun(t: TimerEntry): { tone: Tone; label: string } {
 
 const monotonicLabel = (k: string): string =>
   ({
-    Boot: msg('timers_trigger_afterBoot'),
-    Startup: msg('timers_trigger_afterStart'),
-    UnitActive: msg('timers_field_every'),
-    UnitInactive: msg('timers_trigger_afterEnd'),
-    Active: msg('timers_trigger_afterActivation'),
+    Boot: msg(m.timers_trigger_afterBoot),
+    Startup: msg(m.timers_trigger_afterStart),
+    UnitActive: msg(m.timers_field_every),
+    UnitInactive: msg(m.timers_trigger_afterEnd),
+    Active: msg(m.timers_trigger_afterActivation),
   })[k] ?? k
 
 const schedules = (t: TimerEntry) => [...t.calendars.map(describeCalendar), ...t.monotonic.map((line) => line.replace(/^On(\w+?)Sec=/, (_, k: string) => `${monotonicLabel(k)} `))]
@@ -503,18 +503,18 @@ const templates = (): { label: string; spec: Partial<TimerSpec> }[] => [
   {
     label: m.timers_templates_script_label(),
     spec: {
-      name: msg('timers_example_scriptName'),
+      name: msg(m.timers_example_scriptName),
       description: m.timers_templates_script_description(),
-      command: msg('timers_example_scriptCommand'),
+      command: msg(m.timers_example_scriptCommand),
       calendar: '*-*-* 03:00:00',
     },
   },
   {
     label: m.timers_templates_rsync_label(),
     spec: {
-      name: msg('timers_example_backupName'),
+      name: msg(m.timers_example_backupName),
       description: m.timers_templates_rsync_description(),
-      command: msg('timers_example_backupCommand'),
+      command: msg(m.timers_example_backupCommand),
       calendar: '*-*-* 02:30:00',
       lowPriority: true,
     },
@@ -638,7 +638,7 @@ function TimerEditor({ initial, previous, enabled: initialEnabled, existing, onC
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
             <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
               {m.timers_editor_name()}
-              <input className="field font-mono" value={spec.name} onChange={(e) => set('name', e.target.value.trim())} placeholder={msg('timers_placeholder_name')} autoFocus={!previous} />
+              <input className="field font-mono" value={spec.name} onChange={(e) => set('name', e.target.value.trim())} placeholder={msg(m.timers_placeholder_name)} autoFocus={!previous} />
               {taken && <span className="font-normal text-[#ff8a80]">{m.timers_editor_taken({ name: spec.name })}</span>}
             </label>
             <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">

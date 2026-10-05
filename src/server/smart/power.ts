@@ -4,6 +4,7 @@
 import { existsSync, readdirSync, readFileSync, readlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { msg } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import { SERIAL, hdparmArgs, parseHdparmApm, parseHdparmState, parsePowerRules, powerRules, type DiskPower, type PowerSetting, type PowerState } from '~/shared/power'
 import { HttpError } from '../auth'
 import { run, type ExecResult } from '../exec'
@@ -224,7 +225,7 @@ export class SystemPower implements PowerBackend {
 
   async diskUsers(name: string) {
     const disk = (await this.diskPower()).disks.find((d) => d.name === name)
-    if (!disk) throw new HttpError(404, msg('power_error_unknownDisk', { disk: name }))
+    if (!disk) throw new HttpError(404, msg(m.power_error_unknownDisk, { disk: name }))
     return processesOn(disk.mounts)
   }
 
@@ -234,13 +235,13 @@ export class SystemPower implements PowerBackend {
 
   async setDiskPower(serial: string, setting: PowerSetting | null) {
     const hd = this.hdparm()
-    if (!hd) throw new HttpError(409, msg('power_error_noHdparm'))
-    if (!SERIAL.test(serial)) throw new HttpError(400, msg('power_error_unknownDisk', { disk: serial }))
+    if (!hd) throw new HttpError(409, msg(m.power_error_noHdparm))
+    if (!SERIAL.test(serial)) throw new HttpError(400, msg(m.power_error_unknownDisk, { disk: serial }))
     const state = await this.diskPower()
     const disk = state.disks.find((d) => d.serial === serial)
-    if (!disk) throw new HttpError(404, msg('power_error_unknownDisk', { disk: serial }))
-    if (setting && disk.system) throw new HttpError(409, msg('power_error_system', { disk: disk.name }))
-    if (setting && disk.raid) throw new HttpError(409, msg('power_error_raid', { disk: disk.name }))
+    if (!disk) throw new HttpError(404, msg(m.power_error_unknownDisk, { disk: serial }))
+    if (setting && disk.system) throw new HttpError(409, msg(m.power_error_system, { disk: disk.name }))
+    if (setting && disk.raid) throw new HttpError(409, msg(m.power_error_raid, { disk: disk.name }))
     const before = existsSync(this.rulesPath) ? readFileSync(this.rulesPath, 'utf8') : ''
     const rules = this.rules()
     if (setting) rules[serial] = setting
@@ -252,7 +253,7 @@ export class SystemPower implements PowerBackend {
     await this.exec(['udevadm', 'control', '--reload'], { timeoutMs: 15_000 })
     // Right away, not only at the next boot. Without a rule: no standby timer any more.
     const a = await this.exec([hd, ...hdparmArgs(setting ?? { minutes: 0, apm: 'disk' }), `/dev/${disk.name}`], { timeoutMs: 20_000 })
-    if (a.code !== 0) throw new HttpError(422, msg('power_error_apply', { disk: disk.name, message: a.stderr.trim() || a.stdout.trim() }))
+    if (a.code !== 0) throw new HttpError(422, msg(m.power_error_apply, { disk: disk.name, message: a.stderr.trim() || a.stdout.trim() }))
     return this.diskPower()
   }
 }
@@ -306,7 +307,7 @@ export class FixturePower implements PowerBackend {
   }
 
   async setDiskPower(serial: string, setting: PowerSetting | null) {
-    if (!this.base().some((d) => d.serial === serial)) throw new HttpError(404, msg('power_error_unknownDisk', { disk: serial }))
+    if (!this.base().some((d) => d.serial === serial)) throw new HttpError(404, msg(m.power_error_unknownDisk, { disk: serial }))
     if (setting) this.settings[serial] = setting
     else delete this.settings[serial]
     this.hist.unshift({ id: `${Date.now()}-0`, date: Date.now(), message: 'saved' })
