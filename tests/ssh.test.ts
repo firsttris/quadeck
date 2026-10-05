@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { lstatSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -164,5 +164,43 @@ describe('SystemSsh on a temp directory', () => {
     st = await s.applySsh({ kind: 'remove-key', user: 'tristan', fingerprint: fp, force: true })
     expect(st.users.find((u) => u.name === 'tristan')!.keys).toEqual([])
     expect(readFileSync(join(home, '.ssh', 'authorized_keys.quadeck-bak'), 'utf8')).toContain('tristan@laptop')
+  })
+
+  it('never follows a symlink a user planted in ~/.ssh', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'qd-ssh-link-'))
+    const etc = join(root, 'etc-ssh')
+    mkdirSync(join(etc, 'sshd_config.d'), { recursive: true })
+    const victim = join(root, 'victim')
+    mkdirSync(victim, { mode: 0o755 })
+    writeFileSync(join(victim, 'authorized_keys'), 'root-only\n')
+    const mallory = join(root, 'home', 'mallory')
+    const eve = join(root, 'home', 'eve')
+    mkdirSync(mallory, { recursive: true })
+    mkdirSync(join(eve, '.ssh'), { recursive: true })
+    const passwd = join(root, 'passwd')
+    writeFileSync(passwd, `mallory:x:1000:1000::${mallory}:/bin/bash\neve:x:1001:1001::${eve}:/bin/bash\n`)
+    const s = new SystemSsh({ etc, passwd, live: false })
+
+    // ~/.ssh -> another directory
+    symlinkSync(victim, join(mallory, '.ssh'))
+    await expect(s.applySsh({ kind: 'add-key', user: 'mallory', key: laptop })).rejects.toMatchObject({ status: 409 })
+    await expect(s.previewSsh({ kind: 'add-key', user: 'mallory', key: laptop })).rejects.toMatchObject({ status: 409 })
+    // authorized_keys and its temp file -> files elsewhere
+    symlinkSync(join(victim, 'authorized_keys'), join(eve, '.ssh', 'authorized_keys.quadeck-tmp'))
+    symlinkSync(join(victim, 'authorized_keys'), join(eve, '.ssh', 'authorized_keys'))
+    await expect(s.applySsh({ kind: 'add-key', user: 'eve', key: laptop })).rejects.toMatchObject({ status: 409 })
+    const st = await s.sshState()
+    expect(st.users.find((u) => u.name === 'eve')!.problems.join()).toContain('authorized_keys')
+
+    expect(readFileSync(join(victim, 'authorized_keys'), 'utf8')).toBe('root-only\n')
+    expect(statSync(victim).mode & 0o777).toBe(0o755)
+
+    // a planted temp link is replaced, not written through
+    const eveKeys = join(eve, '.ssh', 'authorized_keys')
+    rmSync(eveKeys)
+    await s.applySsh({ kind: 'add-key', user: 'eve', key: laptop })
+    expect(readFileSync(eveKeys, 'utf8')).toContain('tristan@laptop')
+    expect(lstatSync(eveKeys).isSymbolicLink()).toBe(false)
+    expect(readFileSync(join(victim, 'authorized_keys'), 'utf8')).toBe('root-only\n')
   })
 })

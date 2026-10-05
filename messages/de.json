@@ -2705,6 +2705,7 @@
   "ssh_label_homeDirectory": "Home-Verzeichnis",
   "ssh_problem_notOwned": "{what} gehört nicht {user}",
   "ssh_problem_writableByOthers": "{what} ist für andere beschreibbar – sshd ignoriert die Schlüssel",
+  "ssh_error_notFollowed": "{path} ist ein symbolischer Link oder keine normale Datei – Quadeck folgt keinen Links im Home-Verzeichnis eines Benutzers",
   "ssh_error_sshdNotInstalled": "sshd ist nicht installiert",
   "ssh_error_noLoginAccount": "Benutzer {user} kann sich nicht per SSH anmelden (kein Login-Konto)",
   "ssh_error_keyNotFound": "Schlüssel nicht gefunden",
