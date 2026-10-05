@@ -1,4 +1,5 @@
 import { Database } from 'bun:sqlite'
+import { and, gte, lt, type SQL } from 'drizzle-orm'
 import { drizzle, type BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite'
 import { chmodSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
@@ -43,3 +44,14 @@ export function db(): DB {
 }
 
 export { schema }
+
+/**
+ * metric_samples rows whose name starts with `prefix` ("ct:", "smart:sda:"), written as a range
+ * (metric >= 'ct:' AND metric < 'ct;'). SQLite's LIKE is case-insensitive and therefore never uses
+ * the (metric, ts) index: `metric LIKE 'ct:%'` read the whole table every time.
+ */
+export function metricPrefix(prefix: string): SQL {
+  const t = schema.metricSamples
+  const end = prefix.slice(0, -1) + String.fromCharCode(prefix.charCodeAt(prefix.length - 1) + 1)
+  return and(gte(t.metric, prefix), lt(t.metric, end))!
+}

@@ -14,5 +14,12 @@ export const migrations: { tag: string; statements: string[] }[] = [
       "CREATE TABLE `settings` (\n\t`key` text PRIMARY KEY NOT NULL,\n\t`value` text NOT NULL\n);",
       "CREATE TABLE `widgets` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`type` text NOT NULL,\n\t`config` text DEFAULT '{}' NOT NULL\n);"
     ]
+  },
+  {
+    "tag": "0001_flashy_next_avengers",
+    "statements": [
+      "DROP INDEX `metric_samples_metric_ts`;",
+      "CREATE INDEX `metric_samples_metric_ts_value` ON `metric_samples` (`metric`,`ts`,`value`);"
+    ]
   }
 ]

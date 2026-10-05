@@ -6,7 +6,7 @@ import { and, gte, lt, sql } from 'drizzle-orm'
 import { USAGE_RANGES, type ContainerUsage, type UsageRange } from '~/shared/container-usage'
 import type { Container } from '~/shared/types'
 import type { DB } from './db'
-import { schema } from './db'
+import { metricPrefix, schema } from './db'
 
 export const USAGE_BUCKET_MS = 5 * 60_000
 export const USAGE_KEEP_MS = 30 * 86_400_000
@@ -76,7 +76,7 @@ export function queryUsage(d: DB, range: UsageRange, units: Map<string, string> 
   const rows = d
     .select()
     .from(t)
-    .where(and(gte(t.ts, now - span), lt(t.ts, now + USAGE_BUCKET_MS), sql`${t.metric} LIKE 'ct:%'`))
+    .where(and(gte(t.ts, now - span), lt(t.ts, now + USAGE_BUCKET_MS), metricPrefix('ct:')))
     .all()
   const by = new Map<string, Map<Kind, [number, number][]>>()
   for (const r of rows) {
@@ -124,7 +124,7 @@ export function seedUsageHistory(d: DB, containers: Pick<Container, 'name' | 'st
     d
       .select({ n: sql<number>`count(*)` })
       .from(t)
-      .where(sql`${t.metric} LIKE 'ct:%'`)
+      .where(metricPrefix('ct:'))
       .get()!.n > 0
   )
     return

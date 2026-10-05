@@ -5,7 +5,7 @@
 import { and, eq, gte, inArray, lt, sql } from 'drizzle-orm'
 import { COMPONENTS, DEFAULT_ENERGY, withSettings, dailyAverage, dayStart, group, monthProjection, parseEnergySettings, powerNow, raplWatts, standbySavings, sumSplit, kwh, type DiskKind, type EnergySettings, type HourEnergy, type PowerNow, type PowerSample, type Split } from '~/shared/energy'
 import type { GpuMetrics } from '~/shared/types'
-import { db, schema, type DB } from './db'
+import { db, metricPrefix, schema, type DB } from './db'
 import { getSetting, setSetting } from './settings'
 
 const SETTINGS = 'energy.settings'
@@ -69,7 +69,7 @@ export class EnergyMeter {
     const rows = this.d()
       .select()
       .from(t)
-      .where(and(eq(t.ts, ts), sql`${t.metric} LIKE 'energy:%'`))
+      .where(and(eq(t.ts, ts), metricPrefix('energy:')))
       .all()
     const wh: Split = { cpu: 0, gpu: 0, disks: 0, rest: 0 }
     const standby: Record<string, number> = {}
@@ -130,7 +130,7 @@ export function standbySeconds(d: DB, from: number): Record<string, number> {
   const rows = d
     .select({ metric: t.metric, s: sql<number>`sum(${t.value})` })
     .from(t)
-    .where(and(gte(t.ts, from), sql`${t.metric} LIKE 'energy:standby:%'`))
+    .where(and(gte(t.ts, from), metricPrefix('energy:standby:')))
     .groupBy(t.metric)
     .all()
   return Object.fromEntries(rows.map((r) => [r.metric.slice('energy:standby:'.length), r.s]))
@@ -193,7 +193,7 @@ export function seedEnergyHistory(d: DB, now = Date.now()) {
     d
       .select({ n: sql<number>`count(*)` })
       .from(t)
-      .where(sql`${t.metric} LIKE 'energy:%'`)
+      .where(metricPrefix('energy:'))
       .get()!.n > 0
   )
     return
