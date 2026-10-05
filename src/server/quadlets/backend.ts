@@ -25,6 +25,7 @@ import {
   type ValidateResult,
 } from '~/shared/quadlets'
 import { HttpError } from '../auth'
+import { contentHash } from '~/shared/caddy'
 import { calendarOf } from '../collectors/systemd'
 import { run, runOk } from '../exec'
 
@@ -53,7 +54,8 @@ export interface WriteResult {
 
 /** Writes; the caller has checked the unlock. */
 export interface PodmanAdminBackend extends PodmanAdmin {
-  writeQuadlet(name: string, content: string, restart: boolean): Promise<WriteResult>
+  /** expected: hash of the content the editor loaded ('' for a new file); undefined = no check. */
+  writeQuadlet(name: string, content: string, restart: boolean, expected?: string): Promise<WriteResult>
   deleteQuadlet(name: string, also?: RemoveAlso): Promise<{ warnings: string[] }>
   setAutoUpdateTimer(enabled: boolean, calendar: string): Promise<void>
   setAutoUpdateDefault(enabled: boolean): Promise<void>
@@ -288,7 +290,10 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
 
   // ---------- writes ----------
 
-  async writeQuadlet(name: string, content: string, restart: boolean): Promise<WriteResult> {
+  async writeQuadlet(name: string, content: string, restart: boolean, expected?: string): Promise<WriteResult> {
+    validName(name)
+    // The editor sends the hash of what it loaded: someone else's save in between is not overwritten.
+    if (expected !== undefined && contentHash(existsSync(join(this.dir, name)) ? readFileSync(join(this.dir, name), 'utf8') : '') !== expected) throw new HttpError(409, msg(m.files_error_changedMeanwhile))
     const v = await this.validateQuadlet(name, content)
     const err = v.diagnostics.find((d) => d.severity === 'error')
     if (err) throw new HttpError(422, `${err.line ? msg(m.fstab_label_linePrefix, { line: err.line }) : ''}${err.message}`)
@@ -488,7 +493,9 @@ export class FixturePodmanAdmin implements PodmanAdminBackend {
     if (v === undefined) throw new HttpError(404, msg(m.quadlets_error_revisionNotFound))
     return v
   }
-  async writeQuadlet(name: string, content: string, restart: boolean) {
+  async writeQuadlet(name: string, content: string, restart: boolean, expected?: string) {
+    // The editor sends the hash of what it loaded: someone else's save in between is not overwritten.
+    if (expected !== undefined && contentHash(this.files.get(name)?.content ?? '') !== expected) throw new HttpError(409, msg(m.files_error_changedMeanwhile))
     const v = await this.validateQuadlet(name, content)
     const err = v.diagnostics.find((d) => d.severity === 'error')
     if (err) throw new HttpError(422, `${err.line ? msg(m.fstab_label_linePrefix, { line: err.line }) : ''}${err.message}`)

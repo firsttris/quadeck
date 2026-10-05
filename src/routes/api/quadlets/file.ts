@@ -27,9 +27,9 @@ export const Route = createFileRoute('/api/quadlets/file')({
       }),
       PUT: authed(async ({ request }, session) => {
         assertWritable()
-        const b = await readJson<{ name?: unknown; content?: unknown; restart?: unknown }>(request)
+        const b = await readJson<{ name?: unknown; content?: unknown; restart?: unknown; expected?: unknown }>(request)
         if (typeof b.name !== 'string' || typeof b.content !== 'string') throw new HttpError(400, msg(m.api_quadlets_nameContentRequired))
-        return Response.json(await privileged().writeQuadlet(unlockToken(session.id), b.name, b.content, b.restart === true))
+        return Response.json(await privileged().writeQuadlet(unlockToken(session.id), b.name, b.content, b.restart === true, typeof b.expected === 'string' ? b.expected : undefined))
       }),
       DELETE: authed(async ({ request }, session) => {
         assertWritable()

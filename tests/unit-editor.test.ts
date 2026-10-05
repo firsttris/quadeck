@@ -118,6 +118,18 @@ describe('FixtureUnitEditor', () => {
     expect((await e.unitDetail('restic-backup.service')).canDelete).toBe(true)
   })
 
+  it('refuses a save over a file that changed since it was loaded', async () => {
+    const { contentHash } = await import('~/shared/caddy')
+    const e = new FixtureUnitEditor('fixtures/demo')
+    const path = '/etc/systemd/system/smb.service.d/override.conf'
+    const loaded = (await e.unitDetail('smb.service')).parts.find((p) => p.path === path)!.content
+    await e.writeUnitFile('smb.service', path, '[Unit]\nRequiresMountsFor=/srv/a\n', false) // another tab
+    await expect(e.writeUnitFile('smb.service', path, '[Unit]\nRequiresMountsFor=/srv/b\n', false, contentHash(loaded))).rejects.toMatchObject({ status: 409 })
+    const now = (await e.unitDetail('smb.service')).parts.find((p) => p.path === path)!.content
+    await e.writeUnitFile('smb.service', path, '[Unit]\nRequiresMountsFor=/srv/b\n', false, contentHash(now))
+    await expect(e.writeUnitFile('smb.service', '/etc/systemd/system/smb.service.d/new.conf', '[Unit]\n', false, contentHash(''))).resolves.toBeTruthy()
+  })
+
   it('creates units and refuses duplicates and bad names', async () => {
     const e = new FixtureUnitEditor('fixtures/demo')
     await e.createUnit('hello.service', '[Unit]\nDescription=Hallo\n[Service]\nExecStart=/bin/true\n[Install]\nWantedBy=multi-user.target\n', true)

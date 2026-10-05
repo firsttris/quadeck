@@ -81,7 +81,7 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/quadlets/validate': (b, p) => p.validateQuadlet(str(b.name) ?? '', str(b.content) ?? ''),
   '/quadlets/history': async (b, p) => ({ data: await p.quadletHistory(str(b.name) ?? '') }),
   '/quadlets/revision': async (b, p) => ({ data: await p.quadletRevision(str(b.name) ?? '', str(b.id) ?? '') }),
-  '/quadlets/write': (b, p) => p.writeQuadlet(str(b.token), str(b.name) ?? '', str(b.content) ?? '', b.restart === true),
+  '/quadlets/write': (b, p) => p.writeQuadlet(str(b.token), str(b.name) ?? '', str(b.content) ?? '', b.restart === true, str(b.expected)),
   '/quadlets/plan': (b, p) => p.removalPlan(str(b.name) ?? ''),
   '/quadlets/delete': (b, p) => p.deleteQuadlet(str(b.token), str(b.name) ?? '', { image: b.image === true, volumes: b.volumes === true }),
   '/podman/settings': (_b, p) => p.podmanSettings(),
@@ -249,7 +249,7 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/units/validate': (b, p) => p.validateUnitFile(str(b.unit) ?? '', str(b.path) ?? '', str(b.content) ?? ''),
   '/units/history': async (b, p) => ({ data: await p.unitFileHistory(str(b.unit) ?? '', str(b.path) ?? '') }),
   '/units/revision': async (b, p) => ({ data: await p.unitFileRevision(str(b.unit) ?? '', str(b.path) ?? '', str(b.id) ?? '') }),
-  '/units/write': (b, p) => p.writeUnitFile(str(b.token), str(b.unit) ?? '', str(b.path) ?? '', str(b.content) ?? '', b.restart === true),
+  '/units/write': (b, p) => p.writeUnitFile(str(b.token), str(b.unit) ?? '', str(b.path) ?? '', str(b.content) ?? '', b.restart === true, str(b.expected)),
   '/units/delete': async (b, p) => {
     await p.deleteUnitFile(str(b.token), str(b.unit) ?? '', str(b.path) ?? '')
     return { ok: true }

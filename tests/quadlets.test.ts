@@ -147,6 +147,24 @@ describe('diff', () => {
   })
 })
 
+describe('saving a Quadlet over a newer version', () => {
+  it('refuses when the file changed since it was loaded, or a "new" file already exists', async () => {
+    const { contentHash } = await import('~/shared/caddy')
+    const root = mkdtempSync(join(tmpdir(), 'qd-quadlet-expected-'))
+    const dir = join(root, 'systemd')
+    mkdirSync(dir)
+    writeFileSync(join(dir, 'web.container'), '[Container]\nImage=docker.io/library/nginx\n')
+    const admin = new SystemPodmanAdmin({ dir, gitDir: join(root, 'git'), confDir: root, manager: async () => '' })
+    const loaded = readFileSync(join(dir, 'web.container'), 'utf8')
+    writeFileSync(join(dir, 'web.container'), '[Container]\nImage=docker.io/library/nginx:1.27\n') // saved elsewhere
+    await expect(admin.writeQuadlet('web.container', '[Container]\nImage=docker.io/library/caddy\n', false, contentHash(loaded))).rejects.toMatchObject({ status: 409 })
+    expect(readFileSync(join(dir, 'web.container'), 'utf8')).toContain('nginx:1.27')
+    await expect(admin.writeQuadlet('web.container', '[Container]\nImage=docker.io/library/caddy\n', false, contentHash(''))).rejects.toMatchObject({ status: 409 })
+    await admin.writeQuadlet('web.container', '[Container]\nImage=docker.io/library/caddy\n', false, contentHash(readFileSync(join(dir, 'web.container'), 'utf8')))
+    expect(readFileSync(join(dir, 'web.container'), 'utf8')).toContain('caddy')
+  })
+})
+
 describe('compose import', () => {
   const doc = Bun.YAML.parse(`
 services:
