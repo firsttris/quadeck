@@ -223,7 +223,7 @@ function Overview() {
     gpu: metric('gpu'),
     power: metric('power'),
   }
-  for (const w of layout.widgets) if (w.kind === 'note') nodes[w.id] = <NoteWidget widget={w} onEdit={() => setNoteEdit(w.id)} />
+  for (const w of layout.widgets) if (w.kind === 'note') nodes[w.id] = <NoteWidget widget={w} editing={editing} onEdit={() => setNoteEdit(w.id)} />
   const editedNote = layout.widgets.find((w) => w.id === noteEdit && w.kind === 'note') as (WidgetInstance & { kind: 'note' }) | undefined
 
   return (

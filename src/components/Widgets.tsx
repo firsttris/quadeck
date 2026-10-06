@@ -150,16 +150,19 @@ function Linked({ text }: { text: string }) {
   )
 }
 
-export function NoteWidget({ widget, onEdit }: { widget: WidgetInstance & { kind: 'note' }; onEdit: () => void }) {
+export function NoteWidget({ widget, editing, onEdit }: { widget: WidgetInstance & { kind: 'note' }; editing: boolean; onEdit: () => void }) {
   const { title, text } = widget.config
   const heading = title || m.widgets_note_name()
   return (
     <section className="flex flex-col gap-2 p-[18px]" aria-label={heading} data-testid="note-widget">
       <div className="flex items-center gap-2 pr-16">
         <h2 className="h2 min-w-0 grow truncate">{heading}</h2>
-        <button type="button" className="btn sm no-drag" onClick={onEdit} aria-label={m.widgets_note_editNamed({ name: heading })}>
-          <Glyph name="edit" size={13} />
-        </button>
+        {/* in edit mode the ⚙ of the frame does this */}
+        {!editing && (
+          <button type="button" className="btn sm no-drag" onClick={onEdit} aria-label={m.widgets_note_editNamed({ name: heading })}>
+            <Glyph name="edit" size={13} />
+          </button>
+        )}
       </div>
       {text ? (
         <p className="m-0 text-[13px] break-words whitespace-pre-wrap text-[#c9d1d9]">
