@@ -79,7 +79,7 @@ a container of each distribution above. What works where, feature by feature: th
 
 | | |
 |---|---|
-| 📊 **Overview** | CPU, RAM, temperature, network, GPU and power with history; failed units with the reason and a restart button; service tiles with health checks |
+| 📊 **Overview** | Put together from widgets: CPU, RAM, temperature, network, GPU and power with history, service tiles with health checks, updates, backups, single disks, the busiest containers, one service with start/stop, LAN devices with Wake-on-LAN, speed test, SSH logins, notes and link groups; failed units with the reason and a restart button |
 | 📦 **Containers & Quadlets** | Units with status and journal, CPU and RAM per container over 30 days, a Quadlet editor (form or text) checked by the real generator, templates, docker-compose import; images and volumes with what uses them, cleanup with a preview; Podman secrets instead of passwords in plain text |
 | ⚙️ **systemd & timers** | Edit any unit through overrides, verified before saving; timers with a schedule builder as the cron replacement |
 | ⬆️ **Updates** | pacman (with AUR), apt, dnf, zypper, apk, rpm-ostree and container images as live jobs; reboot hints and Arch news |

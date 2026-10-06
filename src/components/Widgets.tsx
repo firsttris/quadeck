@@ -255,7 +255,10 @@ export function WidgetSettingsDialog({ widget, mounts, units, onClose, onSaved }
     if (widget?.kind === 'containers') setTop(widget.config)
     if (widget?.kind === 'service') setService({ unit: widget.config.unit || units[0]?.name || '' })
     if (widget?.kind === 'links') setLinks(widget.config.links.length ? widget.config : { ...widget.config, links: [{ name: '', url: '' }] })
-  }, [widget, mounts, units])
+    // only when another widget opens: live updates bring new mount and unit lists every few
+    // seconds and must not throw away what is being typed
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [widget?.id])
   const badLink = links.links.findIndex((l) => (l.name.trim() || l.url.trim()) && (!l.name.trim() || !isWebUrl(l.url.trim())))
   const save = async () => {
     if (!widget) return

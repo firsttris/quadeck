@@ -1,7 +1,8 @@
 # Overview and services
 
 The overview (**Overview**) is the start page: gauges for the host, failed units, the service
-tiles, storage, the next timers and your shares. Everything on it is discovered; the layout, the
+tiles, storage, the next timers and your shares, plus whatever you add from the
+[widget catalog](#adding-widgets). Everything on it is discovered; the layout, the widgets, the
 tiles and the links are the only things you edit.
 
 <img src="screenshot-dashboard.png" alt="Overview with failed units, gauges and service tiles" width="900">
