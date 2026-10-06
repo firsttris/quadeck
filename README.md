@@ -54,20 +54,22 @@ a reverse proxy and uninstalling are in the [installation guide](docs/installati
 | | Distribution | Notes |
 | --- | --- | --- |
 | ✅ | Arch Linux, Manjaro, EndeavourOS | everything, including kernel management |
-| ✅ | Fedora, RHEL / AlmaLinux / Rocky 9+ | everything except kernel management |
+| ✅ | Fedora, RHEL / AlmaLinux / Rocky 9.2+ | everything except kernel management |
 | ✅ | Debian 13, Ubuntu 24.04+ | everything except kernel management |
 | ✅ | openSUSE Tumbleweed | everything except kernel management |
 | 🟡 | Debian 12, Ubuntu 22.04, Raspberry Pi OS (64-bit) | Podman is older than 4.4: containers yes, Quadlets no |
 | 🟡 | Fedora Atomic (Silverblue, CoreOS, uCore …) | packages are layered with rpm-ostree, no removal |
 | 🟡 | openSUSE MicroOS, Aeon | changes go through `transactional-update`, active after a reboot |
-| 🟡 | Alpine, Void, Devuan (no systemd) | dashboard, containers, disks and files; no units, timers, Quadlets or journal |
+| 🟡 | Alpine, Devuan (no systemd) | dashboard, containers, disks, files and package updates; no units, timers, Quadlets or journal |
+| 🟡 | Void (no systemd) | as above, without package updates (xbps is not supported) |
 | ❌ | NixOS | standard Linux binaries need `nix-ld`, `/etc` is declarative |
 | ❌ | 32-bit ARM (Raspberry Pi OS 32-bit) | no Bun build for it |
 
 Quadeck manages the **system (rootful) Podman**: `/run/podman/podman.sock` and Quadlets in
 `/etc/containers/systemd`; rootless containers of other users are not shown. Boot entries need
 systemd-boot. `quadeck doctor` shows what Quadeck finds on your machine, and CI starts the binary in
-a container of each distribution above. Details in the [installation guide](docs/installation.md#supported-distributions).
+a container of each distribution above. What works where, feature by feature: the
+[feature matrix](docs/installation.md#feature-matrix).
 
 > [!WARNING]
 > Quadeck is made for your LAN. Do not expose it to the internet without a VPN or a reverse proxy

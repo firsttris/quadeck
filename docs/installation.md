@@ -29,11 +29,34 @@ container more access than the two hardened services get.
 | 🟡 | Debian 12, Ubuntu 22.04, Raspberry Pi OS 64-bit | apt | Podman 4.3 / 3.4: containers are shown, Quadlets are not generated (needs 4.4) |
 | 🟡 | Fedora Atomic: Silverblue, Kinoite, CoreOS, uCore | rpm-ostree | packages are layered and active after a reboot; packages can't be removed |
 | 🟡 | openSUSE MicroOS, Aeon, Kalpa | transactional-update | installs, removals and upgrades go into a new snapshot, active after a reboot |
-| 🟡 | Alpine, Void, Devuan, other systems without systemd | apk / – | no units, timers, journal or Quadlets; the file explorer copies without reflink |
+| 🟡 | Alpine, Devuan, other systems without systemd | apk / apt | no units, timers, journal or Quadlets; the file explorer copies without reflink |
+| 🟡 | Void | – | as above, and no package updates: xbps is not supported |
 | ❌ | NixOS | – | the binary needs the standard loader (`programs.nix-ld.enable`), `/etc` and packages are declarative |
 | ❌ | 32-bit ARM, RISC-V, others | – | Bun has no build for them |
 
 ✅ full feature set (start-up tested in CI), 🟡 runs with the limits shown, ❌ not supported.
+
+### Feature matrix
+
+| | Arch | Fedora, RHEL 9.2+ | Debian 13, Ubuntu 24.04+ | Tumbleweed | Fedora Atomic | MicroOS, Aeon | Debian 12, Ubuntu 22.04 | Alpine | Void |
+|---|---|---|---|---|---|---|---|---|---|
+| Overview, disks, files, network, users, SSH, terminal | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Containers (Podman) | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ |
+| Quadlets | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ ¹ | ❌ ² | ❌ ² |
+| Units, timers, journal | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ✅ | ❌ ² | ❌ ² |
+| System updates | ✅ | ✅ | ✅ | ✅ | 🟡 ³ | 🟡 ³ | ✅ | ✅ | ❌ |
+| Remove packages | ✅ | ✅ | ✅ | ✅ | ❌ | 🟡 ³ | ✅ | ✅ | ❌ |
+| AUR updates | ✅ | – | – | – | – | – | – | – | – |
+| Install and remove kernels | ✅ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ | ❌ |
+| Clean up the [package cache](updates.md#package-cache) | ✅ | ✅ | ✅ | ✅ | – | – | ✅ | 🟡 ⁴ | ❌ |
+| [Explained update errors](updates.md#when-a-job-fails) | ✅ | 🟡 ⁵ | 🟡 ⁵ | 🟡 ⁵ | 🟡 ⁵ | 🟡 ⁵ | 🟡 ⁵ | 🟡 ⁵ | – |
+| [Boot entries](updates.md#boot-and-reboot) | 🟡 ⁶ | 🟡 ⁶ | 🟡 ⁶ | 🟡 ⁶ | 🟡 ⁶ | 🟡 ⁶ | 🟡 ⁶ | – | – |
+
+¹ Podman older than 4.4 · ² no systemd · ³ goes into a new snapshot or deployment, active after a
+reboot · ⁴ only with a local apk cache (`/etc/apk/cache`) · ⁵ full explanations for pacman and
+yay/paru, for apt the lock and an interrupted dpkg; otherwise the error lines are marked and the
+terminal is offered · ⁶ with systemd-boot; with GRUB the boot tab shows the reboot and the kernel
+parameters only · – not applicable
 
 Limits on every distribution:
 
