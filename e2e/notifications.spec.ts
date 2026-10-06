@@ -57,7 +57,7 @@ async function login(page: Page) {
 test.describe.serial('Benachrichtigungen', () => {
   test('add a webhook, send a test, current problems are reported once', async ({ page }) => {
     await login(page)
-    await page.getByRole('link', { name: 'Benachrichtigungen' }).click()
+    await page.getByRole('navigation').getByRole('link', { name: 'Benachrichtigungen' }).click()
     await expect(page.getByText('Noch kein Kanal')).toBeVisible()
     await page.getByRole('button', { name: '+ Kanal' }).click()
     const dialog = page.getByRole('dialog', { name: 'Neuer Kanal' })

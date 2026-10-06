@@ -14,6 +14,8 @@ let instance: { db: DB; sqlite: Database } | undefined
 export function migrate(sqlite: Database) {
   sqlite.run('CREATE TABLE IF NOT EXISTS __quadeck_migrations (tag TEXT PRIMARY KEY, applied_at INTEGER NOT NULL)')
   const done = new Set(sqlite.query<{ tag: string }, []>('SELECT tag FROM __quadeck_migrations').all().map((r) => r.tag))
+  // a database created right now: the overview gets its starter widgets once (see server/layout.ts)
+  const fresh = done.size === 0
   for (const m of migrations) {
     if (done.has(m.tag)) continue
     sqlite.transaction(() => {
@@ -21,6 +23,7 @@ export function migrate(sqlite: Database) {
       sqlite.run('INSERT INTO __quadeck_migrations (tag, applied_at) VALUES (?, ?)', [m.tag, Date.now()])
     })()
   }
+  if (fresh) sqlite.run("INSERT OR IGNORE INTO settings (key, value) VALUES ('dashboard.seed', 'true')")
 }
 
 export function openDb(path: string) {

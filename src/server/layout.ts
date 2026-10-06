@@ -1,7 +1,7 @@
 import { randomBytes } from 'node:crypto'
 import { and, eq, like } from 'drizzle-orm'
 import type { DashboardLayout, GridItem, LayoutScope } from '~/shared/layout'
-import { INSTANCE_ID, isInstanceKind, parseWidgetConfig, WIDGETS, type InstanceKind, type WidgetInstance } from '~/shared/widgets'
+import { FRESH_DEFAULTS, INSTANCE_ID, isInstanceKind, parseWidgetConfig, WIDGETS, type InstanceKind, type WidgetInstance } from '~/shared/widgets'
 import { HttpError } from './auth'
 import { db, schema } from './db'
 import { msg } from '~/shared/i18n'
@@ -14,7 +14,18 @@ const ID = /^[\w:.@/#-]{1,200}$/
 /** The layouts table stores "<scope>|<breakpoint>" in its breakpoint column. */
 const key = (scope: LayoutScope, bp: string) => `${scope}|${bp}`
 
+/** Once on a fresh install: the starter widgets (an existing dashboard is never changed). */
+function seedFresh() {
+  const seed = db().select().from(schema.settings).where(eq(schema.settings.key, 'dashboard.seed')).get()
+  if (!seed) return
+  db().transaction((tx) => {
+    for (const kind of FRESH_DEFAULTS) tx.insert(schema.widgets).values({ id: `${kind}-${randomBytes(6).toString('hex')}`, type: 'widget', config: { kind } }).run()
+    tx.delete(schema.settings).where(eq(schema.settings.key, 'dashboard.seed')).run()
+  })
+}
+
 export function getLayout(): DashboardLayout {
+  seedFresh()
   const out: DashboardLayout = { layouts: { page: {}, tiles: {} }, hidden: [], widgets: [] }
   for (const r of db().select().from(schema.layouts).all()) {
     const [scope, bp] = r.breakpoint.split('|') as [LayoutScope, string]

@@ -23,7 +23,7 @@ async function unlock(page: Page) {
 test.describe.serial('System', () => {
   test('updates: news, packages, AUR, images and the system upgrade with live output', async ({ page }) => {
     await login(page)
-    await page.getByRole('link', { name: 'System' }).click()
+    await page.getByRole('navigation').getByRole('link', { name: 'System' }).click()
     await expect(page.getByRole('heading', { name: 'System', exact: true })).toBeVisible()
 
     const news = page.getByRole('region', { name: 'Arch-News' })

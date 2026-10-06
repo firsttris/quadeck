@@ -40,6 +40,29 @@ describe('mergeLayout', () => {
   })
 })
 
+describe('fresh install', () => {
+  it('gets the starter widgets once; removing them is final', async () => {
+    // this test file starts with an empty data directory, like a new install
+    const first = layout.getLayout()
+    expect(first.widgets.map((w) => w.kind)).toEqual(['updates', 'backups'])
+    expect(layout.getLayout().widgets).toHaveLength(2) // not seeded twice
+    for (const w of first.widgets) layout.removeWidget(w.id)
+    expect(layout.getLayout().widgets).toEqual([])
+  })
+
+  it('an existing database is never seeded (only one created by the first migration)', async () => {
+    const { Database } = await import('bun:sqlite')
+    const { migrate } = await import('~/server/db')
+    const seeded = (db: InstanceType<typeof Database>) => db.query("SELECT 1 FROM settings WHERE key = 'dashboard.seed'").all().length
+    const fresh = new Database(':memory:')
+    migrate(fresh)
+    expect(seeded(fresh)).toBe(1)
+    fresh.run("DELETE FROM settings WHERE key = 'dashboard.seed'")
+    migrate(fresh) // a later start (or update) of the same database
+    expect(seeded(fresh)).toBe(0)
+  })
+})
+
 describe('layout storage', () => {
   it('validates, upserts per scope and breakpoint, hides cards and resets', () => {
     expect(() => layout.parseSave({ scope: 'evil', breakpoint: 'lg', items: [] })).toThrow()
