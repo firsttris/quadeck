@@ -20,6 +20,8 @@ export type DiagnosisAction =
   | { type: 'job'; spec: JobSpec; label: 'unlockRetry' | 'keyringRetry' }
   | { type: 'retry' }
   | { type: 'disks' }
+  /** The package cache card on the System page. */
+  | { type: 'cache' }
 
 export interface Diagnosis {
   kind: DiagnosisKind
@@ -107,7 +109,7 @@ export function diagnoseJob(spec: JobSpec, lines: string[], provider?: string): 
 
   // full disk: pacman checks before it starts, everything else fails on the way
   const full = find(/Partition (\S+) too full|not enough free disk space|No space left on device/)
-  if (full) return { kind: 'diskFull', lines: [full.i], unchanged: /too full|not enough free disk space/.test(lines[full.i]!), a: full.mm[1], actions: [{ type: 'disks' }, terminal()] }
+  if (full) return { kind: 'diskFull', lines: [full.i], unchanged: /too full|not enough free disk space/.test(lines[full.i]!), a: full.mm[1], actions: [{ type: 'cache' }, { type: 'disks' }, terminal()] }
 
   // downloads: mirror down, file gone (database too old)
   const dl = find(/failed retrieving file|failed to retrieve some files|failed to synchronize all databases|Failed to fetch|Temporary failure resolving/)

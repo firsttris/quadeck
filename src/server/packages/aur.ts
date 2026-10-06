@@ -64,7 +64,7 @@ export async function aurUpdates(fetcher: typeof fetch = fetch): Promise<Package
   return out
 }
 
-function passwdEntry(user: string) {
+export function passwdEntry(user: string) {
   const line = readFileSync('/etc/passwd', 'utf8')
     .split('\n')
     .find((l) => l.startsWith(user + ':'))

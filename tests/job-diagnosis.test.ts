@@ -75,7 +75,7 @@ error: could not lock database: File exists
 warning: failed to retrieve some files
 error: failed to commit transaction (failed to retrieve some files)`)
     expect(diagnoseJob(up, dl)).toMatchObject({ kind: 'download', unchanged: true, lines: [0, 1, 2], actions: [{ type: 'retry' }] })
-    expect(diagnoseJob(up, ['error: Partition / too full: 63248 blocks needed, 41020 blocks free', 'error: failed to commit transaction (not enough free disk space)'])).toMatchObject({ kind: 'diskFull', a: '/', unchanged: true })
+    expect(diagnoseJob(up, ['error: Partition / too full: 63248 blocks needed, 41020 blocks free', 'error: failed to commit transaction (not enough free disk space)'])).toMatchObject({ kind: 'diskFull', a: '/', unchanged: true, actions: [{ type: 'cache' }, { type: 'disks' }, { type: 'terminal' }] })
     // mid-way (makepkg, dpkg): not "nothing changed"
     const mid = diagnoseJob(aur, ['tar: ./usr/lib/libfoo.so: Cannot write: No space left on device'])!
     expect(mid.kind).toBe('diskFull')

@@ -299,6 +299,12 @@ function JobHint({ job, lines, diagnosis: d, onClose }: { job: JobState; lines: 
                   {m.shell_jobs_hint_retry()}
                 </button>
               )
+            case 'cache':
+              return (
+                <Link key={i} to="/system" className={primary} onClick={onClose}>
+                  {m.shell_jobs_hint_cache()}
+                </Link>
+              )
             case 'disks':
               return (
                 <Link key={i} to="/disks" className={primary} onClick={onClose}>

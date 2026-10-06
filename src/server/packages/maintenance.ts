@@ -12,6 +12,8 @@ import {
   type JobInfo,
   type JobSpec,
   type JobState,
+  type CacheEntry,
+  type PackageCacheReport,
   type PackageDetail,
   type PackageOverview,
   type PackageUpdate,
@@ -28,6 +30,7 @@ import { assertExtractable, preparePack, systemArchiveHost } from '../files/arch
 import { imageUpdates } from './images'
 import { defaultLauncher, JobManager, type JobSink, type Launcher } from './jobs'
 import { detectProvider, type Provider } from './providers'
+import { dirUsage, systemCachePlans } from './cache'
 import { FixtureConfigFs, SystemConfigFs, applyConfigAction, configFileInfo } from './configfiles'
 import type { ConfigAction, ConfigFileInfo } from '~/shared/configfiles'
 
@@ -42,6 +45,8 @@ export interface Maintenance {
   job(id: string, from: number): Promise<JobState | null>
   /** A .pacnew/.rpmnew/… file of the current list with the live file next to it. */
   configFile(path: string): Promise<ConfigFileInfo>
+  /** Package cache and AUR build cache with their size. */
+  packageCache(refresh: boolean): Promise<PackageCacheReport>
 }
 
 /** Maintenance plus starting jobs (the caller has checked the unlock). */
@@ -96,6 +101,7 @@ export class SystemMaintenance implements MaintenanceBackend {
   private updatesCache?: UpdatesReport
   private imagesCache?: ImageUpdatesReport
   private overviewCache?: { at: number; data: PackageOverview }
+  private cacheReport?: PackageCacheReport
   /** Bumped when a job ends: a check that started before must not store its (old) result. */
   private gen = { updates: 0, images: 0 }
 
@@ -122,6 +128,7 @@ export class SystemMaintenance implements MaintenanceBackend {
   private jobEnded(spec: JobSpec) {
     this.installedCache = undefined
     this.overviewCache = undefined
+    this.cacheReport = undefined
     if (spec.kind === 'images-update' || spec.kind === 'image-update') {
       this.imagesCache = undefined
       this.gen.images++
@@ -220,7 +227,20 @@ export class SystemMaintenance implements MaintenanceBackend {
     return this.refreshImages()
   }
 
+  async packageCache(refresh: boolean) {
+    const c = this.cacheReport
+    if (c && !this.jobsMgr.running() && Date.now() - c.checkedAt < (refresh ? 5_000 : 10 * 60_000)) return c
+    const report: PackageCacheReport = { checkedAt: Date.now(), entries: systemCachePlans(this.provider?.id ?? null).map(({ steps: _s, ...e }) => ({ ...e, ...dirUsage(e.path) })) }
+    this.cacheReport = report
+    return report
+  }
+
   async startJob(spec: JobSpec) {
+    if (spec.kind === 'cache-clean') {
+      this.need()
+      const ids = new Set(systemCachePlans(this.provider?.id ?? null).map((p) => p.id))
+      if (!spec.targets.every((t) => ids.has(t))) throw new HttpError(409, msg(m.packages_cache_nothing))
+    }
     if (spec.kind === 'upgrade' || spec.kind === 'remove' || spec.kind === 'aur-upgrade' || spec.kind === 'pacman-unlock' || spec.kind === 'keyring-upgrade') this.need()
     if (spec.kind === 'remove') {
       const preview = await this.removePreview(spec.names)
@@ -264,6 +284,11 @@ export class FixtureMaintenance implements MaintenanceBackend {
   private aurFailedOnce = false
   private checkedAt = Date.now()
   private conf: FixtureConfigFs
+  /** Demo caches: 4.2 GB of packages, 2.9 GB of AUR builds. */
+  private cache: CacheEntry[] = [
+    { id: 'packages', path: '/var/cache/pacman/pkg', size: 4_512_000_000, files: 1873, keep: 'two' },
+    { id: 'aur', path: '/home/tristan/.cache/yay', size: 3_114_000_000, files: 48_210, keep: 'files', owner: 'tristan', helper: 'yay' },
+  ]
 
   constructor(
     dir: string,
@@ -358,6 +383,22 @@ export class FixtureMaintenance implements MaintenanceBackend {
         await say(msg(m.packages_job_error, { message: (e as Error).message }))
         return sink.exit(1)
       }
+    } else if (spec.kind === 'cache-clean') {
+      for (const c of this.cache.filter((x) => spec.targets.includes(x.id))) {
+        if (c.id === 'packages') {
+          await say(`$ paccache -r -k2 -c ${c.path}`)
+          await say('==> finished: 1214 packages removed (disk space saved: 2.91 GiB)')
+          await say(`$ paccache -r -u -k0 -c ${c.path}`)
+          await say('==> finished: 37 packages removed (disk space saved: 412.08 MiB)')
+          c.size = 1_020_000_000
+          c.files = 622
+        } else {
+          await say(`$ setpriv --reuid=1000 --regid=1000 --clear-groups -- find ${c.path} -mindepth 1 -maxdepth 1 -type d -exec rm -rf --one-file-system -- {} +`)
+          c.size = 41_000
+          c.files = 1
+        }
+        await say(`${c.path}: done`)
+      }
     } else if (spec.kind === 'mkinitcpio') {
       await say('$ mkinitcpio -P')
       await say("==> Building image from preset: /etc/mkinitcpio.d/linux.preset: 'default'")
@@ -395,6 +436,10 @@ export class FixtureMaintenance implements MaintenanceBackend {
         if (pkg?.reason === 'dependency' && (pkg.requiredBy ?? []).every((r) => out.has(r))) out.add(dep)
       }
     return [...out]
+  }
+
+  async packageCache() {
+    return { checkedAt: this.checkedAt, entries: structuredClone(this.cache) }
   }
 
   async overview() {

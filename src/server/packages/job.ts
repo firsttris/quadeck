@@ -16,9 +16,11 @@ import { baseName, validatePath } from '~/shared/files'
 import { PACK_FORMATS, type PackFormat } from '~/shared/archives'
 import { asOwnerOf, assertExtractable, extractArgv, gnuTar, makeTarget, packArgv, preparePack, systemArchiveHost } from '../files/archives'
 import { imageUpdates } from './images'
+import { dirUsage, systemCachePlans } from './cache'
+import { bytes as formatBytes } from '~/lib/format'
 import { detectProvider, type Step } from './providers'
 import { release } from 'node:os'
-import { existsSync, readdirSync, readFileSync, rmSync } from 'node:fs'
+import { existsSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { SystemBackup } from '../backup/backend'
 import { STOP_UNIT, SNAPSHOT_ID, absPathProblem } from '~/shared/backup'
 import { isFlavor, kernelInfos, kernelRemoveProblem, parseBootctlList, parsePacmanQ } from '~/shared/boot'
@@ -60,6 +62,11 @@ export function parseJobSpec(v: unknown): JobSpec {
     case 'mkinitcpio':
     case 'keyring-upgrade':
       return { kind: o.kind }
+    case 'cache-clean': {
+      const targets = Array.isArray(o.targets) ? [...new Set(o.targets)] : []
+      if (!targets.length || !targets.every((t) => t === 'packages' || t === 'aur')) throw new HttpError(400, msg(m.packages_error_unknownJob))
+      return { kind: 'cache-clean', targets: targets as ('packages' | 'aur')[] }
+    }
     case 'pacman-unlock':
       if (o.retry !== undefined && o.retry !== 'upgrade' && o.retry !== 'aur-upgrade') throw new HttpError(400, msg(m.packages_error_unknownJob))
       return { kind: 'pacman-unlock', ...(o.retry ? { retry: o.retry } : {}) }
@@ -140,6 +147,8 @@ export function jobTitle(spec: JobSpec): string {
     }
     case 'mkinitcpio':
       return msg(m.packages_job_rebuildInitramfs)
+    case 'cache-clean':
+      return msg(m.packages_job_cacheClean)
     case 'pacman-unlock':
       return msg(m.packages_job_unlock)
     case 'keyring-upgrade':
@@ -294,6 +303,8 @@ async function execute(spec: JobSpec): Promise<number> {
       const { argv, cwd } = packArgv(spec.format, dir, file, names)
       return exec(asOwnerOf(dir, argv), {}, cwd)
     }
+    case 'cache-clean':
+      return cleanCache(spec.targets)
     case 'mkinitcpio':
       if (!Bun.which('mkinitcpio')) throw new Error(msg(m.packages_error_mkinitcpioMissing))
       return exec(['mkinitcpio', '-P'])
@@ -328,6 +339,35 @@ async function execute(spec: JobSpec): Promise<number> {
       return exec(['systemctl', 'restart', '--', spec.unit])
     }
   }
+}
+
+/** Cleans the chosen caches with the manager's tools; the AUR cache as its owner. */
+async function cleanCache(targets: ('packages' | 'aur')[]): Promise<number> {
+  const plans = systemCachePlans(detectProvider()?.id ?? null).filter((p) => targets.includes(p.id))
+  if (!plans.length) throw new Error(msg(m.packages_cache_nothing))
+  for (const p of plans) {
+    const before = dirUsage(p.path)
+    if (p.id === 'aur') {
+      if (!existsSync(p.path)) {
+        out(msg(m.packages_cache_missing, { path: p.path }))
+        continue
+      }
+      // never as root inside a user's home: the owner removes their own build folders
+      if (statSync(p.path).uid === 0) throw new Error(msg(m.packages_cache_rootOwned, { path: p.path }))
+      for (const s of p.steps) {
+        const code = await exec(asOwnerOf(p.path, s.argv), s.env)
+        if (code !== 0) return code
+      }
+    } else {
+      for (const s of p.steps) {
+        const code = await exec(s.argv, s.env)
+        if (code !== 0) return code
+      }
+    }
+    const after = dirUsage(p.path)
+    out(msg(m.packages_cache_freed, { path: p.path, freed: formatBytes(Math.max(0, before.size - after.size)), left: formatBytes(after.size) }))
+  }
+  return 0
 }
 
 export async function runJobCommand(encoded: string | undefined): Promise<number> {
