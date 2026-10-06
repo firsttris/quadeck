@@ -194,14 +194,14 @@ export class SystemdLauncher implements Launcher {
       },
       exit: sink.exit,
     }
+    // one splitter for the whole job: empty lines are collapsed across polls too
+    const split = lineSplitter(wrapped.line)
     while (!done) {
       await Bun.sleep(700)
       const r = await run(['journalctl', `_SYSTEMD_UNIT=${unit}`, '-o', 'cat', '--no-pager', '--all', '--show-cursor', ...(cursor ? [`--after-cursor=${cursor}`] : [])], { timeoutMs: 15_000 })
-      const lines = r.stdout.split('\n')
-      const cur = lines.findLast((l) => l.startsWith('-- cursor: '))
-      if (cur) cursor = cur.slice('-- cursor: '.length)
-      const split = lineSplitter(wrapped.line)
-      split.push(lines.filter((l) => !l.startsWith('-- cursor: ') && l !== '-- No entries --').join('\n') + '\n')
+      const poll = journalPoll(r.stdout)
+      if (poll.cursor) cursor = poll.cursor
+      if (poll.text) split.push(poll.text)
       if (done) break
       const active = (await run(['systemctl', 'is-active', unit])).stdout.trim()
       inactivePolls = active === 'active' || active === 'activating' ? 0 : inactivePolls + 1
@@ -213,6 +213,19 @@ export class SystemdLauncher implements Launcher {
       }
     }
   }
+}
+
+/**
+ * One `journalctl -o cat --show-cursor` poll: the new output and the cursor to continue from.
+ * A poll without new entries is empty, not an empty line (that was a new blank line every 0.7 s
+ * while a job printed nothing, e.g. yay resolving dependencies).
+ */
+export function journalPoll(stdout: string): { cursor?: string; text: string } {
+  const lines = stdout.split('\n')
+  if (lines.at(-1) === '') lines.pop()
+  const cur = lines.findLast((l) => l.startsWith('-- cursor: '))
+  const body = lines.filter((l) => !l.startsWith('-- cursor: ') && l !== '-- No entries --')
+  return { ...(cur ? { cursor: cur.slice('-- cursor: '.length) } : {}), text: body.length ? body.join('\n') + '\n' : '' }
 }
 
 export function defaultLauncher(): Launcher {

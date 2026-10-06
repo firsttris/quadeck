@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { decodeSpec, encodeSpec, parseJobSpec } from '~/server/packages/job'
-import { JobManager, lineSplitter, type JobSink } from '~/server/packages/jobs'
+import { JobManager, journalPoll, lineSplitter, type JobSink } from '~/server/packages/jobs'
 import { FixtureMaintenance, SystemMaintenance, findConfigFiles } from '~/server/packages/maintenance'
 import * as p from '~/server/packages/parse'
 import { kernelReplaced } from '~/server/packages/providers'
@@ -210,6 +210,21 @@ describe('jobs', () => {
     s.push('gress 10%\rprogress 100%\nend')
     s.flush()
     expect(got).toEqual(['ab', 'progress 100%', 'end'])
+  })
+
+  it('journal polls: no new entries add nothing, empty lines collapse across polls', () => {
+    expect(journalPoll('-- cursor: s=1\n')).toEqual({ cursor: 's=1', text: '' })
+    expect(journalPoll('-- No entries --\n')).toEqual({ text: '' })
+    expect(journalPoll('')).toEqual({ text: '' })
+    expect(journalPoll('a\n\nb\n-- cursor: s=2\n')).toEqual({ cursor: 's=2', text: 'a\n\nb\n' })
+    // a job that prints nothing for a while: ten quiet polls, then output
+    const got: string[] = []
+    const s = lineSplitter((l) => got.push(l))
+    for (const out of ['start\n\n-- cursor: 1\n', ...Array(10).fill('-- cursor: 1\n'), '\n-- cursor: 2\n', 'done\n-- cursor: 3\n']) {
+      const p = journalPoll(out)
+      if (p.text) s.push(p.text)
+    }
+    expect(got).toEqual(['start', '', 'done'])
   })
 
   it('reboot after a kernel update: only when the modules of the running kernel are really gone', () => {
