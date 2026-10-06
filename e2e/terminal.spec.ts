@@ -64,6 +64,21 @@ test('terminal: off by default, switch on, shell and container shell in tabs, sw
   await tabs.getByRole('button', { name: 'caddy schließen' }).click()
   await expect(tabs.getByRole('tab', { name: /caddy/ })).toHaveCount(0)
 
+  // a job hint opens a new shell with the command typed, not run (only commands from a fixed list)
+  await page.goto('/terminal?type=pacman-syu')
+  // after a reload the unlock may be asked for again before the shell opens
+  await expect(page.getByRole('dialog', { name: 'Aktionen entsperren' }).or(page.getByTestId('terminal-view').filter({ visible: true }))).toBeVisible()
+  await unlockIfAsked(page)
+  await expect(page).toHaveURL('/terminal')
+  const typed = page.getByTestId('terminal-view').filter({ visible: true }).locator('.xterm-rows')
+  await expect(typed).toContainText(/\$ (sudo )?pacman -Syu/)
+  await expect(typed).not.toContainText('demo only')
+  const before = await tabs.getByRole('tab').count()
+  await page.goto('/terminal?type=rm%20-rf')
+  await expect(page.getByText('Keine offene Sitzung.').or(tabs.getByRole('tab').first())).toBeVisible()
+  await page.waitForTimeout(500)
+  await expect(tabs.getByRole('tab')).toHaveCount(before)
+
   // switched off again: open sessions end
   await page.getByRole('button', { name: 'Einstellungen …' }).click()
   const dialog = page.getByRole('dialog', { name: 'Terminal im Browser' })

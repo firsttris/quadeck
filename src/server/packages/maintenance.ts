@@ -241,7 +241,7 @@ export class SystemMaintenance implements MaintenanceBackend {
       const ids = new Set(systemCachePlans(this.provider?.id ?? null).map((p) => p.id))
       if (!spec.targets.every((t) => ids.has(t))) throw new HttpError(409, msg(m.packages_cache_nothing))
     }
-    if (spec.kind === 'upgrade' || spec.kind === 'remove' || spec.kind === 'aur-upgrade') this.need()
+    if (spec.kind === 'upgrade' || spec.kind === 'remove' || spec.kind === 'aur-upgrade' || spec.kind === 'pacman-unlock' || spec.kind === 'keyring-upgrade') this.need()
     if (spec.kind === 'remove') {
       const preview = await this.removePreview(spec.names)
       if (preview.error) throw new HttpError(409, preview.error)
@@ -281,6 +281,7 @@ interface PackageFixtures {
 export class FixtureMaintenance implements MaintenanceBackend {
   private data: PackageFixtures
   private jobsMgr: JobManager
+  private aurFailedOnce = false
   private checkedAt = Date.now()
   private conf: FixtureConfigFs
   /** Demo caches: 4.2 GB of packages, 2.9 GB of AUR builds. */
@@ -330,8 +331,29 @@ export class FixtureMaintenance implements MaintenanceBackend {
       d.updates.repo = []
     } else if (spec.kind === 'aur-upgrade') {
       await say(`$ runuser -u ${d.overview.aur?.user} -- ${d.overview.aur?.helper} -Sua --noconfirm`)
+      if (!this.aurFailedOnce && d.updates.aur.length) {
+        // the first AUR update of the demo fails like a broken PKGBUILD, to show the hint
+        this.aurFailedOnce = true
+        const u = d.updates.aur[0]!
+        await say(`==> Making package: ${u.name} ${u.to} (Mon 06 Oct 2025 07:33:12 CEST)`)
+        await say('==> Retrieving sources...')
+        await say(`==> Starting package()...`)
+        await say(`install: cannot stat 'code.png': No such file or directory`)
+        await say('==> ERROR: A failure occurred in package().')
+        await say('    Aborting...')
+        await say(` -> error making: ${u.name}-exit status 4`)
+        await say(' -> Failed to install the following packages. Manual intervention is required:')
+        await say(`${u.name} - exit status 4`)
+        return sink.exit(1)
+      }
       for (const u of d.updates.aur) await say(`==> Making package: ${u.name} ${u.to}`)
       d.updates.aur = []
+    } else if (spec.kind === 'pacman-unlock') {
+      await say('Removed the lock /var/lib/pacman/db.lck (no package manager is running)')
+    } else if (spec.kind === 'keyring-upgrade') {
+      await say('$ pacman -Sy --needed --noconfirm --noprogressbar --color never archlinux-keyring')
+      await say('upgrading archlinux-keyring...')
+      await say('$ pacman -Su --noconfirm --noprogressbar --color never')
     } else if (spec.kind === 'remove') {
       await say(`$ pacman -Rs --noconfirm -- ${spec.names.join(' ')}`)
       const gone = new Set(this.previewNames(spec.names))

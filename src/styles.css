@@ -569,6 +569,10 @@
 .joblog .err {
   color: #ff8a80;
 }
+.joblog .hl {
+  background: rgba(248, 81, 73, 0.18);
+  color: #ffb4ab;
+}
 
 /* ---------- history charts ---------- */
 .chart-line {

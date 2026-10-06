@@ -18,14 +18,31 @@ import { asOwnerOf, assertExtractable, extractArgv, gnuTar, makeTarget, packArgv
 import { imageUpdates } from './images'
 import { dirUsage, systemCachePlans } from './cache'
 import { bytes as formatBytes } from '~/lib/format'
-import { existsSync, statSync } from 'node:fs'
 import { detectProvider, type Step } from './providers'
 import { release } from 'node:os'
+import { existsSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { SystemBackup } from '../backup/backend'
 import { STOP_UNIT, SNAPSHOT_ID, absPathProblem } from '~/shared/backup'
 import { isFlavor, kernelInfos, kernelRemoveProblem, parseBootctlList, parsePacmanQ } from '~/shared/boot'
 
 export const EXIT_MARKER = '::quadeck-exit '
+
+const PACMAN_LOCK = '/var/lib/pacman/db.lck'
+const MANAGERS = new Set(['pacman', 'yay', 'paru', 'makepkg', 'pamac', 'pikaur'])
+
+/** Package managers running right now (from /proc/<pid>/comm). */
+export function runningPackageManagers(proc = '/proc'): string[] {
+  const found = new Set<string>()
+  for (const pid of readdirSync(proc).filter((d) => /^\d+$/.test(d))) {
+    try {
+      const comm = readFileSync(`${proc}/${pid}/comm`, 'utf8').trim()
+      if (MANAGERS.has(comm)) found.add(comm)
+    } catch {
+      // gone in between
+    }
+  }
+  return [...found].sort()
+}
 
 export function encodeSpec(spec: JobSpec) {
   return Buffer.from(JSON.stringify(spec)).toString('base64url')
@@ -43,12 +60,16 @@ export function parseJobSpec(v: unknown): JobSpec {
     case 'aur-upgrade':
     case 'images-update':
     case 'mkinitcpio':
+    case 'keyring-upgrade':
       return { kind: o.kind }
     case 'cache-clean': {
       const targets = Array.isArray(o.targets) ? [...new Set(o.targets)] : []
       if (!targets.length || !targets.every((t) => t === 'packages' || t === 'aur')) throw new HttpError(400, msg(m.packages_error_unknownJob))
       return { kind: 'cache-clean', targets: targets as ('packages' | 'aur')[] }
     }
+    case 'pacman-unlock':
+      if (o.retry !== undefined && o.retry !== 'upgrade' && o.retry !== 'aur-upgrade') throw new HttpError(400, msg(m.packages_error_unknownJob))
+      return { kind: 'pacman-unlock', ...(o.retry ? { retry: o.retry } : {}) }
     case 'remove': {
       const names = Array.isArray(o.names) ? o.names : []
       if (!names.length || names.length > 200 || !names.every((n) => typeof n === 'string' && PACKAGE_NAME.test(n))) throw new HttpError(400, msg(m.api_packages_invalidNames))
@@ -128,6 +149,10 @@ export function jobTitle(spec: JobSpec): string {
       return msg(m.packages_job_rebuildInitramfs)
     case 'cache-clean':
       return msg(m.packages_job_cacheClean)
+    case 'pacman-unlock':
+      return msg(m.packages_job_unlock)
+    case 'keyring-upgrade':
+      return msg(m.packages_job_keyringUpgrade)
     case 'kernel-install':
       return msg(m.packages_job_installKernel, { flavor: spec.flavor })
     case 'kernel-remove':
@@ -220,6 +245,24 @@ async function execute(spec: JobSpec): Promise<number> {
       if (blocked.length) throw new Error(msg(m.packages_error_protectedAffected, { list: blocked.join(', ') }))
       out(msg(m.packages_job_removing, { list: preview.packages.map((x) => x.name).join(' ') }))
       return steps(p.removeSteps(spec.names))
+    }
+    case 'pacman-unlock': {
+      if (detectProvider()?.id !== 'pacman') throw new Error(msg(m.packages_error_pacmanOnly))
+      // Checked here, where root acts: never while pacman (or a helper calling it) runs.
+      const busy = runningPackageManagers()
+      if (busy.length) throw new Error(msg(m.packages_error_managerRunning, { list: busy.join(', ') }))
+      if (existsSync(PACMAN_LOCK)) {
+        rmSync(PACMAN_LOCK, { force: true })
+        out(msg(m.packages_note_lockRemoved, { path: PACMAN_LOCK }))
+      } else out(msg(m.packages_note_noLock, { path: PACMAN_LOCK }))
+      if (spec.retry === 'upgrade') return execute({ kind: 'upgrade' })
+      if (spec.retry === 'aur-upgrade') return execute({ kind: 'aur-upgrade' })
+      return 0
+    }
+    case 'keyring-upgrade': {
+      if (detectProvider()?.id !== 'pacman') throw new Error(msg(m.packages_error_pacmanOnly))
+      // the Arch way: the keyring from the fresh database first, then everything (no partial upgrade)
+      return steps([{ argv: ['pacman', '-Sy', '--needed', '--noconfirm', '--noprogressbar', '--color', 'never', 'archlinux-keyring'] }, { argv: ['pacman', '-Su', '--noconfirm', '--noprogressbar', '--color', 'never'] }])
     }
     case 'aur-upgrade': {
       const helper = aurHelper()
