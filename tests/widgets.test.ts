@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { defaultConfig, FRESH_DEFAULTS, INSTANCE_ID, linkify, parseWidgetConfig, topContainers, WIDGETS, BUILTIN_CARDS, INSTANCE_KINDS } from '~/shared/widgets'
+import { isWebUrl, defaultConfig, FRESH_DEFAULTS, INSTANCE_ID, linkify, parseWidgetConfig, topContainers, WIDGETS, BUILTIN_CARDS, INSTANCE_KINDS } from '~/shared/widgets'
 
 describe('widget definitions', () => {
   it('every widget has its metadata; built-ins are single, notes can be added several times', () => {
@@ -41,5 +41,19 @@ describe('widget definitions', () => {
     expect(topContainers(list, 'cpu').map((x) => x.name)).toEqual(['b', 'a', 'g', 'f', 'e'])
     expect(topContainers(list, 'ram').map((x) => x.name)).toEqual(['c', 'a', 'b', 'g', 'f'])
     expect(topContainers([{ name: 'x', state: 'running' }], 'cpu')).toHaveLength(1)
+  })
+
+  it('service: a unit name or nothing; link group: http(s) only, empty rows dropped, at most 20', () => {
+    expect(parseWidgetConfig('service', { unit: 'jellyfin.service' })).toEqual({ unit: 'jellyfin.service' })
+    expect(parseWidgetConfig('service', {})).toEqual({ unit: '' })
+    expect(() => parseWidgetConfig('service', { unit: '../../etc/passwd' })).toThrow()
+    expect(() => parseWidgetConfig('service', { unit: 'x; rm -rf /' })).toThrow()
+    const links = parseWidgetConfig('links', { title: ' Netz ', links: [{ name: ' Router ', url: ' http://192.168.178.1 ' }, { name: '', url: '' }, { name: 'Drucker', url: 'https://printer.home/' }] })
+    expect(links).toEqual({ title: 'Netz', links: [{ name: 'Router', url: 'http://192.168.178.1' }, { name: 'Drucker', url: 'https://printer.home/' }] })
+    expect(() => parseWidgetConfig('links', { links: [{ name: 'x', url: 'javascript:alert(1)' }] })).toThrow()
+    expect(() => parseWidgetConfig('links', { links: [{ name: '', url: 'http://a' }] })).toThrow()
+    expect(() => parseWidgetConfig('links', { links: Array(21).fill({ name: 'a', url: 'http://a' }) })).toThrow()
+    expect(isWebUrl('file:///etc/passwd')).toBe(false)
+    expect(isWebUrl('http://[::1]:8080/x')).toBe(true)
   })
 })

@@ -244,7 +244,7 @@ test.describe.serial('Quadeck', () => {
     await expect(catalog.getByTestId('catalog-entry').filter({ has: page.getByText('CPU', { exact: true }) })).toContainText('auf dem Dashboard')
     // categories and search
     await catalog.getByRole('button', { name: 'Sonstiges' }).click()
-    await expect(catalog.getByTestId('catalog-entry')).toHaveCount(2) // note, notifications
+    await expect(catalog.getByTestId('catalog-entry')).toHaveCount(3) // note, notifications, link group
     await catalog.getByRole('button', { name: 'Alle' }).click()
     await catalog.getByRole('searchbox', { name: 'Suchen …' }).fill('wartung')
     await expect(catalog.getByTestId('catalog-entry')).toHaveCount(1)
@@ -322,14 +322,63 @@ test.describe.serial('Quadeck', () => {
     await expect.poll(async () => top.locator('.font-mono').count()).toBeGreaterThan(0)
 
     catalog = await open()
-    await catalog.getByRole('button', { name: 'Meldungen hinzufügen' }).click()
+    await catalog.getByRole('button', { name: 'Meldungen hinzufügen', exact: true }).click()
     await expect(page.getByTestId('alerts-widget')).toBeVisible()
 
     // gone again (empty widgets go without asking)
-    for (const name of ['Festplatte · /mnt/disk1', 'Container-Top · CPU', 'Meldungen']) await page.getByRole('button', { name: `${name} entfernen` }).click()
+    for (const name of ['Festplatte · /mnt/disk1', 'Container-Top · CPU', 'Meldungen']) await page.getByRole('button', { name: `${name} entfernen`, exact: true }).click()
     await expect(page.getByTestId('disk-widget')).toHaveCount(0)
     await expect(page.getByTestId('containers-widget')).toHaveCount(0)
     await expect(page.getByTestId('alerts-widget')).toHaveCount(0)
+    await page.getByRole('button', { name: 'Fertig' }).click()
+  })
+
+  test('more widgets: one service with its buttons, a link group, network devices, speed test, logins', async ({ page }) => {
+    await login(page)
+    await page.getByRole('img', { name: 'live verbunden' }).waitFor()
+    await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click()
+    const add = async (name: string) => {
+      await page.getByRole('button', { name: 'Widget hinzufügen' }).first().click()
+      await page.getByRole('dialog', { name: 'Widget hinzufügen' }).getByRole('button', { name: `${name} hinzufügen`, exact: true }).click()
+    }
+
+    // a service: which unit is asked right away
+    await add('Dienst')
+    const svc = page.getByRole('dialog', { name: 'Dienst einstellen' })
+    await svc.getByLabel('Unit').selectOption('jellyfin.service')
+    await svc.getByRole('button', { name: 'Speichern' }).click()
+    const jelly = page.getByRole('region', { name: 'jellyfin' })
+    await expect(jelly).toContainText('active')
+    await expect(jelly.getByRole('button', { name: 'Neu starten' })).toBeVisible()
+    await expect(jelly.getByRole('link', { name: 'Journal' })).toHaveAttribute('href', '/journal?unit=jellyfin.service')
+
+    // a link group: only http(s), an empty row is fine
+    await add('Linkgruppe')
+    const links = page.getByRole('dialog', { name: 'Linkgruppe einstellen' })
+    await links.getByLabel('Überschrift (optional)').fill('Heimnetz')
+    await links.getByLabel('Name 1').fill('Fritzbox')
+    await links.getByLabel('Adresse 1').fill('javascript:alert(1)')
+    await expect(links).toContainText('Link 1: Name und eine http(s)-Adresse angeben.')
+    await expect(links.getByRole('button', { name: 'Speichern' })).toBeDisabled()
+    await links.getByLabel('Adresse 1').fill('http://192.168.1.1')
+    await links.getByRole('button', { name: 'Link hinzufügen' }).click()
+    await links.getByRole('button', { name: 'Speichern' }).click()
+    const group = page.getByRole('region', { name: 'Heimnetz' })
+    await expect(group.getByRole('link', { name: /Fritzbox/ })).toHaveAttribute('href', 'http://192.168.1.1')
+
+    await add('Netzwerkgeräte')
+    await expect(page.getByTestId('devices-widget')).toContainText('Geräten online')
+    await add('Speedtest')
+    await expect(page.getByTestId('speed-widget')).toBeVisible()
+    await add('Anmeldungen')
+    await expect(page.getByTestId('logins-widget').getByRole('link', { name: 'Zu SSH' })).toBeVisible()
+
+    for (const name of ['jellyfin', 'Netzwerkgeräte', 'Speedtest', 'Anmeldungen']) await page.getByRole('button', { name: `${name} entfernen`, exact: true }).click()
+    // the link group has content: it asks
+    await page.getByRole('button', { name: 'Heimnetz entfernen' }).click()
+    await page.getByRole('dialog', { name: 'Heimnetz entfernen?' }).getByRole('button', { name: 'Entfernen' }).click()
+    await expect(page.getByTestId('links-widget')).toHaveCount(0)
+    await expect(page.getByTestId('service-widget')).toHaveCount(0)
     await page.getByRole('button', { name: 'Fertig' }).click()
   })
 

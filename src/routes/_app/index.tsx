@@ -12,8 +12,8 @@ import { ServiceDialog } from '~/components/ServiceDialog'
 import { ServiceTile } from '~/components/ServiceTile'
 import { Dot, Pill } from '~/components/Status'
 import { useToast } from '~/components/Toast'
-import { NoteDialog, NoteWidget, WidgetCatalog, WidgetSettingsDialog, widgetName, type CatalogEntry, type CatalogKind } from '~/components/Widgets'
-import { AlertsWidget, BackupsWidget, ContainersWidget, DiskWidget, UpdatesWidget } from '~/components/DashWidgets'
+import { NoteDialog, NoteWidget, WidgetCatalog, WidgetSettingsDialog, widgetName, type CatalogEntry, type CatalogKind, type Configurable } from '~/components/Widgets'
+import { AlertsWidget, BackupsWidget, ContainersWidget, DevicesWidget, DiskWidget, LinksWidget, LoginsWidget, ServiceWidget, SpeedWidget, UpdatesWidget } from '~/components/DashWidgets'
 import { api } from '~/lib/api'
 import { calendarLabel, diskSize, pct, relative } from '~/lib/format'
 import { useMetricHistory } from '~/lib/history'
@@ -88,6 +88,11 @@ const INSTANCE_DEFAULTS: Record<InstanceKind, Record<string, Omit<DefaultItem, '
   disk: below,
   containers: below,
   alerts: below,
+  service: below,
+  devices: below,
+  speed: below,
+  logins: below,
+  links: below,
   note: below,
 }
 
@@ -116,6 +121,8 @@ function Overview() {
     if (w?.kind === 'note' && w.config.title) return w.config.title
     if (w?.kind === 'disk' && w.config.mount) return m.widgets_disk_title({ mount: w.config.mount })
     if (w?.kind === 'containers') return w.config.metric === 'cpu' ? m.widgets_containers_titleCpu() : m.widgets_containers_titleRam()
+    if (w?.kind === 'service' && w.config.unit) return w.config.unit.replace(/\.service$/, '')
+    if (w?.kind === 'links' && w.config.title) return w.config.title
     if (w) return widgetName(w.kind)
     return isBuiltinCard(id) ? widgetName(id) : id
   }
@@ -191,7 +198,7 @@ function Overview() {
       setCatalog(false)
       // a new note opens for writing, a new disk asks which one
       if (w.kind === 'note') setNoteEdit(w.id)
-      if (w.kind === 'disk') setConfiguring(w.id)
+      if (w.kind === 'disk' || w.kind === 'service' || w.kind === 'links') setConfiguring(w.id)
     } catch (e) {
       say((e as Error).message, 'bad')
     }
@@ -207,8 +214,8 @@ function Overview() {
   const removeCard = (id: string) => {
     const w = instance(id)
     if (!w) return setHidden(id, true)
-    // a note with text asks first (the text is gone afterwards); empty widgets go right away
-    if (w.kind === 'note' && (w.config.text || w.config.title)) setRemoving(w)
+    // a note or link group with content asks first (it is gone afterwards); the others go right away
+    if ((w.kind === 'note' && (w.config.text || w.config.title)) || (w.kind === 'links' && w.config.links.length)) setRemoving(w)
     else void dropWidget(w)
   }
   const replaceWidget = (w: WidgetInstance) => setLayout((l) => ({ ...l, widgets: l.widgets.map((x) => (x.id === w.id ? w : x)) }))
@@ -243,8 +250,14 @@ function Overview() {
     else if (w.kind === 'disk') nodes[w.id] = <DiskWidget config={w.config} snapshot={snapshot} />
     else if (w.kind === 'containers') nodes[w.id] = <ContainersWidget config={w.config} containers={snapshot.containers} />
     else if (w.kind === 'alerts') nodes[w.id] = <AlertsWidget />
+    else if (w.kind === 'service') nodes[w.id] = <ServiceWidget config={w.config} snapshot={snapshot} />
+    else if (w.kind === 'devices') nodes[w.id] = <DevicesWidget fresh={snapshot.devices?.fresh ?? []} />
+    else if (w.kind === 'speed') nodes[w.id] = <SpeedWidget />
+    else if (w.kind === 'logins') nodes[w.id] = <LoginsWidget />
+    else if (w.kind === 'links') nodes[w.id] = <LinksWidget config={w.config} />
   }
-  const configured = layout.widgets.find((w) => w.id === configuring && (w.kind === 'disk' || w.kind === 'containers')) as (WidgetInstance & { kind: 'disk' | 'containers' }) | undefined
+  const configured = layout.widgets.find((w) => w.id === configuring && w.kind !== 'note' && WIDGETS[w.kind].configurable) as Configurable | undefined
+  const unitChoices = snapshot.units.filter((u) => u.name.endsWith('.service')).map((u) => ({ name: u.name, label: u.description && u.description !== u.name ? `${u.name} · ${u.description}` : u.name }))
   const mounts = snapshot.disks.filter((d) => d.mount).map((d) => ({ mount: d.mount, label: `${d.mount} · ${d.dev} · ${diskSize(d.size)}` }))
   const editedNote = layout.widgets.find((w) => w.id === noteEdit && w.kind === 'note') as (WidgetInstance & { kind: 'note' }) | undefined
 
@@ -327,7 +340,7 @@ function Overview() {
       <MetricDialog id={detail} snapshot={snapshot} onClose={() => setDetail(null)} />
       <WidgetCatalog open={catalog} entries={catalogEntries} onClose={() => setCatalog(false)} onAdd={addWidget} />
       <NoteDialog widget={editedNote ?? null} onClose={() => setNoteEdit(null)} onSaved={replaceWidget} />
-      <WidgetSettingsDialog widget={configured ?? null} mounts={mounts} onClose={() => setConfiguring(null)} onSaved={replaceWidget} />
+      <WidgetSettingsDialog widget={configured ?? null} mounts={mounts} units={unitChoices} onClose={() => setConfiguring(null)} onSaved={replaceWidget} />
       <ConfirmDialog
         open={!!removing}
         title={m.widgets_remove_title({ name: removing ? cardLabel(removing.id) : '' })}

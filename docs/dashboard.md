@@ -148,13 +148,18 @@ width.
 | Disk | one mounted file system: usage, 30-day trend and "full in …", SMART state, temperature (⚙: which mount point) | multiple |
 | Top containers | the five running containers using the most memory or CPU (⚙: which) | multiple |
 | Notifications | the last five notifications and how many problems are open | |
+| Service | one systemd service up close: state, since when, CPU and memory of its container, start / stop / restart (after the unlock), its journal (⚙: which unit) | multiple |
+| Network devices | how many devices are online, new devices, **Wake** for offline devices you gave a name | |
+| Speed test | the server's last internet test (down, up, ping) with the last twelve as bars | |
+| Logins | the last five SSH logins (open connections marked) and failed attempts | |
+| Link group | your own bookmarks with a heading, up to 20; only http(s) addresses are accepted (⚙: edit) | multiple |
 | Note | free text with a heading, up to 4000 characters; http(s) links become clickable, nothing else is interpreted | multiple |
 
 A fresh install starts with **Updates** and **Backups** on the overview; an existing dashboard is
 not changed by an update of Quadeck, the new widgets wait in the catalog.
 
 A note opens for writing when it is added; the pencil edits it later, also outside edit mode.
-Removing a note with text asks first. Widgets only change the dashboard, never the host, so they
+Removing a note with text or a link group with links asks first. Widgets only change the dashboard, never the host, so they
 work in read-only mode too.
 
 ## Command palette
