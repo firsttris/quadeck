@@ -59,6 +59,26 @@ For the duration of the job that user may run `pacman` through `sudo` without a 
 (`/etc/sudoers.d/zz-quadeck-aur`, removed again when the job ends and on helper start). PKGBUILDs
 are not shown; if you want to read them first, build by hand.
 
+### Package cache
+
+The **Package cache** card shows how much space downloaded packages take and, on Arch with yay or
+paru, the AUR builds in the build user's home. The size is counted by the helper (allocated blocks,
+links not followed, other file systems skipped). **Clean up …** asks which of them to clean and runs
+the package manager's own tool as a job:
+
+| System | Folder | Command | What stays |
+|---|---|---|---|
+| Arch with `paccache` (pacman-contrib) | `CacheDir` from `pacman.conf`, else `/var/cache/pacman/pkg` | `paccache -r -k2`, then `paccache -r -u -k0` | the last two versions of every installed package, to go back with `pacman -U` |
+| Arch without `paccache` | same | `pacman -Sc` | the installed versions |
+| Arch, yay / paru | `~/.cache/yay` / `~/.cache/paru/clone` of the AUR user | `find … -mindepth 1 -maxdepth 1 -type d -exec rm -rf --one-file-system` **as that user** | the helper's own files (yay's `vcs.json` tracks -git packages) |
+| Debian, Ubuntu | `/var/cache/apt/archives` | `apt-get clean` | nothing |
+| Fedora, Rocky | `/var/cache/libdnf5` or `/var/cache/dnf` | `dnf clean packages` | nothing |
+| openSUSE | `/var/cache/zypp/packages` | `zypper clean` | nothing |
+| Alpine (with a local cache) | `/etc/apk/cache` | `apk cache clean` | the packages in `world` |
+
+MicroOS and Fedora Atomic have no package cache of this kind; the card is not shown there. The AUR
+cache is never cleaned as root: a folder owned by root is refused. The job prints how much was freed.
+
 ## Installed tab
 
 All installed packages with search and filters: explicitly installed, dependencies, foreign (AUR,

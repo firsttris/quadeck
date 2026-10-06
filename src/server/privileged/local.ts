@@ -283,6 +283,9 @@ export class LocalPrivileged implements Privileged {
   overview() {
     return this.maint.overview()
   }
+  packageCache(refresh: boolean) {
+    return this.maint.packageCache(refresh)
+  }
   installed() {
     return this.maint.installed()
   }

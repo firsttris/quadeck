@@ -2,7 +2,7 @@ import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
 import { HttpError } from '../auth'
 import type { Privileged, UnitAction } from './actions'
-import type { ImageUpdatesReport, InstalledPackage, JobInfo, JobSpec, JobState, PackageDetail, PackageOverview, RemovePreview, UpdatesReport } from '~/shared/packages'
+import type { ImageUpdatesReport, InstalledPackage, JobInfo, JobSpec, JobState, PackageCacheReport, PackageDetail, PackageOverview, RemovePreview, UpdatesReport } from '~/shared/packages'
 import type { PodmanConfigName, PodmanSettings, QuadletFile, RemovalPlan, Revision, ValidateResult } from '~/shared/quadlets'
 import type { RemoveAlso, WriteResult } from '../quadlets/backend'
 import type { ShareChange, SharePreview, ShareServiceAction, SharesState } from '~/shared/shares'
@@ -85,6 +85,10 @@ export class HelperClient implements Privileged {
 
   overview() {
     return this.call<PackageOverview>('POST', '/pkg/overview', {})
+  }
+  packageCache(refresh: boolean) {
+    // counting a big AUR cache takes a moment
+    return this.call<PackageCacheReport>('POST', '/pkg/cache', { refresh }, 60_000)
   }
   async installed() {
     return (await this.call<{ data: InstalledPackage[] }>('POST', '/pkg/installed', {}, 120_000)).data

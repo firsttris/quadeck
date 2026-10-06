@@ -73,6 +73,7 @@ import { Route as ApiServicesOverrideRouteImport } from './routes/api/services/o
 import { Route as ApiSharesIndexRouteImport } from './routes/api/shares/index'
 import { Route as ApiSpeedtestIndexRouteImport } from './routes/api/speedtest/index'
 import { Route as ApiSshIndexRouteImport } from './routes/api/ssh/index'
+import { Route as ApiSystemCacheRouteImport } from './routes/api/system/cache'
 import { Route as ApiSystemConfigRouteImport } from './routes/api/system/config'
 import { Route as ApiSystemImagesRouteImport } from './routes/api/system/images'
 import { Route as ApiSystemOverviewRouteImport } from './routes/api/system/overview'
@@ -406,6 +407,11 @@ const ApiSshIndexRoute = ApiSshIndexRouteImport.update({
   path: '/api/ssh/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSystemCacheRoute = ApiSystemCacheRouteImport.update({
+  id: '/api/system/cache',
+  path: '/api/system/cache',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSystemConfigRoute = ApiSystemConfigRouteImport.update({
   id: '/api/system/config',
   path: '/api/system/config',
@@ -520,6 +526,7 @@ export interface FileRoutesByFullPath {
   '/api/quadlets/revision': typeof ApiQuadletsRevisionRoute
   '/api/quadlets/validate': typeof ApiQuadletsValidateRoute
   '/api/services/override': typeof ApiServicesOverrideRoute
+  '/api/system/cache': typeof ApiSystemCacheRoute
   '/api/system/config': typeof ApiSystemConfigRoute
   '/api/system/images': typeof ApiSystemImagesRoute
   '/api/system/overview': typeof ApiSystemOverviewRoute
@@ -598,6 +605,7 @@ export interface FileRoutesByTo {
   '/api/quadlets/revision': typeof ApiQuadletsRevisionRoute
   '/api/quadlets/validate': typeof ApiQuadletsValidateRoute
   '/api/services/override': typeof ApiServicesOverrideRoute
+  '/api/system/cache': typeof ApiSystemCacheRoute
   '/api/system/config': typeof ApiSystemConfigRoute
   '/api/system/images': typeof ApiSystemImagesRoute
   '/api/system/overview': typeof ApiSystemOverviewRoute
@@ -678,6 +686,7 @@ export interface FileRoutesById {
   '/api/quadlets/revision': typeof ApiQuadletsRevisionRoute
   '/api/quadlets/validate': typeof ApiQuadletsValidateRoute
   '/api/services/override': typeof ApiServicesOverrideRoute
+  '/api/system/cache': typeof ApiSystemCacheRoute
   '/api/system/config': typeof ApiSystemConfigRoute
   '/api/system/images': typeof ApiSystemImagesRoute
   '/api/system/overview': typeof ApiSystemOverviewRoute
@@ -758,6 +767,7 @@ export interface FileRouteTypes {
     | '/api/quadlets/revision'
     | '/api/quadlets/validate'
     | '/api/services/override'
+    | '/api/system/cache'
     | '/api/system/config'
     | '/api/system/images'
     | '/api/system/overview'
@@ -836,6 +846,7 @@ export interface FileRouteTypes {
     | '/api/quadlets/revision'
     | '/api/quadlets/validate'
     | '/api/services/override'
+    | '/api/system/cache'
     | '/api/system/config'
     | '/api/system/images'
     | '/api/system/overview'
@@ -915,6 +926,7 @@ export interface FileRouteTypes {
     | '/api/quadlets/revision'
     | '/api/quadlets/validate'
     | '/api/services/override'
+    | '/api/system/cache'
     | '/api/system/config'
     | '/api/system/images'
     | '/api/system/overview'
@@ -979,6 +991,7 @@ export interface RootRouteChildren {
   ApiQuadletsRevisionRoute: typeof ApiQuadletsRevisionRoute
   ApiQuadletsValidateRoute: typeof ApiQuadletsValidateRoute
   ApiServicesOverrideRoute: typeof ApiServicesOverrideRoute
+  ApiSystemCacheRoute: typeof ApiSystemCacheRoute
   ApiSystemConfigRoute: typeof ApiSystemConfigRoute
   ApiSystemImagesRoute: typeof ApiSystemImagesRoute
   ApiSystemOverviewRoute: typeof ApiSystemOverviewRoute
@@ -1460,6 +1473,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSshIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/system/cache': {
+      id: '/api/system/cache'
+      path: '/api/system/cache'
+      fullPath: '/api/system/cache'
+      preLoaderRoute: typeof ApiSystemCacheRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/system/config': {
       id: '/api/system/config'
       path: '/api/system/config'
@@ -1627,6 +1647,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiQuadletsRevisionRoute: ApiQuadletsRevisionRoute,
   ApiQuadletsValidateRoute: ApiQuadletsValidateRoute,
   ApiServicesOverrideRoute: ApiServicesOverrideRoute,
+  ApiSystemCacheRoute: ApiSystemCacheRoute,
   ApiSystemConfigRoute: ApiSystemConfigRoute,
   ApiSystemImagesRoute: ApiSystemImagesRoute,
   ApiSystemOverviewRoute: ApiSystemOverviewRoute,

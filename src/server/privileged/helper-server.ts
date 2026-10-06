@@ -62,6 +62,7 @@ export const HELPER_ROUTES: Record<string, Handler> = {
     return { ok: true }
   },
   '/pkg/overview': (_b, p) => p.overview(),
+  '/pkg/cache': (b, p) => p.packageCache(b.refresh === true),
   '/pkg/installed': async (_b, p) => ({ data: await p.installed() }),
   '/pkg/detail': async (b, p) => ({ data: await p.detail(names([b.name])[0]!) }),
   '/pkg/updates': (b, p) => p.updates(b.refresh === true),

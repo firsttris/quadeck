@@ -13,7 +13,7 @@ import { Pill } from '~/components/Status'
 import { api } from '~/lib/api'
 import { bytes, relative } from '~/lib/format'
 import { localeOf } from '~/shared/i18n'
-import { REBOOT_PACKAGES, type ImageUpdatesReport, type InstalledPackage, type JobInfo, type NewsItem, type PackageDetail, type PackageOverview, type PackageUpdate, type RemovePreview, type UpdatesReport } from '~/shared/packages'
+import { REBOOT_PACKAGES, type CacheEntry, type PackageCacheReport, type ImageUpdatesReport, type InstalledPackage, type JobInfo, type NewsItem, type PackageDetail, type PackageOverview, type PackageUpdate, type RemovePreview, type UpdatesReport } from '~/shared/packages'
 import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
 
@@ -237,6 +237,8 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
 
       {o && o.configFiles.length > 0 && <ConfigFilesPanel files={o.configFiles} hint={o.configHint} onChanged={onOverviewChanged} />}
 
+      {o?.manager && <PackageCachePanel canAct={canAct} />}
+
       {(history.data?.jobs.length ?? 0) > 0 && (
         <section className="panel flex flex-col" aria-label={m.system_updates_recentJobs()}>
           <h2 className="h2 px-[18px] pt-4 pb-2">{m.system_updates_recentJobs()}</h2>
@@ -289,6 +291,90 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
         onClose={() => setConfirm(null)}
       />
     </>
+  )
+}
+
+function cacheLabel(c: CacheEntry) {
+  return c.id === 'aur' ? m.system_cache_aur({ helper: c.helper ?? 'AUR', user: c.owner ?? '' }) : m.system_cache_packages()
+}
+
+function cacheKeeps(c: CacheEntry) {
+  return pickMsg({ two: m.system_cache_keepTwo, installed: m.system_cache_keepInstalled, none: m.system_cache_keepNone, files: m.system_cache_keepFiles }, c.keep)
+}
+
+/** Downloaded packages and AUR builds: how much space, and cleaning them up with the manager's tools. */
+function PackageCachePanel({ canAct }: { canAct: boolean }) {
+  const jobs = useJobs()
+  const cache = useData<PackageCacheReport>('/api/system/cache')
+  const [open, setOpen] = useState(false)
+  const [picked, setPicked] = useState<Set<CacheEntry['id']>>(new Set())
+  const entries = cache.data?.entries ?? []
+  if (cache.data && !entries.length) return null
+  const total = entries.reduce((a, c) => a + c.size, 0)
+  const busy = !!jobs.running || jobs.starting
+  const start = () => {
+    setPicked(new Set(entries.filter((c) => c.size > 0).map((c) => c.id)))
+    setOpen(true)
+  }
+  const freedAtMost = entries.filter((c) => picked.has(c.id)).reduce((a, c) => a + c.size, 0)
+  return (
+    <section className="panel flex flex-col" aria-label={m.system_cache_title()}>
+      <div className="flex flex-wrap items-center gap-2 px-[18px] pt-4 pb-2">
+        <h2 className="h2">{m.system_cache_title()}</h2>
+        {cache.data && <span className="text-[13px] text-muted">{bytes(total)}</span>}
+        {canAct && total > 0 && (
+          <button type="button" className="btn sm ml-auto" disabled={busy} onClick={start}>
+            <Glyph name="trash" size={14} /> {m.system_cache_clean()}
+          </button>
+        )}
+      </div>
+      {cache.error && <p className="m-0 px-[18px] pb-3 text-[13px] text-[#e3b341]">{cache.error}</p>}
+      {!cache.data && !cache.error && <p className="m-0 px-[18px] pb-3 text-[13px] text-muted">{m.system_cache_counting()}</p>}
+      {entries.map((c) => (
+        <div key={c.id} className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 border-t border-line px-[18px] py-[9px] text-[13px]" data-testid="cache-row">
+          <span className="min-w-[180px] grow">
+            {cacheLabel(c)} <span className="font-mono text-[12px] text-muted">{c.path}</span>
+          </span>
+          <span className="text-subtle">{c.files === 1 ? m.system_cache_oneFile() : m.system_cache_files({ n: c.files.toLocaleString(localeOf()) })}</span>
+          <span className="min-w-[80px] text-right font-medium">
+            {c.truncated ? '≥ ' : ''}
+            {bytes(c.size)}
+          </span>
+        </div>
+      ))}
+      <Modal open={open} onClose={() => setOpen(false)} title={m.system_cache_confirmTitle()}>
+        <div className="flex flex-col gap-3 text-[13px] text-[#c9d1d9]">
+          {entries.map((c) => (
+            <label key={c.id} className="flex items-start gap-2.5">
+              <input type="checkbox" className="mt-1" checked={picked.has(c.id)} disabled={c.size === 0} onChange={(e) => setPicked((p) => (e.target.checked ? new Set([...p, c.id]) : new Set([...p].filter((x) => x !== c.id))))} />
+              <span>
+                <b>{cacheLabel(c)}</b> · {bytes(c.size)}
+                <span className="block text-[12px] text-muted">{cacheKeeps(c)}</span>
+              </span>
+            </label>
+          ))}
+          {picked.has('packages') && entries.some((c) => c.id === 'packages' && c.keep !== 'two') && <p className="m-0 text-[12px] text-[#e3b341]">{m.system_cache_noRollback()}</p>}
+          <p className="m-0 text-[12px] text-muted">{m.system_cache_atMost({ size: bytes(freedAtMost) })}</p>
+        </div>
+        <div className="flex justify-end gap-2">
+          <button type="button" className="btn" onClick={() => setOpen(false)}>
+            {m.common_cancel()}
+          </button>
+          <BusyButton
+            className="btn primary"
+            busy={jobs.starting}
+            busyLabel={m.common_starting()}
+            disabled={!picked.size || busy}
+            onClick={async () => {
+              const job = await jobs.start({ kind: 'cache-clean', targets: [...picked] })
+              if (job) setOpen(false)
+            }}
+          >
+            {m.system_cache_cleanNow()}
+          </BusyButton>
+        </div>
+      </Modal>
+    </section>
   )
 }
 

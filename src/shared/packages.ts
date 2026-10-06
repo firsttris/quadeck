@@ -95,6 +95,27 @@ export interface ImageUpdatesReport {
   error?: string
 }
 
+/** A package cache: downloaded packages, or the AUR helper's builds. */
+export interface CacheEntry {
+  id: 'packages' | 'aur'
+  path: string
+  /** Bytes on disk. */
+  size: number
+  files: number
+  /** The count stopped early (very many files): at least this much. */
+  truncated?: boolean
+  /** What cleaning keeps: the last two versions, the installed versions, nothing, the helper's files. */
+  keep: 'two' | 'installed' | 'none' | 'files'
+  /** The AUR cache: its owner and helper. */
+  owner?: string
+  helper?: 'yay' | 'paru'
+}
+
+export interface PackageCacheReport {
+  checkedAt: number
+  entries: CacheEntry[]
+}
+
 export type JobSpec =
   | { kind: 'upgrade' }
   | { kind: 'aur-upgrade' }
@@ -110,6 +131,8 @@ export type JobSpec =
   | { kind: 'kernel-install'; flavor: KernelFlavor }
   | { kind: 'kernel-remove'; flavor: KernelFlavor }
   | { kind: 'mkinitcpio' }
+  /** Cleans the package cache and/or the AUR build cache with the manager's own tools. */
+  | { kind: 'cache-clean'; targets: ('packages' | 'aur')[] }
   | { kind: 'backup-restore'; snapshot: string; paths: string[]; target?: string; stop: string[] }
 
 export type JobStatus = 'running' | 'ok' | 'failed'
