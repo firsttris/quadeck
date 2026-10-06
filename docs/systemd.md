@@ -53,7 +53,8 @@ list, and the templates do it that way.
 ### Saving, history, enable
 
 **Save …** shows the diff, offers a restart when the unit is active, writes atomically through
-the helper and runs `daemon-reload`. Every version (the original before the first change, every
+the helper and runs `daemon-reload`. A file that was changed on disk since it was loaded (another
+tab, a package update, an edit on the shell) is not overwritten: the save is refused. Every version (the original before the first change, every
 save, the content before a deletion) is kept under `/var/lib/quadeck-helper/unit-history`, up to
 30 per file, and can be loaded back into the editor from **History**. **Start at boot**
 switches `systemctl enable`/`disable`.

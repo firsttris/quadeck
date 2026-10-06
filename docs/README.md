@@ -13,7 +13,7 @@ disks, shares and the host itself, with the actions you need day to day.
 | [Updates and packages](updates.md) | package managers, AUR, reboot hints, jobs, installed packages, removal, container images, boot and reboot (systemd-boot) |
 | [Hardware](hardware.md) | CPU, memory slots, GPUs, USB paths, sensors, PCIe and SATA links, warnings |
 | [Users](users.md) | accounts, groups, passwords, lock, Samba password, keys, login history, lock-out guard |
-| [Disks and files](disks.md) | SMART verdicts and advice, history, self-tests, fstab configurator and its checks, file explorer, data areas |
+| [Disks and files](disks.md) | SMART verdicts and advice, history, self-tests, usage and trend per disk, energy saving, fstab configurator and its checks, file explorer with two panes and archives, data areas |
 | [Backups](backups.md) | restic: targets, what is suggested from the Quadlets, exclusions, stopping databases, schedule and retention, the password, browsing and restoring; the rest-server as backup target for clients |
 | [Shares](shares.md) | SMB shares, NFS exports, services, what is checked, what is never touched |
 | [SSH](ssh.md) | keys, hardening, lock-out guard, logins, connecting a new device |

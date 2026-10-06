@@ -93,7 +93,9 @@ Errors block saving, warnings do not.
 **Save …** shows the diff against the file on disk, lets you choose whether the unit is
 restarted afterwards, and writes through the root helper: atomic write, `systemctl daemon-reload`,
 optionally `RestartUnit`. If the restart fails, the file stays saved and the error is shown with a
-hint to the journal. Saving needs the [unlock](security.md#unlock).
+hint to the journal. If the file was changed on disk since the editor loaded it (another tab, a
+package update, an edit on the shell), the save is refused instead of overwriting it; a new file
+is never saved over an existing one of the same name. Saving needs the [unlock](security.md#unlock).
 
 ### History
 
