@@ -7,7 +7,7 @@ disks, shares and the host itself, with the actions you need day to day.
 | | |
 |---|---|
 | [Installation](installation.md) | install script, binaries, commands, environment variables, services, updates, reverse proxy, uninstall |
-| [Overview and services](dashboard.md) | how services are discovered, labels, overrides, manual links, icons, health, layout editing, metrics history, GPU, command palette |
+| [Overview and services](dashboard.md) | how services are discovered, labels, overrides, manual links, icons, health, layout editing, the widget catalog, metrics history, GPU, command palette |
 | [Units and Quadlets](quadlets.md) | units page, actions, journal, Quadlet editor, validation, history, templates, compose import, Podman settings |
 | [systemd editor and timers](systemd.md) | unit files and overrides, form and text, verification, history, new units, timers, schedule builder, cron import |
 | [Updates and packages](updates.md) | package managers, AUR, reboot hints, jobs, installed packages, removal, container images, boot and reboot (systemd-boot) |

@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '~/lib/api'
-import { linkify, NOTE_MAX, TITLE_MAX, WIDGETS, type BuiltinCard, type ContainersConfig, type DiskConfig, type InstanceKind, type NoteConfig, type WidgetCategory, type WidgetInstance } from '~/shared/widgets'
+import { isWebUrl, linkify, LINKS_MAX, NOTE_MAX, TITLE_MAX, WIDGETS, type BuiltinCard, type ContainersConfig, type DiskConfig, type InstanceKind, type LinksConfig, type NoteConfig, type ServiceConfig, type WidgetCategory, type WidgetInstance } from '~/shared/widgets'
 import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
 import { BusyButton } from './Busy'
@@ -31,6 +31,11 @@ export const widgetName = (kind: CatalogKind) =>
       disk: m.widgets_disk_name,
       containers: m.widgets_containers_name,
       alerts: m.widgets_alerts_name,
+      service: m.widgets_service_name,
+      devices: m.widgets_devices_name,
+      speed: m.widgets_speed_name,
+      logins: m.widgets_logins_name,
+      links: m.widgets_links_name,
     },
     kind,
   )
@@ -54,6 +59,11 @@ const widgetDesc = (kind: CatalogKind) =>
       disk: m.widgets_desc_disk,
       containers: m.widgets_desc_containers,
       alerts: m.widgets_desc_alerts,
+      service: m.widgets_desc_service,
+      devices: m.widgets_desc_devices,
+      speed: m.widgets_desc_speed,
+      logins: m.widgets_desc_logins,
+      links: m.widgets_desc_links,
     },
     kind,
   )
@@ -230,23 +240,32 @@ export function NoteDialog({ widget, onClose, onSaved }: { widget: (WidgetInstan
 
 // ---------- settings of the other widgets ----------
 
-type Configurable = WidgetInstance & { kind: 'disk' | 'containers' }
+export type Configurable = WidgetInstance & { kind: 'disk' | 'containers' | 'service' | 'links' }
 
-/** ⚙ of a disk (which mount point) or of the busiest containers (CPU or memory). */
-export function WidgetSettingsDialog({ widget, mounts, onClose, onSaved }: { widget: Configurable | null; mounts: { mount: string; label: string }[]; onClose: () => void; onSaved: (w: WidgetInstance) => void }) {
+/** ⚙ of a disk (mount point), the busiest containers (CPU or memory), a service (which unit) or a link group. */
+export function WidgetSettingsDialog({ widget, mounts, units, onClose, onSaved }: { widget: Configurable | null; mounts: { mount: string; label: string }[]; units: { name: string; label: string }[]; onClose: () => void; onSaved: (w: WidgetInstance) => void }) {
   const [disk, setDisk] = useState<DiskConfig>({ mount: '' })
   const [top, setTop] = useState<ContainersConfig>({ metric: 'ram' })
+  const [service, setService] = useState<ServiceConfig>({ unit: '' })
+  const [links, setLinks] = useState<LinksConfig>({ title: '', links: [] })
   const [busy, setBusy] = useState(false)
   const say = useToast()
   useEffect(() => {
     if (widget?.kind === 'disk') setDisk({ mount: widget.config.mount || mounts[0]?.mount || '' })
     if (widget?.kind === 'containers') setTop(widget.config)
-  }, [widget, mounts])
+    if (widget?.kind === 'service') setService({ unit: widget.config.unit || units[0]?.name || '' })
+    if (widget?.kind === 'links') setLinks(widget.config.links.length ? widget.config : { ...widget.config, links: [{ name: '', url: '' }] })
+    // only when another widget opens: live updates bring new mount and unit lists every few
+    // seconds and must not throw away what is being typed
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [widget?.id])
+  const badLink = links.links.findIndex((l) => (l.name.trim() || l.url.trim()) && (!l.name.trim() || !isWebUrl(l.url.trim())))
   const save = async () => {
     if (!widget) return
     setBusy(true)
     try {
-      onSaved(await api<WidgetInstance>('/api/layout/widgets', { method: 'PUT', body: { id: widget.id, config: widget.kind === 'disk' ? disk : top } }))
+      const config = widget.kind === 'disk' ? disk : widget.kind === 'containers' ? top : widget.kind === 'service' ? service : links
+      onSaved(await api<WidgetInstance>('/api/layout/widgets', { method: 'PUT', body: { id: widget.id, config } }))
       onClose()
     } catch (e) {
       say((e as Error).message, 'bad')
@@ -283,11 +302,51 @@ export function WidgetSettingsDialog({ widget, mounts, onClose, onSaved }: { wid
           ))}
         </div>
       )}
+      {widget?.kind === 'service' && (
+        <label className="flex flex-col gap-1 text-[13px]">
+          {m.widgets_service_unit()}
+          {units.length ? (
+            <select className="field" value={service.unit} onChange={(e) => setService({ unit: e.target.value })}>
+              {units.map((u) => (
+                <option key={u.name} value={u.name}>
+                  {u.label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="text-muted">{m.widgets_service_noUnits()}</span>
+          )}
+        </label>
+      )}
+      {widget?.kind === 'links' && (
+        <div className="flex flex-col gap-2.5 text-[13px]">
+          <label className="flex flex-col gap-1">
+            {m.widgets_note_title()}
+            <input className="field" maxLength={TITLE_MAX} value={links.title} placeholder={m.widgets_links_name()} onChange={(e) => setLinks({ ...links, title: e.target.value })} />
+          </label>
+          <span>{m.widgets_links_list()}</span>
+          {links.links.map((l, i) => (
+            <div key={i} className="flex flex-wrap gap-1.5">
+              <input className="field w-[150px]" maxLength={TITLE_MAX} value={l.name} placeholder={m.widgets_links_namePlaceholder()} aria-label={m.widgets_links_nameN({ n: i + 1 })} onChange={(e) => setLinks({ ...links, links: links.links.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })} />
+              <input className="field min-w-0 grow font-mono" value={l.url} placeholder="http://192.168.178.1" aria-label={m.widgets_links_urlN({ n: i + 1 })} aria-invalid={badLink === i || undefined} onChange={(e) => setLinks({ ...links, links: links.links.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) })} />
+              <button type="button" className="btn sm" aria-label={m.widgets_links_removeN({ n: i + 1 })} onClick={() => setLinks({ ...links, links: links.links.filter((_, j) => j !== i) })}>
+                <Glyph name="close" size={13} />
+              </button>
+            </div>
+          ))}
+          {links.links.length < LINKS_MAX && (
+            <button type="button" className="btn sm self-start" onClick={() => setLinks({ ...links, links: [...links.links, { name: '', url: '' }] })}>
+              <Glyph name="plus" size={13} /> {m.widgets_links_add()}
+            </button>
+          )}
+          {badLink >= 0 && <p className="m-0 text-[12px] text-[#e3b341]">{m.widgets_links_invalid({ n: badLink + 1 })}</p>}
+        </div>
+      )}
       <div className="flex justify-end gap-2">
         <button type="button" className="btn" disabled={busy} onClick={onClose}>
           {m.common_cancel()}
         </button>
-        <BusyButton className="btn primary" busy={busy} busyLabel={m.common_saving()} disabled={widget?.kind === 'disk' && !disk.mount} onClick={() => void save()}>
+        <BusyButton className="btn primary" busy={busy} busyLabel={m.common_saving()} disabled={(widget?.kind === 'disk' && !disk.mount) || (widget?.kind === 'service' && !service.unit) || (widget?.kind === 'links' && badLink >= 0)} onClick={() => void save()}>
           {m.common_save()}
         </BusyButton>
       </div>
