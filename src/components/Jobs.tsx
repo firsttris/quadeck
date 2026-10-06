@@ -1,7 +1,9 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { api, ApiError } from '~/lib/api'
 import { msg } from '~/shared/i18n'
 import type { JobInfo, JobSpec, JobState } from '~/shared/packages'
+import { diagnoseJob, TERMINAL_COMMANDS, type Diagnosis } from '~/shared/job-diagnosis'
+import { Link } from '@tanstack/react-router'
 import { Spinner } from './Busy'
 import { Glyph } from './Glyph'
 import { Modal } from './Modal'
@@ -182,6 +184,10 @@ export function JobDialog({ id, onClose, onEnd }: { id: string | null; onClose: 
     if (stick.current && pre.current) pre.current.scrollTop = pre.current.scrollHeight
   }, [lines])
 
+  // a failed package job: what went wrong and the next step
+  const diagnosis = useMemo(() => (job?.status === 'failed' && job.id === id ? diagnoseJob(job.spec, lines) : undefined), [job?.status, job?.id, job?.spec, id, lines])
+  const marked = useMemo(() => new Set(diagnosis?.lines ?? []), [diagnosis])
+
   return (
     <Modal open={!!id} onClose={onClose} title={job?.title ?? 'Job'} wide>
       <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted">
@@ -200,7 +206,7 @@ export function JobDialog({ id, onClose, onEnd }: { id: string | null; onClose: 
         }}
       >
         {lines.map((l, i) => (
-          <div key={i} className={lineClass(l)}>
+          <div key={i} className={marked.has(i) ? 'hl' : lineClass(l)}>
             {l || ' '}
           </div>
         ))}
@@ -211,12 +217,112 @@ export function JobDialog({ id, onClose, onEnd }: { id: string | null; onClose: 
           {error}
         </p>
       )}
+      {job && diagnosis && <JobHint job={job} lines={lines} diagnosis={diagnosis} onClose={onClose} />}
       <div className="flex justify-end">
         <button type="button" className="btn" onClick={onClose} autoFocus>
           {job?.status === 'running' ? m.shell_jobs_keepRunning() : m.common_close()}
         </button>
       </div>
     </Modal>
+  )
+}
+
+function hintText(d: Diagnosis): { title: string; body: string; tip?: string } {
+  const a = d.a ?? ''
+  const b = d.b ?? ''
+  switch (d.kind) {
+    case 'conflict':
+      return { title: m.shell_jobs_hint_conflict_title({ a, b }), body: m.shell_jobs_hint_conflict_body({ a, b }), tip: m.shell_jobs_hint_conflict_tip() }
+    case 'fileExists':
+      return { title: m.shell_jobs_hint_fileExists_title({ a }), body: d.b ? m.shell_jobs_hint_fileExists_owned({ b }) : m.shell_jobs_hint_fileExists_body() }
+    case 'signature':
+      return { title: m.shell_jobs_hint_signature_title(), body: m.shell_jobs_hint_signature_body() }
+    case 'aurSignature':
+      return { title: m.shell_jobs_hint_aurSignature_title({ b: b || 'AUR' }), body: d.a ? m.shell_jobs_hint_aurSignature_key({ a }) : m.shell_jobs_hint_aurSignature_body() }
+    case 'dbLock':
+      return { title: m.shell_jobs_hint_dbLock_title(), body: m.shell_jobs_hint_dbLock_body({ a }), tip: m.shell_jobs_hint_dbLock_tip() }
+    case 'dpkgBusy':
+      return { title: m.shell_jobs_hint_dpkgBusy_title(), body: d.a ? m.shell_jobs_hint_dpkgBusy_body({ a }) : m.shell_jobs_hint_dpkgBusy_anon() }
+    case 'dpkgInterrupted':
+      return { title: m.shell_jobs_hint_dpkgInterrupted_title(), body: m.shell_jobs_hint_dpkgInterrupted_body() }
+    case 'download':
+      return { title: m.shell_jobs_hint_download_title(), body: m.shell_jobs_hint_download_body() }
+    case 'diskFull':
+      return { title: m.shell_jobs_hint_diskFull_title(), body: d.a ? m.shell_jobs_hint_diskFull_on({ a }) : m.shell_jobs_hint_diskFull_body() }
+    case 'aurBuild':
+      return { title: d.a ? m.shell_jobs_hint_aurBuild_title({ a }) : m.shell_jobs_hint_aurBuild_anon(), body: m.shell_jobs_hint_aurBuild_body(), tip: m.shell_jobs_hint_aurBuild_tip() }
+    case 'unknown':
+      return { title: m.shell_jobs_hint_unknown_title(), body: m.shell_jobs_hint_unknown_body() }
+  }
+}
+
+/** Under a failed job: what the output says went wrong, and buttons for the next step. */
+function JobHint({ job, lines, diagnosis: d, onClose }: { job: JobState; lines: string[]; diagnosis: Diagnosis; onClose: () => void }) {
+  const { start, starting, running } = useJobs()
+  const say = useToast()
+  const text = hintText(d)
+  const known = d.kind !== 'unknown'
+  const errLines = d.lines.map((i) => lines[i]).filter((l): l is string => l !== undefined)
+  return (
+    <section aria-label={m.shell_jobs_hint_label()} data-testid="job-hint" className={`flex flex-col gap-2 rounded-[10px] border px-3.5 py-3 ${known ? 'border-[#5b2a2a] bg-[rgba(248,81,73,0.07)]' : 'border-edge bg-[#11161d]'}`}>
+      <h3 className={`m-0 text-[14px] font-semibold ${known ? 'text-[#ff7b72]' : ''}`}>{text.title}</h3>
+      <p className="m-0 text-[13px] text-[#c9d1d9]">
+        {text.body}
+        {d.unchanged && <b> {m.shell_jobs_hint_unchanged()}</b>}
+      </p>
+      {text.tip && <p className="m-0 text-[12px] text-muted">{text.tip}</p>}
+      <div className="flex flex-wrap gap-2">
+        {d.actions.map((a, i) => {
+          const primary = i === 0 ? 'btn sm primary' : 'btn sm'
+          switch (a.type) {
+            case 'terminal':
+              return (
+                <Link key={i} to="/terminal" search={a.command ? { type: a.command } : {}} className={primary} onClick={onClose}>
+                  {a.command ? m.shell_jobs_hint_terminalCmd({ cmd: TERMINAL_COMMANDS[a.command].argv }) : m.shell_jobs_hint_terminal()}
+                </Link>
+              )
+            case 'link':
+              return (
+                <a key={i} href={a.href} target="_blank" rel="noreferrer" className={primary}>
+                  {a.label === 'aurPage' ? m.shell_jobs_hint_aurPage({ name: d.a ?? '' }) : m.shell_jobs_hint_archNews()}
+                </a>
+              )
+            case 'job':
+              return (
+                <button key={i} type="button" className={primary} disabled={starting || !!running} onClick={() => void start(a.spec)}>
+                  {a.label === 'keyringRetry' ? m.shell_jobs_hint_keyringRetry() : a.spec.kind === 'pacman-unlock' && a.spec.retry ? m.shell_jobs_hint_unlockRetry() : m.shell_jobs_hint_unlock()}
+                </button>
+              )
+            case 'retry':
+              return (
+                <button key={i} type="button" className={primary} disabled={starting || !!running} onClick={() => void start(job.spec)}>
+                  {m.shell_jobs_hint_retry()}
+                </button>
+              )
+            case 'disks':
+              return (
+                <Link key={i} to="/disks" className={primary} onClick={onClose}>
+                  {m.shell_jobs_hint_disks()}
+                </Link>
+              )
+          }
+        })}
+        {errLines.length > 0 && (
+          <button
+            type="button"
+            className="btn sm"
+            onClick={() =>
+              void navigator.clipboard
+                ?.writeText(errLines.join('\n'))
+                .then(() => say(m.shell_jobs_hint_copied()))
+                .catch(() => {})
+            }
+          >
+            {m.shell_jobs_hint_copy()}
+          </button>
+        )}
+      </div>
+    </section>
   )
 }
 

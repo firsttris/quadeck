@@ -167,6 +167,32 @@ Everything that changes packages or files runs as a job with live output, one at
 Starting a job needs the [unlock](security.md#unlock). Jobs run as root; the AUR build is the one
 exception described above.
 
+### When a job fails
+
+`--noconfirm` answers "no" where a question has no safe default, so the package manager stops instead.
+For a failed package job the dialog reads the output (in English: jobs run with `LC_ALL=C.UTF-8`),
+marks the lines that matter and explains what happened and what to do next:
+
+| Recognised | Next step offered |
+|---|---|
+| two packages in conflict (pacman) | **In the terminal: pacman -Syu** to confirm the swap yourself, Arch news |
+| a file already exists (pacman), with or without an owning package | terminal |
+| package signature unknown or untrusted | **update the keyring, then the system** (`pacman -Sy archlinux-keyring`, then `pacman -Su`) |
+| database locked by an interrupted run (`db.lck`) | **remove the lock and try again**; the job refuses while pacman, yay, paru or makepkg runs |
+| download failed (mirror down, file gone) | **try again** |
+| not enough space | **Disks**, terminal |
+| an AUR package did not build (yay, paru, makepkg) | the package's AUR page, terminal |
+| a missing key for an AUR package's sources | the key to import with `gpg --recv-keys` as the AUR user |
+| apt: lock held by another process, dpkg interrupted | try again; **In the terminal: dpkg --configure -a** |
+| anything else | the last error lines marked, terminal |
+
+When pacman stopped before its transaction (conflicts, signatures, the lock, its own space check),
+the hint says so: nothing was changed. **Copy error lines** puts the marked lines on the clipboard.
+
+"In the terminal" opens a new [terminal](terminal.md) session and types the command without running
+it (with `sudo` when the shell is not root); Enter stays with you. Only commands from a fixed list can
+be typed this way, so a link can't make the shell do anything.
+
 ## Installing missing tools
 
 The disks, shares and SSH pages show an **Install** button when smartmontools, Samba, the
