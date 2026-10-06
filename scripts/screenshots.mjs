@@ -61,6 +61,13 @@ const shot = async (name, opts = {}) => {
 }
 await p.goto(base + '/')
 await shot('dashboard', { wait: 4000 })
+// The widget catalog in edit mode (a fresh install has Updates and Backups already).
+await p.getByRole('button', { name: 'Edit', exact: true }).click()
+await wait(500)
+await p.getByRole('button', { name: 'Add widget' }).first().click()
+await shot('widgets', { wait: 800 })
+await p.keyboard.press('Escape')
+await p.getByRole('button', { name: 'Done' }).click()
 await p.goto(base + '/quadlets?file=jellyfin.container')
 await shot('quadlets')
 await p.goto(base + '/system')

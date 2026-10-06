@@ -5,7 +5,7 @@ tiles, storage, the next timers and your shares, plus whatever you add from the
 [widget catalog](#adding-widgets). Everything on it is discovered; the layout, the widgets, the
 tiles and the links are the only things you edit.
 
-<img src="screenshot-dashboard.png" alt="Overview with failed units, gauges and service tiles" width="900">
+<img src="screenshot-dashboard.png" alt="Overview with gauges, service tiles and the Updates and Backups widgets" width="900">
 
 ## How services are discovered
 
@@ -134,6 +134,8 @@ default positions and brings removed built-in widgets back; widgets added from t
 with their content.
 
 ### Adding widgets
+
+<img src="screenshot-widgets.png" alt="The widget catalog: categories, search, every widget with what it shows, which are already on the overview, and Add buttons" width="900">
 
 **Add widget** (in the edit bar and below the widgets) opens the catalog: every widget with what it
 shows, by category (system, storage, containers and services, network, other) and with a search.
