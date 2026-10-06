@@ -36,8 +36,12 @@ describe('terminal sessions (real pseudo terminal)', () => {
     expect(info).toMatchObject({ kind: 'shell', label: 'me@test', user: 'me' })
     const res = m.stream(info.id)
     expect(res.headers.get('content-type')).toBe('text/event-stream')
+    // type only once bash shows its prompt: input typed while it still sets up the terminal is
+    // echoed by the tty and read again by readline, and on a slow runner `stty size` printed nothing
+    expect((await read(res, (t) => t.includes('$ '))).text).toContain('$ ')
+    const res1 = m.stream(info.id)
     m.input(info.id, 'stty size; echo out-$((40+2))\r')
-    const a = await read(res, (t) => t.includes('out-42'))
+    const a = await read(res1, (t) => t.includes('out-42'))
     expect(a.text).toContain('20 90')
     expect(a.raw).toContain('event: info')
     m.resize(info.id, 132, 43)
