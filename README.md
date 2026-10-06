@@ -22,7 +22,7 @@ curl -fsSL https://raw.githubusercontent.com/firsttris/quadeck/main/install.sh |
 [Documentation](docs/README.md) •
 [Development](#️-development)
 
-<img src="docs/screenshot-dashboard.png" alt="Quadeck overview: CPU, RAM, temperature and network with history, the services discovered from Caddy and Quadlets, storage with SMART status" width="900">
+<img src="docs/screenshot-dashboard.png" alt="Quadeck overview: CPU, RAM, temperature and network with history, the services discovered from Caddy and Quadlets, the Updates and Backups widgets" width="900">
 
 </div>
 
