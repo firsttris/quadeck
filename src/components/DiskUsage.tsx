@@ -32,7 +32,7 @@ function fullIn(days: number) {
   return m.disks_usage_fullYears({ n })
 }
 
-function TrendLine({ trend, bad }: { trend?: FsTrend; bad: boolean }) {
+export function TrendLine({ trend, bad }: { trend?: FsTrend; bad: boolean }) {
   if (!trend) return <span className="text-[12px] text-muted">{m.disks_usage_collecting()}</span>
   if (trend.steady) return <span className="text-[12px] text-muted">{m.disks_usage_steady()}</span>
   const month = perMonth(trend)

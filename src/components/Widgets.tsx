@@ -2,7 +2,7 @@
 
 import { useEffect, useMemo, useState } from 'react'
 import { api } from '~/lib/api'
-import { linkify, NOTE_MAX, TITLE_MAX, WIDGETS, type BuiltinCard, type InstanceKind, type NoteConfig, type WidgetCategory, type WidgetInstance } from '~/shared/widgets'
+import { linkify, NOTE_MAX, TITLE_MAX, WIDGETS, type BuiltinCard, type ContainersConfig, type DiskConfig, type InstanceKind, type NoteConfig, type WidgetCategory, type WidgetInstance } from '~/shared/widgets'
 import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
 import { BusyButton } from './Busy'
@@ -26,6 +26,11 @@ export const widgetName = (kind: CatalogKind) =>
       gpu: m.overview_cards_gpu,
       power: m.overview_cards_power,
       note: m.widgets_note_name,
+      updates: m.widgets_updates_name,
+      backups: m.widgets_backups_name,
+      disk: m.widgets_disk_name,
+      containers: m.widgets_containers_name,
+      alerts: m.widgets_alerts_name,
     },
     kind,
   )
@@ -44,6 +49,11 @@ const widgetDesc = (kind: CatalogKind) =>
       gpu: m.widgets_desc_gpu,
       power: m.widgets_desc_power,
       note: m.widgets_desc_note,
+      updates: m.widgets_desc_updates,
+      backups: m.widgets_desc_backups,
+      disk: m.widgets_desc_disk,
+      containers: m.widgets_desc_containers,
+      alerts: m.widgets_desc_alerts,
     },
     kind,
   )
@@ -211,6 +221,73 @@ export function NoteDialog({ widget, onClose, onSaved }: { widget: (WidgetInstan
           {m.common_cancel()}
         </button>
         <BusyButton className="btn primary" busy={busy} busyLabel={m.common_saving()} onClick={() => void save()}>
+          {m.common_save()}
+        </BusyButton>
+      </div>
+    </Modal>
+  )
+}
+
+// ---------- settings of the other widgets ----------
+
+type Configurable = WidgetInstance & { kind: 'disk' | 'containers' }
+
+/** ⚙ of a disk (which mount point) or of the busiest containers (CPU or memory). */
+export function WidgetSettingsDialog({ widget, mounts, onClose, onSaved }: { widget: Configurable | null; mounts: { mount: string; label: string }[]; onClose: () => void; onSaved: (w: WidgetInstance) => void }) {
+  const [disk, setDisk] = useState<DiskConfig>({ mount: '' })
+  const [top, setTop] = useState<ContainersConfig>({ metric: 'ram' })
+  const [busy, setBusy] = useState(false)
+  const say = useToast()
+  useEffect(() => {
+    if (widget?.kind === 'disk') setDisk({ mount: widget.config.mount || mounts[0]?.mount || '' })
+    if (widget?.kind === 'containers') setTop(widget.config)
+  }, [widget, mounts])
+  const save = async () => {
+    if (!widget) return
+    setBusy(true)
+    try {
+      onSaved(await api<WidgetInstance>('/api/layout/widgets', { method: 'PUT', body: { id: widget.id, config: widget.kind === 'disk' ? disk : top } }))
+      onClose()
+    } catch (e) {
+      say((e as Error).message, 'bad')
+    } finally {
+      setBusy(false)
+    }
+  }
+  return (
+    <Modal open={!!widget} onClose={onClose} title={widget ? m.widgets_settings_title({ name: widgetName(widget.kind) }) : ''} busy={busy}>
+      {widget?.kind === 'disk' && (
+        <label className="flex flex-col gap-1 text-[13px]">
+          {m.widgets_disk_mount()}
+          {mounts.length ? (
+            <select className="field" value={disk.mount} onChange={(e) => setDisk({ mount: e.target.value })}>
+              {mounts.map((x) => (
+                <option key={x.mount} value={x.mount}>
+                  {x.label}
+                </option>
+              ))}
+            </select>
+          ) : (
+            <span className="text-muted">{m.widgets_disk_noMounts()}</span>
+          )}
+        </label>
+      )}
+      {widget?.kind === 'containers' && (
+        <div role="radiogroup" aria-label={m.widgets_containers_by()} className="flex flex-col gap-1.5 text-[13px]">
+          <span>{m.widgets_containers_by()}</span>
+          {(['ram', 'cpu'] as const).map((k) => (
+            <label key={k} className="flex items-center gap-2">
+              <input type="radio" name="metric" checked={top.metric === k} onChange={() => setTop({ metric: k })} />
+              {k === 'cpu' ? m.widgets_containers_cpu() : m.widgets_containers_ram()}
+            </label>
+          ))}
+        </div>
+      )}
+      <div className="flex justify-end gap-2">
+        <button type="button" className="btn" disabled={busy} onClick={onClose}>
+          {m.common_cancel()}
+        </button>
+        <BusyButton className="btn primary" busy={busy} busyLabel={m.common_saving()} disabled={widget?.kind === 'disk' && !disk.mount} onClick={() => void save()}>
           {m.common_save()}
         </BusyButton>
       </div>

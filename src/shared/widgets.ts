@@ -6,7 +6,7 @@ export const BUILTIN_CARDS = ['services', 'storage', 'timers', 'shares', 'cpu', 
 export type BuiltinCard = (typeof BUILTIN_CARDS)[number]
 
 /** Widgets added from the catalog: stored with an id and a config of their own. */
-export const INSTANCE_KINDS = ['note'] as const
+export const INSTANCE_KINDS = ['updates', 'backups', 'disk', 'containers', 'alerts', 'note'] as const
 export type InstanceKind = (typeof INSTANCE_KINDS)[number]
 
 export type WidgetCategory = 'system' | 'storage' | 'services' | 'network' | 'other'
@@ -30,8 +30,16 @@ export const WIDGETS: Record<BuiltinCard | InstanceKind, WidgetMeta> = {
   shares: { category: 'storage', multi: false, configurable: false },
   services: { category: 'services', multi: false, configurable: false },
   timers: { category: 'services', multi: false, configurable: false },
+  updates: { category: 'system', multi: false, configurable: false },
+  backups: { category: 'storage', multi: false, configurable: false },
+  disk: { category: 'storage', multi: true, configurable: true },
+  containers: { category: 'services', multi: true, configurable: true },
+  alerts: { category: 'other', multi: false, configurable: false },
   note: { category: 'other', multi: true, configurable: true },
 }
+
+/** On a fresh install these widgets are on the overview from the start (existing ones keep theirs). */
+export const FRESH_DEFAULTS: InstanceKind[] = ['updates', 'backups']
 
 export const NOTE_MAX = 4000
 export const TITLE_MAX = 80
@@ -41,7 +49,23 @@ export interface NoteConfig {
   text: string
 }
 
+export interface DiskConfig {
+  /** Mount point; '' = not chosen yet. */
+  mount: string
+}
+
+export interface ContainersConfig {
+  metric: 'cpu' | 'ram'
+}
+
+export type NoConfig = Record<string, never>
+
 export interface WidgetConfigs {
+  updates: NoConfig
+  backups: NoConfig
+  disk: DiskConfig
+  containers: ContainersConfig
+  alerts: NoConfig
   note: NoteConfig
 }
 
@@ -57,6 +81,17 @@ export const INSTANCE_ID = /^[a-z]+-[a-z0-9]{6,16}$/
 export function parseWidgetConfig(kind: InstanceKind, raw: unknown): WidgetConfigs[InstanceKind] {
   const o = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>
   switch (kind) {
+    case 'updates':
+    case 'backups':
+    case 'alerts':
+      return {}
+    case 'disk': {
+      const mount = typeof o.mount === 'string' ? o.mount : ''
+      if (mount && (!mount.startsWith('/') || mount.length > 512 || /[\0\n]/.test(mount))) throw new Error('mount')
+      return { mount }
+    }
+    case 'containers':
+      return { metric: o.metric === 'cpu' ? 'cpu' : 'ram' }
     case 'note': {
       const title = typeof o.title === 'string' ? o.title.trim() : ''
       const text = typeof o.text === 'string' ? o.text.replace(/\r\n/g, '\n') : ''
@@ -67,6 +102,15 @@ export function parseWidgetConfig(kind: InstanceKind, raw: unknown): WidgetConfi
 }
 
 export const defaultConfig = (kind: InstanceKind): WidgetConfigs[InstanceKind] => parseWidgetConfig(kind, {})
+
+/** Top consumers: running containers sorted by CPU or memory, at most `n`. */
+export function topContainers<T extends { name: string; state: string; cpu?: number; memUsage?: number }>(list: T[], metric: 'cpu' | 'ram', n = 5): T[] {
+  const value = (c: T) => (metric === 'cpu' ? c.cpu : c.memUsage) ?? 0
+  return list
+    .filter((c) => c.state === 'running')
+    .sort((a, b) => value(b) - value(a) || a.name.localeCompare(b.name))
+    .slice(0, n)
+}
 
 /** Text with links: plain parts and http(s) URLs (only those become links). */
 export function linkify(text: string): { text: string; href?: string }[] {

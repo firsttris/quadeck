@@ -244,7 +244,7 @@ test.describe.serial('Quadeck', () => {
     await expect(catalog.getByTestId('catalog-entry').filter({ has: page.getByText('CPU', { exact: true }) })).toContainText('auf dem Dashboard')
     // categories and search
     await catalog.getByRole('button', { name: 'Sonstiges' }).click()
-    await expect(catalog.getByTestId('catalog-entry')).toHaveCount(1)
+    await expect(catalog.getByTestId('catalog-entry')).toHaveCount(2) // note, notifications
     await catalog.getByRole('button', { name: 'Alle' }).click()
     await catalog.getByRole('searchbox', { name: 'Suchen …' }).fill('wartung')
     await expect(catalog.getByTestId('catalog-entry')).toHaveCount(1)
@@ -281,6 +281,56 @@ test.describe.serial('Quadeck', () => {
     await page.reload()
     await page.getByRole('img', { name: 'live verbunden' }).waitFor()
     await expect(page.getByTestId('note-widget')).toHaveCount(0)
+  })
+
+  test('widgets from Quadeck data: starter widgets of a fresh install, a disk, the busiest containers, notifications', async ({ page }) => {
+    await login(page)
+    await page.getByRole('img', { name: 'live verbunden' }).waitFor()
+    // the demo database is new: Updates and Backups are there from the start
+    const updates = page.getByTestId('updates-widget')
+    await expect(updates).toContainText('Systempakete')
+    await expect(updates.getByRole('link', { name: 'Zur System-Seite' })).toHaveAttribute('href', '/system')
+    await expect(page.getByTestId('backups-widget')).toContainText('Server-Backup')
+
+    await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click()
+    const open = async () => {
+      await page.getByRole('button', { name: 'Widget hinzufügen' }).first().click()
+      return page.getByRole('dialog', { name: 'Widget hinzufügen' })
+    }
+    // single widgets that are there can't be added again
+    let catalog = await open()
+    await expect(catalog.getByRole('button', { name: 'Updates hinzufügen' })).toBeDisabled()
+
+    // a disk asks which one
+    await catalog.getByRole('button', { name: 'Festplatte hinzufügen' }).click()
+    const settings = page.getByRole('dialog', { name: 'Festplatte einstellen' })
+    await settings.getByLabel('Einhängepunkt').selectOption('/mnt/disk1')
+    await settings.getByRole('button', { name: 'Speichern' }).click()
+    const disk = page.getByRole('region', { name: 'Festplatte · /mnt/disk1' })
+    await expect(disk).toContainText('xfs')
+    await expect(disk.getByRole('meter', { name: '/mnt/disk1' })).toBeVisible()
+
+    // the busiest containers, switched to CPU with ⚙
+    catalog = await open()
+    await catalog.getByRole('button', { name: 'Container-Top hinzufügen' }).click()
+    await expect(page.getByRole('region', { name: 'Container-Top · RAM' })).toBeVisible()
+    await page.getByRole('button', { name: 'Container-Top · RAM einstellen' }).click()
+    await page.getByRole('dialog', { name: 'Container-Top einstellen' }).getByRole('radio', { name: 'CPU' }).check()
+    await page.getByRole('dialog', { name: 'Container-Top einstellen' }).getByRole('button', { name: 'Speichern' }).click()
+    const top = page.getByRole('region', { name: 'Container-Top · CPU' })
+    await expect(top).toBeVisible()
+    await expect.poll(async () => top.locator('.font-mono').count()).toBeGreaterThan(0)
+
+    catalog = await open()
+    await catalog.getByRole('button', { name: 'Meldungen hinzufügen' }).click()
+    await expect(page.getByTestId('alerts-widget')).toBeVisible()
+
+    // gone again (empty widgets go without asking)
+    for (const name of ['Festplatte · /mnt/disk1', 'Container-Top · CPU', 'Meldungen']) await page.getByRole('button', { name: `${name} entfernen` }).click()
+    await expect(page.getByTestId('disk-widget')).toHaveCount(0)
+    await expect(page.getByTestId('containers-widget')).toHaveCount(0)
+    await expect(page.getByTestId('alerts-widget')).toHaveCount(0)
+    await page.getByRole('button', { name: 'Fertig' }).click()
   })
 
   test('edit a service: rename, hide and restore, back to automatic', async ({ page }) => {

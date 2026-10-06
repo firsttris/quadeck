@@ -12,7 +12,8 @@ import { ServiceDialog } from '~/components/ServiceDialog'
 import { ServiceTile } from '~/components/ServiceTile'
 import { Dot, Pill } from '~/components/Status'
 import { useToast } from '~/components/Toast'
-import { NoteDialog, NoteWidget, WidgetCatalog, widgetName, type CatalogEntry, type CatalogKind } from '~/components/Widgets'
+import { NoteDialog, NoteWidget, WidgetCatalog, WidgetSettingsDialog, widgetName, type CatalogEntry, type CatalogKind } from '~/components/Widgets'
+import { AlertsWidget, BackupsWidget, ContainersWidget, DiskWidget, UpdatesWidget } from '~/components/DashWidgets'
 import { api } from '~/lib/api'
 import { calendarLabel, diskSize, pct, relative } from '~/lib/format'
 import { useMetricHistory } from '~/lib/history'
@@ -23,7 +24,7 @@ import type { Disk, Service, ServiceGroup, Share, Snapshot, Unit } from '~/share
 import { failureReason } from '~/shared/units'
 import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
-import { BUILTIN_CARDS, INSTANCE_KINDS, defaultConfig, isBuiltinCard, type BuiltinCard, type InstanceKind, type WidgetInstance } from '~/shared/widgets'
+import { BUILTIN_CARDS, INSTANCE_KINDS, WIDGETS, defaultConfig, isBuiltinCard, type BuiltinCard, type InstanceKind, type WidgetInstance } from '~/shared/widgets'
 
 export const Route = createFileRoute('/_app/')({
   loader: () => getDashboardLayout(),
@@ -79,8 +80,15 @@ const CARD_DEFAULTS: Record<string, Record<CardId, Omit<DefaultItem, 'i'>>> = {
 }
 
 /** Where an added widget goes first: below everything, a third (desktop) or half (tablet) wide. */
+const below = { lg: { x: 0, y: 900, w: 4, minW: 2, minH: 3 }, md: { x: 0, y: 900, w: 3, minW: 2, minH: 3 }, xs: { x: 0, y: 900, w: 1, minH: 3 } }
 const INSTANCE_DEFAULTS: Record<InstanceKind, Record<string, Omit<DefaultItem, 'i'>>> = {
-  note: { lg: { x: 0, y: 900, w: 4, minW: 2, minH: 3 }, md: { x: 0, y: 900, w: 3, minW: 2, minH: 3 }, xs: { x: 0, y: 900, w: 1, minH: 3 } },
+  // the starter widgets of a fresh install sit next to the services, above storage
+  updates: { lg: { x: 8, y: 20, w: 4, minW: 2, minH: 3 }, md: { x: 0, y: 190, w: 3, minW: 2, minH: 3 }, xs: { x: 0, y: 50, w: 1, minH: 3 } },
+  backups: { lg: { x: 8, y: 30, w: 4, minW: 2, minH: 3 }, md: { x: 3, y: 190, w: 3, minW: 2, minH: 3 }, xs: { x: 0, y: 60, w: 1, minH: 3 } },
+  disk: below,
+  containers: below,
+  alerts: below,
+  note: below,
 }
 
 const PAGE_GRID_BASE = { breakpoints: { lg: 960, md: 640, xs: 0 }, cols: { lg: 12, md: 6, xs: 1 }, rowHeight: 20, margin: [16, 16] as [number, number] }
@@ -105,7 +113,10 @@ function Overview() {
   const instance = (id: string) => layout.widgets.find((w) => w.id === id)
   const cardLabel = (id: string) => {
     const w = instance(id)
-    if (w) return w.kind === 'note' && w.config.title ? w.config.title : widgetName(w.kind)
+    if (w?.kind === 'note' && w.config.title) return w.config.title
+    if (w?.kind === 'disk' && w.config.mount) return m.widgets_disk_title({ mount: w.config.mount })
+    if (w?.kind === 'containers') return w.config.metric === 'cpu' ? m.widgets_containers_titleCpu() : m.widgets_containers_titleRam()
+    if (w) return widgetName(w.kind)
     return isBuiltinCard(id) ? widgetName(id) : id
   }
   const failed = snapshot.units.filter((u) => u.active === 'failed')
@@ -162,6 +173,7 @@ function Overview() {
   // ---- catalog: add built-in cards again or new widgets ----
   const [catalog, setCatalog] = useState(false)
   const [noteEdit, setNoteEdit] = useState<string | null>(null)
+  const [configuring, setConfiguring] = useState<string | null>(null)
   const [removing, setRemoving] = useState<WidgetInstance | null>(null)
   const catalogEntries: CatalogEntry[] = [
     ...BUILTIN_CARDS.map((id) => ({ kind: id, count: visible.includes(id) ? 1 : 0, unavailable: !available(id) ? (id === 'gpu' ? m.widgets_catalog_noGpu() : m.widgets_catalog_noPower()) : undefined })),
@@ -177,8 +189,9 @@ function Overview() {
       const w = await api<WidgetInstance>('/api/layout/widgets', { body: { kind, config: defaultConfig(kind) } })
       setLayout((l) => ({ ...l, widgets: [...l.widgets, w] }))
       setCatalog(false)
-      // a new note opens for writing straight away
+      // a new note opens for writing, a new disk asks which one
       if (w.kind === 'note') setNoteEdit(w.id)
+      if (w.kind === 'disk') setConfiguring(w.id)
     } catch (e) {
       say((e as Error).message, 'bad')
     }
@@ -223,7 +236,16 @@ function Overview() {
     gpu: metric('gpu'),
     power: metric('power'),
   }
-  for (const w of layout.widgets) if (w.kind === 'note') nodes[w.id] = <NoteWidget widget={w} editing={editing} onEdit={() => setNoteEdit(w.id)} />
+  for (const w of layout.widgets) {
+    if (w.kind === 'note') nodes[w.id] = <NoteWidget widget={w} editing={editing} onEdit={() => setNoteEdit(w.id)} />
+    else if (w.kind === 'updates') nodes[w.id] = <UpdatesWidget />
+    else if (w.kind === 'backups') nodes[w.id] = <BackupsWidget backup={snapshot.backup} />
+    else if (w.kind === 'disk') nodes[w.id] = <DiskWidget config={w.config} snapshot={snapshot} />
+    else if (w.kind === 'containers') nodes[w.id] = <ContainersWidget config={w.config} containers={snapshot.containers} />
+    else if (w.kind === 'alerts') nodes[w.id] = <AlertsWidget />
+  }
+  const configured = layout.widgets.find((w) => w.id === configuring && (w.kind === 'disk' || w.kind === 'containers')) as (WidgetInstance & { kind: 'disk' | 'containers' }) | undefined
+  const mounts = snapshot.disks.filter((d) => d.mount).map((d) => ({ mount: d.mount, label: `${d.mount} · ${d.dev} · ${diskSize(d.size)}` }))
   const editedNote = layout.widgets.find((w) => w.id === noteEdit && w.kind === 'note') as (WidgetInstance & { kind: 'note' }) | undefined
 
   return (
@@ -282,8 +304,8 @@ function Overview() {
               <button type="button" className="card-handle" aria-label={m.overview_edit_move({ label })} title={m.overview_edit_dragToMove()}>
                 <Glyph name="grip" size={15} strokeWidth={3.2} />
               </button>
-              {instance(id)?.kind === 'note' && (
-                <button type="button" className="no-drag" onClick={() => setNoteEdit(id)} aria-label={m.overview_edit_settings({ label })} title={m.overview_edit_settingsTitle()}>
+              {instance(id) && WIDGETS[instance(id)!.kind].configurable && (
+                <button type="button" className="no-drag" onClick={() => (instance(id)!.kind === 'note' ? setNoteEdit(id) : setConfiguring(id))} aria-label={m.overview_edit_settings({ label })} title={m.overview_edit_settingsTitle()}>
                   <Glyph name="settings" size={14} />
                 </button>
               )}
@@ -305,6 +327,7 @@ function Overview() {
       <MetricDialog id={detail} snapshot={snapshot} onClose={() => setDetail(null)} />
       <WidgetCatalog open={catalog} entries={catalogEntries} onClose={() => setCatalog(false)} onAdd={addWidget} />
       <NoteDialog widget={editedNote ?? null} onClose={() => setNoteEdit(null)} onSaved={replaceWidget} />
+      <WidgetSettingsDialog widget={configured ?? null} mounts={mounts} onClose={() => setConfiguring(null)} onSaved={replaceWidget} />
       <ConfirmDialog
         open={!!removing}
         title={m.widgets_remove_title({ name: removing ? cardLabel(removing.id) : '' })}
