@@ -2,7 +2,7 @@ import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { decodeSpec, encodeSpec, parseJobSpec } from '~/server/packages/job'
+import { decodeSpec, encodeSpec, parseJobSpec, spawnForward } from '~/server/packages/job'
 import { JobManager, journalPoll, lineSplitter, type JobSink } from '~/server/packages/jobs'
 import { FixtureMaintenance, SystemMaintenance, findConfigFiles } from '~/server/packages/maintenance'
 import * as p from '~/server/packages/parse'
@@ -225,6 +225,27 @@ describe('jobs', () => {
       if (p.text) s.push(p.text)
     }
     expect(got).toEqual(['start', '', 'done'])
+  })
+
+  it('job commands: output passes through the job (stdout and stderr), exit code kept', async () => {
+    const chunks: string[] = []
+    const dec = new TextDecoder()
+    const code = await spawnForward(['sh', '-c', 'echo one; echo two >&2; exit 3'], {}, (c) => chunks.push(dec.decode(c)))
+    expect(code).toBe(3)
+    expect(chunks.join('').split('\n').filter(Boolean).sort()).toEqual(['one', 'two'])
+  })
+
+  it('job commands: a background process holding the output open does not block the job', async () => {
+    const chunks: string[] = []
+    const dec = new TextDecoder()
+    const t = Date.now()
+    // like gpg-agent started by makepkg: the command exits, its child keeps stdout
+    const code = await spawnForward(['sh', '-c', 'echo before; (sleep 20; echo late) & echo after'], {}, (c) => chunks.push(dec.decode(c)), 300)
+    expect(code).toBe(0)
+    expect(Date.now() - t).toBeLessThan(5000)
+    expect(chunks.join('')).toContain('before')
+    expect(chunks.join('')).toContain('after')
+    expect(chunks.join('')).not.toContain('late')
   })
 
   it('reboot after a kernel update: only when the modules of the running kernel are really gone', () => {

@@ -143,10 +143,40 @@ export function jobTitle(spec: JobSpec): string {
 
 const out = (s: string) => process.stdout.write(s.endsWith('\n') ? s : s + '\n')
 
+/** How long output may still arrive after the command exited (a daemon it started may hold the pipe). */
+export const DRAIN_MS = 2000
+
+/**
+ * Runs a command and passes its output on through `write`, not by handing it our stdout.
+ * In a systemd unit, journald files every line under the process that wrote it: `runuser`
+ * (and `sudo`) open a PAM session that moves yay, makepkg and pacman into the user's
+ * session scope, so their output landed there and the job showed almost nothing. Written by
+ * this process, every line stays with the job's unit.
+ */
+export async function spawnForward(argv: string[], opts: { env?: Record<string, string>; cwd?: string; stdin?: string }, write: (chunk: Uint8Array) => void, drainMs = DRAIN_MS): Promise<number> {
+  const proc = Bun.spawn(argv, { cwd: opts.cwd, stdin: opts.stdin ? Bun.file(opts.stdin) : 'ignore', stdout: 'pipe', stderr: 'pipe', env: opts.env })
+  const readers = [proc.stdout.getReader(), proc.stderr.getReader()]
+  const pumps = readers.map(async (r) => {
+    try {
+      for (;;) {
+        const { done, value } = await r.read()
+        if (done) return
+        write(value)
+      }
+    } catch {
+      // cancelled after the command exited
+    }
+  })
+  const code = await proc.exited
+  // a background process (gpg-agent, a build server …) may keep the pipe open: don't wait for it
+  const drained = await Promise.race([Promise.all(pumps).then(() => true), Bun.sleep(drainMs).then(() => false)])
+  if (!drained) await Promise.all(readers.map((r) => r.cancel().catch(() => {})))
+  return code
+}
+
 async function exec(argv: string[], env: Record<string, string> = {}, cwd?: string, stdin?: string): Promise<number> {
   out(`$ ${argv.join(' ')}${stdin ? ` < ${stdin}` : ''}`)
-  const proc = Bun.spawn(argv, { cwd, stdin: stdin ? Bun.file(stdin) : 'ignore', stdout: 'inherit', stderr: 'inherit', env: { ...process.env, LC_ALL: 'C.UTF-8', ...env } })
-  return proc.exited
+  return spawnForward(argv, { env: { ...process.env, LC_ALL: 'C.UTF-8', ...env }, cwd, stdin }, (chunk) => process.stdout.write(chunk))
 }
 
 async function capture(argv: string[]) {
@@ -267,5 +297,7 @@ export async function runJobCommand(encoded: string | undefined): Promise<number
     code = 1
   }
   out(`${EXIT_MARKER}${code}`)
+  // everything written must be out before the caller exits the process
+  await new Promise<void>((resolve) => process.stdout.write('', () => resolve()))
   return code
 }
