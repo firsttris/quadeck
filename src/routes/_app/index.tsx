@@ -7,7 +7,6 @@ import { EditableGrid, recentlyDragged, type DefaultItem, type GridSpec } from '
 import { MetricCard, MetricDialog, type MetricCardId } from '~/components/MetricCards'
 import { Glyph } from '~/components/Glyph'
 import { ConfirmDialog } from '~/components/Modal'
-import { PageHeader } from '~/components/PageHeader'
 import { ServiceDialog } from '~/components/ServiceDialog'
 import { ServiceTile } from '~/components/ServiceTile'
 import { Dot, Pill } from '~/components/Status'
@@ -27,6 +26,8 @@ import { pickMsg } from '~/i18n'
 import { BUILTIN_CARDS, INSTANCE_KINDS, WIDGETS, defaultConfig, isBuiltinCard, type BuiltinCard, type InstanceKind, type WidgetInstance } from '~/shared/widgets'
 
 export const Route = createFileRoute('/_app/')({
+  // ?edit opens the edit mode (command palette: "Edit overview")
+  validateSearch: (s: Record<string, unknown>): { edit?: boolean } => (s.edit === true || s.edit === '1' || s.edit === 'true' ? { edit: true } : {}),
   loader: () => getDashboardLayout(),
   component: Overview,
 })
@@ -115,6 +116,13 @@ function Overview() {
   const [layout, setLayout] = useState<DashboardLayout>(initial)
   const [editing, setEditing] = useState(false)
   const say = useToast()
+  const { edit } = Route.useSearch()
+  const navigate = Route.useNavigate()
+  useEffect(() => {
+    if (!edit) return
+    setEditing(true)
+    void navigate({ search: {}, replace: true })
+  }, [edit, navigate])
   const instance = (id: string) => layout.widgets.find((w) => w.id === id)
   const cardLabel = (id: string) => {
     const w = instance(id)
@@ -263,12 +271,23 @@ function Overview() {
 
   return (
     <>
-      <PageHeader title={m.overview_title()} subtitle={m.overview_subtitle({ host: snapshot.host.hostname })}>
-        <button type="button" className={editing ? 'btn primary' : 'btn'} onClick={() => setEditing(!editing)} aria-pressed={editing} title={m.overview_edit_toggleTitle()}>
-          <Glyph name="edit" size={15} strokeWidth={2} />
+      {/* No visible title: the navigation and the host card already say where this is, the widgets
+          get the room. The strip sits in the page's top padding; the host name only on phones,
+          which have no sidebar. */}
+      <header className="-mt-[22px] -mb-[18px] flex h-[22px] items-center gap-2">
+        <h1 className="sr-only">{m.overview_title()}</h1>
+        <span className="min-w-0 grow truncate text-[12px] text-muted md:hidden">{m.overview_subtitle({ host: snapshot.host.hostname })}</span>
+        <button
+          type="button"
+          className={`ml-auto inline-flex h-[20px] items-center gap-1.5 rounded-[6px] px-2 text-[12px] ${editing ? 'bg-accent font-semibold text-bg' : 'text-muted hover:bg-[#161c24] hover:text-fg'}`}
+          onClick={() => setEditing(!editing)}
+          aria-pressed={editing}
+          title={m.overview_edit_toggleTitle()}
+        >
+          <Glyph name="edit" size={12} strokeWidth={2} />
           {editing ? m.overview_edit_done() : m.overview_edit_edit()}
         </button>
-      </PageHeader>
+      </header>
       {editing && (
         <div className="flex flex-wrap items-center gap-3 rounded-[10px] border border-[rgba(124,196,184,.35)] bg-[rgba(124,196,184,.08)] px-[14px] py-[10px] text-[13px] text-[#b6e3da]" role="status">
           <span className="grow">{m.overview_edit_help()}</span>

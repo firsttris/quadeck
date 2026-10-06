@@ -117,7 +117,9 @@ red dot means the last run of the triggered service failed. **All** opens the ti
 
 ## Layout editing
 
-The overview starts with a finished layout. **Edit** (or `E`) edits it on two levels:
+The overview starts with a finished layout. It has no title of its own (the navigation and the host
+card already say where you are), so the widgets start at the top. **Edit** in the top-right corner
+(or `E`, or *Edit the overview* in the command palette) edits it on two levels:
 
 - **Widgets** (CPU, RAM, temperature, network, GPU, power, services, storage, timers, shares and
   the ones added from the catalog): drag by the handle, resize at the bottom-right corner, remove
