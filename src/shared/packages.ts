@@ -110,6 +110,10 @@ export type JobSpec =
   | { kind: 'kernel-install'; flavor: KernelFlavor }
   | { kind: 'kernel-remove'; flavor: KernelFlavor }
   | { kind: 'mkinitcpio' }
+  /** Removes pacman's lock left by an interrupted run (refused while a package manager runs), then optionally the update again. */
+  | { kind: 'pacman-unlock'; retry?: 'upgrade' | 'aur-upgrade' }
+  /** archlinux-keyring first, then the full upgrade (signatures from new packager keys). */
+  | { kind: 'keyring-upgrade' }
   | { kind: 'backup-restore'; snapshot: string; paths: string[]; target?: string; stop: string[] }
 
 export type JobStatus = 'running' | 'ok' | 'failed'

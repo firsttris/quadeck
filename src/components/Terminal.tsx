@@ -3,6 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, csrfHeaders } from '~/lib/api'
 import { IDLE_MINUTES, KEYS, ctrlKey, type IdleMinutes, type TerminalInfo, type TerminalSettings } from '~/shared/terminal'
+import { TERMINAL_COMMANDS, type TerminalCommand } from '~/shared/job-diagnosis'
 import { useActions } from './Actions'
 import { BusyButton, useBusy } from './Busy'
 import { Modal } from './Modal'
@@ -17,7 +18,7 @@ type XTerm = import('@xterm/xterm').Terminal
 const post = (body: Record<string, unknown>) => api('/api/terminal', { body })
 
 /** Terminal: shells on the server and in containers, in tabs. */
-export function TerminalPage({ container }: { container?: string }) {
+export function TerminalPage({ container, type }: { container?: string; type?: TerminalCommand }) {
   const navigate = useNavigate()
   const guarded = useGuardedApi()
   const say = useToast()
@@ -30,6 +31,9 @@ export function TerminalPage({ container }: { container?: string }) {
   const [font, setFont] = useState(13)
   const [full, setFull] = useState(false)
   const opened = useRef<string | null>(null)
+  const typed = useRef(false)
+  /** Text to type into a tab once its shell shows the prompt (from a job hint). */
+  const [pending, setPending] = useState<Record<string, string>>({})
   const opening = useBusy<'new' | 'empty' | 'container'>()
   const run = opening.run
 
@@ -49,11 +53,15 @@ export function TerminalPage({ container }: { container?: string }) {
   }, [load])
 
   const open = useCallback(
-    (target: { kind: 'shell' } | { kind: 'container'; name: string }, key: 'new' | 'empty' | 'container') =>
+    (target: { kind: 'shell' } | { kind: 'container'; name: string }, key: 'new' | 'empty' | 'container', command?: TerminalCommand) =>
       run(key, async () => {
         try {
           const info = await guarded<TerminalInfo>('/api/terminal', { body: { action: 'open', target, cols: 100, rows: 30 } })
           if (!info) return
+          if (command) {
+            const c = TERMINAL_COMMANDS[command]
+            setPending((p) => ({ ...p, [info.id]: c.root && info.user !== 'root' ? `sudo ${c.argv}` : c.argv }))
+          }
           setTabs((t) => [...t, info])
           setActive(info.id)
         } catch (e) {
@@ -69,6 +77,13 @@ export function TerminalPage({ container }: { container?: string }) {
     opened.current = container
     void open({ kind: 'container', name: container }, 'container').then(() => navigate({ to: '/terminal', search: {}, replace: true }))
   }, [container, state, open, navigate])
+
+  // A job hint → "In the terminal: pacman -Syu" lands here with ?type=…
+  useEffect(() => {
+    if (!type || !state?.settings.enabled || typed.current) return
+    typed.current = true
+    void open({ kind: 'shell' }, 'new', type).then(() => navigate({ to: '/terminal', search: {}, replace: true }))
+  }, [type, state, open, navigate])
 
   const closeTab = async (id: string) => {
     await post({ action: 'close', id }).catch(() => {})
@@ -135,7 +150,7 @@ export function TerminalPage({ container }: { container?: string }) {
               )}
             </div>
           ) : (
-            tabs.map((t) => <TerminalView key={t.id} info={t} visible={active === t.id} font={font} full={full} />)
+            tabs.map((t) => <TerminalView key={t.id} info={t} visible={active === t.id} font={font} full={full} type={pending[t.id]} />)
           )}
           <p className="m-0 mt-2 text-[12px] text-muted">{m.terminal_footer({ minutes: state.settings.idleMinutes })}</p>
         </section>
@@ -149,7 +164,8 @@ const b64 = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0))
 const EVENT = /^event: (\w+)/m
 const DATA = /^data: (.*)$/m
 
-function TerminalView({ info, visible, font, full }: { info: TerminalInfo; visible: boolean; font: number; full: boolean }) {
+function TerminalView({ info, visible, font, full, type }: { info: TerminalInfo; visible: boolean; font: number; full: boolean; type?: string }) {
+  const toType = useRef(type)
   const box = useRef<HTMLDivElement>(null)
   const term = useRef<XTerm | null>(null)
   const fit = useRef<{ fit(): void } | null>(null)
@@ -199,7 +215,15 @@ function TerminalView({ info, visible, font, full }: { info: TerminalInfo; visib
           buf = buf.slice(i + 2)
           const ev = EVENT.exec(block)?.[1]
           const data = DATA.exec(block)?.[1] ?? ''
-          if (ev === 'data') term.current?.write(b64(data))
+          if (ev === 'data') {
+            term.current?.write(b64(data))
+            // typed once the shell has printed something (its prompt), never with Enter
+            const t = toType.current
+            if (t) {
+              toType.current = undefined
+              setTimeout(() => send(t), 250)
+            }
+          }
           else if (ev === 'exit') {
             term.current?.write(`\r\n\x1b[2m${m.terminal_ended()}\x1b[0m\r\n`)
             setStatus('ended')
@@ -211,7 +235,7 @@ function TerminalView({ info, visible, font, full }: { info: TerminalInfo; visib
     } catch {
       if (!ac.signal.aborted) setStatus('lost')
     }
-  }, [info.id])
+  }, [info.id, send])
 
   useEffect(() => {
     let disposed = false
