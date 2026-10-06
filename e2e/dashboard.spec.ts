@@ -34,7 +34,9 @@ test.describe.serial('Quadeck', () => {
     await page.getByRole('button', { name: 'Passwort festlegen' }).click()
     await expect(page).toHaveURL('/')
 
-    await expect(page.getByRole('heading', { name: 'Übersicht' })).toBeVisible()
+    // no visible title: the page starts with the widgets (the heading is there for screen readers)
+    await expect(page.getByRole('heading', { name: 'Übersicht', level: 1 })).toHaveCount(1)
+    await expect(page.getByText('live über Podman-Socket und D-Bus')).toBeHidden() // desktop: the sidebar has the host
     // Alarm card for the OOM-killed Quadlet
     const alarm = page.getByRole('region', { name: 'Fehlgeschlagen: immich-ml.service' })
     await expect(alarm).toContainText('OOM-Kill: Speicherlimit MemoryMax=2G erreicht')
@@ -155,7 +157,9 @@ test.describe.serial('Quadeck', () => {
     await login(page)
     const nav = page.getByRole('navigation', { name: 'Bereiche' })
     await expect(nav).toBeHidden()
-    await expect(page.getByRole('heading', { level: 1 })).toBeInViewport()
+    await expect(page.getByRole('heading', { level: 1 })).toHaveCount(1)
+    // phones have no sidebar: the host name stays in the small strip above the widgets
+    await expect(page.getByText('nas-01 · live über Podman-Socket und D-Bus')).toBeInViewport()
     await page.getByRole('button', { name: 'Menü öffnen' }).click()
     await expect(nav).toBeVisible()
     await expect(nav.getByRole('group', { name: 'Speicher' })).toContainText('Festplatten')
@@ -426,6 +430,13 @@ test.describe.serial('Quadeck', () => {
     await unlock(page)
     await expect(page.getByRole('dialog')).toContainText('systemctl restart caddy.service')
     await page.getByRole('dialog').getByRole('button', { name: 'Abbrechen' }).click()
+    // "Edit the overview" opens the edit mode
+    await page.getByRole('button', { name: /Suchen/ }).click()
+    await page.getByRole('combobox', { name: 'Suchen' }).fill('widgets')
+    await page.keyboard.press('Enter')
+    await expect(page).toHaveURL('/')
+    await expect(page.getByRole('button', { name: 'Fertig' })).toHaveAttribute('aria-pressed', 'true')
+    await page.getByRole('button', { name: 'Fertig' }).click()
   })
 
   test('units filter and journal', async ({ page }) => {

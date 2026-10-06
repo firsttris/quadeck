@@ -2282,6 +2282,7 @@
   "format_time_in": "in {duration}",
   "format_date_months": "Jan Feb Mar Apr May Jun Jul Aug Sep Oct Nov Dec",
   "palette_page_failedUnits": "Failed units",
+  "palette_page_editOverview": "Edit the overview (widgets)",
   "palette_page_editQuadlets": "Edit Quadlets",
   "palette_page_newContainer": "New container",
   "palette_page_bootRestart": "Boot and restart",

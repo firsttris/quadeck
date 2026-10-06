@@ -21,6 +21,7 @@ export interface PaletteItem {
 export function paletteItems(s: Omit<Snapshot, 'system'>, readonly: boolean): PaletteItem[] {
   const items: PaletteItem[] = [
     { id: 'p:/', section: 'Seiten', label: msg(m.overview_title), keywords: 'dashboard start home übersicht overview', action: { kind: 'navigate', to: '/' } },
+    { id: 'p:/?edit', section: 'Seiten', label: msg(m.palette_page_editOverview), keywords: 'dashboard widgets layout bearbeiten edit hinzufügen add', action: { kind: 'navigate', to: '/', search: { edit: '1' } } },
     { id: 'p:/units', section: 'Seiten', label: 'Units', keywords: 'container dienste systemd quadlets services', action: { kind: 'navigate', to: '/units' } },
     { id: 'p:/units?failed', section: 'Seiten', label: msg(m.palette_page_failedUnits), keywords: 'failed fehler error', action: { kind: 'navigate', to: '/units', search: { filter: 'failed' } } },
     { id: 'p:/journal', section: 'Seiten', label: 'Journal', keywords: 'logs journalctl', action: { kind: 'navigate', to: '/journal' } },
