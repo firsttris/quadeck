@@ -13,9 +13,13 @@ export interface GridItem {
   h: number
 }
 
+import type { WidgetInstance } from './widgets'
+
 export interface DashboardLayout {
   layouts: Record<LayoutScope, Record<string, GridItem[]>>
   hidden: string[] // ids of hidden cards
+  /** Widgets added from the catalog, in the order they were added. */
+  widgets: WidgetInstance[]
 }
 
-export const EMPTY_LAYOUT: DashboardLayout = { layouts: { page: {}, tiles: {} }, hidden: [] }
+export const EMPTY_LAYOUT: DashboardLayout = { layouts: { page: {}, tiles: {} }, hidden: [], widgets: [] }

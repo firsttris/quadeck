@@ -53,6 +53,7 @@ import { Route as ApiJobsIndexRouteImport } from './routes/api/jobs/index'
 import { Route as ApiJobsIdRouteImport } from './routes/api/jobs/$id'
 import { Route as ApiLayoutIndexRouteImport } from './routes/api/layout/index'
 import { Route as ApiLayoutHiddenRouteImport } from './routes/api/layout/hidden'
+import { Route as ApiLayoutWidgetsRouteImport } from './routes/api/layout/widgets'
 import { Route as ApiLinksIndexRouteImport } from './routes/api/links/index'
 import { Route as ApiLinksIdRouteImport } from './routes/api/links/$id'
 import { Route as ApiMetricsContainersRouteImport } from './routes/api/metrics/containers'
@@ -307,6 +308,11 @@ const ApiLayoutHiddenRoute = ApiLayoutHiddenRouteImport.update({
   path: '/api/layout/hidden',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiLayoutWidgetsRoute = ApiLayoutWidgetsRouteImport.update({
+  id: '/api/layout/widgets',
+  path: '/api/layout/widgets',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiLinksIndexRoute = ApiLinksIndexRouteImport.update({
   id: '/api/links/',
   path: '/api/links/',
@@ -514,6 +520,7 @@ export interface FileRoutesByFullPath {
   '/api/icons/search': typeof ApiIconsSearchRoute
   '/api/jobs/$id': typeof ApiJobsIdRoute
   '/api/layout/hidden': typeof ApiLayoutHiddenRoute
+  '/api/layout/widgets': typeof ApiLayoutWidgetsRoute
   '/api/links/$id': typeof ApiLinksIdRoute
   '/api/metrics/containers': typeof ApiMetricsContainersRoute
   '/api/metrics/history': typeof ApiMetricsHistoryRoute
@@ -593,6 +600,7 @@ export interface FileRoutesByTo {
   '/api/icons/search': typeof ApiIconsSearchRoute
   '/api/jobs/$id': typeof ApiJobsIdRoute
   '/api/layout/hidden': typeof ApiLayoutHiddenRoute
+  '/api/layout/widgets': typeof ApiLayoutWidgetsRoute
   '/api/links/$id': typeof ApiLinksIdRoute
   '/api/metrics/containers': typeof ApiMetricsContainersRoute
   '/api/metrics/history': typeof ApiMetricsHistoryRoute
@@ -674,6 +682,7 @@ export interface FileRoutesById {
   '/api/icons/search': typeof ApiIconsSearchRoute
   '/api/jobs/$id': typeof ApiJobsIdRoute
   '/api/layout/hidden': typeof ApiLayoutHiddenRoute
+  '/api/layout/widgets': typeof ApiLayoutWidgetsRoute
   '/api/links/$id': typeof ApiLinksIdRoute
   '/api/metrics/containers': typeof ApiMetricsContainersRoute
   '/api/metrics/history': typeof ApiMetricsHistoryRoute
@@ -755,6 +764,7 @@ export interface FileRouteTypes {
     | '/api/icons/search'
     | '/api/jobs/$id'
     | '/api/layout/hidden'
+    | '/api/layout/widgets'
     | '/api/links/$id'
     | '/api/metrics/containers'
     | '/api/metrics/history'
@@ -834,6 +844,7 @@ export interface FileRouteTypes {
     | '/api/icons/search'
     | '/api/jobs/$id'
     | '/api/layout/hidden'
+    | '/api/layout/widgets'
     | '/api/links/$id'
     | '/api/metrics/containers'
     | '/api/metrics/history'
@@ -914,6 +925,7 @@ export interface FileRouteTypes {
     | '/api/icons/search'
     | '/api/jobs/$id'
     | '/api/layout/hidden'
+    | '/api/layout/widgets'
     | '/api/links/$id'
     | '/api/metrics/containers'
     | '/api/metrics/history'
@@ -979,6 +991,7 @@ export interface RootRouteChildren {
   ApiIconsSearchRoute: typeof ApiIconsSearchRoute
   ApiJobsIdRoute: typeof ApiJobsIdRoute
   ApiLayoutHiddenRoute: typeof ApiLayoutHiddenRoute
+  ApiLayoutWidgetsRoute: typeof ApiLayoutWidgetsRoute
   ApiLinksIdRoute: typeof ApiLinksIdRoute
   ApiMetricsContainersRoute: typeof ApiMetricsContainersRoute
   ApiMetricsHistoryRoute: typeof ApiMetricsHistoryRoute
@@ -1333,6 +1346,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiLayoutHiddenRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/layout/widgets': {
+      id: '/api/layout/widgets'
+      path: '/api/layout/widgets'
+      fullPath: '/api/layout/widgets'
+      preLoaderRoute: typeof ApiLayoutWidgetsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/links/': {
       id: '/api/links/'
       path: '/api/links'
@@ -1635,6 +1655,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiIconsSearchRoute: ApiIconsSearchRoute,
   ApiJobsIdRoute: ApiJobsIdRoute,
   ApiLayoutHiddenRoute: ApiLayoutHiddenRoute,
+  ApiLayoutWidgetsRoute: ApiLayoutWidgetsRoute,
   ApiLinksIdRoute: ApiLinksIdRoute,
   ApiMetricsContainersRoute: ApiMetricsContainersRoute,
   ApiMetricsHistoryRoute: ApiMetricsHistoryRoute,

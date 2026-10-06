@@ -12,6 +12,7 @@ import { ServiceDialog } from '~/components/ServiceDialog'
 import { ServiceTile } from '~/components/ServiceTile'
 import { Dot, Pill } from '~/components/Status'
 import { useToast } from '~/components/Toast'
+import { NoteDialog, NoteWidget, WidgetCatalog, widgetName, type CatalogEntry, type CatalogKind } from '~/components/Widgets'
 import { api } from '~/lib/api'
 import { calendarLabel, diskSize, pct, relative } from '~/lib/format'
 import { useMetricHistory } from '~/lib/history'
@@ -22,6 +23,7 @@ import type { Disk, Service, ServiceGroup, Share, Snapshot, Unit } from '~/share
 import { failureReason } from '~/shared/units'
 import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
+import { BUILTIN_CARDS, INSTANCE_KINDS, defaultConfig, isBuiltinCard, type BuiltinCard, type InstanceKind, type WidgetInstance } from '~/shared/widgets'
 
 export const Route = createFileRoute('/_app/')({
   loader: () => getDashboardLayout(),
@@ -30,9 +32,7 @@ export const Route = createFileRoute('/_app/')({
 
 // ---------- card grid (level 1) ----------
 
-// Labels come from t.overview.cards.
-const CARDS = [{ id: 'services' }, { id: 'storage' }, { id: 'timers' }, { id: 'shares' }, { id: 'cpu' }, { id: 'ram' }, { id: 'temp' }, { id: 'net' }, { id: 'gpu' }, { id: 'power' }] as const
-type CardId = (typeof CARDS)[number]['id']
+type CardId = BuiltinCard
 
 // Gauge + one-hour chart; height follows the content.
 // Metric cards have a fixed height (the chart fills it) and can be made small and square.
@@ -78,6 +78,11 @@ const CARD_DEFAULTS: Record<string, Record<CardId, Omit<DefaultItem, 'i'>>> = {
   },
 }
 
+/** Where an added widget goes first: below everything, a third (desktop) or half (tablet) wide. */
+const INSTANCE_DEFAULTS: Record<InstanceKind, Record<string, Omit<DefaultItem, 'i'>>> = {
+  note: { lg: { x: 0, y: 900, w: 4, minW: 2, minH: 3 }, md: { x: 0, y: 900, w: 3, minW: 2, minH: 3 }, xs: { x: 0, y: 900, w: 1, minH: 3 } },
+}
+
 const PAGE_GRID_BASE = { breakpoints: { lg: 960, md: 640, xs: 0 }, cols: { lg: 12, md: 6, xs: 1 }, rowHeight: 20, margin: [16, 16] as [number, number] }
 
 // ---------- tile grid (level 2, inside the Services card) ----------
@@ -97,7 +102,12 @@ function Overview() {
   const [layout, setLayout] = useState<DashboardLayout>(initial)
   const [editing, setEditing] = useState(false)
   const say = useToast()
-  const cardLabel = (id: string) => pickMsg({ "services": m.overview_cards_services, "storage": m.overview_cards_storage, "timers": m.overview_cards_timers, "shares": m.overview_cards_shares, "cpu": m.overview_cards_cpu, "ram": m.overview_cards_ram, "temp": m.overview_cards_temp, "net": m.overview_cards_net, "gpu": m.overview_cards_gpu, "power": m.overview_cards_power }, id)
+  const instance = (id: string) => layout.widgets.find((w) => w.id === id)
+  const cardLabel = (id: string) => {
+    const w = instance(id)
+    if (w) return w.kind === 'note' && w.config.title ? w.config.title : widgetName(w.kind)
+    return isBuiltinCard(id) ? widgetName(id) : id
+  }
   const failed = snapshot.units.filter((u) => u.active === 'failed')
 
   // "E" toggles edit mode (not while typing or in a dialog).
@@ -134,7 +144,7 @@ function Overview() {
     resetting.run('reset', async () => {
       try {
         await api('/api/layout', { method: 'DELETE' })
-        setLayout({ layouts: { page: {}, tiles: {} }, hidden: [] })
+        setLayout((l) => ({ layouts: { page: {}, tiles: {} }, hidden: [], widgets: l.widgets }))
         say(m.overview_edit_layoutReset())
       } catch (e) {
         say((e as Error).message, 'bad')
@@ -145,17 +155,63 @@ function Overview() {
   const hasGpu = !!snapshot.system?.gpus?.length
   // The power card once the server reported power.
   const hasPower = !!snapshot.power
-  const visible = CARDS.filter((c) => !layout.hidden.includes(c.id) && (c.id !== 'gpu' || hasGpu) && (c.id !== 'power' || hasPower))
+  const available = (id: CardId) => (id !== 'gpu' || hasGpu) && (id !== 'power' || hasPower)
+  const visible = BUILTIN_CARDS.filter((id) => !layout.hidden.includes(id) && available(id))
+  const shownIds = [...visible, ...layout.widgets.map((w) => w.id)]
+
+  // ---- catalog: add built-in cards again or new widgets ----
+  const [catalog, setCatalog] = useState(false)
+  const [noteEdit, setNoteEdit] = useState<string | null>(null)
+  const [removing, setRemoving] = useState<WidgetInstance | null>(null)
+  const catalogEntries: CatalogEntry[] = [
+    ...BUILTIN_CARDS.map((id) => ({ kind: id, count: visible.includes(id) ? 1 : 0, unavailable: !available(id) ? (id === 'gpu' ? m.widgets_catalog_noGpu() : m.widgets_catalog_noPower()) : undefined })),
+    ...INSTANCE_KINDS.map((k) => ({ kind: k, count: layout.widgets.filter((w) => w.kind === k).length })),
+  ]
+  const addWidget = async (kind: CatalogKind) => {
+    if (isBuiltinCard(kind)) {
+      setHidden(kind, false)
+      setCatalog(false)
+      return
+    }
+    try {
+      const w = await api<WidgetInstance>('/api/layout/widgets', { body: { kind, config: defaultConfig(kind) } })
+      setLayout((l) => ({ ...l, widgets: [...l.widgets, w] }))
+      setCatalog(false)
+      // a new note opens for writing straight away
+      if (w.kind === 'note') setNoteEdit(w.id)
+    } catch (e) {
+      say((e as Error).message, 'bad')
+    }
+  }
+  const dropWidget = async (w: WidgetInstance) => {
+    try {
+      await api(`/api/layout/widgets?id=${encodeURIComponent(w.id)}`, { method: 'DELETE' })
+      setLayout((l) => ({ ...l, widgets: l.widgets.filter((x) => x.id !== w.id), layouts: { ...l.layouts, page: Object.fromEntries(Object.entries(l.layouts.page).map(([bp, items]) => [bp, items.filter((it) => it.i !== w.id)])) } }))
+    } catch (e) {
+      say((e as Error).message, 'bad')
+    }
+  }
+  const removeCard = (id: string) => {
+    const w = instance(id)
+    if (!w) return setHidden(id, true)
+    // a note with text asks first (the text is gone afterwards); empty widgets go right away
+    if (w.kind === 'note' && (w.config.text || w.config.title)) setRemoving(w)
+    else void dropWidget(w)
+  }
+  const replaceWidget = (w: WidgetInstance) => setLayout((l) => ({ ...l, widgets: l.widgets.map((x) => (x.id === w.id ? w : x)) }))
   const history = useMetricHistory('1h')
   const [detail, setDetail] = useState<MetricCardId | null>(null)
   const metric = (id: MetricCardId) => <MetricCard id={id} snapshot={snapshot} history={history.series} now={history.now} onOpen={editing ? () => {} : setDetail} />
   const pageSpec: GridSpec = useMemo(
-    () => ({ ...PAGE_GRID_BASE, defaults: (bp) => visible.map((c) => ({ i: c.id, ...CARD_DEFAULTS[bp]![c.id] })) }),
+    () => ({
+      ...PAGE_GRID_BASE,
+      defaults: (bp) => [...visible.map((id) => ({ i: id, ...CARD_DEFAULTS[bp]![id] })), ...layout.widgets.map((w) => ({ i: w.id, ...INSTANCE_DEFAULTS[w.kind][bp]! }))],
+    }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [visible.map((c) => c.id).join()],
+    [shownIds.join()],
   )
 
-  const nodes: Record<CardId, React.ReactNode> = {
+  const nodes: Record<string, React.ReactNode> = {
     services: <Services groups={snapshot.services} editing={editing} saved={layout.layouts.tiles} onSave={(bp, items) => save('tiles', bp, items)} />,
     storage: <Storage disks={snapshot.disks} smart={snapshot.smart ?? []} />,
     timers: <Timers units={snapshot.units} />,
@@ -167,6 +223,8 @@ function Overview() {
     gpu: metric('gpu'),
     power: metric('power'),
   }
+  for (const w of layout.widgets) if (w.kind === 'note') nodes[w.id] = <NoteWidget widget={w} editing={editing} onEdit={() => setNoteEdit(w.id)} />
+  const editedNote = layout.widgets.find((w) => w.id === noteEdit && w.kind === 'note') as (WidgetInstance & { kind: 'note' }) | undefined
 
   return (
     <>
@@ -179,17 +237,10 @@ function Overview() {
       {editing && (
         <div className="flex flex-wrap items-center gap-3 rounded-[10px] border border-[rgba(124,196,184,.35)] bg-[rgba(124,196,184,.08)] px-[14px] py-[10px] text-[13px] text-[#b6e3da]" role="status">
           <span className="grow">{m.overview_edit_help()}</span>
-          {layout.hidden.length > 0 && (
-            <span className="flex flex-wrap items-center gap-1.5">
-              {m.overview_edit_hidden()}
-              {layout.hidden.map((id) => (
-                <button key={id} type="button" className="seg" onClick={() => setHidden(id, false)} aria-label={m.overview_edit_show({ label: cardLabel(id) })}>
-                  <Glyph name="plus" size={12} strokeWidth={2} />
-                  {cardLabel(id)}
-                </button>
-              ))}
-            </span>
-          )}
+          <button type="button" className="btn sm primary" onClick={() => setCatalog(true)}>
+            <Glyph name="plus" size={13} strokeWidth={2} />
+            {m.widgets_catalog_open()}
+          </button>
           {snapshot.hiddenServices.length > 0 && (
             <span className="flex flex-wrap items-center gap-1.5">
               {m.overview_edit_hiddenServices()}
@@ -218,7 +269,7 @@ function Overview() {
       <EditableGrid
         spec={pageSpec}
         ssrBreakpoint="lg"
-        items={visible.map((c) => ({ i: c.id, node: nodes[c.id] }))}
+        items={shownIds.map((id) => ({ i: id, node: nodes[id] }))}
         saved={layout.layouts.page}
         editing={editing}
         onSave={(bp, items) => save('page', bp, items)}
@@ -231,14 +282,39 @@ function Overview() {
               <button type="button" className="card-handle" aria-label={m.overview_edit_move({ label })} title={m.overview_edit_dragToMove()}>
                 <Glyph name="grip" size={15} strokeWidth={3.2} />
               </button>
-              <button type="button" className="no-drag" onClick={() => setHidden(id, true)} aria-label={m.overview_edit_hide({ label })} title={m.overview_edit_hideTitle()}>
-                <Glyph name="eyeOff" size={15} />
+              {instance(id)?.kind === 'note' && (
+                <button type="button" className="no-drag" onClick={() => setNoteEdit(id)} aria-label={m.overview_edit_settings({ label })} title={m.overview_edit_settingsTitle()}>
+                  <Glyph name="settings" size={14} />
+                </button>
+              )}
+              <button type="button" className="no-drag" onClick={() => removeCard(id)} aria-label={m.overview_edit_remove({ label })} title={m.overview_edit_removeTitle()}>
+                <Glyph name="close" size={15} />
               </button>
             </div>
           )
         }}
       />
+      {editing && (
+        <button type="button" className="mt-4 grid min-h-[64px] w-full place-items-center rounded-[12px] border-[1.5px] border-dashed border-[rgba(124,196,184,.35)] text-[13px] text-accent" onClick={() => setCatalog(true)}>
+          <span className="flex items-center gap-1.5">
+            <Glyph name="plus" size={14} strokeWidth={2} />
+            {m.widgets_catalog_open()}
+          </span>
+        </button>
+      )}
       <MetricDialog id={detail} snapshot={snapshot} onClose={() => setDetail(null)} />
+      <WidgetCatalog open={catalog} entries={catalogEntries} onClose={() => setCatalog(false)} onAdd={addWidget} />
+      <NoteDialog widget={editedNote ?? null} onClose={() => setNoteEdit(null)} onSaved={replaceWidget} />
+      <ConfirmDialog
+        open={!!removing}
+        title={m.widgets_remove_title({ name: removing ? cardLabel(removing.id) : '' })}
+        body={<p className="m-0">{m.widgets_remove_body()}</p>}
+        confirm={m.common_remove()}
+        danger
+        busyLabel={m.common_deleting()}
+        onClose={() => setRemoving(null)}
+        onConfirm={() => (removing ? dropWidget(removing) : undefined)}
+      />
     </>
   )
 }

@@ -61,7 +61,49 @@ describe('layout storage', () => {
     layout.setCardHidden('storage', false)
     expect(layout.getLayout().hidden).toEqual([])
     layout.resetLayout()
-    expect(layout.getLayout()).toEqual({ layouts: { page: {}, tiles: {} }, hidden: [] })
+    expect(layout.getLayout()).toEqual({ layouts: { page: {}, tiles: {} }, hidden: [], widgets: [] })
+  })
+})
+
+describe('widgets from the catalog', () => {
+  it('adds notes with their own ids and settings, updates and removes them with their positions', () => {
+    const a = layout.addWidget('note', { title: '  Gäste-WLAN ', text: 'Passwort im Vaultwarden\r\nhttps://vault.home' })
+    const b = layout.addWidget('note', {})
+    expect(a.id).toMatch(/^note-[0-9a-f]{12}$/)
+    expect(a.id).not.toBe(b.id)
+    expect(a.config).toEqual({ title: 'Gäste-WLAN', text: 'Passwort im Vaultwarden\nhttps://vault.home' })
+    expect(b.config).toEqual({ title: '', text: '' })
+    layout.saveLayout('page', 'lg', [{ i: a.id, x: 0, y: 3, w: 4, h: 0 }])
+    layout.saveLayout('page', 'xs', [{ i: a.id, x: 0, y: 9, w: 1, h: 0 }])
+    expect(layout.getLayout().widgets.map((w) => w.id)).toEqual([a.id, b.id])
+
+    expect(layout.updateWidget(b.id, { title: 'Wartung', text: 'Disk2 tauschen' }).config).toEqual({ title: 'Wartung', text: 'Disk2 tauschen' })
+    expect(layout.getLayout().widgets.find((w) => w.id === b.id)!.config).toEqual({ title: 'Wartung', text: 'Disk2 tauschen' })
+
+    layout.removeWidget(a.id)
+    const after = layout.getLayout()
+    expect(after.widgets.map((w) => w.id)).toEqual([b.id])
+    expect(after.layouts.page.lg ?? []).not.toContainEqual(expect.objectContaining({ i: a.id }))
+    expect(after.layouts.page.xs ?? []).not.toContainEqual(expect.objectContaining({ i: a.id }))
+    // the reset only moves things back: added widgets and their text stay
+    layout.resetLayout()
+    expect(layout.getLayout().widgets.map((w) => w.id)).toEqual([b.id])
+    layout.removeWidget(b.id)
+  })
+
+  it('refuses unknown kinds, oversized text, foreign ids and built-in cards', () => {
+    expect(() => layout.addWidget('cpu', {})).toThrow()
+    expect(() => layout.addWidget('evil', {})).toThrow()
+    expect(() => layout.addWidget('note', { text: 'x'.repeat(4001) })).toThrow()
+    expect(() => layout.addWidget('note', { title: 'x'.repeat(81) })).toThrow()
+    expect(() => layout.updateWidget('storage', { text: 'x' })).toThrow()
+    expect(() => layout.updateWidget('note-000000000000', { text: 'x' })).toThrow()
+    expect(() => layout.removeWidget('../x')).toThrow()
+    // a card's hidden flag is not a widget
+    layout.setCardHidden('timers', true)
+    expect(() => layout.removeWidget('timers')).toThrow()
+    expect(layout.getLayout().widgets).toEqual([])
+    layout.setCardHidden('timers', false)
   })
 })
 

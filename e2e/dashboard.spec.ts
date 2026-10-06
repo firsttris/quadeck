@@ -206,8 +206,8 @@ test.describe.serial('Quadeck', () => {
     await page.mouse.down()
     await page.mouse.move(handle.x + before.width + 20, handle.y + before.height + 20, { steps: 12 })
     await page.mouse.up()
-    // Hide the timers card
-    await page.getByRole('button', { name: 'Nächste Timer ausblenden' }).click()
+    // Remove the timers card
+    await page.getByRole('button', { name: 'Nächste Timer entfernen' }).click()
     await expect(page.getByRole('region', { name: 'Nächste Timer' })).toHaveCount(0)
     await page.getByRole('button', { name: 'Fertig' }).click()
 
@@ -222,11 +222,65 @@ test.describe.serial('Quadeck', () => {
     await expect(page.getByTestId('service-tile').filter({ hasText: 'Jellyfin' })).toHaveAttribute('href', 'https://jellyfin.home.example')
 
     await page.getByRole('button', { name: 'Bearbeiten' }).click()
-    await page.getByRole('button', { name: 'Nächste Timer einblenden' }).click()
+    // back from the catalog
+    await page.getByRole('button', { name: 'Widget hinzufügen' }).first().click()
+    const catalog = page.getByRole('dialog', { name: 'Widget hinzufügen' })
+    await catalog.getByRole('button', { name: 'Nächste Timer hinzufügen' }).click()
+    await expect(catalog).toBeHidden()
     await expect(page.getByRole('region', { name: 'Nächste Timer' })).toBeVisible()
     await page.getByRole('button', { name: 'Auf Auto-Layout zurücksetzen' }).click()
     await expect(page.getByRole('status').filter({ hasText: 'Auto-Layout wiederhergestellt' })).toBeVisible()
     await expect.poll(async () => Math.abs((await page.getByTestId('grid-item-ct:jellyfin').boundingBox())!.width - (await page.getByTestId('grid-item-ct:immich-server').boundingBox())!.width)).toBeLessThan(2)
+  })
+
+  test('widget catalog: what is there, add a note, write, edit, remove; it stays across reloads', async ({ page }) => {
+    await login(page)
+    await page.getByRole('img', { name: 'live verbunden' }).waitFor()
+    await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click()
+    await page.getByRole('button', { name: 'Widget hinzufügen' }).first().click()
+    const catalog = page.getByRole('dialog', { name: 'Widget hinzufügen' })
+    // built-in cards that are shown can't be added twice
+    await expect(catalog.getByRole('button', { name: 'CPU hinzufügen' })).toBeDisabled()
+    await expect(catalog.getByTestId('catalog-entry').filter({ has: page.getByText('CPU', { exact: true }) })).toContainText('auf dem Dashboard')
+    // categories and search
+    await catalog.getByRole('button', { name: 'Sonstiges' }).click()
+    await expect(catalog.getByTestId('catalog-entry')).toHaveCount(1)
+    await catalog.getByRole('button', { name: 'Alle' }).click()
+    await catalog.getByRole('searchbox', { name: 'Suchen …' }).fill('wartung')
+    await expect(catalog.getByTestId('catalog-entry')).toHaveCount(1)
+    await expect(catalog.getByTestId('catalog-entry')).toContainText('MEHRFACH')
+
+    await catalog.getByRole('button', { name: 'Notiz hinzufügen' }).click()
+    const dialog = page.getByRole('dialog', { name: 'Notiz bearbeiten' })
+    await dialog.getByLabel('Überschrift (optional)').fill('Gäste-WLAN')
+    await dialog.getByLabel('Text').fill('Passwort steht im Vaultwarden\nhttps://vault.home.example')
+    await dialog.getByRole('button', { name: 'Speichern' }).click()
+    await expect(dialog).toBeHidden()
+    const note = page.getByRole('region', { name: 'Gäste-WLAN' })
+    await expect(note).toContainText('Passwort steht im Vaultwarden')
+    await expect(note.getByRole('link', { name: 'https://vault.home.example' })).toHaveAttribute('href', 'https://vault.home.example')
+    await page.getByRole('button', { name: 'Fertig' }).click()
+
+    await page.reload()
+    await page.getByRole('img', { name: 'live verbunden' }).waitFor()
+    await expect(page.getByRole('region', { name: 'Gäste-WLAN' })).toContainText('Vaultwarden')
+    // edit from view mode with the pencil
+    await page.getByRole('button', { name: 'Gäste-WLAN bearbeiten' }).click()
+    await page.getByRole('dialog', { name: 'Notiz bearbeiten' }).getByLabel('Text').fill('Neues Passwort ab Montag')
+    await page.getByRole('dialog', { name: 'Notiz bearbeiten' }).getByRole('button', { name: 'Speichern' }).click()
+    await expect(page.getByRole('region', { name: 'Gäste-WLAN' })).toContainText('Neues Passwort ab Montag')
+
+    // removing a note with text asks first
+    await page.getByRole('button', { name: 'Bearbeiten', exact: true }).click()
+    await page.getByRole('button', { name: 'Gäste-WLAN entfernen' }).click()
+    const confirm = page.getByRole('dialog', { name: 'Gäste-WLAN entfernen?' })
+    await expect(confirm.getByRole('button', { name: 'Abbrechen' })).toBeFocused()
+    await confirm.getByRole('button', { name: 'Entfernen' }).click()
+    await expect(page.getByRole('region', { name: 'Gäste-WLAN' })).toHaveCount(0)
+    await page.getByRole('button', { name: 'Fertig' }).click()
+    await page.reload()
+    await page.getByRole('img', { name: 'live verbunden' }).waitFor()
+    await expect(page.getByTestId('note-widget')).toHaveCount(0)
   })
 
   test('edit a service: rename, hide and restore, back to automatic', async ({ page }) => {
