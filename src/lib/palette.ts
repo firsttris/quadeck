@@ -6,6 +6,7 @@ export type PaletteAction =
   | { kind: 'navigate'; to: '/' | '/units' | '/journal' | '/system' | '/quadlets' | '/shares' | '/backups' | '/ssh' | '/disks' | '/files' | '/users' | '/hardware'; search?: Record<string, string> }
   | { kind: 'open'; url: string }
   | { kind: 'unit'; action: 'start' | 'stop' | 'restart'; name: string }
+  | { kind: 'motion'; level: 'off' | 'subtle' | 'strong' }
 
 export interface PaletteItem {
   id: string
@@ -81,6 +82,13 @@ export function paletteItems(s: Omit<Snapshot, 'system'>, readonly: boolean): Pa
       keywords: 'system pakete deinstallieren entfernen verwaist orphans packages installed uninstall remove',
       action: { kind: 'navigate', to: '/system', search: { tab: 'packages' } },
     },
+    ...(['off', 'subtle', 'strong'] as const).map((level) => ({
+      id: `motion:${level}`,
+      section: 'Seiten' as const,
+      label: msg(m.motion_paletteItem, { level: msg({ off: m.motion_off, subtle: m.motion_subtle, strong: m.motion_strong }[level]) }),
+      keywords: 'animationen animation bewegung effekte motion effects aus dezent kräftig off subtle strong',
+      action: { kind: 'motion' as const, level },
+    })),
   ]
   for (const g of s.services) {
     for (const svc of g.items) {

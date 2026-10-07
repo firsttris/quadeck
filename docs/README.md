@@ -66,3 +66,15 @@ and the unlock countdown in reach.
 The UI is in German and English. It follows the browser's language; the switch at the bottom of
 the sidebar (and on the login page) overrides it and is remembered in a cookie. E-mails and push
 messages use the language last picked there. The documentation uses the English labels.
+
+**Animations** at the bottom of the sidebar (also in the command palette) set how much moves, per
+browser, like in SnapRAID UI and the CCU add-on:
+
+| | |
+|---|---|
+| **Off** | nothing moves; spinners still turn |
+| **Subtle** (default) | the page fades in, the marker of the current page slides in, dialogs open softly, gauges and bars glide to new values, charts draw in; only warnings and errors pulse |
+| **Strong** | everything rises in one after the other, the current page glows in the navigation and entries move on hover, widgets and tiles light up and lift on hover, bars shimmer, status lights breathe, a running job glows |
+
+Without a choice, the system's *reduce motion* setting means **Off**. In the overview's edit mode
+widgets never move by themselves, so dragging and resizing stay precise.

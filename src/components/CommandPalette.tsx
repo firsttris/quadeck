@@ -4,6 +4,7 @@ import { useLang } from '~/i18n'
 import { useLiveState } from '~/lib/live'
 import { filterPalette, paletteItems, sectionLabel, type PaletteItem } from '~/lib/palette'
 import { useActions } from './Actions'
+import { setMotion } from '~/lib/motion'
 import { Glyph } from './Glyph'
 import { m } from '~/paraglide/messages'
 
@@ -54,6 +55,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
     if (a.kind === 'open') window.open(a.url, '_blank', 'noopener,noreferrer')
     if (a.kind === 'navigate') void navigate({ to: a.to, search: a.search as never })
     if (a.kind === 'unit') run(a.action, { kind: 'unit', name: a.name })
+    if (a.kind === 'motion') setMotion(a.level)
   }
 
   let lastSection = ''
