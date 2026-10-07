@@ -461,9 +461,9 @@ test.describe.serial('Quadeck', () => {
     await expect(page.getByText('Farbschema: Amethyst')).toBeVisible()
     expect(await accent()).toBe('#b4a0ff')
     expect(await pageBg()).not.toBe(before) // the surfaces change too, not only the accent
-    // the current page in the navigation uses the new accent
+    // the current page in the navigation uses the new accent (after its 0.15s color transition)
     const active = page.getByRole('navigation').locator('.navbtn.on').first()
-    expect(await active.evaluate((el) => getComputedStyle(el).color)).toBe('rgb(212, 200, 255)')
+    await expect(active).toHaveCSS('color', 'rgb(212, 200, 255)')
     await page.reload()
     await expect(html).toHaveAttribute('data-theme', 'amethyst') // set before the first paint
     // hydrated (the server renders the default swatch as checked): only now Ctrl+K has a listener
