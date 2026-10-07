@@ -197,6 +197,7 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/backup/state': (b, p) => p.backupState(b.refresh === true),
   '/backup/suggest': (_b, p) => p.backupSuggest(),
   '/backup/sizes': (b, p) => p.backupSizes(strs(b.paths), strs(b.excludes)),
+  '/backup/dirs': (b, p) => p.backupDirs(str(b.path) ?? '', strs(b.compare)),
   '/backup/ls': async (b, p) => ({ data: await p.backupLs(str(b.snapshot) ?? '', str(b.dir) ?? '') }),
   '/backup/save': (b, p) => {
     // Checked again here, where root writes it.

@@ -17,7 +17,8 @@ import { m } from '~/paraglide/messages'
 // { client: { add: { name, warnDays } } | { update: { name, change } } | { renew: name } | { remove: { name, deleteData } } |
 // { plan: { name, plan } } | { link: { name, origin } } }; the script itself: /api/backup/script/<link>;
 // restoring is a job (/api/jobs, kind backup-restore);
-// { sizes: { paths, excludes } } needs no unlock (du, reads only).
+// { sizes: { paths, excludes } } and { dirs: { path, compare } } (folder names for the setup) need no
+// unlock: they only read.
 export const Route = createFileRoute('/api/backup/')({
   server: {
     handlers: {
@@ -41,6 +42,7 @@ export const Route = createFileRoute('/api/backup/')({
           start?: unknown
           password?: unknown
           sizes?: { paths?: unknown; excludes?: unknown }
+          dirs?: { path?: unknown; compare?: unknown }
           target?: { setup?: unknown; remove?: unknown }
           client?: { add?: { name?: unknown; warnDays?: unknown }; update?: { name?: unknown; change?: unknown }; renew?: unknown; remove?: { name?: unknown; deleteData?: unknown }; plan?: { name?: unknown; plan?: unknown }; link?: { name?: unknown; origin?: unknown } }
         }>(request)
@@ -49,6 +51,10 @@ export const Route = createFileRoute('/api/backup/')({
         if (b.sizes) {
           const list = (v: unknown) => (Array.isArray(v) && v.every((x) => typeof x === 'string') ? (v as string[]) : [])
           return Response.json(await p.backupSizes(list(b.sizes.paths), list(b.sizes.excludes)))
+        }
+        if (b.dirs) {
+          const list = (v: unknown) => (Array.isArray(v) && v.every((x) => typeof x === 'string') ? (v as string[]) : [])
+          return Response.json(await p.backupDirs(typeof b.dirs.path === 'string' ? b.dirs.path : '/', list(b.dirs.compare)))
         }
         assertWritable()
         if (b.save) {

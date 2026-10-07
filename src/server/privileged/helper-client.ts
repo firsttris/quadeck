@@ -29,7 +29,7 @@ import type { UnlockInfo } from './gate'
 import type { ClientPlan } from '~/shared/backup-client'
 import type { PowerSetting, PowerState } from '~/shared/power'
 import type { DiskUser } from '../smart/power'
-import type { BackupPlan, BackupSizes, BackupState, BackupSuggestion, LsEntry, TargetConfig, TargetState } from '~/shared/backup'
+import type { BackupPlan, BackupSizes, BackupState, BackupSuggestion, FolderListing, LsEntry, TargetConfig, TargetState } from '~/shared/backup'
 
 /** Privileged over the root helper's Unix socket. */
 export class HelperClient implements Privileged {
@@ -417,6 +417,9 @@ export class HelperClient implements Privileged {
   }
   backupSizes(paths: string[], excludes: string[]) {
     return this.call<BackupSizes>('POST', '/backup/sizes', { paths, excludes }, 600_000)
+  }
+  backupDirs(path: string, compare: string[]) {
+    return this.call<FolderListing>('POST', '/backup/dirs', { path, compare }, 60_000)
   }
   async backupLs(snapshot: string, dir: string) {
     return (await this.call<{ data: LsEntry[] }>('POST', '/backup/ls', { snapshot, dir }, 180_000)).data
