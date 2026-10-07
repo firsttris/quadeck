@@ -24,15 +24,6 @@ jobs:
       - run: sudo apt-get install -y --no-install-recommends restic
       - run: bun run typecheck
       - run: bun run test
-      - name: E2E (production build against fixtures)
-        run: |
-          bunx playwright install --with-deps chromium
-          bun run test:e2e
-      - uses: actions/upload-artifact@v4
-        if: failure()
-        with:
-          name: playwright-traces
-          path: test-results/
       - name: Binary builds
         run: bun scripts/compile.ts bun-linux-x64-baseline bun-linux-arm64 bun-linux-x64-musl bun-linux-arm64-musl
       - name: Smoke test (glibc)
@@ -44,6 +35,31 @@ jobs:
             release/quadeck-linux-x64-baseline
             release/quadeck-linux-x64-musl
           retention-days: 3
+
+  # The E2E tests share one server and its data directory, so they run one after the other. Split
+  # by file across three runners, each building and starting its own server, they finish in about a
+  # third of the time, alongside the checks above. e2e/zz-i18n.spec.ts switches to English and has
+  # to come last: shards take the files in name order, so it stays at the end of the last one.
+  e2e:
+    name: E2E ${{ matrix.shard }}/3
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        shard: [1, 2, 3]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+      - run: bun install --frozen-lockfile
+      - run: bunx playwright install --with-deps chromium
+      - name: E2E (production build against fixtures)
+        run: bunx playwright test --shard=${{ matrix.shard }}/3
+      - uses: actions/upload-artifact@v4
+        if: failure()
+        with:
+          name: playwright-traces-${{ matrix.shard }}
+          path: test-results/
 
   # The release binary in a bare container of each distribution: it starts, finds the
   # distribution and its package manager (quadeck doctor) and serves the web app.

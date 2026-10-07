@@ -4,6 +4,8 @@ const PORT = 8585
 
 export default defineConfig({
   testDir: 'e2e',
+  // Sets the password on every shard but the first (CI splits the files across runners)
+  globalSetup: './e2e/global-setup.ts',
   workers: 1,
   fullyParallel: false,
   retries: process.env.CI ? 1 : 0,
