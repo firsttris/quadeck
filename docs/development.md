@@ -130,6 +130,12 @@ top). It sets the password, restarts the two failed demo units for a healthy ove
   `exportfs`, `sshd -t`, `systemd-analyze verify`, the Quadlet generator), keeps a backup or a
   history, and is rolled back when the tool refuses.
 - Every feature has a `Fixture*` backend so it can be seen and tested without the real host.
+- Colors come from the theme variables in `src/styles.css`, never as fixed values: `bg-panel`,
+  `border-rim`, `text-accent`, `bg-accent/10` in classes, `var(--color-accent)` in inline styles
+  and SVG attributes. The themes (`src/lib/theme.ts`) redefine surfaces, borders, accent, the
+  second chart color (`accent-2`) and glow; ok, warning and error (`ok`, `warn`, `bad`) stay the
+  same in every theme. `tests/theme.test.ts` fails on a default palette color in a component and
+  checks the contrast of every theme; a new theme needs a block in `styles.css` and a swatch.
 - UI texts exist in German and English ([Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs));
   code comments and documentation are English.
   - All texts live in `messages/de.json` and `messages/en.json` (inlang message format).
