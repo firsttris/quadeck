@@ -4,6 +4,7 @@ import { I18nProvider } from '~/i18n'
 import { getAuthState } from '~/lib/server-fns'
 import css from '~/styles.css?url'
 import { m } from '~/paraglide/messages'
+import { MOTION_INIT_SCRIPT } from '~/lib/motion'
 
 export const Route = createRootRoute({
   beforeLoad: async () => ({ auth: await getAuthState() }),
@@ -35,8 +36,10 @@ function NotFound() {
 function Document({ children }: { children: ReactNode }) {
   const lang = useRouteContext({ from: '__root__' }).auth.lang
   return (
-    <html lang={lang}>
+    // data-motion is set by the init script before React hydrates
+    <html lang={lang} suppressHydrationWarning>
       <head>
+        <script dangerouslySetInnerHTML={{ __html: MOTION_INIT_SCRIPT }} />
         <HeadContent />
       </head>
       <body className="backdrop min-h-screen">

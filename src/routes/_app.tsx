@@ -6,6 +6,7 @@ import { JobChip, JobsProvider } from '~/components/Jobs'
 import { UnlockChip, UnlockProvider } from '~/components/Unlock'
 import { LangSelect } from '~/components/AuthCard'
 import { Glyph, Logo } from '~/components/Glyph'
+import { MotionSelect } from '~/components/MotionSelect'
 import { Dot } from '~/components/Status'
 import { ToastProvider } from '~/components/Toast'
 import { api, setCsrfToken } from '~/lib/api'
@@ -237,6 +238,7 @@ function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => vo
           >
             <Glyph name="logout" size={15} /> {m.shell_bar_logout()}
           </button>
+          <MotionSelect />
           <div className="flex items-center justify-between gap-2">
             <span>Quadeck {__APP_VERSION__}</span>
             <LangSelect />

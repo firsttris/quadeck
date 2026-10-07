@@ -358,7 +358,7 @@ export function JobChip({ compact = false }: { compact?: boolean }) {
     )
   }
   return (
-    <button type="button" className="btn mx-1 justify-start text-[12px]" onClick={() => show(running.id)}>
+    <button type="button" className="jobchip btn mx-1 justify-start text-[12px]" onClick={() => show(running.id)}>
       <Glyph name="terminal" size={14} />
       <span className="grow truncate text-left">{running.title}</span>
       <span className="animate-pulse text-accent">{m.shell_jobs_runningShort()}</span>

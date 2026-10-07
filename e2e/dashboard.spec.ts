@@ -413,6 +413,39 @@ test.describe.serial('Quadeck', () => {
     await expect(page.getByTestId('service-tile').filter({ hasText: 'Jellyfin' })).toHaveAttribute('href', 'https://jellyfin.home.example')
   })
 
+  test('animations: off, subtle, strong in the sidebar and the palette; kept per browser; "reduce motion" means off', async ({ page }) => {
+    await login(page)
+    const html = page.locator('html')
+    await expect(html).toHaveAttribute('data-motion', 'subtle') // default
+    const group = page.getByRole('radiogroup', { name: 'Animationen' })
+    await expect(group.getByRole('radio', { name: 'Dezent' })).toHaveAttribute('aria-checked', 'true')
+    await group.getByRole('radio', { name: 'Kräftig' }).click()
+    await expect(html).toHaveAttribute('data-motion', 'strong')
+    await expect(page.getByText('Einblenden, Leuchten, Schimmer und Hover-Effekte.')).toBeVisible()
+    await page.reload()
+    await expect(html).toHaveAttribute('data-motion', 'strong') // set before the first paint
+    await expect(page.getByRole('radiogroup', { name: 'Animationen' }).getByRole('radio', { name: 'Kräftig' })).toHaveAttribute('aria-checked', 'true')
+    // from the command palette
+    await page.keyboard.press('Control+k')
+    await page.getByRole('combobox', { name: 'Suchen' }).fill('animationen aus')
+    await page.keyboard.press('Enter')
+    await expect(html).toHaveAttribute('data-motion', 'off')
+    // nothing moves when off: the status dots and the progress shimmer stand still
+    expect(await page.locator('.dot').first().evaluate((el) => getComputedStyle(el).animationName)).toBe('none')
+    await page.getByRole('radiogroup', { name: 'Animationen' }).getByRole('radio', { name: 'Dezent' }).click()
+    await expect(html).toHaveAttribute('data-motion', 'subtle')
+  })
+
+  test('animations: without a choice, the system\'s "reduce motion" turns them off', async ({ browser }) => {
+    const ctx = await browser.newContext({ reducedMotion: 'reduce' })
+    const page = await ctx.newPage()
+    await login(page)
+    await page.evaluate(() => localStorage.removeItem('quadeck-motion'))
+    await page.reload()
+    await expect(page.locator('html')).toHaveAttribute('data-motion', 'off')
+    await ctx.close()
+  })
+
   test('command palette: Ctrl+K, search, navigate and unit actions', async ({ page }) => {
     await login(page)
     await page.getByRole('img', { name: 'live verbunden' }).waitFor()

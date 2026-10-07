@@ -83,7 +83,6 @@
   .dot.ok {
     background: var(--color-ok);
     color: var(--color-ok);
-    animation: breathe 2.8s ease-in-out infinite;
   }
   .dot.warn {
     background: var(--color-warn);
@@ -115,7 +114,7 @@
     inset: 0;
     background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.38), transparent);
     transform: translateX(-100%);
-    animation: shimmer 3.6s ease-in-out infinite;
+    opacity: 0;
   }
   .ring {
     transition:
@@ -169,10 +168,27 @@
     background: #161c24;
     color: var(--color-fg);
   }
+  .navbtn {
+    position: relative;
+    transition:
+      background-color 0.15s,
+      color 0.15s,
+      transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+  }
   .navbtn.on {
     background: linear-gradient(90deg, rgba(124, 196, 184, 0.18), rgba(124, 196, 184, 0.04));
     color: var(--color-accent-soft);
-    box-shadow: inset 2px 0 0 var(--color-accent);
+  }
+  /* the bar at the left edge of the current page */
+  .navbtn.on::before {
+    content: '';
+    position: absolute;
+    left: 0;
+    top: 6px;
+    bottom: 6px;
+    width: 2px;
+    border-radius: 2px;
+    background: var(--color-accent);
   }
   .navbtn:focus-visible,
   .btn:focus-visible,
@@ -319,11 +335,11 @@
     color: inherit;
     transition:
       transform 0.15s,
-      border-color 0.15s;
+      border-color 0.15s,
+      box-shadow 0.2s;
     min-width: 0;
   }
   .tile:hover {
-    transform: translateY(-2px);
     border-color: #2f3a46;
     color: inherit;
   }
@@ -537,13 +553,165 @@
   }
 }
 
+/* ---------- motion levels (html[data-motion], src/lib/motion.ts) ---------- */
+
+/* Without the init script (it never fails, but just in case): the system setting decides. */
 @media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
+  :root:not([data-motion]) *,
+  :root:not([data-motion]) *::before,
+  :root:not([data-motion]) *::after {
     animation: none !important;
     transition: none !important;
   }
+}
+
+/* Off: nothing moves, only spinners turn (they say that something is happening). */
+[data-motion='off'] *:not(.spinner),
+[data-motion='off'] *::before,
+[data-motion='off'] *::after {
+  animation: none !important;
+  transition: none !important;
+}
+
+/* Subtle (default) and strong: the page fades in, the current page's bar slides in, dialogs open softly. */
+@keyframes page-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+@keyframes rise-in {
+  from {
+    opacity: 0;
+    transform: translateY(14px) scale(0.995);
+  }
+}
+@keyframes indicator-in {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes dialog-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+}
+@keyframes dialog-pop {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.97);
+  }
+}
+@keyframes backdrop-in {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes glow {
+  0%,
+  100% {
+    box-shadow: 0 0 20px rgba(124, 196, 184, 0.35);
+  }
+  50% {
+    box-shadow: 0 0 30px 4px rgba(124, 196, 184, 0.55);
+  }
+}
+/* "backwards" only: no transform stays on the page afterwards (fixed elements, the widget grid) */
+[data-motion='subtle'] main > * {
+  animation: page-in 0.3s ease-out backwards;
+}
+[data-motion='subtle'] .navbtn.on::before {
+  animation: indicator-in 0.3s ease-out both;
+}
+[data-motion='subtle'] dialog.modal[open] {
+  animation: dialog-in 0.18s ease-out;
+}
+[data-motion='subtle'] dialog.modal[open]::backdrop,
+[data-motion='strong'] dialog.modal[open]::backdrop {
+  animation: backdrop-in 0.2s ease-out;
+}
+[data-motion='subtle'] .chart-line,
+[data-motion='subtle'] .chart-area {
+  animation-duration: 0.5s;
+}
+[data-motion='subtle'] .chart-pulse {
+  animation: none;
+}
+
+/* Strong: everything rises in one after the other, glow, lift, shimmer and breathing lights. */
+[data-motion='strong'] main > * {
+  animation: rise-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+}
+[data-motion='strong'] main > :nth-child(2) {
+  animation-delay: 0.05s;
+}
+[data-motion='strong'] main > :nth-child(3) {
+  animation-delay: 0.1s;
+}
+[data-motion='strong'] main > :nth-child(4) {
+  animation-delay: 0.15s;
+}
+[data-motion='strong'] main > :nth-child(n + 5) {
+  animation-delay: 0.2s;
+}
+[data-motion='strong'] .navbtn:hover:not(.on) {
+  transform: translateX(3px);
+}
+[data-motion='strong'] .navbtn.on svg {
+  color: var(--color-accent);
+}
+[data-motion='strong'] .navbtn.on::before {
+  box-shadow: 0 0 10px 1px var(--color-accent);
+  animation: indicator-in 0.45s cubic-bezier(0.16, 1, 0.3, 1) both;
+}
+[data-motion='strong'] .brand {
+  animation: glow 3.2s ease-in-out infinite;
+}
+[data-motion='strong'] dialog.modal[open] {
+  animation: dialog-pop 0.28s cubic-bezier(0.16, 1, 0.3, 1);
+}
+[data-motion='strong'] .dot.ok {
+  animation: breathe 2.8s ease-in-out infinite;
+}
+[data-motion='strong'] .dot.ok,
+[data-motion='strong'] .dot.warn,
+[data-motion='strong'] .dot.bad {
+  box-shadow: 0 0 8px currentColor;
+}
+[data-motion='strong'] .fill::after {
+  opacity: 1;
+  animation: shimmer 3.6s ease-in-out infinite;
+}
+[data-motion='strong'] .tile:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px -14px rgba(0, 0, 0, 0.8);
+}
+/* widgets glow at the edge (no transform: the grid positions them with one) */
+.grid-item.card {
+  transition:
+    border-color 0.25s,
+    box-shadow 0.25s;
+}
+[data-motion='strong'] .grid-item.card:not(.editing):hover {
+  border-color: rgba(124, 196, 184, 0.35);
+  box-shadow:
+    0 0 0 1px rgba(124, 196, 184, 0.12),
+    0 14px 34px -18px rgba(124, 196, 184, 0.35);
+}
+[data-motion='strong'] .jobchip {
+  box-shadow:
+    0 0 0 1px var(--color-accent),
+    0 0 16px -2px var(--color-accent);
+}
+[data-motion='strong'] .btn:not(:disabled):hover {
+  transform: translateY(-1px);
+}
+.btn {
+  transition:
+    border-color 0.15s,
+    transform 0.15s,
+    box-shadow 0.2s;
 }
 
 /* ---------- job output ---------- */
@@ -612,13 +780,4 @@
     transform: scale(1.8);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .chart-line,
-  .chart-area,
-  .chart-pulse {
-    animation: none;
-  }
-  .chart-dot {
-    transition: none;
-  }
-}
+
