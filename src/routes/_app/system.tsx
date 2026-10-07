@@ -1,7 +1,7 @@
 import { Link, createFileRoute } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useActions } from '~/components/Actions'
-import { BusyButton, useBusy } from '~/components/Busy'
+import { BusyButton, Spinner, useBusy } from '~/components/Busy'
 import { Glyph } from '~/components/Glyph'
 import { STATUS_LABEL, statusTone, useJobs } from '~/components/Jobs'
 import { ConfirmDialog, Modal } from '~/components/Modal'
@@ -27,12 +27,14 @@ export const Route = createFileRoute('/_app/system')({
 
 type Overview = PackageOverview & { news?: { items: NewsItem[]; error?: string } }
 
-/** GET JSON with reload; reloads whenever a job ends. */
+/** GET JSON with reload; reloads whenever a job ends. `loading` is true while a reload runs. */
 function useData<T>(url: string) {
   const { finished } = useJobs()
   const [data, setData] = useState<T | null>(null)
   const [error, setError] = useState('')
+  const [loading, setLoading] = useState(false)
   const load = useCallback(async () => {
+    setLoading(true)
     try {
       const r = await fetch(url)
       const d = (await r.json()) as T & { error?: string }
@@ -41,12 +43,14 @@ function useData<T>(url: string) {
       setError('')
     } catch (e) {
       setError((e as Error).message)
+    } finally {
+      setLoading(false)
     }
   }, [url])
   useEffect(() => {
     void load()
   }, [load, finished])
-  return { data, error, setData, reload: load }
+  return { data, error, loading, setData, reload: load }
 }
 
 function SystemPage() {
@@ -182,6 +186,12 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
         <div className="flex flex-wrap items-center gap-2 px-[18px] pt-4 pb-2">
           <h2 className="h2">{m.system_updates_images()}</h2>
           {pendingImages.length > 0 && <Pill tone="warn">{m.system_updates_imageUpdates({ n: pendingImages.length })}</Pill>}
+          {images.loading && images.data && (
+            // after a job podman asks every registry again; until then the list is the one from before
+            <span className="flex items-center gap-1.5 text-[12px] text-muted" role="status" data-testid="images-checking">
+              <Spinner /> {m.system_updates_checkingShort()}
+            </span>
+          )}
           {canAct && pendingImages.length > 0 && (
             <button type="button" className="btn sm ml-auto" disabled={busy} onClick={() => setConfirm('images')}>
               <Glyph name="download" size={14} /> {m.system_updates_updateAll()}

@@ -88,10 +88,31 @@ function previewResult(p: Provider | null, r: { packages: { name: string; versio
   return { ...r, blocked: r.packages.filter((x) => prot.has(x.name)).map((x) => x.name) }
 }
 
-/** One refresh at a time; concurrent callers share it. */
-function single<T>(fn: () => Promise<T>) {
-  let inflight: Promise<T> | undefined
-  return () => (inflight ??= fn().finally(() => (inflight = undefined)))
+/**
+ * One refresh at a time; concurrent callers share it. A caller after the generation changed (a
+ * job ended) never joins a run that started before: that one checks the state before the job.
+ */
+export function single<T>(fn: () => Promise<T>, generation: () => number = () => 0) {
+  let inflight: { gen: number; p: Promise<T> } | undefined
+  return () => {
+    const gen = generation()
+    if (inflight?.gen === gen) return inflight.p
+    const run: { gen: number; p: Promise<T> } = { gen, p: fn().finally(() => inflight === run && (inflight = undefined)) }
+    inflight = run
+    return run.p
+  }
+}
+
+/**
+ * The image list right after an image job. A single image that was pulled and restarted is
+ * current now: marked so at once instead of waiting for the next registry check. Anything
+ * else (all images, which may roll back; a failed job) is checked again.
+ */
+export function imagesAfterJob(cache: ImageUpdatesReport | undefined, job: Pick<JobInfo, 'spec' | 'status'>): ImageUpdatesReport | undefined {
+  if (!cache || cache.error || job.spec.kind !== 'image-update' || job.status !== 'ok') return undefined
+  const unit = job.spec.unit
+  if (!cache.items.some((i) => i.unit === unit)) return undefined
+  return { ...cache, items: cache.items.map((i) => (i.unit === unit && i.updated === 'pending' ? { ...i, updated: 'false' } : i)) }
 }
 
 export class SystemMaintenance implements MaintenanceBackend {
@@ -108,7 +129,7 @@ export class SystemMaintenance implements MaintenanceBackend {
   private conf = new SystemConfigFs(() => (this.provider ? findConfigFiles('/etc', this.provider.configFiles) : []))
 
   constructor(launcher: Launcher = defaultLauncher()) {
-    this.jobsMgr = new JobManager(launcher, (job) => this.jobEnded(job.spec))
+    this.jobsMgr = new JobManager(launcher, (job) => this.jobEnded(job))
   }
 
   configFile(path: string) {
@@ -125,12 +146,13 @@ export class SystemMaintenance implements MaintenanceBackend {
    * The lists are stale once a job ends. Dropped right away: the page reloads
    * the moment it sees the job finish, and must not get the list from before.
    */
-  private jobEnded(spec: JobSpec) {
+  private jobEnded(job: JobInfo) {
+    const spec = job.spec
     this.installedCache = undefined
     this.overviewCache = undefined
     this.cacheReport = undefined
     if (spec.kind === 'images-update' || spec.kind === 'image-update') {
-      this.imagesCache = undefined
+      this.imagesCache = imagesAfterJob(this.imagesCache, job)
       this.gen.images++
     } else {
       this.updatesCache = undefined
@@ -195,7 +217,7 @@ export class SystemMaintenance implements MaintenanceBackend {
     }
     if (gen === this.gen.updates) this.updatesCache = report
     return report
-  })
+  }, () => this.gen.updates)
 
   async updates(refresh: boolean) {
     const c = this.updatesCache
@@ -219,7 +241,7 @@ export class SystemMaintenance implements MaintenanceBackend {
     }
     if (gen === this.gen.images) this.imagesCache = report
     return report
-  })
+  }, () => this.gen.images)
 
   async imageUpdates(refresh: boolean) {
     const c = this.imagesCache

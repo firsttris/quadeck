@@ -466,6 +466,8 @@ test.describe.serial('Quadeck', () => {
     expect(await active.evaluate((el) => getComputedStyle(el).color)).toBe('rgb(212, 200, 255)')
     await page.reload()
     await expect(html).toHaveAttribute('data-theme', 'amethyst') // set before the first paint
+    // hydrated (the server renders the default swatch as checked): only now Ctrl+K has a listener
+    await expect(page.getByRole('radiogroup', { name: 'Farbschema' }).getByRole('radio', { name: 'Amethyst' })).toHaveAttribute('aria-checked', 'true')
     // from the command palette
     await page.keyboard.press('Control+k')
     await page.getByRole('combobox', { name: 'Suchen' }).fill('farbschema kupfer')
