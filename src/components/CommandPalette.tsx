@@ -5,6 +5,7 @@ import { useLiveState } from '~/lib/live'
 import { filterPalette, paletteItems, sectionLabel, type PaletteItem } from '~/lib/palette'
 import { useActions } from './Actions'
 import { setMotion } from '~/lib/motion'
+import { setTheme } from '~/lib/theme'
 import { Glyph } from './Glyph'
 import { m } from '~/paraglide/messages'
 
@@ -56,6 +57,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
     if (a.kind === 'navigate') void navigate({ to: a.to, search: a.search as never })
     if (a.kind === 'unit') run(a.action, { kind: 'unit', name: a.name })
     if (a.kind === 'motion') setMotion(a.level)
+    if (a.kind === 'theme') setTheme(a.theme)
   }
 
   let lastSection = ''
@@ -89,7 +91,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                 }
               }}
             />
-            <kbd className="mono rounded border border-[#333a45] px-1.5 py-0.5 text-[11px] text-muted">Esc</kbd>
+            <kbd className="mono rounded border border-rim-strong px-1.5 py-0.5 text-[11px] text-muted">Esc</kbd>
           </div>
           <ul id="palette-list" ref={list} role="listbox" className="m-0 max-h-[60vh] list-none overflow-y-auto p-2">
             {results.length === 0 && <li className="px-3 py-4 text-[13px] text-muted">{m.shell_palette_empty()}</li>}
@@ -106,7 +108,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                     aria-selected={n === active}
                     onMouseMove={() => setActive(n)}
                     onClick={() => execute(item)}
-                    className={`flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-[14px] ${n === active ? 'bg-[rgba(124,196,184,.14)] text-accent-soft' : 'text-fg'}`}
+                    className={`flex cursor-pointer items-center gap-3 rounded-lg px-3 py-2 text-[14px] ${n === active ? 'bg-accent/14 text-accent-soft' : 'text-fg'}`}
                   >
                     <Glyph name={item.section === 'Services' ? 'globe' : item.section === 'Units' ? 'restart' : item.section === 'Journal' ? 'journal' : 'overview'} size={15} />
                     <span className="grow truncate">{item.label}</span>

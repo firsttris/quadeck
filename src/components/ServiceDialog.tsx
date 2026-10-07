@@ -65,7 +65,7 @@ export function IconPicker({ value, onChange }: { value: string; onChange: (v: s
                 setQuery(slug)
                 onChange(slug)
               }}
-              className={`flex h-10 items-center justify-center rounded-lg border ${slug === value ? 'border-accent bg-[rgba(124,196,184,.15)]' : 'border-[#2a323d] bg-[#0e1319]'}`}
+              className={`flex h-10 items-center justify-center rounded-lg border ${slug === value ? 'border-accent bg-accent/15' : 'border-rim bg-sunken'}`}
             >
               <img src={`/api/icons/${slug}`} alt="" width={24} height={24} loading="lazy" className="h-6 w-6 object-contain" />
             </button>

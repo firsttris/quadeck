@@ -138,7 +138,7 @@ function Journal() {
             </button>
           ))}
         </div>
-        <span className="hidden h-[22px] w-px bg-[#2a323d] sm:block" />
+        <span className="hidden h-[22px] w-px bg-rim sm:block" />
         <div role="group" aria-label={m.journal_prioGroup()} className="flex gap-1.5">
           {PRIOS.map(([k]) => (
             <button key={k} type="button" className={`seg ${prio === k ? 'on' : ''}`} onClick={() => navigate({ search: (s) => ({ ...s, prio: k === 'all' ? undefined : k }) })}>

@@ -152,7 +152,7 @@ function UnitView({ unit }: { unit: string }) {
                 <button
                   key={p.path}
                   type="button"
-                  className={`flex flex-col items-start gap-1 rounded-lg border px-3 py-2 text-left ${sel?.part.path === p.path ? 'border-accent bg-[rgba(124,196,184,.08)]' : 'border-line hover:border-edge'}`}
+                  className={`flex flex-col items-start gap-1 rounded-lg border px-3 py-2 text-left ${sel?.part.path === p.path ? 'border-accent bg-accent/8' : 'border-line hover:border-edge'}`}
                   aria-pressed={sel?.part.path === p.path}
                   onClick={() => setSel({ part: p })}
                 >
@@ -167,7 +167,7 @@ function UnitView({ unit }: { unit: string }) {
                 </button>
               ))}
               {sel?.isNew && (
-                <div className="rounded-lg border border-accent bg-[rgba(124,196,184,.08)] px-3 py-2">
+                <div className="rounded-lg border border-accent bg-accent/8 px-3 py-2">
                   <span className="font-mono text-[12px] break-all">{sel.part.path}</span>
                   <div className="mt-1 text-[11px] text-muted">{m.systemd_unit_isNew()}</div>
                 </div>

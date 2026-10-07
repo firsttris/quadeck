@@ -84,7 +84,7 @@ export function ActionsProvider({ readonly, children }: { readonly: boolean; chi
         body={
           <p className="m-0">
             {m.shell_actions_runs()}
-            <span className="rounded bg-[#0e1319] px-1.5 py-0.5 font-mono text-[12px]">{via}</span>.{p?.action === 'stop' && m.shell_actions_stopHint()}
+            <span className="rounded bg-sunken px-1.5 py-0.5 font-mono text-[12px]">{via}</span>.{p?.action === 'stop' && m.shell_actions_stopHint()}
           </p>
         }
         onConfirm={() => (p ? exec(p.action, p.target) : undefined)}

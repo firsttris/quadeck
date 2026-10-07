@@ -230,7 +230,7 @@ function MoveDialog({ plain, onClose, onSubmit }: { plain: PlainSecret; onClose:
         <input className="field font-mono" value={name} maxLength={63} onChange={(e) => setName(e.target.value)} />
         {!valid && <span className="text-[12px] text-[#e3b341]">{m.secrets_nameHelp()}</span>}
       </label>
-      <pre className="m-0 overflow-x-auto rounded-[8px] border border-line bg-[#0b0f14] p-3 font-mono text-[12px] leading-[19px]" aria-label={m.secrets_change()}>
+      <pre className="m-0 overflow-x-auto rounded-[8px] border border-line bg-bg p-3 font-mono text-[12px] leading-[19px]" aria-label={m.secrets_change()}>
         <span className="block text-[#f85149]">- Environment=… {plain.key}=•••••• …</span>
         <span className="block text-[#3fb950]">
           + Secret={name},type=env,target={plain.key}

@@ -132,7 +132,7 @@ export function ContainerUsageView({ open }: { open?: string }) {
                     detailed
                     label={m.usage_chartCpu({ name: current.name })}
                     series={[
-                      { label: m.usage_avg(), color: '#7cc4b8', points: current.cpu },
+                      { label: m.usage_avg(), color: 'var(--color-accent)', points: current.cpu },
                       { label: m.usage_peak(), color: '#e3b341', points: current.cpuPeak },
                     ]}
                     span={USAGE_RANGES[range]}
@@ -148,7 +148,7 @@ export function ContainerUsageView({ open }: { open?: string }) {
                   RAM <span className="font-normal text-muted">{m.usage_stats({ avg: bytes(current.memAvg), max: bytes(current.memMax) })}</span>
                 </h3>
                 <div className="pb-5">
-                  <HistoryChart detailed label={m.usage_chartRam({ name: current.name })} series={[{ label: 'RAM', color: '#b4a0ff', points: current.mem }]} span={USAGE_RANGES[range]} now={data.now} format={(v) => bytes(v)} yMin={0} height={150} />
+                  <HistoryChart detailed label={m.usage_chartRam({ name: current.name })} series={[{ label: 'RAM', color: 'var(--color-accent-2)', points: current.mem }]} span={USAGE_RANGES[range]} now={data.now} format={(v) => bytes(v)} yMin={0} height={150} />
                 </div>
               </section>
             </>

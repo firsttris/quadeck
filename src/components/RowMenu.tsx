@@ -89,7 +89,7 @@ export function RowMenu({ label, items }: { label: string; items: MenuItem[] }) 
             role="menu"
             aria-label={label}
             onKeyDown={keys}
-            className="fixed z-50 flex min-w-[210px] flex-col rounded-[10px] border border-edge bg-[#161c24] py-1 shadow-[0_12px_32px_rgba(0,0,0,.45)]"
+            className="fixed z-50 flex min-w-[210px] flex-col rounded-[10px] border border-edge bg-surface py-1 shadow-[0_12px_32px_rgba(0,0,0,.45)]"
             style={{ right: pos.right, ...(pos.up ? { bottom: window.innerHeight - pos.top } : { top: pos.top }) }}
           >
             {items.map((it) => (
@@ -99,7 +99,7 @@ export function RowMenu({ label, items }: { label: string; items: MenuItem[] }) 
                   role={it.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
                   aria-checked={it.checked}
                   disabled={it.disabled}
-                  className={`flex w-full items-center gap-2 px-3 py-[7px] text-left text-[13px] outline-none hover:bg-[rgba(255,255,255,.05)] focus-visible:bg-[rgba(124,196,184,.12)] disabled:opacity-40 ${it.danger ? 'text-[#ff8a80]' : 'text-fg'}`}
+                  className={`flex w-full items-center gap-2 px-3 py-[7px] text-left text-[13px] outline-none hover:bg-[rgba(255,255,255,.05)] focus-visible:bg-accent/12 disabled:opacity-40 ${it.danger ? 'text-[#ff8a80]' : 'text-fg'}`}
                   onClick={() => {
                     setOpen(false)
                     it.onSelect()

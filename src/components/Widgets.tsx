@@ -110,10 +110,10 @@ export function WidgetCatalog({ open, entries, onClose, onAdd }: { open: boolean
           const meta = WIDGETS[e.kind]
           const taken = !meta.multi && e.count > 0
           return (
-            <li key={e.kind} className="flex flex-col gap-1.5 rounded-[11px] border border-edge bg-[#11161d] p-3" data-testid="catalog-entry">
+            <li key={e.kind} className="flex flex-col gap-1.5 rounded-[11px] border border-edge bg-panel-2 p-3" data-testid="catalog-entry">
               <div className="flex items-center gap-2">
                 <b className="text-[14px]">{widgetName(e.kind)}</b>
-                {meta.multi && <span className="rounded-[4px] border border-[#4a3f78] px-1 font-mono text-[10px] font-semibold text-[#b4a0ff]">{m.widgets_catalog_multi()}</span>}
+                {meta.multi && <span className="rounded-[4px] border border-accent-2/40 px-1 font-mono text-[10px] font-semibold text-accent-2">{m.widgets_catalog_multi()}</span>}
               </div>
               <p className="m-0 grow text-[12.5px] text-[#aab3bf]">{widgetDesc(e.kind)}</p>
               <div className="flex items-center justify-between gap-2 text-[11.5px] text-muted">

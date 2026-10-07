@@ -121,7 +121,7 @@ function Files() {
         {error && <p className="m-0 border-t border-line px-[18px] py-2 text-[13px] text-[#e3b341]">{error}</p>}
         {files?.length === 0 && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{m.quadlets_list_empty()}</p>}
         {draft && !files?.some((f) => f.name === draft.name) && (
-          <button type="button" onClick={() => open(draft.name)} className={`flex items-center gap-2 border-t border-line px-[18px] py-[9px] text-left ${file === draft.name ? 'bg-[rgba(124,196,184,.10)]' : ''}`}>
+          <button type="button" onClick={() => open(draft.name)} className={`flex items-center gap-2 border-t border-line px-[18px] py-[9px] text-left ${file === draft.name ? 'bg-accent/10' : ''}`}>
             <span className="grow truncate font-mono text-[13px]">{draft.name}</span>
             <span className="chip">{m.quadlets_list_newChip()}</span>
           </button>
@@ -135,7 +135,7 @@ function Files() {
               data-testid="quadlet-file"
               aria-current={file === f.name ? 'true' : undefined}
               onClick={() => open(f.name)}
-              className={`flex items-center gap-2 border-t border-line px-[18px] py-[9px] text-left hover:bg-[rgba(255,255,255,.03)] ${file === f.name ? 'bg-[rgba(124,196,184,.10)]' : ''}`}
+              className={`flex items-center gap-2 border-t border-line px-[18px] py-[9px] text-left hover:bg-[rgba(255,255,255,.03)] ${file === f.name ? 'bg-accent/10' : ''}`}
             >
               <Dot tone={u ? unitTone(u) : 'idle'} label={u ? `${f.unit}: ${u.active}` : m.quadlets_list_notLoaded({ unit: f.unit })} />
               <span className="grow truncate font-mono text-[13px]">{f.name}</span>

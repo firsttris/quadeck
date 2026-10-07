@@ -93,7 +93,7 @@ a container of each distribution above. What works where, feature by feature: th
 | 🔔 **Notifications** | ntfy, Gotify, Telegram, e-mail or webhook when something fails, a disk fills up, the internet is slow or updates are waiting |
 
 Plus: power usage and its cost (CPU and GPU measured, disks estimated from their state), hardware details (memory slots, GPU passthrough lines, stable USB paths), a command palette
-(<kbd>Ctrl</kbd>+<kbd>K</kbd>), English and German, a read-only mode and an unlock that expires after
+(<kbd>Ctrl</kbd>+<kbd>K</kbd>), five color themes and three animation levels, English and German, a read-only mode and an unlock that expires after
 15 minutes. Every page is described in the [documentation](docs/README.md).
 
 ## 📸 Screenshots
@@ -114,6 +114,9 @@ Plus: power usage and its cost (CPU and GPU measured, disks estimated from their
   <tr>
     <td><img src="docs/screenshot-backups.png" alt="Backups: last run, next run, repository size and target, what is backed up with its exclusions, recent runs and the snapshots to browse"><br><sub><b>Backups</b> – restic with snapshots to browse · <a href="docs/backups.md">docs →</a></sub></td>
     <td><img src="docs/screenshot-speedtest.png" alt="Speed test: gauges for this device and the internet, results in Mbit/s and MB/s, the graph over 30 days, automatic runs"><br><sub><b>Speed test</b> – live gauge, both units, graph over time · <a href="docs/network.md#speed-test">docs →</a></sub></td>
+  </tr>
+  <tr>
+    <td colspan="2"><img src="docs/screenshot-themes.png" alt="The overview in the five color themes: Quadeck, Nord, Ocean, Amethyst and Copper"><br><sub><b>Color themes</b> – Quadeck, Nord, Ocean, Amethyst, Copper · <a href="docs/README.md#which-page-does-what">docs →</a></sub></td>
   </tr>
 </table>
 

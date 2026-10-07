@@ -123,7 +123,7 @@ const ARC = (() => {
   return `M ${x1} ${y1} A ${R} ${R} 0 1 1 ${x2} ${y2}`
 })()
 
-const COLORS: Record<Phase, [string, string]> = { ping: ['#8b949e', '#c9d1d9'], down: ['#3fb6a8', '#7cc4b8'], up: ['#8b6fd8', '#c39bff'] }
+const COLORS: Record<Phase, [string, string]> = { ping: ['#8b949e', '#c9d1d9'], down: ['color-mix(in srgb, var(--color-accent) 78%, black)', 'var(--color-accent)'], up: ['color-mix(in srgb, var(--color-accent-2) 78%, black)', 'var(--color-accent-2)'] }
 
 function Gauge({ live, idle }: { live: Live | null; idle?: SpeedResult }) {
   const phase = live?.phase ?? 'down'
@@ -164,7 +164,7 @@ function Gauge({ live, idle }: { live: Live | null; idle?: SpeedResult }) {
       <g style={{ transform: `rotate(${START + SWEEP * frac}deg)`, transformOrigin: '110px 110px', transition: 'transform .35s cubic-bezier(.3,1.4,.6,1)' }}>
         <line x1="110" y1="110" x2={110 + R - 24} y2="110" stroke={c2} strokeWidth="3" strokeLinecap="round" />
       </g>
-      <circle cx="110" cy="110" r="6" fill="#0d1117" stroke={c2} strokeWidth="2" />
+      <circle cx="110" cy="110" r="6" fill="var(--color-bg)" stroke={c2} strokeWidth="2" />
       <text x="110" y="172" textAnchor="middle" fontSize="24" fontWeight="600" fill="#e6edf3" fontFamily="ui-monospace, monospace" data-testid="gauge-value">
         {live?.phase === 'ping' ? `${num(live.value)}` : num(value)}
       </text>
@@ -266,8 +266,8 @@ export function SpeedTest() {
               const at = running && live ? ['ping', 'down', 'up'].indexOf(live.phase) : -1
               const state = !running ? 'idle' : order < at ? 'done' : order === at ? 'now' : 'next'
               return (
-                <li key={p} className={`relative overflow-hidden rounded-full border px-3 py-1 ${state === 'now' ? 'border-[rgba(124,196,184,.6)] text-fg' : state === 'done' ? 'border-line text-[#7ee2a8]' : 'border-line text-muted'}`}>
-                  {state === 'now' && <span className="absolute inset-y-0 left-0 bg-[rgba(124,196,184,.15)]" style={{ width: `${(live?.done ?? 0) * 100}%`, transition: 'width .2s linear' }} />}
+                <li key={p} className={`relative overflow-hidden rounded-full border px-3 py-1 ${state === 'now' ? 'border-accent/60 text-fg' : state === 'done' ? 'border-line text-[#7ee2a8]' : 'border-line text-muted'}`}>
+                  {state === 'now' && <span className="absolute inset-y-0 left-0 bg-accent/15" style={{ width: `${(live?.done ?? 0) * 100}%`, transition: 'width .2s linear' }} />}
                   <span className="relative">
                     {state === 'done' ? '✓ ' : ''}
                     {p === 'ping' ? m.speed_ping() : p === 'down' ? `↓ ${m.speed_down()}` : `↑ ${m.speed_up()}`}
@@ -280,8 +280,8 @@ export function SpeedTest() {
         </div>
         {!running && r && (
           <div className="grid grid-cols-2 gap-3" data-testid="speed-result">
-            <Big label={`↓ ${m.speed_down()}`} mbit={r.down} color="#7cc4b8" />
-            <Big label={`↑ ${m.speed_up()}`} mbit={r.up} color="#c39bff" />
+            <Big label={`↓ ${m.speed_down()}`} mbit={r.down} color="var(--color-accent)" />
+            <Big label={`↑ ${m.speed_up()}`} mbit={r.up} color="var(--color-accent-2)" />
             <Small label={m.speed_ping()} value={`${num(r.ping)} ms`} />
             <Small label={m.speed_jitter()} value={`${num(r.jitter)} ms`} />
           </div>
@@ -383,8 +383,8 @@ function SpeedChart({ series }: { series: Info['series'] }) {
             yMin={0}
             format={(v) => `${num(v)} Mbit/s · ${num(mbyte(v))} MB/s`}
             series={[
-              { label: `↓ ${m.speed_down()}`, color: '#7cc4b8', points: series.down },
-              { label: `↑ ${m.speed_up()}`, color: '#c39bff', points: series.up },
+              { label: `↓ ${m.speed_down()}`, color: 'var(--color-accent)', points: series.down },
+              { label: `↑ ${m.speed_up()}`, color: 'var(--color-accent-2)', points: series.up },
             ]}
           />
           <HistoryChart detailed height={60} span={span} now={now} label={m.speed_ping()} yMin={0} format={(v) => `${num(v)} ms`} series={[{ label: m.speed_ping(), color: '#8b949e', points: series.ping }]} />

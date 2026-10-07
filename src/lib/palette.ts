@@ -1,12 +1,14 @@
 import { localeOf, msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
 import type { Snapshot } from '~/shared/types'
+import { THEMES, type Theme } from '~/lib/theme'
 
 export type PaletteAction =
   | { kind: 'navigate'; to: '/' | '/units' | '/journal' | '/system' | '/quadlets' | '/shares' | '/backups' | '/ssh' | '/disks' | '/files' | '/users' | '/hardware'; search?: Record<string, string> }
   | { kind: 'open'; url: string }
   | { kind: 'unit'; action: 'start' | 'stop' | 'restart'; name: string }
   | { kind: 'motion'; level: 'off' | 'subtle' | 'strong' }
+  | { kind: 'theme'; theme: Theme }
 
 export interface PaletteItem {
   id: string
@@ -88,6 +90,13 @@ export function paletteItems(s: Omit<Snapshot, 'system'>, readonly: boolean): Pa
       label: msg(m.motion_paletteItem, { level: msg({ off: m.motion_off, subtle: m.motion_subtle, strong: m.motion_strong }[level]) }),
       keywords: 'animationen animation bewegung effekte motion effects aus dezent kräftig off subtle strong',
       action: { kind: 'motion' as const, level },
+    })),
+    ...THEMES.map((theme) => ({
+      id: `theme:${theme}`,
+      section: 'Seiten' as const,
+      label: msg(m.theme_paletteItem, { theme: msg({ quadeck: m.theme_quadeck, nord: m.theme_nord, ocean: m.theme_ocean, amethyst: m.theme_amethyst, copper: m.theme_copper }[theme]) }),
+      keywords: `farbschema farben theme design aussehen color scheme appearance ${theme}`,
+      action: { kind: 'theme' as const, theme },
     })),
   ]
   for (const g of s.services) {

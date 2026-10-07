@@ -354,7 +354,7 @@ export function FileExplorer({ path, right, onNavigate, onTwoPanes }: { path?: s
               key={r.path}
               type="button"
               onClick={() => go(r.path)}
-              className={`flex flex-col border-t border-line px-[18px] py-[9px] text-left hover:bg-[rgba(255,255,255,.03)] ${r.path === pane.root ? 'bg-[rgba(124,196,184,.10)]' : ''}`}
+              className={`flex flex-col border-t border-line px-[18px] py-[9px] text-left hover:bg-[rgba(255,255,255,.03)] ${r.path === pane.root ? 'bg-accent/10' : ''}`}
             >
               <span className="flex items-center gap-2 font-mono text-[13px]">
                 <Glyph name="disk" size={14} />
@@ -429,7 +429,7 @@ export function FileExplorer({ path, right, onNavigate, onTwoPanes }: { path?: s
 
         {(rootsError || (!two && pane.error)) && <p className="m-0 border-t border-line px-[18px] py-2 text-[13px] text-[#e3b341]">{rootsError || pane.error}</p>}
         {two && hint && (
-          <p className="m-0 flex items-center gap-2 border-t border-line bg-[rgba(124,196,184,.06)] px-[18px] py-2 text-[13px] text-[#c9d1d9]" data-testid="two-hint">
+          <p className="m-0 flex items-center gap-2 border-t border-line bg-accent/6 px-[18px] py-2 text-[13px] text-[#c9d1d9]" data-testid="two-hint">
             {hint === 'copy' ? m.files_two_hintCopy({ side: (side === 'left' ? m.files_two_rightShort() : m.files_two_leftShort()).toLowerCase() }) : m.files_two_hintMove({ side: (side === 'left' ? m.files_two_rightShort() : m.files_two_leftShort()).toLowerCase() })}
             <button type="button" className="ml-auto underline" onClick={() => setHint(null)}>
               {m.common_close()}
@@ -586,7 +586,7 @@ function PaneView(props: {
       aria-label={side === 'left' ? m.files_two_left() : m.files_two_right()}
       data-active={active || undefined}
       data-testid="file-pane"
-      className={`min-w-0 flex-col rounded-[10px] border transition-colors ${active ? 'flex border-accent shadow-[inset_0_0_0_1px_var(--color-accent)]' : 'hidden border-edge lg:flex'} ${props.dropTarget ? 'bg-[rgba(124,196,184,.08)]' : ''}`}
+      className={`min-w-0 flex-col rounded-[10px] border transition-colors ${active ? 'flex border-accent shadow-[inset_0_0_0_1px_var(--color-accent)]' : 'hidden border-edge lg:flex'} ${props.dropTarget ? 'bg-accent/8' : ''}`}
       onMouseDown={props.onActivate}
       onFocusCapture={props.onActivate}
       onDragOver={props.onDragOver}
@@ -604,7 +604,7 @@ function PaneView(props: {
         <button type="button" className="btn sm !min-h-[24px] !px-2" disabled={pane.cur === pane.root} onClick={() => props.onNavigate(parentOf(pane.cur))} aria-label={m.files_explorer_up()}>
           ↑
         </button>
-        <span className={`ml-auto rounded-[5px] px-1.5 py-0.5 font-mono text-[10px] ${active ? 'bg-[rgba(124,196,184,.18)] text-accent' : 'bg-[#1c2430] text-muted'}`}>{active ? m.files_two_source() : m.files_two_target()}</span>
+        <span className={`ml-auto rounded-[5px] px-1.5 py-0.5 font-mono text-[10px] ${active ? 'bg-accent/18 text-accent' : 'bg-raised text-muted'}`}>{active ? m.files_two_source() : m.files_two_target()}</span>
       </div>
       <Crumbs pane={pane} onNavigate={props.onNavigate} className="px-3 pb-1.5 text-[12px]" />
       {pane.error && <p className="m-0 px-3 py-1 text-[12px] text-[#e3b341]">{pane.error}</p>}
@@ -690,7 +690,7 @@ function PaneTable(props: {
               <tr
                 key={e.name}
                 data-testid="file-row"
-                className={`${selected.has(e.name) ? 'bg-[rgba(124,196,184,.08)]' : ''} ${cut ? 'opacity-50' : ''}`}
+                className={`${selected.has(e.name) ? 'bg-accent/8' : ''} ${cut ? 'opacity-50' : ''}`}
                 onDoubleClick={() => isDir && props.onNavigate(path)}
                 draggable={!!props.onDragStart && !props.readonly}
                 onDragStart={props.onDragStart ? (ev) => props.onDragStart!(ev, e.name) : undefined}

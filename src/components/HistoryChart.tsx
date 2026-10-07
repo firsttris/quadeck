@@ -172,7 +172,7 @@ export function HistoryChart({ series, span, now, format, yMin, yMax, height = 4
             onPointerMove={detailed ? (e) => setHover(e.clientX - e.currentTarget.getBoundingClientRect().left) : undefined}
             onPointerLeave={detailed ? () => setHover(null) : undefined}
           >
-            {detailed && [0, 0.5, 1].map((f) => <line key={f} x1={0} x2={width} y1={padTop + f * (h - padTop - 1)} y2={padTop + f * (h - padTop - 1)} stroke="#1d242d" strokeDasharray={f === 1 ? undefined : '3 4'} />)}
+            {detailed && [0, 0.5, 1].map((f) => <line key={f} x1={0} x2={width} y1={padTop + f * (h - padTop - 1)} y2={padTop + f * (h - padTop - 1)} stroke="var(--color-line)" strokeDasharray={f === 1 ? undefined : '3 4'} />)}
             <defs>
               {paths.map((p, i) => (
                 <linearGradient key={p.label} id={`${uid}-g${i}`} x1="0" x2="0" y1="0" y2="1">
@@ -203,9 +203,9 @@ export function HistoryChart({ series, span, now, format, yMin, yMax, height = 4
               )}
             {hoverTs !== null && hoverRows.length > 0 && (
               <g>
-                <line x1={hover!} x2={hover!} y1={0} y2={h} stroke="#3a4350" />
+                <line x1={hover!} x2={hover!} y1={0} y2={h} stroke="var(--color-rim-strong)" />
                 {hoverRows.map(({ s, p }) => (
-                  <circle key={s.label} cx={x(p[0])} cy={y(p[1])} r={3.2} fill={s.color} stroke="#0b0f14" strokeWidth={1.5} />
+                  <circle key={s.label} cx={x(p[0])} cy={y(p[1])} r={3.2} fill={s.color} stroke="var(--color-bg)" strokeWidth={1.5} />
                 ))}
               </g>
             )}
@@ -222,7 +222,7 @@ export function HistoryChart({ series, span, now, format, yMin, yMax, height = 4
         )}
         {detailed && hoverTs !== null && hoverRows.length > 0 && (
           <div
-            className="pointer-events-none absolute top-1 z-10 rounded-lg border border-edge bg-[#141a22] px-2.5 py-1.5 text-[12px] shadow-lg"
+            className="pointer-events-none absolute top-1 z-10 rounded-lg border border-edge bg-panel px-2.5 py-1.5 text-[12px] shadow-lg"
             style={hover! > width / 2 ? { right: width - hover! + 10 } : { left: hover! + 10 }}
             role="tooltip"
           >

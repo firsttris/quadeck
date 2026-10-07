@@ -27,7 +27,7 @@ interface Report {
 }
 type Range = '24h' | '7d' | '30d' | '12m'
 
-const COLOR: Record<Component, string> = { cpu: '#7cc4b8', gpu: '#b4a0ff', disks: '#d29922', rest: '#5c6573' }
+const COLOR: Record<Component, string> = { cpu: 'var(--color-accent)', gpu: 'var(--color-accent-2)', disks: '#d29922', rest: 'var(--color-faint)' }
 const label = (c: Component) => pickMsg({ cpu: m.energy_cpu, gpu: m.energy_gpu, disks: m.energy_disks, rest: m.energy_rest }, c)
 const kindLabel = (k: DiskKind) => pickMsg({ hdd: m.energy_kind_hdd, ssd: m.energy_kind_ssd, nvme: m.energy_kind_nvme }, k)
 const w = (v: number) => `${num(v, v < 10 ? 1 : 0)} W`

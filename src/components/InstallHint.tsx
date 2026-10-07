@@ -56,7 +56,7 @@ export function InstallHint({ feature, what, onInstalled }: { feature: Feature; 
           )}
           <div className="text-[12px] text-muted">
             {m.shell_install_console()}
-            <code className="rounded bg-[#0e1319] px-1.5 py-0.5 font-mono text-[12px] text-fg select-all">{installCommand(manager, feature)}</code>
+            <code className="rounded bg-sunken px-1.5 py-0.5 font-mono text-[12px] text-fg select-all">{installCommand(manager, feature)}</code>
           </div>
           {manager === 'rpm-ostree' && <div className="text-[12px] text-[#e3b341]">{m.shell_install_ostree()}</div>}
           {manager === 'transactional-update' && <div className="text-[12px] text-[#e3b341]">{m.shell_install_transactional()}</div>}

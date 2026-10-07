@@ -2,7 +2,7 @@
 //   bun run build && rm -rf .shot-data && QUADECK_PORT=8686 QUADECK_HOST=127.0.0.1 QUADECK_DATA_DIR=.shot-data QUADECK_FIXTURES=fixtures/demo QUADECK_UNLOCK=quadeck bun scripts/start.ts
 //   CHROMIUM_PATH=/path/to/chromium node scripts/screenshots.mjs [docs]
 import { chromium } from '@playwright/test'
-import { readFileSync } from 'node:fs'
+import { readFileSync, rmSync } from 'node:fs'
 const OUT = process.argv[2] ?? 'docs'
 const base = 'http://127.0.0.1:8686'
 const PW = process.env.QUADECK_SHOT_PASSWORD ?? 'shot-password-123'
@@ -101,4 +101,20 @@ await p
   .click()
   .catch(() => console.log('no form button'))
 await shot('unit-editor')
+// The color themes: the overview in each, side by side (Quadeck last, so the browser keeps the default).
+const THEMES = { quadeck: 'Quadeck', nord: 'Nord', ocean: 'Ocean', amethyst: 'Amethyst', copper: 'Copper' }
+const tiles = []
+for (const t of [...Object.keys(THEMES).slice(1), 'quadeck']) {
+  await p.evaluate((t) => localStorage.setItem('quadeck-theme', t), t)
+  await p.goto(base + '/')
+  await wait(3000)
+  await p.screenshot({ path: `${OUT}/.theme-${t}.png` })
+  tiles[Object.keys(THEMES).indexOf(t)] = `<figure><img src="data:image/png;base64,${readFileSync(`${OUT}/.theme-${t}.png`).toString('base64')}"><figcaption>${THEMES[t]}</figcaption></figure>`
+  rmSync(`${OUT}/.theme-${t}.png`)
+}
+const sheet = await b.newPage({ viewport: { width: 1800, height: 900 } })
+await sheet.setContent(`<style>body{margin:0;padding:24px;background:#05070a;font:600 22px 'IBM Plex Sans',system-ui;color:#e6e8eb;display:grid;grid-template-columns:repeat(3,1fr);gap:22px}figure{margin:0}img{width:100%;border-radius:10px;border:1px solid #2a323d;display:block}figcaption{margin-top:8px}</style>${tiles.join('')}`)
+await sheet.screenshot({ path: `${OUT}/screenshot-themes.png`, fullPage: true })
+await sheet.close()
+console.log('shot', 'themes')
 await b.close()

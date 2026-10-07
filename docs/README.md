@@ -67,6 +67,14 @@ The UI is in German and English. It follows the browser's language; the switch a
 the sidebar (and on the login page) overrides it and is remembered in a cookie. E-mails and push
 messages use the language last picked there. The documentation uses the English labels.
 
+**Color themes** at the bottom of the sidebar (also in the command palette, "color theme") change the
+accent and the tint of the dark surfaces, per browser: *Quadeck* (teal, the default), *Nord* (frost
+blue on slate), *Ocean* (blue on navy), *Amethyst* (violet) and *Copper* (warm orange). Gauges,
+charts, buttons, the navigation and the logo follow. Ok, warning and error keep their green, yellow
+and red in every theme, and every theme is checked for readable contrast. The terminal stays black.
+
+<img src="screenshot-themes.png" alt="The overview in the five color themes: Quadeck, Nord, Ocean, Amethyst and Copper" width="900">
+
 **Animations** at the bottom of the sidebar (also in the command palette) set how much moves, per
 browser, like in SnapRAID UI and the CCU add-on:
 

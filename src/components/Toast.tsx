@@ -17,7 +17,7 @@ export function ToastProvider({ children }: { children: ReactNode }) {
         {toast && (
           <div
             className="rounded-[10px] px-[18px] py-[10px] text-[13px] font-medium shadow-[0_10px_30px_rgba(0,0,0,.4)]"
-            style={toast.tone === 'bad' ? { background: '#3a1416', color: '#ffb4ab', border: '1px solid rgba(248,81,73,.5)' } : { background: '#e6e8eb', color: '#0b0f14' }}
+            style={toast.tone === 'bad' ? { background: '#3a1416', color: '#ffb4ab', border: '1px solid rgba(248,81,73,.5)' } : { background: '#e6e8eb', color: 'var(--color-bg)' }}
           >
             {toast.msg}
           </div>

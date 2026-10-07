@@ -543,7 +543,7 @@ function ClientDialog({
         <h3 className="label-caps m-0 font-normal">{m.backup_client_what()}</h3>
         <ul className="m-0 flex list-none flex-col gap-1.5 p-0">
           {plan.folders.map((f) => (
-            <li key={f} className="flex items-center gap-2 rounded-lg border border-edge bg-[#0e1319] px-2.5 py-1.5 text-[13px]">
+            <li key={f} className="flex items-center gap-2 rounded-lg border border-edge bg-sunken px-2.5 py-1.5 text-[13px]">
               <span className="grow font-mono">{f}</span>
               <button type="button" className="btn sm" aria-label={m.backup_client_removeFolder({ folder: f })} onClick={() => set({ folders: plan.folders.filter((x) => x !== f) })}>
                 {m.backup_client_remove()}
@@ -625,7 +625,7 @@ function ClientDialog({
         </label>
       </section>
 
-      <section className="flex flex-col gap-2.5 rounded-[12px] border border-[rgba(124,196,184,.35)] bg-[rgba(124,196,184,.06)] p-4" aria-label={m.backup_client_run()}>
+      <section className="flex flex-col gap-2.5 rounded-[12px] border border-accent/35 bg-accent/6 p-4" aria-label={m.backup_client_run()}>
         <div className="flex flex-wrap items-center gap-2.5">
           <h3 className="m-0 grow text-[14px] font-semibold">{m.backup_client_run()}</h3>
           <SettingsChip client={client} />

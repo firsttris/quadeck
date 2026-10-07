@@ -78,7 +78,7 @@ export function ServiceTile({ s, onDelete, onEdit, editing }: { s: Service; onDe
           type="button"
           onClick={onDelete}
           aria-label={m.overview_tile_removeLink({ name: s.name })}
-          className="no-drag absolute right-2 bottom-2 hidden h-7 w-7 items-center justify-center rounded-md border border-[#2a323d] bg-[#161c24] text-muted group-focus-within:flex group-hover:flex hover:text-[#ff8a80]"
+          className="no-drag absolute right-2 bottom-2 hidden h-7 w-7 items-center justify-center rounded-md border border-rim bg-surface text-muted group-focus-within:flex group-hover:flex hover:text-[#ff8a80]"
         >
           <Glyph name="trash" size={14} />
         </button>

@@ -3,7 +3,7 @@ const C = 2 * Math.PI * 34
 /** Ring gauge with glow; turns yellow above 70 % and red above 85 %, glides to new values. */
 export function Gauge({ id, label, value, sub, p, bare }: { id: string; label: string; value: string; sub: string; p: number; bare?: boolean }) {
   const clamped = Math.max(0, Math.min(1, p || 0))
-  const color = clamped > 0.85 ? '#f85149' : clamped > 0.7 ? '#d29922' : '#7cc4b8'
+  const color = clamped > 0.85 ? '#f85149' : clamped > 0.7 ? '#d29922' : 'var(--color-accent)'
   return (
     // Narrow cards (container query on the card): smaller ring and text, stacked when very narrow.
     <div className={`${bare ? '' : 'panel'} flex items-center gap-4 p-4 @max-[259px]:gap-3 @max-[259px]:p-3 @max-[169px]:flex-col @max-[169px]:items-start @max-[169px]:gap-2`} data-testid={`gauge-${id}`}>
@@ -17,7 +17,7 @@ export function Gauge({ id, label, value, sub, p, bare }: { id: string; label: s
             </feMerge>
           </filter>
         </defs>
-        <circle cx="42" cy="42" r="34" fill="none" stroke="#1d242d" strokeWidth="7" />
+        <circle cx="42" cy="42" r="34" fill="none" stroke="var(--color-line)" strokeWidth="7" />
         <circle
           className="ring"
           cx="42"

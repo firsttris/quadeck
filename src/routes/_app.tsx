@@ -7,6 +7,7 @@ import { UnlockChip, UnlockProvider } from '~/components/Unlock'
 import { LangSelect } from '~/components/AuthCard'
 import { Glyph, Logo } from '~/components/Glyph'
 import { MotionSelect } from '~/components/MotionSelect'
+import { ThemeSelect } from '~/components/ThemeSelect'
 import { Dot } from '~/components/Status'
 import { ToastProvider } from '~/components/Toast'
 import { api, setCsrfToken } from '~/lib/api'
@@ -111,8 +112,8 @@ function MobileBar({ onMenu, onSearch }: { onMenu: () => void; onSearch: () => v
     .flatMap((g) => g.items)
     .reduce((n, i) => n + i.badge, 0)
   return (
-    <header className="sticky top-0 z-30 flex items-center gap-1 border-b border-line bg-[rgba(13,17,23,.92)] px-2 py-2 backdrop-blur md:hidden">
-      <button type="button" className="relative grid h-10 w-10 place-items-center rounded-lg text-fg hover:bg-[#161c24]" onClick={onMenu} aria-label={m.shell_bar_openMenu()}>
+    <header className="sticky top-0 z-30 flex items-center gap-1 border-b border-line bg-bg/92 px-2 py-2 backdrop-blur md:hidden">
+      <button type="button" className="relative grid h-10 w-10 place-items-center rounded-lg text-fg hover:bg-surface" onClick={onMenu} aria-label={m.shell_bar_openMenu()}>
         <Glyph name="menu" size={20} strokeWidth={2} />
         {problems > 0 && <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-[#f85149]" aria-label={m.shell_bar_problems({ n: problems })} />}
       </button>
@@ -128,7 +129,7 @@ function MobileBar({ onMenu, onSearch }: { onMenu: () => void; onSearch: () => v
       </Link>
       <JobChip compact />
       <UnlockChip compact />
-      <button type="button" className="grid h-10 w-10 place-items-center rounded-lg text-muted hover:bg-[#161c24]" onClick={onSearch} aria-label={m.shell_bar_search()}>
+      <button type="button" className="grid h-10 w-10 place-items-center rounded-lg text-muted hover:bg-surface" onClick={onSearch} aria-label={m.shell_bar_search()}>
         <Glyph name="search" size={19} strokeWidth={2} />
       </button>
     </header>
@@ -169,12 +170,12 @@ function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => vo
       <div className={`fixed inset-0 z-40 bg-black/55 transition-opacity md:hidden ${open ? 'opacity-100' : 'pointer-events-none opacity-0'}`} onClick={onClose} aria-hidden="true" />
       <aside
         aria-label={m.shell_nav_navigation()}
-        className={`fixed inset-y-0 left-0 z-50 flex w-[280px] max-w-[85vw] flex-col gap-[16px] overflow-y-auto border-r border-line bg-[#0d1117] px-[14px] py-5 transition-[transform,visibility] duration-200 md:sticky md:top-0 md:z-auto md:visible md:h-screen md:w-auto md:max-w-none md:translate-x-0 md:bg-[rgba(13,17,23,.85)] ${open ? 'visible translate-x-0' : 'invisible -translate-x-full'}`}
+        className={`fixed inset-y-0 left-0 z-50 flex w-[280px] max-w-[85vw] flex-col gap-[16px] overflow-y-auto border-r border-line bg-sunken px-[14px] py-5 transition-[transform,visibility] duration-200 md:sticky md:top-0 md:z-auto md:visible md:h-screen md:w-auto md:max-w-none md:translate-x-0 md:bg-bg/85 ${open ? 'visible translate-x-0' : 'invisible -translate-x-full'}`}
       >
         <div className="flex items-center gap-[10px] px-[6px]">
           <Logo />
           <div className="grow font-cond text-[21px] font-semibold tracking-[.01em]">Quadeck</div>
-          <button ref={closeButton} type="button" className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-[#161c24] md:hidden" onClick={onClose} aria-label={m.shell_bar_closeMenu()}>
+          <button ref={closeButton} type="button" className="grid h-9 w-9 place-items-center rounded-lg text-muted hover:bg-surface md:hidden" onClick={onClose} aria-label={m.shell_bar_closeMenu()}>
             <Glyph name="close" size={18} strokeWidth={2} />
           </button>
         </div>
@@ -182,7 +183,7 @@ function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => vo
           to="/hardware"
           title={m.shell_bar_hardwareTitle()}
           aria-label={m.shell_bar_hardwareLabel({ host: h.hostname })}
-          className={`mx-1 flex flex-col gap-[3px] rounded-[10px] border p-3 text-[12px] text-subtle no-underline hover:border-[#3a4452] ${path === '/hardware' ? 'border-accent' : 'border-edge'}`}
+          className={`mx-1 flex flex-col gap-[3px] rounded-[10px] border p-3 text-[12px] text-subtle no-underline hover:border-rim-strong ${path === '/hardware' ? 'border-accent' : 'border-edge'}`}
         >
           <div className="flex items-center gap-2 text-[13px] font-medium text-fg">
             <Dot tone={connected ? 'ok' : 'warn'} label={connected ? m.shell_bar_connected() : m.shell_bar_connecting()} />
@@ -200,7 +201,7 @@ function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => vo
         <button type="button" className="btn mx-1 justify-start text-muted" onClick={onSearch} aria-keyshortcuts="Control+K">
           <Glyph name="search" size={15} strokeWidth={2} />
           <span className="grow text-left">{m.shell_bar_search()}</span>
-          <kbd className="font-mono rounded border border-[#333a45] px-1.5 py-0.5 text-[11px] max-md:hidden">{m.shell_bar_searchKey()}</kbd>
+          <kbd className="font-mono rounded border border-rim-strong px-1.5 py-0.5 text-[11px] max-md:hidden">{m.shell_bar_searchKey()}</kbd>
         </button>
         <UnlockChip />
         <JobChip />
@@ -238,6 +239,7 @@ function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => vo
           >
             <Glyph name="logout" size={15} /> {m.shell_bar_logout()}
           </button>
+          <ThemeSelect />
           <MotionSelect />
           <div className="flex items-center justify-between gap-2">
             <span>Quadeck {__APP_VERSION__}</span>

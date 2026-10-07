@@ -89,7 +89,7 @@ function UsersPage() {
                 search={{ user: a.name }}
                 data-testid="account"
                 aria-current={selected?.name === a.name ? 'true' : undefined}
-                className={`flex items-center gap-3 border-b border-line px-[18px] py-[10px] last:border-b-0 hover:bg-[rgba(255,255,255,.03)] ${selected?.name === a.name ? 'bg-[rgba(124,196,184,.10)]' : ''}`}
+                className={`flex items-center gap-3 border-b border-line px-[18px] py-[10px] last:border-b-0 hover:bg-[rgba(255,255,255,.03)] ${selected?.name === a.name ? 'bg-accent/10' : ''}`}
               >
                 <Dot tone={a.locked ? 'bad' : 'ok'} label={a.locked ? m.users_locked() : m.users_active()} />
                 <div className="min-w-0 grow">

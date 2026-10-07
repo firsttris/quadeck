@@ -153,7 +153,7 @@ function HardwarePage() {
               {hw.memory.slots.length > 0 ? (
                 <div className="grid grid-cols-2 gap-2 md:grid-cols-4" aria-label={m.hardware_slots()}>
                   {hw.memory.slots.map((slot) => (
-                    <div key={slot.locator} data-testid="ram-slot" className={`flex flex-col gap-0.5 rounded-[10px] border p-2.5 ${slot.size ? 'border-[rgba(124,196,184,.45)] bg-[rgba(124,196,184,.08)]' : 'border-dashed border-edge'}`}>
+                    <div key={slot.locator} data-testid="ram-slot" className={`flex flex-col gap-0.5 rounded-[10px] border p-2.5 ${slot.size ? 'border-accent/45 bg-accent/8' : 'border-dashed border-edge'}`}>
                       <span className="truncate text-[11px] text-subtle" title={slot.locator}>
                         {slot.locator}
                       </span>
@@ -207,7 +207,7 @@ function HardwarePage() {
                     </div>
                     {line && (
                       <div className="flex items-center gap-2">
-                        <code className="grow truncate rounded-md bg-[#0e1319] px-2 py-1 font-mono text-[12px]">{line}</code>
+                        <code className="grow truncate rounded-md bg-sunken px-2 py-1 font-mono text-[12px]">{line}</code>
                         <Copy text={line} label={m.hardware_copyQuadletLine({ name: g.name })} />
                       </div>
                     )}
@@ -232,7 +232,7 @@ function HardwarePage() {
                   <div className="text-[12px] text-subtle">{[usbSpeed(u.speed), u.driver && m.hardware_label_driver({ driver: u.driver }), `${u.vendor}:${u.product}`].filter(Boolean).join(' · ')}</div>
                   {u.serial.map((p) => (
                     <div key={p} className="flex items-center gap-2">
-                      <code className="grow truncate rounded-md bg-[#0e1319] px-2 py-1 font-mono text-[12px]" title={p}>
+                      <code className="grow truncate rounded-md bg-sunken px-2 py-1 font-mono text-[12px]" title={p}>
                         {p}
                       </code>
                       <Copy text={p} label={m.hardware_copyPath({ name: (u.name ?? u.product) })} />
@@ -329,7 +329,7 @@ function Sensors({ list }: { list: SensorRaw[] }) {
               return (
                 <div key={s.label} className="grid grid-cols-[minmax(0,1fr)_90px_80px] items-center gap-3" data-testid="sensor">
                   <span className="truncate">{s.label}</span>
-                  <span className="h-1.5 overflow-hidden rounded-full bg-[#1b222c]">{pct !== undefined && <span className={`block h-full ${hot ? 'bg-[#f85149]' : 'bg-accent'}`} style={{ width: `${pct}%` }} />}</span>
+                  <span className="h-1.5 overflow-hidden rounded-full bg-line">{pct !== undefined && <span className={`block h-full ${hot ? 'bg-[#f85149]' : 'bg-accent'}`} style={{ width: `${pct}%` }} />}</span>
                   <span className={`text-right font-mono text-[12px] ${hot ? 'text-[#ff8a80]' : ''}`}>
                     {s.kind === 'fan' && s.value === 0 ? m.hardware_fanStopped() : `${s.kind === 'in' ? num(s.value, 2) : s.kind === 'power' ? num(s.value, 1) : Math.round(s.value)} ${sensorUnit(s.kind)}`}
                   </span>

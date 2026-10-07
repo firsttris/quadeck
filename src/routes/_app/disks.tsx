@@ -291,7 +291,7 @@ function DetailDialog({ disk: d, baseline, onClose }: { disk: SmartDisk | null; 
         [
           ['realloc', m.disks_card_reallocated(), '#e3b341'],
           ['pending', m.disks_card_pending(), '#ff8a80'],
-          ['crc', m.disks_detail_crcErrors(), '#b4a0ff'],
+          ['crc', m.disks_detail_crcErrors(), 'var(--color-accent-2)'],
           ['media', m.disks_card_mediaErrors(), '#ff8a80'],
         ] as const
       ).filter(([k]) => trends[k]?.length)
@@ -351,7 +351,7 @@ function DetailDialog({ disk: d, baseline, onClose }: { disk: SmartDisk | null; 
               <HistoryChart
                 detailed
                 label={`${d.name} ${m.power_wakesHistory()}`}
-                series={[{ label: m.power_wakesHistory(), color: '#7cc4b8', points: dailyWakes(trends.startstop) }]}
+                series={[{ label: m.power_wakesHistory(), color: 'var(--color-accent)', points: dailyWakes(trends.startstop) }]}
                 span={span}
                 now={now}
                 format={(v) => String(Math.round(v))}
@@ -381,7 +381,7 @@ function DetailDialog({ disk: d, baseline, onClose }: { disk: SmartDisk | null; 
               <HistoryChart
                 detailed
                 label={`${d.name} ${m.disks_card_wear()}`}
-                series={[{ label: m.disks_card_wear(), color: '#7cc4b8', points: trends.wear }]}
+                series={[{ label: m.disks_card_wear(), color: 'var(--color-accent)', points: trends.wear }]}
                 span={span}
                 now={now}
                 format={(v) => `${Math.round(v)} %`}
