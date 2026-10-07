@@ -96,7 +96,9 @@ the metric history; everything discovered is recomputed live. Schema changes: ed
 
 `bun run test` runs the unit tests (about 320), `bun run test:e2e` the Playwright suite (about 60
 tests). CI runs both plus the four binary builds and smoke tests of the glibc binary and of the musl
-binary on Alpine.
+binary on Alpine. The E2E files share one server and run one after the other, so CI splits them by
+file across three runners (`--shard`), each with its own server; `e2e/global-setup.ts` sets the
+password on the shards that do not start with `dashboard.spec.ts`, which tests the first start.
 
 ## Releases
 
