@@ -119,6 +119,20 @@ export interface BackupSuggestion {
   stop: { unit: string; from: string; database: boolean }[]
 }
 
+/** One folder in the folder browser of the backup setup (names only, never file contents). */
+export interface FolderListing {
+  /** The folder shown: the one asked for, or its closest existing parent (`missing`). */
+  path: string
+  /** Sub-folders by name, sorted; hidden ones last. */
+  dirs: string[]
+  /** The asked-for folder does not exist (yet); restic creates the last part of a target itself. */
+  missing?: boolean
+  /** The file system the folder is on. */
+  disk?: { mount: string; size: number; free: number }
+  /** Of the paths compared with: those on the same file system as this folder. */
+  sameDisk: string[]
+}
+
 export interface BackupSizes {
   paths: { path: string; bytes?: number }[]
   excludes: { path: string; bytes?: number }[]

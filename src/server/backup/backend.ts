@@ -40,6 +40,7 @@ import {
   targetQuadlet,
   clientRepo,
   type BackupClient,
+  type FolderListing,
   type TargetConfig,
   type TargetState,
 } from '~/shared/backup'
@@ -50,11 +51,14 @@ import { HttpError } from '../auth'
 import { run, type ExecResult } from '../exec'
 import type { PodmanAdmin } from '../quadlets/backend'
 import { writeFileAtomic } from '../atomic'
+import { dirsWithVolumes, systemDirFs, treeDirFs } from './dirs'
 
 export interface BackupAdmin {
   backupState(refresh?: boolean): Promise<BackupState>
   backupSuggest(): Promise<BackupSuggestion>
   backupSizes(paths: string[], excludes: string[]): Promise<BackupSizes>
+  /** Folder names for the setup's folder browser; `compare`: which of these paths are on the same disk. */
+  backupDirs(path: string, compare: string[]): Promise<FolderListing>
   backupLs(snapshot: string, dir: string): Promise<LsEntry[]>
   targetState(refresh?: boolean): Promise<TargetState>
 }
@@ -337,6 +341,10 @@ export class SystemBackup implements BackupBackend {
       paths: await Promise.all(paths.map(async (path) => ({ path, bytes: await du(path) }))),
       excludes: await Promise.all(excludes.map(async (path) => ({ path, bytes: await du(path) }))),
     }
+  }
+
+  async backupDirs(path: string, compare: string[]): Promise<FolderListing> {
+    return dirsWithVolumes(systemDirFs, path, compare, (c) => this.resolvePath(c))
   }
 
   async backupLs(snapshot: string, dir: string): Promise<LsEntry[]> {
@@ -741,6 +749,10 @@ export function isDir(p: string) {
 
 const DAY = 86_400_000
 
+/** The demo's folders besides the Quadlet mounts: a backup disk, media, a home. */
+const DEMO_DIRS = ['/mnt/backup', '/mnt/backup/old-borg', '/mnt/media/movies', '/mnt/media/tvshows', '/home/tristan/Downloads', '/home/tristan/.config', '/srv/backups', '/var/lib/containers/storage/volumes', '/opt']
+const DEMO_MOUNTS = { '/': { size: 500e9, free: 210e9 }, '/mnt/backup': { size: 4e12, free: 2.6e12 }, '/mnt/media': { size: 8e12, free: 1.1e12 } }
+
 export class FixtureBackup implements BackupBackend {
   private plan: BackupPlan | undefined
   private runs: BackupRun[] = []
@@ -840,6 +852,12 @@ export class FixtureBackup implements BackupBackend {
       return 1.2e6
     }
     return { paths: paths.map((path) => ({ path, bytes: size(path) })), excludes: excludes.map((path) => ({ path, bytes: size(path) })) }
+  }
+
+  async backupDirs(path: string, compare: string[]): Promise<FolderListing> {
+    const sources = (await this.backupSuggest()).paths.map((x) => x.path).filter((x) => x.startsWith('/'))
+    const tree = treeDirFs([...sources, ...DEMO_DIRS], DEMO_MOUNTS)
+    return dirsWithVolumes(tree, path, compare, async (c) => (c.startsWith('volume:') ? `/var/lib/containers/storage/volumes/${c.slice(7)}/_data` : c))
   }
 
   async backupLs(snapshot: string, dir: string): Promise<LsEntry[]> {

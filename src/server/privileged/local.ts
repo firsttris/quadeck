@@ -640,6 +640,9 @@ export class LocalPrivileged implements Privileged {
   backupSizes(paths: string[], excludes: string[]) {
     return this.backup.backupSizes(paths, excludes)
   }
+  backupDirs(path: string, compare: string[]) {
+    return this.backup.backupDirs(path, compare)
+  }
   backupLs(snapshot: string, dir: string) {
     return this.backup.backupLs(snapshot, dir)
   }

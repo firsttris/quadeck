@@ -13,6 +13,9 @@ and restore from the page. Without restic the page offers to install it.
    - For a local folder, the parent folder must exist. When the disk is not mounted, nothing is
      created on the system disk by mistake. The target must not lie inside a folder that is backed
      up, nor the other way round.
+   - A folder browser below the field walks the server's whole file system (folder names only,
+     read by the root helper). It shows the disk the folder is on with its free space, and warns
+     when that is the same disk as folders that are backed up.
    - SFTP runs as root: root needs an SSH key without passphrase for the target (`ssh-copy-id` as
      root).
    - Credentials (`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`, `B2_ACCOUNT_ID`/`B2_ACCOUNT_KEY`,
@@ -24,6 +27,8 @@ and restore from the page. Without restic the page offers to install it.
    - Folders a container mounts read-only (a media library, say) are listed but not preselected.
      Sockets, `/run`, `/dev` and system files handed in read-only (`/etc/localtime`) are left out.
    - Named volumes are resolved to their folder on the host (`podman volume inspect`) at every run.
+   - **Browse …** adds any folder of the server through the same folder browser; hidden folders
+     show on request.
 3. **Exclusions**:
    - Caches (folders marked with `CACHEDIR.TAG`), temporary files, logs, and folders containing a
      `.nobackup` file.

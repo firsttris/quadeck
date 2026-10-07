@@ -15,6 +15,7 @@ import {
   type BackupSuggestion,
   type RepoKind,
 } from '~/shared/backup'
+import { FolderPicker, FolderPickerDialog } from './FolderPicker'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
@@ -46,6 +47,7 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
   const [measuring, setMeasuring] = useState(false)
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
+  const [browsing, setBrowsing] = useState(false)
 
   useEffect(() => {
     api<BackupSuggestion>('/api/backup?suggest', { method: 'GET' })
@@ -138,6 +140,7 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
           {plan.repo.kind === 'local' ? m.backup_setup_folder() : m.backup_setup_location()}
           <input className="field font-mono" value={plan.repo.location} placeholder={placeholder[plan.repo.kind]} onChange={(e) => set({ repo: { ...plan.repo, location: e.target.value.trim() } })} />
         </label>
+        {plan.repo.kind === 'local' && <FolderPicker target value={plan.repo.location} compare={plan.paths} onChange={(location) => set({ repo: { ...plan.repo, location } })} />}
         {plan.repo.kind === 'local' && <p className="m-0 text-[12px] text-muted">{m.backup_setup_localHint()}</p>}
         {plan.repo.kind === 'sftp' && <p className="m-0 text-[12px] text-muted">{m.backup_setup_sftpHint()}</p>}
         {REPO_SECRETS[plan.repo.kind].length > 0 && (
@@ -184,7 +187,20 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
           >
             {m.backup_setup_add()}
           </button>
+          <button type="button" className="btn" onClick={() => setBrowsing(true)}>
+            {m.folders_browse()}
+          </button>
         </div>
+        {browsing && (
+          <FolderPickerDialog
+            title={m.folders_pickTitle()}
+            onClose={() => setBrowsing(false)}
+            onPick={(p) => {
+              if (!plan.paths.includes(p)) set({ paths: [...plan.paths, p] })
+              setBrowsing(false)
+            }}
+          />
+        )}
       </Section>
 
       <Section title={m.backup_setup_excludes()}>
