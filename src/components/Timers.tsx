@@ -261,7 +261,7 @@ export function TimersView() {
       {editing && <TimerEditor key={editing.previous ?? 'new'} initial={editing.spec} previous={editing.previous} enabled={editing.enabled} existing={timers} onClose={() => setEditing(null)} onSaved={setState} />}
       {scheduling && <ScheduleDialog timer={scheduling} onClose={() => setScheduling(null)} onSaved={setState} />}
       <Modal open={files !== null} onClose={() => setFiles(null)} title={m.timers_list_filesTitle()} wide>
-        <pre className="m-0 max-h-[60vh] overflow-auto rounded-lg bg-[#0e1319] p-3 font-mono text-[12px] whitespace-pre-wrap">{files?.text}</pre>
+        <pre className="m-0 max-h-[60vh] overflow-auto rounded-lg bg-sunken p-3 font-mono text-[12px] whitespace-pre-wrap">{files?.text}</pre>
         <div className="flex flex-wrap justify-end gap-2">
           {files && (
             <Link to="/systemd" search={{ unit: files.timer.name }} className="btn">
@@ -627,7 +627,7 @@ function TimerEditor({ initial, previous, enabled: initialEnabled, existing, onC
         </button>
       </div>
       {tab === 'files' ? (
-        <pre className="m-0 max-h-[55vh] overflow-auto rounded-lg bg-[#0e1319] p-3 font-mono text-[12px] whitespace-pre-wrap" data-testid="timer-files">
+        <pre className="m-0 max-h-[55vh] overflow-auto rounded-lg bg-sunken p-3 font-mono text-[12px] whitespace-pre-wrap" data-testid="timer-files">
           {preview}
         </pre>
       ) : (

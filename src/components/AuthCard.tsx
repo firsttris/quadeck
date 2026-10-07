@@ -31,7 +31,7 @@ export function LangSelect({ className = '' }: { className?: string }) {
       title={m.shell_language()}
       value={lang}
       onChange={(e) => void switchLang(e.target.value as Lang)}
-      className={`cursor-pointer rounded-md border border-[#2a323d] bg-[#0e1319] px-1.5 py-1 text-[12px] text-muted hover:text-fg ${className}`}
+      className={`cursor-pointer rounded-md border border-rim bg-sunken px-1.5 py-1 text-[12px] text-muted hover:text-fg ${className}`}
     >
       {LANGS.map((l) => (
         <option key={l.id} value={l.id}>

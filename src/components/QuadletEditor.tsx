@@ -145,7 +145,7 @@ export function TextView({ text, onChange, jump, label, readOnly, height = 520 }
     ta.scrollTop = (jump - 4) * 19.5
   }, [jump])
   return (
-    <div className="flex overflow-hidden rounded-[10px] border border-edge bg-[#0b0f14] font-mono text-[13px] leading-[19.5px]">
+    <div className="flex overflow-hidden rounded-[10px] border border-edge bg-bg font-mono text-[13px] leading-[19.5px]">
       <div ref={gutter} aria-hidden className="select-none overflow-hidden border-r border-line px-2 py-2.5 text-right text-subtle" style={{ height }}>
         {Array.from({ length: count }, (_, i) => (
           <div key={i}>{i + 1}</div>

@@ -165,7 +165,7 @@ export function DiskWidget({ config, snapshot }: { config: DiskConfig; snapshot:
         </span>
         <span className={bad ? 'text-[#ff7b72]' : undefined}>{m.disks_usage_of({ used: diskSize(d.used), size: diskSize(d.size), pct: pct(used) })}</span>
       </div>
-      <div className="h-2 overflow-hidden rounded-[5px] bg-[#1c2430]" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(used * 100)} aria-label={d.mount}>
+      <div className="h-2 overflow-hidden rounded-[5px] bg-raised" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(used * 100)} aria-label={d.mount}>
         <div className={`h-full rounded-[5px] ${bad ? 'bg-[#f85149]' : used >= 0.85 ? 'bg-[#d29922]' : 'bg-accent'}`} style={{ width: `${Math.min(100, used * 100)}%` }} />
       </div>
       <TrendLine trend={d.trend} bad={bad} />
@@ -190,7 +190,7 @@ export function ContainersWidget({ config, containers }: { config: ContainersCon
             <span className="truncate font-mono text-[12px]">{c.name}</span>
             <span className="tabular-nums">{config.metric === 'cpu' ? pct((c.cpu ?? 0) / 100, 1) : bytes(c.memUsage)}</span>
           </div>
-          <div className="h-1.5 overflow-hidden rounded-[4px] bg-[#1c2430]">
+          <div className="h-1.5 overflow-hidden rounded-[4px] bg-raised">
             <div className="h-full rounded-[4px] bg-accent" style={{ width: `${(value(c) / max) * 100}%` }} />
           </div>
         </div>
@@ -452,7 +452,7 @@ export function LinksWidget({ config }: { config: LinksConfig }) {
         <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[13px]">
           {config.links.map((l, i) => (
             <li key={i} className="min-w-0">
-              <a href={l.url} target="_blank" rel="noreferrer noopener" className="no-drag flex items-baseline gap-2 rounded-[6px] px-1 py-0.5 hover:bg-[#161c24]">
+              <a href={l.url} target="_blank" rel="noreferrer noopener" className="no-drag flex items-baseline gap-2 rounded-[6px] px-1 py-0.5 hover:bg-surface">
                 <span className="truncate">{l.name}</span>
                 <span className="min-w-0 truncate font-mono text-[11px] text-muted">{l.url.replace(/^https?:\/\//, '')}</span>
               </a>

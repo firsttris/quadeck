@@ -5,6 +5,7 @@ import { getAuthState } from '~/lib/server-fns'
 import css from '~/styles.css?url'
 import { m } from '~/paraglide/messages'
 import { MOTION_INIT_SCRIPT } from '~/lib/motion'
+import { THEME_INIT_SCRIPT } from '~/lib/theme'
 
 export const Route = createRootRoute({
   beforeLoad: async () => ({ auth: await getAuthState() }),
@@ -36,10 +37,10 @@ function NotFound() {
 function Document({ children }: { children: ReactNode }) {
   const lang = useRouteContext({ from: '__root__' }).auth.lang
   return (
-    // data-motion is set by the init script before React hydrates
+    // data-motion and data-theme are set by the init scripts before React hydrates
     <html lang={lang} suppressHydrationWarning>
       <head>
-        <script dangerouslySetInnerHTML={{ __html: MOTION_INIT_SCRIPT }} />
+        <script dangerouslySetInnerHTML={{ __html: `${MOTION_INIT_SCRIPT};${THEME_INIT_SCRIPT}` }} />
         <HeadContent />
       </head>
       <body className="backdrop min-h-screen">

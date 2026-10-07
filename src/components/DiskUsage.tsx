@@ -78,7 +78,7 @@ export function DiskUsage({ name, filesystems }: { name: string; filesystems: Di
               </span>
               <span className={bad ? 'text-[#ff7b72]' : undefined}>{m.disks_usage_of({ used: diskSize(f.used), size: diskSize(f.size), pct: pct(used) })}</span>
             </div>
-            <div className="h-2 overflow-hidden rounded-[5px] bg-[#1c2430]" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(used * 100)} aria-label={f.mount}>
+            <div className="h-2 overflow-hidden rounded-[5px] bg-raised" role="meter" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(used * 100)} aria-label={f.mount}>
               <div className={`h-full rounded-[5px] ${bad ? 'bg-[#f85149]' : used >= WARN ? 'bg-[#d29922]' : 'bg-accent'}`} style={{ width: `${Math.min(100, used * 100)}%` }} />
             </div>
             <TrendLine trend={f.trend} bad={bad} />

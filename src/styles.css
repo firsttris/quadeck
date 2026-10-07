@@ -25,6 +25,18 @@
   --color-edge: #232a34;
   --color-accent: #7cc4b8;
   --color-accent-soft: #a6dcd2;
+  /* the rest of a color theme (lib/theme.ts): surfaces, borders and the second chart color */
+  --color-accent-deep: #4f8fbf;
+  --color-accent-2: #b4a0ff;
+  --color-glow-2: #6fa8ff;
+  --color-sunken: #0e1319;
+  --color-panel: #141a22;
+  --color-panel-2: #11161d;
+  --color-surface: #161c24;
+  --color-raised: #1c2430;
+  --color-rim: #2a323d;
+  --color-rim-strong: #3a4350;
+  --color-dim: #4a525e;
   --color-ok: #3fb950;
   --color-warn: #d29922;
   --color-bad: #f85149;
@@ -50,12 +62,12 @@
   }
   .backdrop {
     background:
-      radial-gradient(1200px 600px at 85% -10%, rgba(124, 196, 184, 0.1), transparent 60%),
-      radial-gradient(900px 500px at -10% 110%, rgba(111, 168, 255, 0.07), transparent 60%),
+      radial-gradient(1200px 600px at 85% -10%, color-mix(in srgb, var(--color-accent) 10%, transparent), transparent 60%),
+      radial-gradient(900px 500px at -10% 110%, color-mix(in srgb, var(--color-glow-2) 7%, transparent), transparent 60%),
       var(--color-bg);
   }
   .panel {
-    background: linear-gradient(180deg, #141a22, #11161d);
+    background: linear-gradient(180deg, var(--color-panel), var(--color-panel-2));
     border: 1px solid var(--color-edge);
     border-radius: 14px;
     position: relative;
@@ -78,7 +90,7 @@
     height: 8px;
     border-radius: 50%;
     flex-shrink: 0;
-    background: #4a525e;
+    background: var(--color-dim);
   }
   .dot.ok {
     background: var(--color-ok);
@@ -96,7 +108,7 @@
   }
   .bar {
     height: 10px;
-    background: #1a2029;
+    background: var(--color-line);
     border-radius: 6px;
     overflow: hidden;
     position: relative;
@@ -165,7 +177,7 @@
     cursor: pointer;
   }
   .navbtn:hover {
-    background: #161c24;
+    background: var(--color-surface);
     color: var(--color-fg);
   }
   .navbtn {
@@ -176,7 +188,7 @@
       transform 0.2s cubic-bezier(0.16, 1, 0.3, 1);
   }
   .navbtn.on {
-    background: linear-gradient(90deg, rgba(124, 196, 184, 0.18), rgba(124, 196, 184, 0.04));
+    background: linear-gradient(90deg, color-mix(in srgb, var(--color-accent) 18%, transparent), color-mix(in srgb, var(--color-accent) 4%, transparent));
     color: var(--color-accent-soft);
   }
   /* the bar at the left edge of the current page */
@@ -203,8 +215,8 @@
     gap: 6px;
     min-height: 34px;
     padding: 0 12px;
-    background: #161c24;
-    border: 1px solid #2a323d;
+    background: var(--color-surface);
+    border: 1px solid var(--color-rim);
     border-radius: 8px;
     color: #d4d9e0;
     font: inherit;
@@ -214,7 +226,7 @@
     white-space: nowrap;
   }
   .btn:hover:not(:disabled) {
-    border-color: #4b5563;
+    border-color: var(--color-dim);
   }
   .btn:disabled {
     opacity: 0.5;
@@ -229,7 +241,7 @@
     background: var(--color-accent);
     border-color: var(--color-accent);
     color: var(--color-bg);
-    box-shadow: 0 0 18px rgba(124, 196, 184, 0.25);
+    box-shadow: 0 0 18px color-mix(in srgb, var(--color-accent) 25%, transparent);
   }
   .btn.danger {
     color: #ff8a80;
@@ -247,7 +259,7 @@
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    border: 1px solid #2a323d;
+    border: 1px solid var(--color-rim);
     border-radius: 99px;
     font-size: 12px;
     font-weight: 500;
@@ -282,19 +294,19 @@
     color: #e3b341;
   }
   .pill.idle {
-    background: #1b2129;
+    background: var(--color-line);
     color: var(--color-subtle);
   }
   .chip {
     font: 500 11px/1 var(--font-mono);
     padding: 5px 8px;
     border-radius: 5px;
-    background: #1b2129;
+    background: var(--color-line);
     color: var(--color-subtle);
     white-space: nowrap;
   }
   .chip.q {
-    background: rgba(124, 196, 184, 0.13);
+    background: color-mix(in srgb, var(--color-accent) 13%, transparent);
     color: var(--color-accent);
   }
   .tbl {
@@ -309,7 +321,7 @@
     font-weight: 500;
     text-align: left;
     padding: 8px 14px;
-    border-bottom: 1px solid #222831;
+    border-bottom: 1px solid var(--color-line);
     white-space: nowrap;
   }
   .tbl td {
@@ -322,15 +334,15 @@
     border-bottom: 0;
   }
   .tbl tbody tr:hover td {
-    background: #161c24;
+    background: var(--color-surface);
   }
   .tile {
     display: flex;
     flex-direction: column;
     gap: 8px;
     padding: 14px;
-    background: #0f141a;
-    border: 1px solid #1f2630;
+    background: var(--color-sunken);
+    border: 1px solid var(--color-edge);
     border-radius: 12px;
     color: inherit;
     transition:
@@ -340,7 +352,7 @@
     min-width: 0;
   }
   .tile:hover {
-    border-color: #2f3a46;
+    border-color: var(--color-rim-strong);
     color: inherit;
   }
   .jl {
@@ -351,7 +363,7 @@
     font: 12.5px/1.7 var(--font-mono);
   }
   .jl:hover {
-    background: #171d25;
+    background: var(--color-surface);
   }
   .jl.err {
     background: rgba(248, 81, 73, 0.09);
@@ -368,8 +380,8 @@
   .field {
     box-sizing: border-box;
     width: 100%;
-    border: 1px solid #2a323d;
-    background: #0e1319;
+    border: 1px solid var(--color-rim);
+    background: var(--color-sunken);
     border-radius: 8px;
     padding: 10px 12px;
     font: 14px var(--font-sans);
@@ -383,7 +395,7 @@
     outline-offset: 1px;
   }
   dialog.modal {
-    background: #141a22;
+    background: var(--color-panel);
     color: var(--color-fg);
     border: 1px solid var(--color-edge);
     border-radius: 14px;
@@ -417,20 +429,20 @@
   overflow: auto;
 }
 .grid-item.card {
-  background: linear-gradient(180deg, #141a22, #11161d);
+  background: linear-gradient(180deg, var(--color-panel), var(--color-panel-2));
   border: 1px solid var(--color-edge);
   border-radius: 14px;
   overflow: hidden;
 }
 .grid-item.editing {
-  outline: 1px dashed #4b8f86;
+  outline: 1px dashed color-mix(in srgb, var(--color-accent) 60%, var(--color-bg));
   outline-offset: 2px;
 }
 .grid-item.card.editing {
-  border-color: #2f4a47;
+  border-color: color-mix(in srgb, var(--color-accent) 30%, var(--color-bg));
 }
 .react-grid-item.react-grid-placeholder {
-  background: rgba(124, 196, 184, 0.25);
+  background: color-mix(in srgb, var(--color-accent) 25%, transparent);
   border-radius: 14px;
   opacity: 1;
 }
@@ -459,8 +471,8 @@
   width: 28px;
   height: 28px;
   border-radius: 7px;
-  background: #1b232d;
-  border: 1px solid #2f3a46;
+  background: var(--color-raised);
+  border: 1px solid var(--color-rim-strong);
   color: var(--color-subtle);
   cursor: pointer;
 }
@@ -529,7 +541,7 @@
 }
 @keyframes flash {
   from {
-    background: rgba(124, 196, 184, 0.22);
+    background: color-mix(in srgb, var(--color-accent) 22%, transparent);
   }
   to {
     background: transparent;
@@ -611,10 +623,10 @@
 @keyframes glow {
   0%,
   100% {
-    box-shadow: 0 0 20px rgba(124, 196, 184, 0.35);
+    box-shadow: 0 0 20px color-mix(in srgb, var(--color-accent) 35%, transparent);
   }
   50% {
-    box-shadow: 0 0 30px 4px rgba(124, 196, 184, 0.55);
+    box-shadow: 0 0 30px 4px color-mix(in srgb, var(--color-accent) 55%, transparent);
   }
 }
 /* "backwards" only: no transform stays on the page afterwards (fixed elements, the widget grid) */
@@ -694,10 +706,10 @@
     box-shadow 0.25s;
 }
 [data-motion='strong'] .grid-item.card:not(.editing):hover {
-  border-color: rgba(124, 196, 184, 0.35);
+  border-color: color-mix(in srgb, var(--color-accent) 35%, transparent);
   box-shadow:
-    0 0 0 1px rgba(124, 196, 184, 0.12),
-    0 14px 34px -18px rgba(124, 196, 184, 0.35);
+    0 0 0 1px color-mix(in srgb, var(--color-accent) 12%, transparent),
+    0 14px 34px -18px color-mix(in srgb, var(--color-accent) 35%, transparent);
 }
 [data-motion='strong'] .jobchip {
   box-shadow:
@@ -722,7 +734,7 @@
   overflow: auto;
   border: 1px solid var(--color-edge);
   border-radius: 10px;
-  background: #0b0f14;
+  background: var(--color-bg);
   padding: 10px 12px;
   font-family: var(--font-mono);
   font-size: 12px;
@@ -781,3 +793,90 @@
   }
 }
 
+/* Color themes (lib/theme.ts): the default surfaces with the same lightness, turned to the theme's
+   hue in OKLCH, plus its own accent, second chart color and glow. Status
+   colors never change. */
+:root[data-theme='nord'] {
+  --color-bg: #141821;
+  --color-sunken: #171c26;
+  --color-panel: #1c2330;
+  --color-panel-2: #191f2b;
+  --color-surface: #1e2532;
+  --color-raised: #232c40;
+  --color-line: #252c39;
+  --color-edge: #2a3243;
+  --color-rim: #313a4c;
+  --color-rim-strong: #404b60;
+  --color-dim: #50596c;
+  --color-faint: #616c82;
+  --color-muted: #808b9f;
+  --color-subtle: #9ca7bd;
+  --color-accent: #88c0d0;
+  --color-accent-soft: #b8dde7;
+  --color-accent-deep: #5e81ac;
+  --color-accent-2: #c3a1d6;
+  --color-glow-2: #5e81ac;
+}
+:root[data-theme='ocean'] {
+  --color-bg: #070e1e;
+  --color-sunken: #081225;
+  --color-panel: #0c1931;
+  --color-panel-2: #0a152a;
+  --color-surface: #0e1b33;
+  --color-raised: #132340;
+  --color-line: #15223a;
+  --color-edge: #192946;
+  --color-rim: #203150;
+  --color-rim-strong: #314262;
+  --color-dim: #3f5173;
+  --color-faint: #526587;
+  --color-muted: #7185a9;
+  --color-subtle: #8ea3c9;
+  --color-accent: #6f9bff;
+  --color-accent-soft: #a9c3ff;
+  --color-accent-deep: #3d5fd0;
+  --color-accent-2: #c39bff;
+  --color-glow-2: #7cc4b8;
+}
+:root[data-theme='amethyst'] {
+  --color-bg: #100d17;
+  --color-sunken: #14101d;
+  --color-panel: #1b1627;
+  --color-panel-2: #171321;
+  --color-surface: #1d1829;
+  --color-raised: #261e37;
+  --color-line: #241f30;
+  --color-edge: #2c253a;
+  --color-rim: #342d44;
+  --color-rim-strong: #453d58;
+  --color-dim: #544d65;
+  --color-faint: #675f7b;
+  --color-muted: #87809a;
+  --color-subtle: #a59db9;
+  --color-accent: #b4a0ff;
+  --color-accent-soft: #d4c8ff;
+  --color-accent-deep: #7457d6;
+  --color-accent-2: #7cc4b8;
+  --color-glow-2: #ff8fc8;
+}
+:root[data-theme='copper'] {
+  --color-bg: #120e0a;
+  --color-sunken: #17110d;
+  --color-panel: #1f1812;
+  --color-panel-2: #1b140f;
+  --color-surface: #211a14;
+  --color-raised: #2c2118;
+  --color-line: #28211b;
+  --color-edge: #312720;
+  --color-rim: #392f27;
+  --color-rim-strong: #4c4036;
+  --color-dim: #5a4f47;
+  --color-faint: #6e6258;
+  --color-muted: #8e8279;
+  --color-subtle: #aca096;
+  --color-accent: #e39b6f;
+  --color-accent-soft: #f3c4a6;
+  --color-accent-deep: #a95f37;
+  --color-accent-2: #8fb3d9;
+  --color-glow-2: #e3c46b;
+}

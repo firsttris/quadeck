@@ -446,6 +446,37 @@ test.describe.serial('Quadeck', () => {
     await ctx.close()
   })
 
+  test('color themes: swatches in the sidebar and the palette; the whole UI follows; kept per browser', async ({ page }) => {
+    await login(page)
+    const html = page.locator('html')
+    const accent = () => page.evaluate(() => getComputedStyle(document.documentElement).getPropertyValue('--color-accent').trim())
+    const pageBg = () => page.evaluate(() => getComputedStyle(document.body).backgroundColor)
+    await expect(html).toHaveAttribute('data-theme', 'quadeck') // default
+    expect(await accent()).toBe('#7cc4b8')
+    const before = await pageBg()
+    const group = page.getByRole('radiogroup', { name: 'Farbschema' })
+    await expect(group.getByRole('radio', { name: 'Quadeck' })).toHaveAttribute('aria-checked', 'true')
+    await group.getByRole('radio', { name: 'Amethyst' }).click()
+    await expect(html).toHaveAttribute('data-theme', 'amethyst')
+    await expect(page.getByText('Farbschema: Amethyst')).toBeVisible()
+    expect(await accent()).toBe('#b4a0ff')
+    expect(await pageBg()).not.toBe(before) // the surfaces change too, not only the accent
+    // the current page in the navigation uses the new accent
+    const active = page.getByRole('navigation').locator('.navbtn.on').first()
+    expect(await active.evaluate((el) => getComputedStyle(el).color)).toBe('rgb(212, 200, 255)')
+    await page.reload()
+    await expect(html).toHaveAttribute('data-theme', 'amethyst') // set before the first paint
+    // from the command palette
+    await page.keyboard.press('Control+k')
+    await page.getByRole('combobox', { name: 'Suchen' }).fill('farbschema kupfer')
+    await page.keyboard.press('Enter')
+    await expect(html).toHaveAttribute('data-theme', 'copper')
+    expect(await accent()).toBe('#e39b6f')
+    await page.getByRole('radiogroup', { name: 'Farbschema' }).getByRole('radio', { name: 'Quadeck' }).click()
+    await expect(html).toHaveAttribute('data-theme', 'quadeck')
+    expect(await pageBg()).toBe(before)
+  })
+
   test('command palette: Ctrl+K, search, navigate and unit actions', async ({ page }) => {
     await login(page)
     await page.getByRole('img', { name: 'live verbunden' }).waitFor()

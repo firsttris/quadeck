@@ -20,8 +20,8 @@ interface ChartDef {
   series: { metric: MetricName; label: string; color: string }[]
 }
 
-const ACCENT = '#7cc4b8'
-const VIOLET = '#b4a0ff'
+const ACCENT = 'var(--color-accent)'
+const VIOLET = 'var(--color-accent-2)'
 const AMBER = '#e3b341'
 
 const FORMAT: Record<Unit, (v: number) => string> = {

@@ -279,7 +279,7 @@ function Overview() {
         <span className="min-w-0 grow truncate text-[12px] text-muted md:hidden">{m.overview_subtitle({ host: snapshot.host.hostname })}</span>
         <button
           type="button"
-          className={`ml-auto inline-flex h-[20px] items-center gap-1.5 rounded-[6px] px-2 text-[12px] ${editing ? 'bg-accent font-semibold text-bg' : 'text-muted hover:bg-[#161c24] hover:text-fg'}`}
+          className={`ml-auto inline-flex h-[20px] items-center gap-1.5 rounded-[6px] px-2 text-[12px] ${editing ? 'bg-accent font-semibold text-bg' : 'text-muted hover:bg-surface hover:text-fg'}`}
           onClick={() => setEditing(!editing)}
           aria-pressed={editing}
           title={m.overview_edit_toggleTitle()}
@@ -289,7 +289,7 @@ function Overview() {
         </button>
       </header>
       {editing && (
-        <div className="flex flex-wrap items-center gap-3 rounded-[10px] border border-[rgba(124,196,184,.35)] bg-[rgba(124,196,184,.08)] px-[14px] py-[10px] text-[13px] text-[#b6e3da]" role="status">
+        <div className="flex flex-wrap items-center gap-3 rounded-[10px] border border-accent/35 bg-accent/8 px-[14px] py-[10px] text-[13px] text-accent-soft" role="status">
           <span className="grow">{m.overview_edit_help()}</span>
           <button type="button" className="btn sm primary" onClick={() => setCatalog(true)}>
             <Glyph name="plus" size={13} strokeWidth={2} />
@@ -349,7 +349,7 @@ function Overview() {
         }}
       />
       {editing && (
-        <button type="button" className="mt-4 grid min-h-[64px] w-full place-items-center rounded-[12px] border-[1.5px] border-dashed border-[rgba(124,196,184,.35)] text-[13px] text-accent" onClick={() => setCatalog(true)}>
+        <button type="button" className="mt-4 grid min-h-[64px] w-full place-items-center rounded-[12px] border-[1.5px] border-dashed border-accent/35 text-[13px] text-accent" onClick={() => setCatalog(true)}>
           <span className="flex items-center gap-1.5">
             <Glyph name="plus" size={14} strokeWidth={2} />
             {m.widgets_catalog_open()}
@@ -430,7 +430,7 @@ function Storage({ disks, smart }: { disks: Disk[]; smart: Snapshot['smart'] }) 
       {disks.length === 0 && <p className="m-0 text-[13px] text-muted">{m.overview_storage_empty()}</p>}
       {disks.map((d) => {
         const p = d.size ? d.used / d.size : 0
-        const c = p >= 0.9 ? '#f85149' : p >= 0.8 ? '#d29922' : '#7cc4b8'
+        const c = p >= 0.9 ? '#f85149' : p >= 0.8 ? '#d29922' : 'var(--color-accent)'
         return (
           <div key={d.path} className="flex flex-col gap-1.5" data-testid="disk">
             <div className="flex items-center gap-2">
@@ -544,7 +544,7 @@ function TileGroup({
     <div className="flex flex-col gap-[10px]">
       <div className="flex items-center gap-2">
         <span className="text-[11px] tracking-[.08em] text-muted uppercase">{pickMsg({ "Medien": m.overview_groupNames_Medien, "Netzwerk": m.overview_groupNames_Netzwerk, "Produktivit\u00e4t": m.overview_groupNames_Produktivitaet }, group.name)}</span>
-        <span className="text-[11px] text-[#4a525e]">{group.note}</span>
+        <span className="text-[11px] text-dim">{group.note}</span>
       </div>
       <EditableGrid
         spec={spec}

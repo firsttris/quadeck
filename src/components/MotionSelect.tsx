@@ -10,14 +10,14 @@ export function MotionSelect() {
   const motion = useMotion()
   return (
     <div className="flex flex-col gap-1.5">
-      <div role="radiogroup" aria-label={m.motion_label()} className="grid grid-cols-3 rounded-[8px] border border-[#2a323d] bg-[#0e1319] p-0.5">
+      <div role="radiogroup" aria-label={m.motion_label()} className="grid grid-cols-3 rounded-[8px] border border-rim bg-sunken p-0.5">
         {MOTION_LEVELS.map((level) => (
           <button
             key={level}
             type="button"
             role="radio"
             aria-checked={motion === level}
-            className={`rounded-[6px] px-1 py-1 text-[11.5px] ${motion === level ? 'bg-[#1c2430] font-medium text-fg' : 'text-muted hover:text-fg'}`}
+            className={`rounded-[6px] px-1 py-1 text-[11.5px] ${motion === level ? 'bg-raised font-medium text-fg' : 'text-muted hover:text-fg'}`}
             onClick={() => setMotion(level)}
           >
             {motionLabel(level)}

@@ -61,8 +61,8 @@ export function Glyph({ name, size = 17, strokeWidth = 1.8 }: { name: string; si
 
 export function Logo({ size = 34 }: { size?: number }) {
   return (
-    <div className="brand flex shrink-0 items-center justify-center rounded-[10px]" style={{ width: size, height: size, background: 'linear-gradient(135deg,#7cc4b8,#4f8fbf)', boxShadow: '0 0 20px rgba(124,196,184,.35)' }}>
-      <svg width={Math.round(size * 0.59)} height={Math.round(size * 0.59)} viewBox="0 0 24 24" fill="none" stroke="#0b0f14" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <div className="brand flex shrink-0 items-center justify-center rounded-[10px]" style={{ width: size, height: size, background: 'linear-gradient(135deg,var(--color-accent),var(--color-accent-deep))', boxShadow: '0 0 20px color-mix(in srgb, var(--color-accent) 35%, transparent)' }}>
+      <svg width={Math.round(size * 0.59)} height={Math.round(size * 0.59)} viewBox="0 0 24 24" fill="none" stroke="var(--color-bg)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
         <path d="M3 14h18l-2.5 5h-13z" />
         <path d="M6 14V9h4v5" />
         <path d="M12 14V6h5v8" />

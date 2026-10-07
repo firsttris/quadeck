@@ -413,7 +413,7 @@ function RunsPanel({ runs }: { runs: BackupRun[] }) {
         <>
           <div aria-hidden="true" className="flex h-[64px] items-end gap-1.5">
             {backups.map((r) => (
-              <div key={r.startedAt} title={`${dateTime(r.startedAt)} · ${bytes(r.added ?? 0)}`} className="flex-1 rounded-t-[3px]" style={{ height: `${Math.max(6, Math.round(((r.added ?? 0) / max) * 60))}px`, background: r.status === 'ok' ? 'rgba(124,196,184,.55)' : r.status === 'warning' ? '#e3b341' : '#f85149' }} />
+              <div key={r.startedAt} title={`${dateTime(r.startedAt)} · ${bytes(r.added ?? 0)}`} className="flex-1 rounded-t-[3px]" style={{ height: `${Math.max(6, Math.round(((r.added ?? 0) / max) * 60))}px`, background: r.status === 'ok' ? 'color-mix(in srgb, var(--color-accent) 55%, transparent)' : r.status === 'warning' ? '#e3b341' : '#f85149' }} />
             ))}
           </div>
           <span className="text-[12px] text-muted">{m.backup_runs_chart()}</span>

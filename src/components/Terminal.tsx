@@ -114,7 +114,7 @@ export function TerminalPage({ container, type }: { container?: string; type?: T
             {tabs.map((t) => (
               <div key={t.id} className={`-mb-px flex items-center gap-2 rounded-t-[8px] border px-3 py-1.5 text-[13px] ${active === t.id ? 'border-edge border-b-[#0d1117] bg-[#0d1117]' : 'border-line text-subtle'}`}>
                 <button type="button" role="tab" aria-selected={active === t.id} className="flex items-center gap-2" onClick={() => setActive(t.id)}>
-                  {t.kind === 'container' && <span className="rounded-[4px] bg-[#b4a0ff] px-1 text-[10px] font-semibold text-bg">CT</span>}
+                  {t.kind === 'container' && <span className="rounded-[4px] bg-accent-2 px-1 text-[10px] font-semibold text-bg">CT</span>}
                   <span className="font-mono">{t.label}</span>
                 </button>
                 <button type="button" className="text-muted hover:text-fg" aria-label={m.terminal_closeTab({ label: t.label })} onClick={() => void closeTab(t.id)}>

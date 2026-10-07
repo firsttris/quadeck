@@ -125,7 +125,7 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
       <Section title={m.backup_setup_where()}>
         <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3" role="radiogroup" aria-label={m.backup_setup_where()}>
           {REPO_KINDS.map((k) => (
-            <label key={k} className={`flex cursor-pointer flex-col gap-1 rounded-[10px] border p-3 ${plan.repo.kind === k ? 'border-accent shadow-[inset_0_0_0_1px_var(--color-accent)]' : 'border-[#2a323d]'} bg-[#0e1319]`}>
+            <label key={k} className={`flex cursor-pointer flex-col gap-1 rounded-[10px] border p-3 ${plan.repo.kind === k ? 'border-accent shadow-[inset_0_0_0_1px_var(--color-accent)]' : 'border-rim'} bg-sunken`}>
               <span className="flex items-center gap-2 text-[13px] font-semibold">
                 <input type="radio" name="kind" checked={plan.repo.kind === k} onChange={() => set({ repo: { kind: k, location: k === state.plan?.repo.kind ? state.plan.repo.location : '' } })} />
                 {kindLabel(k)}
@@ -231,7 +231,7 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
           />
           {m.backup_setup_maxSizeAfter()}
         </label>
-        <div className="flex flex-wrap items-center gap-3 rounded-[10px] border border-edge bg-[#0e1319] px-3.5 py-3 text-[13px]">
+        <div className="flex flex-wrap items-center gap-3 rounded-[10px] border border-edge bg-sunken px-3.5 py-3 text-[13px]">
           {sizes ? <span className="grow">{m.backup_setup_sizes({ total: bytes(total), skipped: bytes(skipped) })}</span> : <span className="grow text-muted">{m.backup_setup_sizesHint()}</span>}
           <button type="button" className="btn sm" disabled={measuring} onClick={() => void measure()}>
             {measuring ? m.backup_setup_measuring() : m.backup_setup_measure()}
