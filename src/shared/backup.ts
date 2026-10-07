@@ -48,7 +48,8 @@ export interface BackupPlan {
   /** Units stopped while the backup runs (databases), started again afterwards. */
   stop: string[]
   schedule: { every: BackupEvery; time: string }
-  keep: { daily: number; weekly: number; monthly: number }
+  /** restic forget: one snapshot per day/week/month/year for the last N of them. */
+  keep: { daily: number; weekly: number; monthly: number; yearly?: number }
   check: CheckEvery
   /** The user confirmed they keep the repository password somewhere else. */
   passwordSaved: boolean
@@ -113,7 +114,11 @@ export interface LsEntry {
 }
 
 export interface BackupSuggestion {
-  paths: { path: string; from: string; checked: boolean; readOnly?: boolean }[]
+  /**
+   * `reason`: why a path is not preselected – a very broad folder (`/mnt`, a whole home), one that
+   * holds other suggestions, or one that looks like media or downloads.
+   */
+  paths: { path: string; from: string; checked: boolean; readOnly?: boolean; reason?: 'broad' | 'contains' | 'media' }[]
   /** Directories an app can rebuild by itself (transcodes, thumbnails). */
   excludes: { path: string; label: string; from: string }[]
   stop: { unit: string; from: string; database: boolean }[]
@@ -154,7 +159,7 @@ export function absPathProblem(p: unknown): string | undefined {
 
 const inside = (child: string, parent: string) => child === parent || child.startsWith(parent + '/')
 
-function repoProblem(kind: RepoKind, location: string): string | undefined {
+export function repoProblem(kind: RepoKind, location: string): string | undefined {
   if (!location || location.length > 500 || CTRL.test(location) || /\s/.test(location)) return msg(m.backup_error_repo)
   switch (kind) {
     case 'local':
@@ -219,8 +224,9 @@ export function parseBackupPlan(v: unknown): { plan?: BackupPlan; error?: string
 
   const k = (o.keep && typeof o.keep === 'object' ? o.keep : {}) as Record<string, unknown>
   const num = (x: unknown) => (Number.isInteger(x) && (x as number) >= 0 && (x as number) <= 1000 ? (x as number) : NaN)
-  const keep = { daily: num(k.daily), weekly: num(k.weekly), monthly: num(k.monthly) }
-  if (Object.values(keep).some(Number.isNaN) || keep.daily + keep.weekly + keep.monthly === 0) return { error: msg(m.backup_error_keep) }
+  const yearly = k.yearly === undefined || k.yearly === null ? 0 : num(k.yearly)
+  const keep = { daily: num(k.daily), weekly: num(k.weekly), monthly: num(k.monthly), ...(yearly ? { yearly } : {}) }
+  if ([...Object.values(keep), yearly].some(Number.isNaN) || keep.daily + keep.weekly + keep.monthly + yearly === 0) return { error: msg(m.backup_error_keep) }
 
   const check = (['monthly', 'weekly', 'never'].includes(o.check as string) ? o.check : 'monthly') as CheckEvery
   return {
@@ -278,15 +284,51 @@ export function backupArgs(plan: BackupPlan, excludeFilePath: string, paths: str
 
 export function forgetArgs(plan: BackupPlan): string[] {
   const k = plan.keep
-  return ['--tag', 'quadeck', '--prune', ...(k.daily ? ['--keep-daily', String(k.daily)] : []), ...(k.weekly ? ['--keep-weekly', String(k.weekly)] : []), ...(k.monthly ? ['--keep-monthly', String(k.monthly)] : [])]
+  return [
+    '--tag',
+    'quadeck',
+    '--prune',
+    ...(k.daily ? ['--keep-daily', String(k.daily)] : []),
+    ...(k.weekly ? ['--keep-weekly', String(k.weekly)] : []),
+    ...(k.monthly ? ['--keep-monthly', String(k.monthly)] : []),
+    ...(k.yearly ? ['--keep-yearly', String(k.yearly)] : []),
+  ]
 }
 
-/** Roughly how many snapshots the retention keeps and how far back the oldest goes, in days. */
+/** The retention choices of the setup; anything else is "own values". */
+export const RETENTION_PRESETS = {
+  week: { daily: 7, weekly: 0, monthly: 0 },
+  year: { daily: 7, weekly: 4, monthly: 12 },
+  years: { daily: 7, weekly: 4, monthly: 12, yearly: 10 },
+} as const satisfies Record<string, BackupPlan['keep']>
+export type RetentionPreset = keyof typeof RETENTION_PRESETS
+
+export function retentionPreset(keep: BackupPlan['keep']): RetentionPreset | 'custom' {
+  const same = (a: BackupPlan['keep'], b: BackupPlan['keep']) => a.daily === b.daily && a.weekly === b.weekly && a.monthly === b.monthly && (a.yearly ?? 0) === (b.yearly ?? 0)
+  return (Object.keys(RETENTION_PRESETS) as RetentionPreset[]).find((k) => same(keep, RETENTION_PRESETS[k])) ?? 'custom'
+}
+
+/**
+ * The snapshots the retention keeps with one backup a day, as days back, by the rule that keeps
+ * them first: the newest per day, per week, per month, per year (restic counts a snapshot once,
+ * even when two rules keep it).
+ */
+export function retentionPoints(keep: BackupPlan['keep']): { daysAgo: number; rule: 'daily' | 'weekly' | 'monthly' | 'yearly' }[] {
+  const out = new Map<number, 'daily' | 'weekly' | 'monthly' | 'yearly'>()
+  const rules = [
+    ['daily', keep.daily, 1],
+    ['weekly', keep.weekly, 7],
+    ['monthly', keep.monthly, 30],
+    ['yearly', keep.yearly ?? 0, 365],
+  ] as const
+  for (const [rule, n, step] of rules) for (let i = 0; i < Math.min(n, 1000); i++) if (!out.has(i * step)) out.set(i * step, rule)
+  return [...out].map(([daysAgo, rule]) => ({ daysAgo, rule })).sort((a, b) => a.daysAgo - b.daysAgo)
+}
+
+/** How many snapshots the retention keeps and how far back the oldest goes, in days. */
 export function retentionEstimate(keep: BackupPlan['keep']): { count: number; days: number } {
-  const days = Math.max(keep.daily, keep.weekly * 7, keep.monthly * 30)
-  const weekly = Math.max(0, keep.weekly - Math.floor(keep.daily / 7))
-  const monthly = Math.max(0, keep.monthly - Math.floor(Math.max(keep.daily, keep.weekly * 7) / 30))
-  return { count: keep.daily + weekly + monthly, days }
+  const points = retentionPoints(keep)
+  return { count: points.length, days: points.at(-1)?.daysAgo ?? 0 }
 }
 
 export function onCalendar(s: BackupPlan['schedule']): string {
@@ -296,6 +338,22 @@ export function onCalendar(s: BackupPlan['schedule']): string {
   if (s.every === '6h') return `*-*-* ${h % 6}/6:${mm}:00`
   if (s.every === 'weekly') return `Sun *-*-* ${hh}:${mm}:00`
   return `*-*-* ${hh}:${mm}:00`
+}
+
+/** When the timer fires next (OnCalendar of the schedule), in local time. */
+export function nextBackupRun(s: BackupPlan['schedule'], now: Date): number {
+  const [h, min] = s.time.split(':').map(Number) as [number, number]
+  const hours = s.every === '6h' ? [0, 6, 12, 18].map((o) => (h % 6) + o) : [h]
+  for (let day = 0; day <= 7; day++) {
+    const d = new Date(now)
+    d.setDate(d.getDate() + day)
+    if (s.every === 'weekly' && d.getDay() !== 0) continue
+    for (const hour of hours) {
+      d.setHours(hour, min, 0, 0)
+      if (d.getTime() > now.getTime()) return d.getTime()
+    }
+  }
+  return now.getTime()
 }
 
 /** The check runs at the backup time plus three hours, on the first of the month or on Sundays. */
@@ -339,6 +397,18 @@ const REBUILDABLE: { image: RegExp; dest: string[]; sub: string[]; label: () => 
   { image: /immich-server|immich-app\/immich$/i, dest: ['/usr/src/app/upload', '/data'], sub: ['thumbs', 'encoded-video'], label: () => msg(m.backup_app_immichThumbs) },
 ]
 
+/** Last folder names of media and download libraries: big, and usually replaceable. */
+const MEDIA_DIR = /^(movies|films?|filme|tv|tvshows|tv-shows|series|serien|shows|music|musik|media|medien|videos?|downloads?|torrents?)$/i
+
+/** Why a suggested folder should not be preselected, if it should not. */
+function broadReason(path: string, from: string, all: { path: string; from: string }[]): 'broad' | 'contains' | 'media' | undefined {
+  if (path.split('/').length <= 2 || /^\/home\/[^/]+$/.test(path)) return 'broad' // /mnt, /srv, /home/tristan
+  // Holds folders of other containers (an app's own sub-folder, like its cache, is fine).
+  if (all.some((q) => q.from !== from && q.path.startsWith(path + '/'))) return 'contains'
+  if (path.split('/').some((seg) => MEDIA_DIR.test(seg))) return 'media'
+  return undefined
+}
+
 export function suggestBackup(files: { name: string; content: string }[]): BackupSuggestion {
   const paths: BackupSuggestion['paths'] = []
   const excludes: BackupSuggestion['excludes'] = []
@@ -371,6 +441,11 @@ export function suggestBackup(files: { name: string; content: string }[]): Backu
     }
     stop.push({ unit: quadletUnit(f.name), from, database: DATABASE_IMAGE.test(image) })
   }
+  for (const p of paths) {
+    if (!p.path.startsWith('/') || p.readOnly) continue
+    const reason = broadReason(p.path, p.from, paths)
+    if (reason) Object.assign(p, { checked: false, reason })
+  }
   paths.push({ path: '/etc', from: 'System', checked: true })
   return { paths, excludes, stop }
 }
@@ -381,9 +456,9 @@ export function defaultPlan(s: BackupSuggestion): BackupPlan {
     repo: { kind: 'local', location: '' },
     paths: s.paths.filter((p) => p.checked).map((p) => p.path),
     exclude: { presets: [...DEFAULT_PRESETS], dirs: s.excludes.map((e) => e.path), patterns: [] },
-    stop: s.stop.filter((x) => x.database).map((x) => x.unit),
+    stop: [],
     schedule: { every: 'daily', time: '02:00' },
-    keep: { daily: 7, weekly: 4, monthly: 6 },
+    keep: { ...RETENTION_PRESETS.year },
     check: 'monthly',
     passwordSaved: false,
   }

@@ -6,45 +6,54 @@ and restore from the page. Without restic the page offers to install it.
 
 ## Setting up
 
-**Set up backup …** opens one dialog in five steps:
+**Set up backup …** opens a wizard in four steps. **Next** only goes on when the step is complete
+(a target, the credentials it needs, at least one folder); the step bar at the top jumps back.
+**Edit plan …** opens the same wizard on its summary, with a **change** link per row.
 
-1. **Where**: a second disk or folder, SFTP (a NAS or another server), S3 or compatible (MinIO,
-   Wasabi …), Backblaze B2 or a restic REST server.
-   - For a local folder, the parent folder must exist. When the disk is not mounted, nothing is
-     created on the system disk by mistake. The target must not lie inside a folder that is backed
-     up, nor the other way round.
-   - A folder browser below the field walks the server's whole file system (folder names only,
-     read by the root helper). It shows the disk the folder is on with its free space, and warns
-     when that is the same disk as folders that are backed up.
+1. **Where**: a file system (a second disk, a USB disk, a NAS mount), SFTP (a NAS or another
+   server), S3 or compatible (MinIO, Wasabi …), Backblaze B2 or a restic REST server.
+   - For a file system, a folder browser below the field walks the server's whole file system
+     (folder names only, read by the root helper). It shows the disk the folder is on with its free
+     space, and warns when that is the same disk as folders that are backed up.
+   - The parent folder must exist; the last part is created. When the disk is not mounted, nothing
+     is created on the system disk by mistake. The target must not lie inside a folder that is
+     backed up, nor the other way round.
    - SFTP runs as root: root needs an SSH key without passphrase for the target (`ssh-copy-id` as
      root).
    - Credentials (`AWS_ACCESS_KEY_ID`/`AWS_SECRET_ACCESS_KEY`, `B2_ACCOUNT_ID`/`B2_ACCOUNT_KEY`,
      `RESTIC_REST_USERNAME`/`RESTIC_REST_PASSWORD`) are stored in a file only root can read. They
      never travel back to the browser; an empty field keeps the stored value.
-2. **What**: suggested from your Quadlets.
-   - Every container's folders (`Volume=/host/path:…`) and named volumes (`Volume=name:…`,
-     `Volume=x.volume:…`) are offered, plus `/etc`.
-   - Folders a container mounts read-only (a media library, say) are listed but not preselected.
-     Sockets, `/run`, `/dev` and system files handed in read-only (`/etc/localtime`) are left out.
+2. **What**, with the exclusions:
+   - Suggested from your Quadlets, grouped by container (folded, with "2 of 3 folders"): every
+     container's folders (`Volume=/host/path:…`) and named volumes (`Volume=name:…`,
+     `Volume=x.volume:…`), plus `/etc` under *System*. A group's checkbox takes all its folders.
+   - Not preselected, with the reason next to them: folders mounted read-only (a media library),
+     very broad folders (`/mnt`, `/srv`, a whole home), folders that hold folders of other
+     containers, and media or downloads (`movies`, `tvshows`, `music`, `Downloads` …). Sockets,
+     `/run`, `/dev` and system files handed in read-only (`/etc/localtime`) are left out.
    - Named volumes are resolved to their folder on the host (`podman volume inspect`) at every run.
-   - **Browse …** adds any folder of the server through the same folder browser; hidden folders
-     show on request.
-3. **Exclusions**:
-   - Caches (folders marked with `CACHEDIR.TAG`), temporary files, logs, and folders containing a
-     `.nobackup` file.
-   - What an app rebuilds by itself, found from the Quadlets: the Jellyfin cache with its
-     transcodes, Immich thumbnails and transcoded videos.
-   - Your own restic patterns, and an optional size limit per file.
-   - **Measure size** runs `du` on the selected folders and shows how much the left-out folders
-     save.
-4. **During the backup**: containers with a database (Postgres, MariaDB, MySQL, MongoDB …) are
-   suggested to be stopped while restic reads their files, so the files match each other. Only
-   what was running is stopped, and it starts again right after, also when the backup fails.
-5. **When and how long**:
-   - Schedule: daily, every 6 hours, or weekly, at a time you choose.
-   - Retention: how many daily, weekly and monthly snapshots stay (`restic forget --prune` after
-     each backup).
-   - Repository check: `restic check` monthly or weekly, reading 5 % of the data each time.
+   - **+ Add folder …** adds any folder of the server through the folder browser (hidden folders
+     on request); they show under *Own folders*.
+   - Exclusions: caches (folders marked with `CACHEDIR.TAG`), temporary files, logs, folders
+     containing a `.nobackup` file; what an app rebuilds by itself, found from the Quadlets (the
+     Jellyfin cache with its transcodes, Immich thumbnails and transcoded videos); **Exclude a
+     folder …** through the browser; your own restic patterns; an optional size limit per file.
+   - **Measure size** runs `du` on the selected folders and shows the size per group and how much
+     the left-out folders save.
+3. **When**, in two separate boxes:
+   - **When to back up**: daily, every 6 hours or weekly (Sundays), at a time you choose, with the
+     next run. A run missed because the server was off follows after the start (`Persistent=true`).
+   - **How long to keep**: after every backup `restic forget --prune` clears out old snapshots.
+     The choice is how far back you can go: *1 week* (7 daily), *1 year* (7 daily, 4 weekly,
+     12 monthly, the default), *1 year, then yearly* (plus 10 yearly) or *own values*. A timeline
+     shows which snapshots stay, with how far back and about how many.
+   - The repository check (`restic check`, reading 5 % of the data) runs monthly by itself; its
+     result shows under *Recent runs*.
+4. **Summary**: everything at a glance. A new backup can start right away (*Start the first backup
+   right away*, on by default).
+
+Containers are not stopped during the backup any more. A plan from before that still lists units to
+stop shows them on the page; saving it in the wizard clears them.
 
 **Set up** creates the repository (`restic init`) when there is none yet at the target. An existing
 repository is opened, never replaced: if it cannot be opened (for example a wrong password), saving
@@ -97,9 +106,9 @@ restic restore latest --target /tmp/restore --include /srv/immich/upload
   - The timers are `Persistent=true`: a run missed while the server was off is caught up after
     booting.
 - `quadeck backup run`:
-  1. stops the selected units,
+  1. stops the units of an older plan that still lists some,
   2. runs `restic backup` with the exclusions, tagged `quadeck`,
-  3. starts the units again,
+  3. starts those units again,
   4. applies the retention (`restic forget --prune --tag quadeck`),
   5. records the run and reads the snapshot list.
 

@@ -46,21 +46,28 @@ test('backups: status, run now, password, plan from the Quadlets', async ({ page
   await expect(pw.getByTestId('backup-password')).toHaveText(/^demo-/)
   await pw.getByRole('button', { name: 'Schließen' }).click()
 
-  // The plan: suggestions from the Quadlets, change the time.
+  // The plan: the wizard opens on its summary when there is a plan already.
   await page.getByRole('button', { name: 'Plan bearbeiten …' }).click()
   const dlg = page.getByRole('dialog', { name: 'Backup-Plan bearbeiten' })
-  const what = dlg.getByRole('list', { name: '2 · Was' })
-  await expect(what.getByRole('checkbox', { name: /\/mnt\/storage\/media/ })).not.toBeChecked()
-  await expect(what).toContainText('nur lesend')
-  await expect(dlg.getByRole('list', { name: 'Was die Apps selbst neu aufbauen' })).toContainText('/srv/immich/upload/thumbs')
+  await expect(dlg.getByRole('region', { name: 'Zusammenfassung' })).toContainText('/mnt/backup/restic')
+  await dlg.getByRole('button', { name: 'Wohin ändern' }).click()
   // The target in the folder browser: its own disk, not the one of the data.
   const target = dlg.getByTestId('folder-picker')
   await expect(target.getByRole('list', { name: 'Unterordner' })).toContainText('old-borg')
   await expect(dlg.getByTestId('folder-missing')).toContainText('„restic“ gibt es noch nicht')
   await expect(dlg.getByTestId('folder-disk')).toContainText('Platte /mnt/backup')
   await expect(dlg.getByTestId('folder-disk')).toContainText('eine andere Platte als deine Daten')
+  await dlg.getByRole('button', { name: /Weiter/ }).click()
+
+  // What: grouped by container, folded; read-only media not preselected.
+  const what = dlg.getByRole('list', { name: 'Was', exact: true })
+  await expect(what.getByRole('checkbox', { name: /\/mnt\/storage\/media/ })).toBeHidden()
+  await what.getByRole('button', { name: 'Ordner von jellyfin' }).click()
+  await expect(what.getByRole('checkbox', { name: /\/mnt\/storage\/media/ })).not.toBeChecked()
+  await expect(what).toContainText('nur lesend')
+  await expect(dlg.getByRole('list', { name: 'Was die Apps selbst neu aufbauen' })).toContainText('/srv/immich/upload/thumbs')
   // A folder of the whole file system (not only the data areas) through the browser.
-  await dlg.getByRole('button', { name: 'Durchsuchen …' }).click()
+  await dlg.getByRole('button', { name: '+ Ordner hinzufügen …' }).click()
   const pick = page.getByRole('dialog', { name: 'Ordner hinzufügen' })
   await pick.getByRole('button', { name: 'home', exact: true }).click()
   await pick.getByRole('button', { name: 'tristan', exact: true }).click()
@@ -70,14 +77,26 @@ test('backups: status, run now, password, plan from the Quadlets', async ({ page
   await expect(pick.getByLabel('Pfad', { exact: true })).toHaveValue('/home/tristan/.config')
   await pick.getByRole('button', { name: 'Hinzufügen' }).click()
   await expect(pick).toBeHidden()
-  await expect(what.getByRole('checkbox', { name: /\/home\/tristan\/\.config/ })).toBeChecked()
+  await expect(what.getByRole('checkbox', { name: /\/home\/tristan\/\.config/ })).toBeChecked() // under "Eigene Ordner", open
   await dlg.getByRole('button', { name: 'Größe messen' }).click()
   await expect(dlg).toContainText('davon ausgelassene Ordner')
+  await dlg.getByRole('button', { name: /Weiter/ }).click()
+
+  // When, and apart from it: how long.
   await dlg.getByLabel('Uhrzeit').fill('03:30')
+  await expect(dlg.getByTestId('next-run')).toContainText('03:30')
+  await dlg.getByRole('radio', { name: '1 Jahr, danach jährlich' }).click()
+  await expect(dlg.getByTestId('retention-reach')).toContainText('bis zu 9 Jahre')
+  await dlg.getByRole('radio', { name: 'Eigene Werte' }).click()
+  await expect(dlg.getByLabel('Jährlich')).toHaveValue('10')
+  await dlg.getByRole('button', { name: /Weiter/ }).click()
+  await expect(dlg.getByRole('region', { name: 'Zusammenfassung' })).toContainText('1 Jahr, danach jährlich')
   await dlg.getByRole('button', { name: 'Speichern' }).click()
   await expect(dlg).toBeHidden()
   await expect(page.getByRole('status')).toContainText('Backup-Plan gespeichert')
   await expect(plan).toContainText('täglich 03:30')
+  await expect(plan).toContainText('10 jährlich')
+  await expect(plan).not.toContainText('immich.service, immich-ml.service') // containers are no longer stopped
 })
 
 test('backups: browse a snapshot, see what changed, restore into a folder', async ({ page }) => {
@@ -130,14 +149,22 @@ test('backups: switch off, set up again; the notification rule', async ({ page }
 
   await page.getByRole('button', { name: 'Backup einrichten …' }).click()
   const dlg = page.getByRole('dialog', { name: 'Server-Backup einrichten' })
-  // Preselected from the Quadlets: data folders, not the read-only media.
-  await expect(dlg.getByRole('checkbox', { name: /\/srv\/jellyfin\/config/ })).toBeChecked()
+  await expect(dlg.getByRole('radio', { name: /Dateisystem/ })).toBeChecked()
   await dlg.getByRole('radio', { name: /Backblaze B2/ }).check()
   await dlg.getByLabel('Adresse').fill('my-bucket:server')
-  await dlg.getByRole('button', { name: 'Einrichten' }).click()
-  await expect(dlg.getByRole('alert')).toContainText('B2_ACCOUNT_ID')
+  await dlg.getByRole('button', { name: /Weiter/ }).click()
+  await expect(dlg.getByRole('alert')).toContainText('B2_ACCOUNT_ID') // no further without the key
   await dlg.getByLabel('B2_ACCOUNT_ID').fill('0012345')
   await dlg.getByLabel('B2_ACCOUNT_KEY').fill('K001secret')
+  await dlg.getByRole('button', { name: /Weiter/ }).click()
+  // Preselected from the Quadlets: data folders, not the read-only media.
+  await dlg.getByRole('button', { name: 'Ordner von jellyfin' }).click()
+  await expect(dlg.getByRole('checkbox', { name: /\/srv\/jellyfin\/config/ })).toBeChecked()
+  await dlg.getByRole('button', { name: /Weiter/ }).click()
+  await expect(dlg.getByRole('radio', { name: '1 Jahr (empfohlen)' })).toHaveAttribute('aria-checked', 'true')
+  await expect(dlg.getByTestId('retention-reach')).toContainText('bis zu 11 Monate')
+  await dlg.getByRole('button', { name: /Weiter/ }).click()
+  await expect(dlg.getByLabel('Erstes Backup gleich jetzt starten')).toBeChecked()
   await dlg.getByRole('button', { name: 'Einrichten' }).click()
   await expect(dlg).toBeHidden()
   await expect(page.getByRole('region', { name: 'Status' })).toContainText('b2:my-bucket:server')
