@@ -387,13 +387,18 @@ function PlanPanel({ plan }: { plan: BackupPlan }) {
         </div>
       </div>
       <dl className="m-0 grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 border-t border-line pt-3 text-[13px]">
-        <dt className="text-muted">{m.backup_plan_stop()}</dt>
-        <dd className="m-0">{plan.stop.length ? plan.stop.join(', ') : '–'}</dd>
+        {plan.stop.length > 0 && (
+          // only plans from before the wizard; saving the plan again clears it
+          <>
+            <dt className="text-muted">{m.backup_plan_stop()}</dt>
+            <dd className="m-0">{plan.stop.join(', ')}</dd>
+          </>
+        )}
         <dt className="text-muted">{m.backup_plan_schedule()}</dt>
         <dd className="m-0">{scheduleLabel(plan.schedule)}</dd>
         <dt className="text-muted">{m.backup_plan_keep()}</dt>
         <dd className="m-0">
-          {m.backup_keep({ daily: plan.keep.daily, weekly: plan.keep.weekly, monthly: plan.keep.monthly })} <span className="text-muted">({m.backup_estimate({ count: est.count, days: est.days })})</span>
+          {plan.keep.yearly ? m.backup_keepYearly({ daily: plan.keep.daily, weekly: plan.keep.weekly, monthly: plan.keep.monthly, yearly: plan.keep.yearly }) : m.backup_keep({ daily: plan.keep.daily, weekly: plan.keep.weekly, monthly: plan.keep.monthly })} <span className="text-muted">({m.backup_estimate({ count: est.count, days: est.days })})</span>
         </dd>
         <dt className="text-muted">{m.backup_plan_check()}</dt>
         <dd className="m-0">{checkLabel(plan.check)}</dd>

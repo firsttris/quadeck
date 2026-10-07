@@ -21,6 +21,10 @@ import {
   parseSecrets,
   parseSnapshots,
   retentionEstimate,
+  retentionPoints,
+  retentionPreset,
+  RETENTION_PRESETS,
+  nextBackupRun,
   suggestBackup,
   type BackupPlan,
   clientRepo,
@@ -129,7 +133,8 @@ describe('restic arguments and units', () => {
     expect(checkCalendar(plan({ schedule: { every: 'daily', time: '22:10' } }))).toBe('*-*-01 01:10:00')
     expect(checkCalendar(plan({ check: 'weekly' }))).toBe('Sun *-*-* 05:00:00')
     expect(checkCalendar(plan({ check: 'never' }))).toBeUndefined()
-    expect(retentionEstimate({ daily: 7, weekly: 4, monthly: 6 })).toEqual({ count: 16, days: 180 })
+    // one per day for 7 days, per week for 4 weeks, per month for 6 months; a snapshot counts once
+    expect(retentionEstimate({ daily: 7, weekly: 4, monthly: 6 })).toEqual({ count: 15, days: 150 })
   })
 
   it('writes the units with the binary quoted, the check only when wanted', () => {
@@ -169,9 +174,63 @@ describe('suggestions from the Quadlets', () => {
     expect(s.excludes.map((e) => e.path)).toEqual(['/srv/immich/upload/thumbs', '/srv/immich/upload/encoded-video', '/srv/jellyfin/cache'])
     expect(s.stop.filter((x) => x.database).map((x) => x.unit)).toEqual(['immich-db.service'])
     const d = defaultPlan(s)
-    expect(d.stop).toEqual(['immich-db.service'])
+    expect(d.stop).toEqual([]) // no container is stopped any more
+    expect(d.keep).toEqual({ daily: 7, weekly: 4, monthly: 12 })
     expect(d.paths).not.toContain('/mnt/storage/media')
     expect(parseBackupPlan({ ...d, repo: { kind: 'local', location: '/mnt/backup/restic' } }).error).toBeUndefined()
+  })
+})
+
+describe('the setup wizard', () => {
+  it('retention: presets, a yearly rule, the snapshots it keeps', () => {
+    expect(retentionPreset({ daily: 7, weekly: 4, monthly: 12 })).toBe('year')
+    expect(retentionPreset({ daily: 7, weekly: 0, monthly: 0 })).toBe('week')
+    expect(retentionPreset({ daily: 7, weekly: 4, monthly: 12, yearly: 10 })).toBe('years')
+    expect(retentionPreset({ daily: 3, weekly: 4, monthly: 12 })).toBe('custom')
+    expect(retentionEstimate(RETENTION_PRESETS.year)).toEqual({ count: 21, days: 330 })
+    expect(retentionEstimate(RETENTION_PRESETS.years)).toEqual({ count: 30, days: 3285 })
+    expect(retentionEstimate(RETENTION_PRESETS.week)).toEqual({ count: 7, days: 6 })
+    const pts = retentionPoints({ daily: 2, weekly: 2, monthly: 2 })
+    expect(pts).toEqual([
+      { daysAgo: 0, rule: 'daily' },
+      { daysAgo: 1, rule: 'daily' },
+      { daysAgo: 7, rule: 'weekly' },
+      { daysAgo: 30, rule: 'monthly' },
+    ])
+    expect(forgetArgs(plan({ keep: { daily: 7, weekly: 4, monthly: 12, yearly: 10 } }))).toEqual(['--tag', 'quadeck', '--prune', '--keep-daily', '7', '--keep-weekly', '4', '--keep-monthly', '12', '--keep-yearly', '10'])
+    expect(parseBackupPlan(plan({ keep: { daily: 0, weekly: 0, monthly: 0, yearly: 3 } })).plan?.keep).toEqual({ daily: 0, weekly: 0, monthly: 0, yearly: 3 })
+    expect(parseBackupPlan(plan({ keep: { daily: 7, weekly: 0, monthly: 0, yearly: 0 } })).plan?.keep).toEqual({ daily: 7, weekly: 0, monthly: 0 })
+    expect(parseBackupPlan(plan({ keep: { daily: 0, weekly: 0, monthly: 0 } })).error).toBeTruthy()
+    expect(parseBackupPlan(plan({ keep: { daily: 7, weekly: 0, monthly: 0, yearly: -1 } as never })).error).toBeTruthy()
+  })
+
+  it('the next run of the schedule', () => {
+    const wed = new Date(2026, 9, 7, 14, 30) // Wednesday 14:30
+    const at = (t: number) => { const d = new Date(t); return [d.getDay(), d.getDate(), d.getHours(), d.getMinutes()] }
+    expect(at(nextBackupRun({ every: 'daily', time: '03:00' }, wed))).toEqual([4, 8, 3, 0])
+    expect(at(nextBackupRun({ every: 'daily', time: '23:15' }, wed))).toEqual([3, 7, 23, 15])
+    expect(at(nextBackupRun({ every: '6h', time: '02:00' }, wed))).toEqual([3, 7, 20, 0])
+    expect(at(nextBackupRun({ every: 'weekly', time: '02:00' }, wed))).toEqual([0, 11, 2, 0])
+  })
+
+  it('broad folders, folders of other containers and media are not preselected', () => {
+    const s = suggestBackup([
+      { name: 'dc.container', content: '[Container]\nImage=doublecommander\nVolume=/mnt:/mnt\nVolume=/home/tristan:/home\n' },
+      { name: 'borg.container', content: '[Container]\nImage=borg\nVolume=/home/tristan/docker/borg:/config\nVolume=/home/tristan/docker/borg/.cache:/cache\nVolume=/home/tristan/docker:/data:ro\n' },
+      { name: 'filebot.container', content: '[Container]\nImage=filebot\nVolume=/home/tristan/docker/filebot:/config\nVolume=/mnt/tvshows:/tv\nVolume=/home/tristan/Downloads/haul:/in\n' },
+    ])
+    const by = Object.fromEntries(s.paths.map((p) => [p.path, [p.checked, p.reason ?? (p.readOnly ? 'ro' : '')]]))
+    expect(by).toEqual({
+      '/home/tristan/docker/borg': [true, ''], // its own cache inside is fine
+      '/home/tristan/docker/borg/.cache': [true, ''],
+      '/home/tristan/docker': [false, 'ro'],
+      '/mnt': [false, 'broad'],
+      '/home/tristan': [false, 'broad'],
+      '/home/tristan/docker/filebot': [true, ''],
+      '/mnt/tvshows': [false, 'media'],
+      '/home/tristan/Downloads/haul': [false, 'media'],
+      '/etc': [true, ''],
+    })
   })
 })
 
