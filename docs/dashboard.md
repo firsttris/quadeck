@@ -170,7 +170,9 @@ work in read-only mode too.
 ## Command palette
 
 **Ctrl+K** (⌘K) or **Search** in the sidebar: open services, jump to pages, restart or stop units
-(with the usual confirmation) and open their journal. Typing filters across all of it.
+(with the usual confirmation) and open their journal. It also switches the overview to edit mode
+(*Edit the overview*), sets the color theme (*Color theme: Nord* …) and the animation level
+(*Animations: Off* …). Typing filters across all of it.
 
 ## Journal
 
