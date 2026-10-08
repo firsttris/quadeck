@@ -184,6 +184,12 @@ handled wrong, include the output of the command Quadeck ran (the error names it
 ---
 
 <div align="center">
-<sub>Quadeck is not affiliated with Podman, Red Hat, systemd or Caddy. Icons come from the
+
+⭐ Like Quadeck? A [star on GitHub](https://github.com/firsttris/quadeck) helps others find it.<br>
+🐛 [Report a bug](https://github.com/firsttris/quadeck/issues/new) · 💡 [Request a feature](https://github.com/firsttris/quadeck/issues/new)
+
+<sub>License: <a href="LICENSE">MIT</a> · © Tristan Teufel and contributors<br>
+Quadeck is not affiliated with Podman, Red Hat, systemd or Caddy. Icons come from the
 <a href="https://github.com/homarr-labs/dashboard-icons">dashboard-icons</a> collection.</sub>
+
 </div>
