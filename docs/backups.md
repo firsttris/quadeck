@@ -52,6 +52,8 @@ and restore from the page. Without restic the page offers to install it.
 4. **Summary**: everything at a glance. A new backup can start right away (*Start the first backup
    right away*, on by default).
 
+<img src="screenshot-backup-wizard.png" alt="The backup wizard on When: the schedule with the next run, and apart from it how long to keep, with presets, a timeline of the snapshots that stay and how far back they reach" width="760">
+
 Containers are not stopped during the backup any more. A plan from before that still lists units to
 stop shows them on the page; saving it in the wizard clears them.
 
@@ -162,6 +164,8 @@ on its last step.
    change link per row, then three numbered steps: open a terminal as the normal user, paste the
    command, choose the repository password. While the computer has not run the command yet, the
    dialog says it is waiting and notices within seconds when it has.
+
+<img src="screenshot-client-wizard.png" alt="The client wizard's first step: the device name, the standard folders as a quick choice, the presets and own exclusions with their kind" width="760">
 
 **Create command** shows a one-liner for the client:
 

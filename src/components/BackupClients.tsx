@@ -511,7 +511,8 @@ function ClientWizard({
   const [name, setName] = useState(client?.name ?? '')
   const [created, setCreated] = useState(!!client)
   const [step, setStep] = useState<ClientStep>(client ? 'setup' : 'what')
-  const [plan, setPlan] = useState<ClientPlan>(client?.plan ? structuredClone(client.plan) : defaultClientPlan())
+  // A new device starts with the standard folders named in the UI's language (the script finds either).
+  const [plan, setPlan] = useState<ClientPlan>(() => (client?.plan ? structuredClone(client.plan) : { ...defaultClientPlan(), folders: localeOf().startsWith('de') ? ['~/Dokumente', '~/Bilder'] : ['~/Documents', '~/Pictures'] }))
   const [folder, setFolder] = useState('')
   const [rule, setRule] = useState('')
   const [ruleError, setRuleError] = useState(false)
