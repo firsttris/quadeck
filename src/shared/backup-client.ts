@@ -28,7 +28,7 @@ export interface ClientPlan {
   folders: string[]
   exclude: { presets: ClientPreset[]; patterns: string[]; maxSizeGB?: number }
   schedule: { every: ClientEvery; time: string }
-  keep: { daily: number; weekly: number; monthly: number }
+  keep: { daily: number; weekly: number; monthly: number; yearly?: number }
   /** Off: the timer is stopped on the client, the access stays. */
   active: boolean
 }
@@ -37,7 +37,7 @@ export const defaultClientPlan = (): ClientPlan => ({
   folders: ['~/Dokumente', '~/Bilder'],
   exclude: { presets: [...DEFAULT_CLIENT_PRESETS], patterns: [] },
   schedule: { every: 'daily', time: '12:00' },
-  keep: { daily: 7, weekly: 4, monthly: 6 },
+  keep: { daily: 7, weekly: 4, monthly: 12 },
   active: true,
 })
 
@@ -75,8 +75,9 @@ export function parseClientPlan(v: unknown): { plan?: ClientPlan; error?: string
   if (!['hourly', '6h', 'daily', 'weekly'].includes(every) || typeof sched.time !== 'string' || !/^([01]\d|2[0-3]):[0-5]\d$/.test(sched.time)) return { error: msg(m.backup_error_schedule) }
   const k = (o.keep && typeof o.keep === 'object' ? o.keep : {}) as Record<string, unknown>
   const num = (x: unknown) => (Number.isInteger(x) && (x as number) >= 0 && (x as number) <= 1000 ? (x as number) : NaN)
-  const keep = { daily: num(k.daily), weekly: num(k.weekly), monthly: num(k.monthly) }
-  if (Object.values(keep).some(Number.isNaN) || keep.daily + keep.weekly + keep.monthly === 0) return { error: msg(m.backup_error_keep) }
+  const yearly = k.yearly === undefined || k.yearly === null ? 0 : num(k.yearly)
+  const keep = { daily: num(k.daily), weekly: num(k.weekly), monthly: num(k.monthly), ...(yearly ? { yearly } : {}) }
+  if ([...Object.values(keep), yearly].some(Number.isNaN) || keep.daily + keep.weekly + keep.monthly + yearly === 0) return { error: msg(m.backup_error_keep) }
   return { plan: { folders: folders as string[], exclude: { presets, patterns, ...(maxSizeGB ? { maxSizeGB } : {}) }, schedule: { every, time: sched.time }, keep, active: o.active !== false } }
 }
 
@@ -106,6 +107,14 @@ export interface ScriptInput {
   quadeckUrl: string
 }
 
+/** What kind of exclusion a rule is, for the label next to it. */
+export function ruleKind(rule: string): 'type' | 'pattern' | 'path' {
+  if (/^\*\.[^/*?[\]]+$/.test(rule)) return 'type'
+  return /[*?[]/.test(rule) ? 'pattern' : 'path'
+}
+/** A rule that would leave out everything, or that restic cannot take. */
+export const ruleProblem = (rule: string) => !rule || rule.length > 300 || CTRL.test(rule) || ['/', '~', '*', '**', '~/*', '~/**', '/*', '/**'].includes(rule)
+
 /** Exclude lines for the client; ~ is expanded by the script on the client. */
 export function clientExcludes(plan: ClientPlan): string[] {
   return [...plan.exclude.presets.flatMap((p) => CLIENT_PRESET_PATTERNS[p]), ...plan.exclude.patterns]
@@ -113,7 +122,7 @@ export function clientExcludes(plan: ClientPlan): string[] {
 
 export function clientForgetArgs(plan: ClientPlan): string {
   const k = plan.keep
-  return [...(k.daily ? ['--keep-daily', k.daily] : []), ...(k.weekly ? ['--keep-weekly', k.weekly] : []), ...(k.monthly ? ['--keep-monthly', k.monthly] : [])].join(' ')
+  return [...(k.daily ? ['--keep-daily', k.daily] : []), ...(k.weekly ? ['--keep-weekly', k.weekly] : []), ...(k.monthly ? ['--keep-monthly', k.monthly] : []), ...(k.yearly ? ['--keep-yearly', k.yearly] : [])].join(' ')
 }
 
 /** The install/update script the client runs with `curl … | sh`. POSIX sh, systemd user units. */
@@ -284,28 +293,49 @@ set -a
 . "$CONF/env"
 set +a
 
+# A standard folder under its name in the other language, or where xdg-user-dirs puts it
+# (~/Dokumente on a German desktop, ~/Documents on an English one).
+resolve() {
+  [ -e "$1" ] && { printf '%s\\n' "$1"; return; }
+  case "\${1#"$HOME"/}" in
+    Dokumente|Documents) k=DOCUMENTS alt=Documents:Dokumente ;;
+    Bilder|Pictures) k=PICTURES alt=Pictures:Bilder ;;
+    Musik|Music) k=MUSIC alt=Music:Musik ;;
+    Videos) k=VIDEOS alt=Videos ;;
+    Schreibtisch|Desktop) k=DESKTOP alt=Desktop:Schreibtisch ;;
+    Downloads) k=DOWNLOAD alt=Downloads ;;
+    *) printf '%s\\n' "$1"; return ;;
+  esac
+  d=$(xdg-user-dir "$k" 2>/dev/null || true)
+  if [ -n "$d" ] && [ "$d" != "$HOME" ] && [ -d "$d" ]; then printf '%s\\n' "$d"; return; fi
+  for a in $(printf '%s' "$alt" | tr ':' ' '); do [ -e "$HOME/$a" ] && { printf '%s\\n' "$HOME/$a"; return; }; done
+  printf '%s\\n' "$1"
+}
+
 folders() {
-  set --
+  n=0
   while IFS= read -r f; do
     [ -n "$f" ] || continue
-    if [ -e "$f" ]; then set -- "$@" "$f"; else echo "skipped (missing): $f" >&2; fi
+    f=$(resolve "$f")
+    if [ -e "$f" ]; then printf '%s\\n' "$f"; n=$((n + 1)); else echo "skipped (missing): $f" >&2; fi
   done < "$CONF/folders"
-  [ "$#" -gt 0 ] || { echo "quadeck-backup: none of the folders exists" >&2; exit 1; }
-  for f in "$@"; do printf '%s\\n' "$f"; done
+  [ "$n" -gt 0 ] || { echo "quadeck-backup: none of the folders exists" >&2; exit 1; }
 }
 
 # The folders as arguments (works with restic older than 0.15, which has no --files-from-verbatim).
 backup() {
-  dry="\${1:-}"
+  extra="\${1:-}"
+  list=$(folders)
   set --
-  while IFS= read -r f; do
-    [ -n "$f" ] || continue
-    if [ -e "$f" ]; then set -- "$@" "$f"; else echo "skipped (missing): $f" >&2; fi
-  done < "$CONF/folders"
-  [ "$#" -gt 0 ] || { echo "quadeck-backup: none of the folders exists" >&2; exit 1; }
+  while IFS= read -r f; do set -- "$@" "$f"; done <<EOF
+$list
+EOF
   # shellcheck disable=SC2086
-  restic backup --tag quadeck --exclude-file "$CONF/excludes" $QUADECK_FLAGS $dry -- "$@"
+  restic backup --tag quadeck --exclude-file "$CONF/excludes" $QUADECK_FLAGS $extra -- "$@"
 }
+
+human() { numfmt --to=iec --suffix=B "$1" 2>/dev/null || echo "$1 bytes"; }
+field() { printf '%s' "$2" | sed -n 's/.*"'"$1"'":\\([0-9]*\\).*/\\1/p'; }
 
 case "\${1:-help}" in
   run)
@@ -322,10 +352,36 @@ case "\${1:-help}" in
     systemctl --user start quadeck-backup.service && echo "done." || { journalctl --user -u quadeck-backup.service -n 20 --no-pager; exit 1; }
     ;;
   check)
-    echo "Folders:"
-    folders | while IFS= read -r f; do printf '  %s  %s\\n' "$(du -sh "$f" 2>/dev/null | cut -f1)" "$f"; done
-    echo "Dry run (nothing is uploaded):"
-    backup --dry-run
+    list=$(folders)
+    echo "Folders, without exclusions:"
+    before=0
+    while IFS= read -r f; do
+      # the files' own size, like restic counts it (busybox du has no -b: disk blocks then)
+      b=$(du -sb "$f" 2>/dev/null | cut -f1 || true)
+      [ -n "$b" ] || b=$(($(du -sk "$f" 2>/dev/null | cut -f1 || echo 0) * 1024))
+      before=$((before + b))
+      printf '  %10s  %s\\n' "$(human "$b")" "$f"
+    done <<EOF
+$list
+EOF
+    if [ "\${2:-}" = --files ]; then
+      echo "Dry run with the exclusions – what would be backed up:"
+      backup "--dry-run -vv" || true
+      exit 0
+    fi
+    echo "Dry run with the exclusions (nothing is uploaded) …"
+    sum=$(backup "--dry-run --json" 2>/dev/null | grep '"message_type":"summary"' | tail -n 1 || true)
+    [ -n "$sum" ] || { echo "quadeck-backup: the dry run failed – try: quadeck-backup check --files" >&2; exit 1; }
+    after=$(field total_bytes_processed "$sum")
+    files=$(field total_files_processed "$sum")
+    added=$(field data_added "$sum")
+    left=$((before - \${after:-0}))
+    [ "$left" -ge 0 ] || left=0
+    echo ""
+    printf 'Without exclusions:  %s\\n' "$(human "$before")"
+    printf 'Backed up:           %s in %s files (%s left out by the exclusions)\\n' "$(human "\${after:-0}")" "\${files:-0}" "$(human "$left")"
+    printf 'New on the next run: %s to upload\\n' "$(human "\${added:-0}")"
+    echo "Which files: quadeck-backup check --files"
     ;;
   status)
     restic snapshots --tag quadeck --compact --latest 5 || true
@@ -357,7 +413,7 @@ case "\${1:-help}" in
   *)
     echo "quadeck-backup ($QUADECK_NAME, settings version $QUADECK_VERSION)"
     echo "  now        back up right now"
-    echo "  check      what would be backed up (dry run)"
+    echo "  check [--files]  how big the backup is with the exclusions (dry run)"
     echo "  status     last backups and the next run"
     echo "  mount [dir]           the backups as folders (needs fuse)"
     echo "  restore <path> [dir]  restore from the latest backup"

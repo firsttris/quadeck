@@ -6,22 +6,20 @@ import {
   EXCLUDE_PRESETS,
   REPO_KINDS,
   REPO_SECRETS,
-  RETENTION_PRESETS,
   defaultPlan,
   nextBackupRun,
   parseBackupPlan,
   repoProblem,
   retentionEstimate,
-  retentionPoints,
   retentionPreset,
   type BackupPlan,
   type BackupSizes,
   type BackupState,
   type BackupSuggestion,
   type RepoKind,
-  type RetentionPreset,
 } from '~/shared/backup'
 import { FolderPicker, FolderPickerDialog } from './FolderPicker'
+import { RetentionPicker } from './Retention'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
@@ -38,8 +36,6 @@ const placeholder: Record<RepoKind, string> = {
 
 const kindHelp = (k: RepoKind) => pickMsg({ local: m.backup_kindHelp_local, sftp: m.backup_kindHelp_sftp, s3: m.backup_kindHelp_s3, b2: m.backup_kindHelp_b2, rest: m.backup_kindHelp_rest }, k)
 const reasonLabel = (r: 'broad' | 'contains' | 'media') => pickMsg({ broad: m.backup_wizard_reason_broad, contains: m.backup_wizard_reason_contains, media: m.backup_wizard_reason_media }, r)
-const ruleLabel = (r: 'daily' | 'weekly' | 'monthly' | 'yearly') => pickMsg({ daily: m.backup_wizard_rule_daily, weekly: m.backup_wizard_rule_weekly, monthly: m.backup_wizard_rule_monthly, yearly: m.backup_wizard_rule_yearly }, r)
-const RULE_COLOR = { daily: 'var(--color-accent)', weekly: 'var(--color-accent-deep)', monthly: 'var(--color-accent-2)', yearly: 'var(--color-warn)' } as const
 
 const label = (p: string) => (p.startsWith('volume:') ? `${m.backup_volume()} ${p.slice(7)}` : p)
 
@@ -68,7 +64,6 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
   const [busy, setBusy] = useState(false)
   const [picking, setPicking] = useState<'path' | 'exclude' | null>(null)
   const [open, setOpen] = useState<Set<string>>(new Set([m.backup_wizard_ownFolders()]))
-  const [custom, setCustom] = useState(false)
   const [startNow, setStartNow] = useState(true)
 
   useEffect(() => {
@@ -119,7 +114,6 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
   const sizeOf = (p: string, list: 'paths' | 'excludes') => sizes?.[list].find((x) => x.path === p)?.bytes
   const total = sizes ? sizes.paths.filter((x) => plan.paths.includes(x.path)).reduce((n, x) => n + (x.bytes ?? 0), 0) : 0
   const skipped = sizes ? sizes.excludes.filter((x) => plan.exclude.dirs.includes(x.path)).reduce((n, x) => n + (x.bytes ?? 0), 0) : 0
-  const preset = custom ? 'custom' : retentionPreset(plan.keep)
   const est = retentionEstimate(plan.keep)
   const exclusions = full.exclude.presets.length + full.exclude.dirs.length + full.exclude.patterns.length + (full.exclude.maxSizeGB ? 1 : 0)
 
@@ -386,38 +380,7 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
             </Box>
 
             <Box title={m.backup_wizard_retention()}>
-              <p className="m-0 text-[12px] text-muted">{m.backup_wizard_retentionHelp()}</p>
-              <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={m.backup_wizard_retention()}>
-                {([...(Object.keys(RETENTION_PRESETS) as RetentionPreset[]), 'custom'] as const).map((p) => (
-                  <button
-                    key={p}
-                    type="button"
-                    role="radio"
-                    aria-checked={preset === p}
-                    className={`btn ${preset === p ? 'border-accent! bg-accent/14! text-accent-soft' : ''}`}
-                    onClick={() => {
-                      setCustom(p === 'custom')
-                      if (p !== 'custom') set({ keep: { ...RETENTION_PRESETS[p] } })
-                    }}
-                  >
-                    {retentionPresetLabel(p)}
-                  </button>
-                ))}
-              </div>
-              {preset === 'custom' && (
-                <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-                  {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((k) => (
-                    <label key={k} className="flex flex-col gap-1.5 text-[13px]">
-                      {pickMsg({ daily: m.backup_setup_keepDaily, weekly: m.backup_setup_keepWeekly, monthly: m.backup_setup_keepMonthly, yearly: m.backup_setup_keepYearly }, k)}
-                      <input className="field" type="number" min={0} max={1000} value={plan.keep[k] ?? 0} onChange={(e) => set({ keep: { ...plan.keep, [k]: Math.max(0, Math.min(1000, Math.round(Number(e.target.value) || 0))) } })} />
-                    </label>
-                  ))}
-                </div>
-              )}
-              <Timeline keep={plan.keep} days={est.days} />
-              <p className="m-0 text-[12.5px]" data-testid="retention-reach">
-                {m.backup_wizard_reach({ span: spanLabel(est.days), count: est.count })}
-              </p>
+              <RetentionPicker keep={plan.keep} onChange={(keep) => set({ keep })} />
             </Box>
             <p className="m-0 text-[12px] text-muted">{m.backup_wizard_checkHint()}</p>
           </>
@@ -498,36 +461,6 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
         />
       )}
     </Modal>
-  )
-}
-
-/** Where the kept snapshots lie between today and the oldest one (square-root scale: the recent ones apart). */
-function Timeline({ keep, days }: { keep: BackupPlan['keep']; days: number }) {
-  const points = retentionPoints(keep)
-  const max = Math.max(days, 7)
-  const x = (d: number) => 100 - Math.sqrt(d / max) * 97 - 1.5
-  const rules = (['daily', 'weekly', 'monthly', 'yearly'] as const).filter((r) => points.some((p) => p.rule === r))
-  return (
-    <div className="flex flex-col gap-1.5" aria-hidden="true">
-      <div className="relative h-[22px]">
-        <div className="absolute inset-x-0 top-[10px] h-[2px] bg-rim" />
-        {points.map((p) => (
-          <span key={p.daysAgo} className="absolute top-[5px] size-3 -translate-x-1/2 rounded-full" style={{ left: `${x(p.daysAgo)}%`, background: RULE_COLOR[p.rule], boxShadow: `0 0 6px ${RULE_COLOR[p.rule]}` }} />
-        ))}
-      </div>
-      <div className="flex justify-between text-[11px] text-faint">
-        <span>{m.backup_wizard_ago({ span: spanLabel(days) })}</span>
-        <span>{m.backup_wizard_today()}</span>
-      </div>
-      <div className="flex flex-wrap gap-x-4 gap-y-1 text-[12px] text-muted">
-        {rules.map((r) => (
-          <span key={r} className="flex items-center gap-1.5">
-            <span className="size-2 rounded-full" style={{ background: RULE_COLOR[r] }} />
-            {points.filter((p) => p.rule === r).length} {ruleLabel(r)}
-          </span>
-        ))}
-      </div>
-    </div>
   )
 }
 

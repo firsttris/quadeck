@@ -138,22 +138,32 @@ repository and its own access.
 It writes `quadeck-rest-server.container` (image `restic/rest-server`, `--private-repos`) through the
 Quadlet editor's checks and history, and starts it.
 
-**+ Add client** creates the client: a name and after how many days without a backup to warn.
-The client dialog opens right away.
+**+ Add client** opens a wizard in three steps; **Edit …** in a client's row opens the same wizard
+on its last step.
 
 ### The client's plan and its command
 
-The client dialog holds the client's plan:
+1. **Device & what**:
+   - The name (only when adding): lower-case letters, digits and hyphens; the backups land in
+     `<data folder>/<name>`.
+   - What to back up: the standard folders as a quick choice (Documents, Pictures, Music, Videos,
+     Desktop, `~/.ssh`, `~/.config`, the whole home) and any other folder (`~` is the home of the
+     user who runs the script, or an absolute path). The script finds a standard folder under
+     either language (`~/Dokumente` or `~/Documents`) or where `xdg-user-dirs` put it.
+   - Exclusions: presets (caches, trash, development folders like `node_modules`, `.venv`,
+     `target` …, temporary files, downloads, VM images, Steam, folders with `.nobackup`) and own
+     rules as a list, each labelled as folder or file, file type (`*.mkv`) or pattern (`**/build`),
+     with examples to add in one click. A rule that would leave out everything (`/`, `~`, `*` …) is
+     refused. Plus an optional size limit per file.
+2. **When**: hourly, every 6 hours, daily or weekly; how long to keep with the same presets and
+   timeline as the server backup (1 week, 1 year, 1 year then yearly, own values); a warning after
+   N days without a backup; **active** (off pauses the timer on the client).
+3. **Set up**: the client and its plan are saved on the way into this step. A summary with a
+   change link per row, then three numbered steps: open a terminal as the normal user, paste the
+   command, choose the repository password. While the computer has not run the command yet, the
+   dialog says it is waiting and notices within seconds when it has.
 
-- **What to back up**: folders such as `~/Dokumente` (`~` is the home of the user who runs the
-  script) or absolute paths.
-- **Exclusions**: caches, trash, development folders (`node_modules`, `.venv`, `target` …),
-  temporary files, downloads, VM images, Steam, folders with `.nobackup`, own patterns and a size
-  limit.
-- **Schedule**: hourly, every 6 hours, daily or weekly, with the retention.
-- **Active**: off pauses the timer on the client.
-
-**Save and create command** shows a one-liner for the client:
+**Create command** shows a one-liner for the client:
 
 ```bash
 curl -fsSL http://nas.lan:8484/api/backup/script/<one-time link> | sh
@@ -186,7 +196,7 @@ On the client:
 | | |
 |---|---|
 | `quadeck-backup now` | back up right now |
-| `quadeck-backup check` | dry run: folder sizes and what would be uploaded |
+| `quadeck-backup check [--files]` | dry run: the size without and with the exclusions, how much they leave out and what the next run would upload; `--files` lists the files |
 | `quadeck-backup status` | the last backups and the next run |
 | `quadeck-backup mount [dir]` | the backups as folders under `~/Backup` (needs FUSE) |
 | `quadeck-backup restore <path> [dir]` | restore from the latest backup |
