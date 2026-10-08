@@ -9,7 +9,7 @@ site_url: https://firsttris.github.io/quadeck/
 repo_url: https://github.com/firsttris/quadeck
 repo_name: firsttris/quadeck
 edit_uri: edit/main/docs/
-copyright: License MIT
+copyright: License AGPL-3.0
 
 docs_dir: docs
 # Pages as backups.html instead of backups/: keeps the relative image paths of
