@@ -142,4 +142,12 @@ await sheet.setContent(`<style>body{margin:0;padding:24px;background:#05070a;fon
 await sheet.screenshot({ path: `${OUT}/screenshot-themes.png`, fullPage: true })
 await sheet.close()
 console.log('shot', 'themes')
+// The repository's social preview (upload it under Settings → Social preview): 1280×640, built from
+// scripts/social-preview.html with the dashboard picture taken above.
+const og = await b.newPage({ viewport: { width: 1280, height: 640 } })
+await og.goto(new URL('social-preview.html', import.meta.url).href)
+await og.waitForTimeout(500)
+await og.screenshot({ path: `${OUT}/social-preview.png` })
+await og.close()
+console.log('shot', 'social-preview')
 await b.close()
