@@ -1,0 +1,23 @@
+/* Colors of the app's default theme (src/styles.css --color-accent) */
+:root {
+  --md-primary-fg-color: #2f7f74;
+  --md-primary-fg-color--light: #7cc4b8;
+  --md-primary-fg-color--dark: #22625a;
+  --md-accent-fg-color: #4f8fbf;
+}
+[data-md-color-scheme="slate"] {
+  --md-primary-fg-color: #1d3b38;
+  --md-accent-fg-color: #7cc4b8;
+  --md-typeset-a-color: #7cc4b8;
+}
+/* Screenshots: rounded with a shadow, never wider than the text */
+.md-typeset img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, .18);
+}
+/* Long reference tables */
+.md-typeset table:not([class]) {
+  font-size: .75rem;
+}
