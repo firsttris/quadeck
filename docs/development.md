@@ -123,6 +123,19 @@ Build, start the demo with a fresh data directory, then run the script (the comm
 top). It sets the password, restarts the two failed demo units for a healthy overview, and writes
 `docs/screenshot-*.png`.
 
+## Documentation website
+
+`docs/` is also published as a website at <https://firsttris.github.io/quadeck/>, built with
+MkDocs Material (`mkdocs.yml`) by `.github/workflows/docs.yml` on every push to `main` that touches
+the docs. The pages stay plain Markdown that reads the same on GitHub: relative links, images as
+`<img>` with relative paths. A new page also goes into `nav` in `mkdocs.yml`. Locally:
+
+```sh
+pip install -r requirements-docs.txt
+mkdocs serve          # http://127.0.0.1:8000, reloads on save
+mkdocs build --strict # what CI runs: broken links fail the build
+```
+
 ## Conventions
 
 - Strict TypeScript, no `any`; shared logic goes to `src/shared` so the UI and the server use the

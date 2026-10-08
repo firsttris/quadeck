@@ -21,7 +21,7 @@ curl -fsSL https://raw.githubusercontent.com/firsttris/quadeck/main/install.sh |
 [Screenshots](#-screenshots) •
 [Alternatives](#-quadeck-and-the-alternatives) •
 [FAQ](#-faq) •
-[Documentation](docs/README.md) •
+[Documentation](https://firsttris.github.io/quadeck/) •
 [Development](#️-development)
 
 <img src="docs/screenshot-dashboard.png" alt="Quadeck overview: CPU, RAM, temperature and network with history, the services discovered from Caddy and Quadlets, the Updates and Backups widgets" width="900">
@@ -96,7 +96,7 @@ a container of each distribution above. What works where, feature by feature: th
 
 Plus: power usage and its cost (CPU and GPU measured, disks estimated from their state), hardware details (memory slots, GPU passthrough lines, stable USB paths), a command palette
 (<kbd>Ctrl</kbd>+<kbd>K</kbd>), five color themes and three animation levels, English and German, a read-only mode and an unlock that expires after
-15 minutes. Every page is described in the [documentation](docs/README.md).
+15 minutes. Every page is described in the [documentation](https://firsttris.github.io/quadeck/).
 
 ## 📸 Screenshots
 
