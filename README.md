@@ -1,8 +1,8 @@
 <div align="center">
 
-<img src="docs/banner.png" alt="Quadeck: the dashboard for a Podman home server" width="900">
+<img src="docs/banner.png" alt="Quadeck: self-hosted web UI for Podman Quadlets and systemd on a home server" width="900">
 
-**Dashboard and server console for a Podman home server.**<br>
+**Self-hosted web UI for Podman Quadlets and systemd – the dashboard and server console for your home server.**<br>
 Containers, Quadlets, systemd, updates, disks, backups, shares, users, network and reverse proxy in one place.<br>
 One binary on the host. No container, no socket mounts, nothing to configure.
 
@@ -19,6 +19,8 @@ curl -fsSL https://raw.githubusercontent.com/firsttris/quadeck/main/install.sh |
 [Install](#-install) •
 [Features](#-features) •
 [Screenshots](#-screenshots) •
+[Alternatives](#-quadeck-and-the-alternatives) •
+[FAQ](#-faq) •
 [Documentation](docs/README.md) •
 [Development](#️-development)
 
@@ -28,7 +30,7 @@ curl -fsSL https://raw.githubusercontent.com/firsttris/quadeck/main/install.sh |
 
 ## 💡 Why Quadeck?
 
-- A web UI for **Podman Quadlets and systemd** – start, stop, edit and watch your containers and units.
+- A web UI for **Podman Quadlets and systemd** – start, stop, edit and watch your containers and units, for your homelab, NAS or home server.
 - The **server around it**: disks and mounts, updates, users, Samba/NFS, backups, network.
 - **Plain Linux underneath**: changes go into the usual units and config files.
 - **Made for one home server**, not for clusters.
@@ -119,6 +121,45 @@ Plus: power usage and its cost (CPU and GPU measured, disks estimated from their
     <td colspan="2"><img src="docs/screenshot-themes.png" alt="The overview in the five color themes: Quadeck, Nord, Ocean, Amethyst and Copper"><br><sub><b>Color themes</b> – Quadeck, Nord, Ocean, Amethyst, Copper · <a href="docs/README.md#which-page-does-what">docs →</a></sub></td>
   </tr>
 </table>
+
+## 🔀 Quadeck and the alternatives
+
+Good tools exist for neighbouring jobs. Quadeck is for one home server that runs its containers as
+**Podman Quadlets** under systemd, on the distribution you already have.
+
+| | What it is | Where Quadeck differs |
+|---|---|---|
+| [Cockpit](https://cockpit-project.org/) | Red Hat's web console for Linux servers, with a Podman plugin | Made around Quadlets: writes and checks Quadlet files, finds your services through Caddy and Podman, and brings the home server parts (backups, SMART, shares, updates) into one dashboard |
+| [Portainer](https://www.portainer.io/) | Container management UI that runs as a container with the Docker or Podman socket | Runs on the host as two systemd services; containers are systemd units from Quadlet files instead of stacks kept inside the tool |
+| [CasaOS](https://casaos.io/), [Umbrel](https://umbrel.com/) | Home server layer with an app store, built on Docker | Stays on your distribution and on Podman; no app store, your Quadlet files are the source of truth |
+| [Dockge](https://github.com/louislam/dockge) | Manager for Docker Compose stacks | For Podman Quadlets; a `docker-compose.yml` can be imported into Quadlet files |
+
+## ❓ FAQ
+
+### Is there a web UI for Podman Quadlets?
+Yes, that is what Quadeck is: it lists, starts, stops and edits Quadlet units, checks every change
+with Podman's own Quadlet generator before saving, keeps a history of each file, and imports
+`docker-compose.yml` files into Quadlets. See [Units and Quadlets](docs/quadlets.md).
+
+### Does Quadeck work with Docker?
+No, it is built for Podman. Coming from Docker, the [compose import](docs/quadlets.md) turns a
+`docker-compose.yml` into Quadlet files.
+
+### Does it manage rootless Podman?
+Not yet. Quadeck manages the system (rootful) Podman and the Quadlets in `/etc/containers/systemd`;
+rootless containers and user Quadlets are not shown.
+
+### Does it run as a container?
+No. It is one binary on the host with two systemd services: a web app without root, and a small root
+helper with a fixed list of actions behind a Unix socket. See [Security](docs/security.md).
+
+### Which distributions and hardware does it run on?
+x64 and arm64 (Raspberry Pi with a 64-bit OS included) on Arch, Fedora, RHEL and its rebuilds,
+Debian, Ubuntu, openSUSE and more – see [Runs on](#-runs-on).
+
+### Can I open it to the internet?
+It is made for your LAN. Put a VPN or a reverse proxy with its own authentication in front of it
+before you reach it from outside.
 
 ## 🛠️ Development
 
