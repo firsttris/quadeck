@@ -1,0 +1,45 @@
+<!doctype html>
+<!-- The repository's social preview (Settings → Social preview), 1280×640. Rendered to
+     docs/social-preview.png by scripts/screenshots.mjs, with the dashboard picture from docs/. -->
+<html>
+<head>
+<meta charset="utf-8">
+<style>
+@font-face { font-family: 'IBM Plex Sans'; font-weight: 400; src: url('../node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-400-normal.woff2'); }
+@font-face { font-family: 'IBM Plex Sans'; font-weight: 600; src: url('../node_modules/@fontsource/ibm-plex-sans/files/ibm-plex-sans-latin-600-normal.woff2'); }
+@font-face { font-family: 'IBM Plex Sans Condensed'; font-weight: 600; src: url('../node_modules/@fontsource/ibm-plex-sans-condensed/files/ibm-plex-sans-condensed-latin-600-normal.woff2'); }
+@font-face { font-family: 'JetBrains Mono'; font-weight: 400; src: url('../node_modules/@fontsource/jetbrains-mono/files/jetbrains-mono-latin-400-normal.woff2'); }
+* { box-sizing: border-box; margin: 0; }
+body { width: 1280px; height: 640px; overflow: hidden; font-family: 'IBM Plex Sans', sans-serif; color: #e6edf3;
+  background: radial-gradient(700px 420px at 8% 0%, rgba(124,196,184,.18), transparent 70%), linear-gradient(135deg, #121820, #0b0f14); position: relative; }
+body::before { content: ''; position: absolute; inset: 0; background-image: linear-gradient(#1f252e 1px, transparent 1px), linear-gradient(90deg, #1f252e 1px, transparent 1px); background-size: 32px 32px; opacity: .55; }
+.wrap { position: relative; display: grid; grid-template-columns: 540px 1fr; height: 100%; padding: 0 0 0 88px; align-items: center; }
+.head { display: flex; align-items: center; gap: 22px; }
+.logo { width: 84px; height: 84px; border-radius: 24px; background: linear-gradient(135deg, #7cc4b8, #4f8fbf); display: grid; place-items: center; box-shadow: 0 0 40px rgba(124,196,184,.35); }
+h1 { font: 600 78px/1 'IBM Plex Sans Condensed', sans-serif; letter-spacing: .5px; }
+.tag { margin-top: 30px; font-size: 31px; line-height: 1.25; color: #e6edf3; font-weight: 600; }
+.tag span { color: #7cc4b8; }
+.sub { margin-top: 16px; font-size: 20px; line-height: 1.45; color: #9aa4b2; }
+.chips { margin-top: 30px; display: flex; flex-wrap: wrap; gap: 10px; max-width: 440px; }
+.chip { font: 15px 'JetBrains Mono', monospace; color: #c9d1d9; background: #161c24; border: 1px solid #2a323d; border-radius: 999px; padding: 6px 14px 6px 12px; display: flex; align-items: center; gap: 8px; }
+.chip i { width: 8px; height: 8px; border-radius: 50%; background: #56d364; box-shadow: 0 0 8px #56d364; }
+.shot { position: relative; height: 470px; margin-left: 20px; border-radius: 16px 0 0 16px; overflow: hidden; border: 1px solid #2a323d; border-right: 0; box-shadow: 0 30px 80px rgba(0,0,0,.6), 0 0 0 6px rgba(124,196,184,.06); }
+.shot img { width: 1080px; display: block; }
+.shot::after { content: ''; position: absolute; inset: auto 0 0 0; height: 120px; background: linear-gradient(transparent, #0b0f14); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div>
+    <div class="head">
+      <div class="logo"><svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="#0b0f14" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 14h18l-2.5 5h-13z"/><path d="M6 14V9h4v5"/><path d="M12 14V6h5v8"/></svg></div>
+      <h1>Quadeck</h1>
+    </div>
+    <p class="tag">Self-hosted web UI for<br><span>Podman Quadlets</span> &amp; systemd</p>
+    <p class="sub">Containers, updates, disks, backups, shares and network of your home server in one place. One binary, no container.</p>
+    <div class="chips"><span class="chip"><i></i>quadlets</span><span class="chip"><i></i>systemd</span><span class="chip"><i></i>restic</span><span class="chip"><i></i>smart</span><span class="chip"><i></i>smb · nfs</span></div>
+  </div>
+  <div class="shot"><img src="../docs/screenshot-dashboard.png" alt=""></div>
+</div>
+</body>
+</html>
