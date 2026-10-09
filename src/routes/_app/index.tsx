@@ -18,7 +18,7 @@ import { calendarLabel, diskSize, pct, relative } from '~/lib/format'
 import { useMetricHistory } from '~/lib/history'
 import { useLive } from '~/lib/live'
 import { getDashboardLayout } from '~/lib/server-fns'
-import type { DashboardLayout, GridItem, LayoutScope } from '~/shared/layout'
+import { ICON_SIZES, type DashboardLayout, type GridItem, type IconSize, type LayoutScope } from '~/shared/layout'
 import type { Disk, Service, ServiceGroup, Share, Snapshot, Unit } from '~/shared/types'
 import { failureReason } from '~/shared/units'
 import { m } from '~/paraglide/messages'
@@ -103,6 +103,8 @@ const PAGE_GRID_BASE = { breakpoints: { lg: 960, md: 640, xs: 0 }, cols: { lg: 1
 
 /** Breakpoints refer to the width of the Services card, not the window. */
 const TILE_GRID_BASE = { breakpoints: { lg: 1100, md: 820, sm: 560, xs: 0 }, cols: { lg: 8, md: 6, sm: 4, xs: 2 }, rowHeight: 112, margin: [12, 12] as [number, number] }
+/** Larger icons make the tiles taller, so name and host keep their room. */
+const TILE_ROW: Record<IconSize, number> = { sm: 106, md: 118, lg: 130 }
 
 function flowTiles(items: Service[], cols: number): DefaultItem[] {
   return items.map((s, n) => ({ i: s.key, x: n % cols, y: Math.floor(n / cols), w: 1, h: 1, maxW: Math.min(4, cols), maxH: 3 }))
@@ -160,6 +162,11 @@ function Overview() {
     [say],
   )
 
+  const setIconSize = (iconSize: IconSize) => {
+    setLayout((l) => ({ ...l, iconSize }))
+    api('/api/layout', { body: { iconSize } }).catch((e) => say(m.overview_edit_layoutNotSaved({ msg: (e as Error).message }), 'bad'))
+  }
+
   const setHidden = (id: string, hidden: boolean) => {
     setLayout((l) => ({ ...l, hidden: hidden ? [...l.hidden, id] : l.hidden.filter((x) => x !== id) }))
     api('/api/layout/hidden', { body: { id, hidden } }).catch((e) => say((e as Error).message, 'bad'))
@@ -170,7 +177,7 @@ function Overview() {
     resetting.run('reset', async () => {
       try {
         await api('/api/layout', { method: 'DELETE' })
-        setLayout((l) => ({ layouts: { page: {}, tiles: {} }, hidden: [], widgets: l.widgets }))
+        setLayout((l) => ({ layouts: { page: {}, tiles: {} }, hidden: [], widgets: l.widgets, iconSize: 'md' }))
         say(m.overview_edit_layoutReset())
       } catch (e) {
         say((e as Error).message, 'bad')
@@ -240,7 +247,7 @@ function Overview() {
   )
 
   const nodes: Record<string, React.ReactNode> = {
-    services: <Services groups={snapshot.services} editing={editing} saved={layout.layouts.tiles} onSave={(bp, items) => save('tiles', bp, items)} />,
+    services: <Services groups={snapshot.services} editing={editing} saved={layout.layouts.tiles} onSave={(bp, items) => save('tiles', bp, items)} iconSize={layout.iconSize} onIconSize={setIconSize} />,
     storage: <Storage disks={snapshot.disks} smart={snapshot.smart ?? []} />,
     timers: <Timers units={snapshot.units} />,
     shares: <Shares shares={snapshot.shares} error={snapshot.sources.shares?.error} />,
@@ -458,7 +465,21 @@ function Storage({ disks, smart }: { disks: Disk[]; smart: Snapshot['smart'] }) 
 
 // ---------- services (with tile grid per group) ----------
 
-function Services({ groups, editing, saved, onSave }: { groups: ServiceGroup[]; editing: boolean; saved: Record<string, GridItem[]>; onSave: (bp: string, items: GridItem[]) => void }) {
+function Services({
+  groups,
+  editing,
+  saved,
+  onSave,
+  iconSize,
+  onIconSize,
+}: {
+  groups: ServiceGroup[]
+  editing: boolean
+  saved: Record<string, GridItem[]>
+  onSave: (bp: string, items: GridItem[]) => void
+  iconSize: IconSize
+  onIconSize: (size: IconSize) => void
+}) {
   const [adding, setAdding] = useState(false)
   const [removing, setRemoving] = useState<Service | null>(null)
   const [editingKey, setEditingKey] = useState<string | null>(null)
@@ -468,9 +489,20 @@ function Services({ groups, editing, saved, onSave }: { groups: ServiceGroup[]; 
   const edited = editingKey ? (groups.flatMap((g) => g.items).find((s) => s.key === editingKey) ?? null) : null
   return (
     <section className="flex flex-col gap-[14px] p-[18px]" aria-label={m.overview_cards_services()}>
-      <div className="flex flex-wrap items-center gap-3 pr-16">
+      <div className="flex flex-wrap items-center gap-3 in-[.editing]:pr-16">
         <h2 className="h2">{m.overview_cards_services()}</h2>
-        <span className="grow text-[12px] text-muted">{m.overview_services_detected()}</span>
+        {/* in edit mode the icon size takes the place of the note */}
+        <span className="grow text-[12px] text-muted">{!editing && m.overview_services_detected()}</span>
+        {editing && (
+          <div className="no-drag flex items-center gap-1.5" role="radiogroup" aria-label={m.overview_services_iconSize()}>
+            <span className="text-[12px] text-muted">{m.overview_services_iconSize()}</span>
+            {ICON_SIZES.map((z) => (
+              <button key={z} type="button" role="radio" aria-checked={iconSize === z} className={`seg ${iconSize === z ? 'on' : ''}`} onClick={() => onIconSize(z)}>
+                {pickMsg({ sm: m.overview_services_iconSmall, md: m.overview_services_iconMedium, lg: m.overview_services_iconLarge }, z)}
+              </button>
+            ))}
+          </div>
+        )}
         <button type="button" className="btn sm no-drag" onClick={() => setAdding(true)}>
           <Glyph name="plus" size={14} strokeWidth={2} />
           {m.overview_services_addLink()}
@@ -481,6 +513,7 @@ function Services({ groups, editing, saved, onSave }: { groups: ServiceGroup[]; 
         <TileGroup
           key={g.name}
           group={g}
+          iconSize={iconSize}
           editing={editing}
           saved={saved}
           onSave={onSave}
@@ -516,6 +549,7 @@ function Services({ groups, editing, saved, onSave }: { groups: ServiceGroup[]; 
 
 function TileGroup({
   group,
+  iconSize,
   editing,
   saved,
   onSave,
@@ -523,6 +557,7 @@ function TileGroup({
   onEdit,
 }: {
   group: ServiceGroup
+  iconSize: IconSize
   editing: boolean
   saved: Record<string, GridItem[]>
   onSave: (bp: string, items: GridItem[]) => void
@@ -531,9 +566,9 @@ function TileGroup({
 }) {
   const keys = group.items.map((s) => s.key).join('\n')
   const spec: GridSpec = useMemo(
-    () => ({ ...TILE_GRID_BASE, defaults: (_bp, cols) => flowTiles(group.items, cols) }),
+    () => ({ ...TILE_GRID_BASE, rowHeight: TILE_ROW[iconSize], defaults: (_bp, cols) => flowTiles(group.items, cols) }),
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    [keys],
+    [keys, iconSize],
   )
   // Only this group's tiles are relevant for its grid.
   const own = useMemo(() => {
@@ -549,7 +584,7 @@ function TileGroup({
       <EditableGrid
         spec={spec}
         ssrBreakpoint="sm"
-        items={group.items.map((s) => ({ i: s.key, node: <ServiceTile s={s} editing={editing} onEdit={() => onEdit(s)} onDelete={s.manualId !== undefined ? () => onDelete(s) : undefined} /> }))}
+        items={group.items.map((s) => ({ i: s.key, node: <ServiceTile s={s} size={iconSize} editing={editing} onEdit={() => onEdit(s)} onDelete={s.manualId !== undefined ? () => onDelete(s) : undefined} /> }))}
         saved={own}
         editing={editing}
         onSave={onSave}

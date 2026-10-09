@@ -84,7 +84,20 @@ describe('layout storage', () => {
     layout.setCardHidden('storage', false)
     expect(layout.getLayout().hidden).toEqual([])
     layout.resetLayout()
-    expect(layout.getLayout()).toEqual({ layouts: { page: {}, tiles: {} }, hidden: [], widgets: [] })
+    expect(layout.getLayout()).toEqual({ layouts: { page: {}, tiles: {} }, hidden: [], widgets: [], iconSize: 'md' })
+  })
+
+  it('keeps one icon size for all service tiles; reset goes back to medium', () => {
+    expect(layout.getLayout().iconSize).toBe('md')
+    expect(layout.setIconSize('lg')).toBe('lg')
+    expect(layout.getLayout().iconSize).toBe('lg')
+    layout.setIconSize('sm')
+    expect(layout.getLayout().iconSize).toBe('sm')
+    expect(() => layout.setIconSize('xl')).toThrow()
+    expect(() => layout.setIconSize(undefined)).toThrow()
+    expect(layout.getLayout().iconSize).toBe('sm')
+    layout.resetLayout()
+    expect(layout.getLayout().iconSize).toBe('md')
   })
 })
 

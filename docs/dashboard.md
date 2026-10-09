@@ -60,7 +60,12 @@ Icons come from [dashboard-icons](https://github.com/homarr-labs/dashboard-icons
 built from the image name, the unit name and the Caddy host, including aliases such as `ha` →
 `home-assistant`. Icons are cached under `/var/lib/quadeck/icons`, so the dashboard works offline
 after the first load. Without a hit, the favicon of the service is used, then a neutral category
-glyph. `quadeck.icon=glyph:name` forces one of the built-in glyphs.
+glyph. `quadeck.icon=glyph:name` forces one of the built-in glyphs. An icon picked in the UI shows
+right away, also when the automatic one could not be loaded.
+
+**Icon size** (Small, Medium, Large) sits in the header of the services card in edit mode and
+applies to all tiles at once; the tiles grow with it so name and host keep their room. It is
+stored with the layout, and *Reset to auto layout* sets it back to Medium.
 
 ### Health
 
@@ -132,7 +137,7 @@ card already say where you are), so the widgets start at the top. **Edit** in th
 The layout is stored per screen width (desktop from 960 px content width with 12 columns, tablet
 with 6, phone with 1) in SQLite. Metric widgets start at a fixed height; the others size their
 height to their content until you resize them yourself. **Reset to auto layout** restores the
-default positions and brings removed built-in widgets back; widgets added from the catalog stay,
+default positions and the icon size and brings removed built-in widgets back; widgets added from the catalog stay,
 with their content.
 
 ### Adding widgets

@@ -91,13 +91,16 @@ export function ServiceDialog({ service, groups, onClose }: { service: Service |
   const work = useBusy<'save' | 'reset'>()
   const s = service
   const manual = s?.manualId !== undefined
-  // Reset when another service opens, not on every live update of the same one (the service
-  // object is new on each tick, which used to undo a picked icon and hide errors).
+  // Reset whenever the dialog opens for a service, not on every live update of the same one (the
+  // service object is new on each tick, which used to undo a picked icon and hide errors). Done
+  // while rendering, so the icon picker mounts with this service's icon, not the last one's.
   const serverIcon = s?.overridden?.icon ?? (manual && s?.icon.kind === 'dash' ? s.icon.slug : '')
-  useEffect(() => {
+  const [openFor, setOpenFor] = useState<string>()
+  if (s?.key !== openFor) {
+    setOpenFor(s?.key)
     setError('')
     setIcon(serverIcon)
-  }, [s?.key])
+  }
   if (!s) return null
 
   const submit = (f: FormData) =>

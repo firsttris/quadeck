@@ -20,6 +20,12 @@ export interface DashboardLayout {
   hidden: string[] // ids of hidden cards
   /** Widgets added from the catalog, in the order they were added. */
   widgets: WidgetInstance[]
+  /** Size of the icons on the service tiles, for all of them. */
+  iconSize: IconSize
 }
 
-export const EMPTY_LAYOUT: DashboardLayout = { layouts: { page: {}, tiles: {} }, hidden: [], widgets: [] }
+export const ICON_SIZES = ['sm', 'md', 'lg'] as const
+export type IconSize = (typeof ICON_SIZES)[number]
+export const isIconSize = (v: unknown): v is IconSize => ICON_SIZES.includes(v as IconSize)
+
+export const EMPTY_LAYOUT: DashboardLayout = { layouts: { page: {}, tiles: {} }, hidden: [], widgets: [], iconSize: 'md' }

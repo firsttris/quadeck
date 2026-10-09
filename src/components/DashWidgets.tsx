@@ -22,7 +22,7 @@ import { Dot, Pill } from './Status'
 
 function Head({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-2 pr-16">
+    <div className="flex items-center gap-2 in-[.editing]:pr-16">
       <h2 className="h2 min-w-0 grow truncate">{title}</h2>
       {children}
     </div>

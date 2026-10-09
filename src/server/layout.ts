@@ -1,9 +1,10 @@
 import { randomBytes } from 'node:crypto'
 import { and, eq, like } from 'drizzle-orm'
-import type { DashboardLayout, GridItem, LayoutScope } from '~/shared/layout'
+import { isIconSize, type DashboardLayout, type GridItem, type IconSize, type LayoutScope } from '~/shared/layout'
 import { FRESH_DEFAULTS, INSTANCE_ID, isInstanceKind, parseWidgetConfig, WIDGETS, type InstanceKind, type WidgetInstance } from '~/shared/widgets'
 import { HttpError } from './auth'
 import { db, schema } from './db'
+import { deleteSetting, getSetting, setSetting } from './settings'
 import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
 
@@ -26,7 +27,8 @@ function seedFresh() {
 
 export function getLayout(): DashboardLayout {
   seedFresh()
-  const out: DashboardLayout = { layouts: { page: {}, tiles: {} }, hidden: [], widgets: [] }
+  const size = getSetting<unknown>(ICON_SIZE)
+  const out: DashboardLayout = { layouts: { page: {}, tiles: {} }, hidden: [], widgets: [], iconSize: isIconSize(size) ? size : 'md' }
   for (const r of db().select().from(schema.layouts).all()) {
     const [scope, bp] = r.breakpoint.split('|') as [LayoutScope, string]
     if (!SCOPES.includes(scope) || !bp) continue
@@ -147,8 +149,17 @@ export function setCardHidden(id: string, hidden: boolean) {
     .run()
 }
 
-/** "Reset to auto layout": all positions, sizes and hidden cards; added widgets stay (their content too). */
+const ICON_SIZE = 'dashboard.iconSize'
+
+export function setIconSize(size: unknown): IconSize {
+  if (!isIconSize(size)) throw new HttpError(400, msg(m.layout_error_invalidValues))
+  setSetting(ICON_SIZE, size)
+  return size
+}
+
+/** "Reset to auto layout": all positions, sizes, hidden cards and the icon size; added widgets stay (their content too). */
 export function resetLayout() {
+  deleteSetting(ICON_SIZE)
   db().delete(schema.layouts).where(like(schema.layouts.breakpoint, '%|%')).run()
   db().delete(schema.widgets).where(eq(schema.widgets.type, 'card')).run()
 }
