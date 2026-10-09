@@ -3,6 +3,7 @@
 Quadeck is a dashboard for a Podman home server that runs Quadlets. It runs directly on the host as
 two systemd services (an unprivileged web app and a small root helper) and shows containers, units,
 disks, shares and the host itself, with the actions you need day to day.
+Also as a website with search: **https://firsttris.github.io/quadeck/**
 
 | | |
 |---|---|
