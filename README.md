@@ -47,6 +47,8 @@ curl -fsSL https://raw.githubusercontent.com/firsttris/quadeck/main/install.sh |
 The script downloads the right binary, verifies its checksum, sets up the two systemd services and
 prints a link like **http://\<host\>:8484/setup?token=…**. Open it and set your admin password.
 That's it.
+Behind the reverse proxy (HTTPS with a domain) you can add passkeys and log in with your
+fingerprint, face or device PIN instead of the password.
 
 Update later with `sudo quadeck update`. Manual installation, environment variables, running behind
 a reverse proxy and uninstalling are in the [installation guide](https://firsttris.github.io/quadeck/installation.html).
