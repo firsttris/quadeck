@@ -43,7 +43,9 @@ as root in one process (installations from before the helper).
   the admin password once more, so a stolen session cannot plant its own), renames or deletes
   it. A passkey login needs user verification (fingerprint, face or device PIN) and is throttled
   like a password login. WebAuthn only works over HTTPS with a host name (or on `localhost`), so
-  set up the [reverse proxy](network.md#reverse-proxy) first; a passkey belongs to the host name it was made on.
+  set up the [reverse proxy](network.md#reverse-proxy) first, with a certificate the browser trusts
+  (with *Local certificate* only once Caddy's local CA is installed on the device). A passkey belongs
+  to the host name it was made on.
   `quadeck passwd` removes every passkey together with the password.
 - Sessions last 7 days. The cookie is `HttpOnly`, `SameSite=Strict`, `Secure` behind HTTPS; the
   database stores only a hash of the session token.

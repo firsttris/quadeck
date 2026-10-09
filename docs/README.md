@@ -21,7 +21,7 @@ Also as a website with search: **https://firsttris.github.io/quadeck/**
 | [Terminal](terminal.md) | shell on the server and in containers in the browser, off by default, home network only, what is logged |
 | [Network](network.md) | interfaces, ports, firewall verdicts, routes and DNS, reverse proxy (Caddy), speed test |
 | [Notifications](notifications.md) | channels, rules, how spam is avoided, retries |
-| [Security](security.md) | the two processes, unlock, authentication, hardening, data and secrets |
+| [Security](security.md) | the two processes, unlock, authentication with password or passkey, hardening, data and secrets |
 | [Development](development.md) | setup with demo data, checks, architecture, tests, releases |
 
 ## How Quadeck works, in one minute
