@@ -39,6 +39,12 @@ as root in one process (installations from before the helper).
 
 - One admin password, hashed with argon2id, set on the first start through `/setup` with a token
   that only root and the `quadeck` user can read (`quadeck setup-token`). `quadeck passwd` resets it.
+- Passkeys as a second way in, next to the password: **Passkeys** in the sidebar adds one (after
+  the admin password once more, so a stolen session cannot plant its own), renames or deletes
+  it. A passkey login needs user verification (fingerprint, face or device PIN) and is throttled
+  like a password login. WebAuthn only works over HTTPS with a host name (or on `localhost`), so
+  set up the [reverse proxy](network.md#reverse-proxy) first; a passkey belongs to the host name it was made on.
+  `quadeck passwd` removes every passkey together with the password.
 - Sessions last 7 days. The cookie is `HttpOnly`, `SameSite=Strict`, `Secure` behind HTTPS; the
   database stores only a hash of the session token.
 - After 5 failed attempts a client waits 30 seconds, doubling up to 15 minutes. The client address

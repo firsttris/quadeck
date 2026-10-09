@@ -54,8 +54,10 @@ export async function setPassword(password: string) {
   clearSetupToken()
 }
 
+/** `quadeck passwd`: removes the password and every passkey, ends all sessions. */
 export function resetPassword() {
   deleteSetting(PASSWORD_KEY)
+  db().delete(schema.passkeys).run()
   db().delete(schema.sessions).run()
 }
 

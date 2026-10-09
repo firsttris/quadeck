@@ -21,5 +21,11 @@ export const migrations: { tag: string; statements: string[] }[] = [
       "DROP INDEX `metric_samples_metric_ts`;",
       "CREATE INDEX `metric_samples_metric_ts_value` ON `metric_samples` (`metric`,`ts`,`value`);"
     ]
+  },
+  {
+    "tag": "0002_freezing_grey_gargoyle",
+    "statements": [
+      "CREATE TABLE `passkeys` (\n\t`id` text PRIMARY KEY NOT NULL,\n\t`public_key` text NOT NULL,\n\t`counter` integer DEFAULT 0 NOT NULL,\n\t`transports` text,\n\t`rp_id` text NOT NULL,\n\t`name` text NOT NULL,\n\t`created_at` integer NOT NULL,\n\t`last_used_at` integer\n);"
+    ]
   }
 ]
