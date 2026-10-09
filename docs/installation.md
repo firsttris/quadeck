@@ -143,7 +143,7 @@ Without systemd, start it by hand: `QUADECK_DATA_DIR=/var/lib/quadeck quadeck se
 quadeck [serve]                 start the web app (default)
 quadeck helper                  start the root helper (as root, Unix socket)
 quadeck setup-token             print the token for the first setup
-quadeck passwd                  reset the admin password; set a new one via /setup
+quadeck passwd                  reset the admin password and remove all passkeys; set a new one via /setup
 quadeck update [--force]        download the newest release, verify, swap in, restart
 quadeck doctor [--json]         show what Quadeck finds: distribution, package manager, Podman, init, boot loader
 quadeck print-unit web|helper   print a systemd unit (used by install.sh)

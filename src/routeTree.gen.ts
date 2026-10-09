@@ -37,6 +37,7 @@ import { Route as ApiUnitsRouteImport } from './routes/api/units'
 import { Route as ApiUnlockRouteImport } from './routes/api/unlock'
 import { Route as ApiAuthLoginRouteImport } from './routes/api/auth/login'
 import { Route as ApiAuthLogoutRouteImport } from './routes/api/auth/logout'
+import { Route as ApiAuthPasskeysRouteImport } from './routes/api/auth/passkeys'
 import { Route as ApiAuthSetupRouteImport } from './routes/api/auth/setup'
 import { Route as ApiBackupIndexRouteImport } from './routes/api/backup/index'
 import { Route as ApiBootIndexRouteImport } from './routes/api/boot/index'
@@ -85,6 +86,10 @@ import { Route as ApiTerminalIndexRouteImport } from './routes/api/terminal/inde
 import { Route as ApiTerminalStreamRouteImport } from './routes/api/terminal/stream'
 import { Route as ApiTimersIndexRouteImport } from './routes/api/timers/index'
 import { Route as ApiUsersIndexRouteImport } from './routes/api/users/index'
+import { Route as ApiAuthPasskeyLoginRouteImport } from './routes/api/auth/passkey/login'
+import { Route as ApiAuthPasskeyOptionsRouteImport } from './routes/api/auth/passkey/options'
+import { Route as ApiAuthPasskeysIdRouteImport } from './routes/api/auth/passkeys/$id'
+import { Route as ApiAuthPasskeysOptionsRouteImport } from './routes/api/auth/passkeys/options'
 import { Route as ApiBackupScriptTokenRouteImport } from './routes/api/backup/script/$token'
 import { Route as ApiSystemPackagesIndexRouteImport } from './routes/api/system/packages/index'
 import { Route as ApiSystemPackagesNameRouteImport } from './routes/api/system/packages/$name'
@@ -226,6 +231,11 @@ const ApiAuthLoginRoute = ApiAuthLoginRouteImport.update({
 const ApiAuthLogoutRoute = ApiAuthLogoutRouteImport.update({
   id: '/api/auth/logout',
   path: '/api/auth/logout',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthPasskeysRoute = ApiAuthPasskeysRouteImport.update({
+  id: '/api/auth/passkeys',
+  path: '/api/auth/passkeys',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiAuthSetupRoute = ApiAuthSetupRouteImport.update({
@@ -468,6 +478,26 @@ const ApiUsersIndexRoute = ApiUsersIndexRouteImport.update({
   path: '/api/users/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiAuthPasskeyLoginRoute = ApiAuthPasskeyLoginRouteImport.update({
+  id: '/api/auth/passkey/login',
+  path: '/api/auth/passkey/login',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthPasskeyOptionsRoute = ApiAuthPasskeyOptionsRouteImport.update({
+  id: '/api/auth/passkey/options',
+  path: '/api/auth/passkey/options',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiAuthPasskeysIdRoute = ApiAuthPasskeysIdRouteImport.update({
+  id: '/$id',
+  path: '/$id',
+  getParentRoute: () => ApiAuthPasskeysRoute,
+} as any)
+const ApiAuthPasskeysOptionsRoute = ApiAuthPasskeysOptionsRouteImport.update({
+  id: '/options',
+  path: '/options',
+  getParentRoute: () => ApiAuthPasskeysRoute,
+} as any)
 const ApiBackupScriptTokenRoute = ApiBackupScriptTokenRouteImport.update({
   id: '/api/backup/script/$token',
   path: '/api/backup/script/$token',
@@ -512,6 +542,7 @@ export interface FileRoutesByFullPath {
   '/api/unlock': typeof ApiUnlockRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/auth/passkeys': typeof ApiAuthPasskeysRouteWithChildren
   '/api/auth/setup': typeof ApiAuthSetupRoute
   '/api/disks/power': typeof ApiDisksPowerRoute
   '/api/disks/smart': typeof ApiDisksSmartRoute
@@ -560,6 +591,10 @@ export interface FileRoutesByFullPath {
   '/api/terminal/': typeof ApiTerminalIndexRoute
   '/api/timers/': typeof ApiTimersIndexRoute
   '/api/users/': typeof ApiUsersIndexRoute
+  '/api/auth/passkey/login': typeof ApiAuthPasskeyLoginRoute
+  '/api/auth/passkey/options': typeof ApiAuthPasskeyOptionsRoute
+  '/api/auth/passkeys/$id': typeof ApiAuthPasskeysIdRoute
+  '/api/auth/passkeys/options': typeof ApiAuthPasskeysOptionsRoute
   '/api/backup/script/$token': typeof ApiBackupScriptTokenRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages/': typeof ApiSystemPackagesIndexRoute
@@ -592,6 +627,7 @@ export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/auth/passkeys': typeof ApiAuthPasskeysRouteWithChildren
   '/api/auth/setup': typeof ApiAuthSetupRoute
   '/api/disks/power': typeof ApiDisksPowerRoute
   '/api/disks/smart': typeof ApiDisksSmartRoute
@@ -640,6 +676,10 @@ export interface FileRoutesByTo {
   '/api/terminal': typeof ApiTerminalIndexRoute
   '/api/timers': typeof ApiTimersIndexRoute
   '/api/users': typeof ApiUsersIndexRoute
+  '/api/auth/passkey/login': typeof ApiAuthPasskeyLoginRoute
+  '/api/auth/passkey/options': typeof ApiAuthPasskeyOptionsRoute
+  '/api/auth/passkeys/$id': typeof ApiAuthPasskeysIdRoute
+  '/api/auth/passkeys/options': typeof ApiAuthPasskeysOptionsRoute
   '/api/backup/script/$token': typeof ApiBackupScriptTokenRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages': typeof ApiSystemPackagesIndexRoute
@@ -674,6 +714,7 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/api/auth/login': typeof ApiAuthLoginRoute
   '/api/auth/logout': typeof ApiAuthLogoutRoute
+  '/api/auth/passkeys': typeof ApiAuthPasskeysRouteWithChildren
   '/api/auth/setup': typeof ApiAuthSetupRoute
   '/api/disks/power': typeof ApiDisksPowerRoute
   '/api/disks/smart': typeof ApiDisksSmartRoute
@@ -722,6 +763,10 @@ export interface FileRoutesById {
   '/api/terminal/': typeof ApiTerminalIndexRoute
   '/api/timers/': typeof ApiTimersIndexRoute
   '/api/users/': typeof ApiUsersIndexRoute
+  '/api/auth/passkey/login': typeof ApiAuthPasskeyLoginRoute
+  '/api/auth/passkey/options': typeof ApiAuthPasskeyOptionsRoute
+  '/api/auth/passkeys/$id': typeof ApiAuthPasskeysIdRoute
+  '/api/auth/passkeys/options': typeof ApiAuthPasskeysOptionsRoute
   '/api/backup/script/$token': typeof ApiBackupScriptTokenRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages/': typeof ApiSystemPackagesIndexRoute
@@ -756,6 +801,7 @@ export interface FileRouteTypes {
     | '/api/unlock'
     | '/api/auth/login'
     | '/api/auth/logout'
+    | '/api/auth/passkeys'
     | '/api/auth/setup'
     | '/api/disks/power'
     | '/api/disks/smart'
@@ -804,6 +850,10 @@ export interface FileRouteTypes {
     | '/api/terminal/'
     | '/api/timers/'
     | '/api/users/'
+    | '/api/auth/passkey/login'
+    | '/api/auth/passkey/options'
+    | '/api/auth/passkeys/$id'
+    | '/api/auth/passkeys/options'
     | '/api/backup/script/$token'
     | '/api/system/packages/$name'
     | '/api/system/packages/'
@@ -836,6 +886,7 @@ export interface FileRouteTypes {
     | '/'
     | '/api/auth/login'
     | '/api/auth/logout'
+    | '/api/auth/passkeys'
     | '/api/auth/setup'
     | '/api/disks/power'
     | '/api/disks/smart'
@@ -884,6 +935,10 @@ export interface FileRouteTypes {
     | '/api/terminal'
     | '/api/timers'
     | '/api/users'
+    | '/api/auth/passkey/login'
+    | '/api/auth/passkey/options'
+    | '/api/auth/passkeys/$id'
+    | '/api/auth/passkeys/options'
     | '/api/backup/script/$token'
     | '/api/system/packages/$name'
     | '/api/system/packages'
@@ -917,6 +972,7 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/api/auth/login'
     | '/api/auth/logout'
+    | '/api/auth/passkeys'
     | '/api/auth/setup'
     | '/api/disks/power'
     | '/api/disks/smart'
@@ -965,6 +1021,10 @@ export interface FileRouteTypes {
     | '/api/terminal/'
     | '/api/timers/'
     | '/api/users/'
+    | '/api/auth/passkey/login'
+    | '/api/auth/passkey/options'
+    | '/api/auth/passkeys/$id'
+    | '/api/auth/passkeys/options'
     | '/api/backup/script/$token'
     | '/api/system/packages/$name'
     | '/api/system/packages/'
@@ -983,6 +1043,7 @@ export interface RootRouteChildren {
   ApiUnlockRoute: typeof ApiUnlockRoute
   ApiAuthLoginRoute: typeof ApiAuthLoginRoute
   ApiAuthLogoutRoute: typeof ApiAuthLogoutRoute
+  ApiAuthPasskeysRoute: typeof ApiAuthPasskeysRouteWithChildren
   ApiAuthSetupRoute: typeof ApiAuthSetupRoute
   ApiDisksPowerRoute: typeof ApiDisksPowerRoute
   ApiDisksSmartRoute: typeof ApiDisksSmartRoute
@@ -1031,6 +1092,8 @@ export interface RootRouteChildren {
   ApiTerminalIndexRoute: typeof ApiTerminalIndexRoute
   ApiTimersIndexRoute: typeof ApiTimersIndexRoute
   ApiUsersIndexRoute: typeof ApiUsersIndexRoute
+  ApiAuthPasskeyLoginRoute: typeof ApiAuthPasskeyLoginRoute
+  ApiAuthPasskeyOptionsRoute: typeof ApiAuthPasskeyOptionsRoute
   ApiBackupScriptTokenRoute: typeof ApiBackupScriptTokenRoute
   ApiSystemPackagesNameRoute: typeof ApiSystemPackagesNameRoute
   ApiSystemPackagesIndexRoute: typeof ApiSystemPackagesIndexRoute
@@ -1232,6 +1295,13 @@ declare module '@tanstack/react-router' {
       path: '/api/auth/logout'
       fullPath: '/api/auth/logout'
       preLoaderRoute: typeof ApiAuthLogoutRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/passkeys': {
+      id: '/api/auth/passkeys'
+      path: '/api/auth/passkeys'
+      fullPath: '/api/auth/passkeys'
+      preLoaderRoute: typeof ApiAuthPasskeysRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/auth/setup': {
@@ -1570,6 +1640,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiUsersIndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/auth/passkey/login': {
+      id: '/api/auth/passkey/login'
+      path: '/api/auth/passkey/login'
+      fullPath: '/api/auth/passkey/login'
+      preLoaderRoute: typeof ApiAuthPasskeyLoginRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/passkey/options': {
+      id: '/api/auth/passkey/options'
+      path: '/api/auth/passkey/options'
+      fullPath: '/api/auth/passkey/options'
+      preLoaderRoute: typeof ApiAuthPasskeyOptionsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/auth/passkeys/$id': {
+      id: '/api/auth/passkeys/$id'
+      path: '/$id'
+      fullPath: '/api/auth/passkeys/$id'
+      preLoaderRoute: typeof ApiAuthPasskeysIdRouteImport
+      parentRoute: typeof ApiAuthPasskeysRoute
+    }
+    '/api/auth/passkeys/options': {
+      id: '/api/auth/passkeys/options'
+      path: '/options'
+      fullPath: '/api/auth/passkeys/options'
+      preLoaderRoute: typeof ApiAuthPasskeysOptionsRouteImport
+      parentRoute: typeof ApiAuthPasskeysRoute
+    }
     '/api/backup/script/$token': {
       id: '/api/backup/script/$token'
       path: '/api/backup/script/$token'
@@ -1634,6 +1732,20 @@ const AppRouteChildren: AppRouteChildren = {
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
 
+interface ApiAuthPasskeysRouteChildren {
+  ApiAuthPasskeysIdRoute: typeof ApiAuthPasskeysIdRoute
+  ApiAuthPasskeysOptionsRoute: typeof ApiAuthPasskeysOptionsRoute
+}
+
+const ApiAuthPasskeysRouteChildren: ApiAuthPasskeysRouteChildren = {
+  ApiAuthPasskeysIdRoute: ApiAuthPasskeysIdRoute,
+  ApiAuthPasskeysOptionsRoute: ApiAuthPasskeysOptionsRoute,
+}
+
+const ApiAuthPasskeysRouteWithChildren = ApiAuthPasskeysRoute._addFileChildren(
+  ApiAuthPasskeysRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   LoginRoute: LoginRoute,
@@ -1647,6 +1759,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiUnlockRoute: ApiUnlockRoute,
   ApiAuthLoginRoute: ApiAuthLoginRoute,
   ApiAuthLogoutRoute: ApiAuthLogoutRoute,
+  ApiAuthPasskeysRoute: ApiAuthPasskeysRouteWithChildren,
   ApiAuthSetupRoute: ApiAuthSetupRoute,
   ApiDisksPowerRoute: ApiDisksPowerRoute,
   ApiDisksSmartRoute: ApiDisksSmartRoute,
@@ -1695,6 +1808,8 @@ const rootRouteChildren: RootRouteChildren = {
   ApiTerminalIndexRoute: ApiTerminalIndexRoute,
   ApiTimersIndexRoute: ApiTimersIndexRoute,
   ApiUsersIndexRoute: ApiUsersIndexRoute,
+  ApiAuthPasskeyLoginRoute: ApiAuthPasskeyLoginRoute,
+  ApiAuthPasskeyOptionsRoute: ApiAuthPasskeyOptionsRoute,
   ApiBackupScriptTokenRoute: ApiBackupScriptTokenRoute,
   ApiSystemPackagesNameRoute: ApiSystemPackagesNameRoute,
   ApiSystemPackagesIndexRoute: ApiSystemPackagesIndexRoute,

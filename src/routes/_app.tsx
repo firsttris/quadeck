@@ -8,6 +8,7 @@ import { LangSelect } from '~/components/AuthCard'
 import { Glyph, Logo } from '~/components/Glyph'
 import { MotionSelect } from '~/components/MotionSelect'
 import { ThemeSelect } from '~/components/ThemeSelect'
+import { PasskeysDialog } from '~/components/Passkeys'
 import { Dot } from '~/components/Status'
 import { ToastProvider } from '~/components/Toast'
 import { api, setCsrfToken } from '~/lib/api'
@@ -141,6 +142,7 @@ function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => vo
   const path = useRouterState({ select: (s) => s.location.pathname })
   const nav = useNav()
   const h = snapshot.host
+  const [passkeys, setPasskeys] = useState(false)
 
   // The drawer closes when a page is chosen, on Escape, and doesn't let the page behind scroll.
   useEffect(() => onClose(), [path]) // eslint-disable-line react-hooks/exhaustive-deps
@@ -229,9 +231,13 @@ function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => vo
               </span>
             </span>
           ))}
+          <button type="button" className="navbtn mt-1 !min-h-[34px] !px-0 text-[12px]" onClick={() => setPasskeys(true)}>
+            <Glyph name="key" size={15} /> {m.shell_bar_passkeys()}
+          </button>
+          <PasskeysDialog open={passkeys} onClose={() => setPasskeys(false)} />
           <button
             type="button"
-            className="navbtn mt-1 !min-h-[34px] !px-0 text-[12px]"
+            className="navbtn !min-h-[34px] !px-0 text-[12px]"
             onClick={async () => {
               await api('/api/auth/logout').catch(() => {})
               window.location.href = '/login'

@@ -70,3 +70,16 @@ export const sessions = sqliteTable('sessions', {
   createdAt: integer('created_at').notNull(),
   expiresAt: integer('expires_at').notNull(),
 })
+
+// Passkeys for the admin login (WebAuthn). A passkey belongs to the host name it was made on
+// (rp_id): one made on https://nas.example.org does not work on https://192.168.1.2.
+export const passkeys = sqliteTable('passkeys', {
+  id: text('id').primaryKey(), // credential id, base64url
+  publicKey: text('public_key').notNull(), // COSE key, base64url
+  counter: integer('counter').notNull().default(0),
+  transports: text('transports', { mode: 'json' }).$type<string[]>(),
+  rpId: text('rp_id').notNull(),
+  name: text('name').notNull(),
+  createdAt: integer('created_at').notNull(),
+  lastUsedAt: integer('last_used_at'),
+})

@@ -3,7 +3,7 @@ import { getRequest } from '@tanstack/react-start/server'
 
 import type { Lang } from '~/shared/i18n'
 
-export type AuthState = ({ state: 'setup' } | { state: 'login' } | { state: 'ok'; csrf: string; readonly: boolean }) & { lang: Lang }
+export type AuthState = ({ state: 'setup' } | { state: 'login'; passkeys: boolean } | { state: 'ok'; csrf: string; readonly: boolean }) & { lang: Lang }
 
 export const getAuthState = createServerFn({ method: 'GET' }).handler(async (): Promise<AuthState> => {
   const { getSession, hasPassword, ensureSetupToken } = await import('~/server/auth')
@@ -15,7 +15,9 @@ export const getAuthState = createServerFn({ method: 'GET' }).handler(async (): 
     return { state: 'setup', lang }
   }
   const s = getSession(getRequest())
-  return s ? { state: 'ok', csrf: s.csrf, readonly: config().readonly, lang } : { state: 'login', lang }
+  if (s) return { state: 'ok', csrf: s.csrf, readonly: config().readonly, lang }
+  const { hasPasskeys } = await import('~/server/passkeys')
+  return { state: 'login', passkeys: hasPasskeys(), lang }
 })
 
 export const getInitialSnapshot = createServerFn({ method: 'GET' }).handler(async () => {
