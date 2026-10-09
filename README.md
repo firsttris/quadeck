@@ -49,7 +49,7 @@ prints a link like **http://\<host\>:8484/setup?token=…**. Open it and set you
 That's it.
 
 Update later with `sudo quadeck update`. Manual installation, environment variables, running behind
-a reverse proxy and uninstalling are in the [installation guide](docs/installation.md).
+a reverse proxy and uninstalling are in the [installation guide](https://firsttris.github.io/quadeck/installation.html).
 
 ### 🐧 Runs on
 
@@ -71,7 +71,7 @@ Quadeck manages the **system (rootful) Podman**: `/run/podman/podman.sock` and Q
 `/etc/containers/systemd`; rootless containers of other users are not shown. Boot entries need
 systemd-boot. `quadeck doctor` shows what Quadeck finds on your machine, and CI starts the binary in
 a container of each distribution above. What works where, feature by feature: the
-[feature matrix](docs/installation.md#feature-matrix).
+[feature matrix](https://firsttris.github.io/quadeck/installation.html#feature-matrix).
 
 > [!WARNING]
 > Quadeck is made for your LAN. Do not expose it to the internet without a VPN or a reverse proxy
@@ -102,23 +102,23 @@ Plus: power usage and its cost (CPU and GPU measured, disks estimated from their
 
 <table>
   <tr>
-    <td width="50%"><img src="docs/screenshot-quadlets.png" alt="Quadlet editor: jellyfin.container as a form with image, ports, volumes and environment"><br><sub><b>Quadlet editor</b> – form and text on the same file · <a href="docs/quadlets.md">docs →</a></sub></td>
-    <td width="50%"><img src="docs/screenshot-system.png" alt="Updates: Arch news, pacman and AUR updates with a reboot hint, container images"><br><sub><b>Updates</b> – packages, AUR and container images · <a href="docs/updates.md">docs →</a></sub></td>
+    <td width="50%"><img src="docs/screenshot-quadlets.png" alt="Quadlet editor: jellyfin.container as a form with image, ports, volumes and environment"><br><sub><b>Quadlet editor</b> – form and text on the same file · <a href="https://firsttris.github.io/quadeck/quadlets.html">docs →</a></sub></td>
+    <td width="50%"><img src="docs/screenshot-system.png" alt="Updates: Arch news, pacman and AUR updates with a reboot hint, container images"><br><sub><b>Updates</b> – packages, AUR and container images · <a href="https://firsttris.github.io/quadeck/updates.html">docs →</a></sub></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshot-boot.png" alt="Boot and reboot: systemd-boot entries, boot loader, kernels"><br><sub><b>Boot</b> – entries, one-time boot, kernels · <a href="docs/updates.md#boot-and-reboot">docs →</a></sub></td>
-    <td><img src="docs/screenshot-proxy.png" alt="Reverse proxy: Caddy domains and their targets"><br><sub><b>Reverse proxy</b> – Caddy domains with their options · <a href="docs/network.md">docs →</a></sub></td>
+    <td><img src="docs/screenshot-boot.png" alt="Boot and reboot: systemd-boot entries, boot loader, kernels"><br><sub><b>Boot</b> – entries, one-time boot, kernels · <a href="https://firsttris.github.io/quadeck/updates.html#boot-and-reboot">docs →</a></sub></td>
+    <td><img src="docs/screenshot-proxy.png" alt="Reverse proxy: Caddy domains and their targets"><br><sub><b>Reverse proxy</b> – Caddy domains with their options · <a href="https://firsttris.github.io/quadeck/network.html">docs →</a></sub></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshot-disks.png" alt="Disks: SMART verdict and advice per disk"><br><sub><b>Disks</b> – SMART with advice · <a href="docs/disks.md">docs →</a></sub></td>
-    <td><img src="docs/screenshot-timers.png" alt="Timers: schedule, next and last run, result and command"><br><sub><b>Timers</b> – the cron replacement · <a href="docs/systemd.md">docs →</a></sub></td>
+    <td><img src="docs/screenshot-disks.png" alt="Disks: SMART verdict and advice per disk"><br><sub><b>Disks</b> – SMART with advice · <a href="https://firsttris.github.io/quadeck/disks.html">docs →</a></sub></td>
+    <td><img src="docs/screenshot-timers.png" alt="Timers: schedule, next and last run, result and command"><br><sub><b>Timers</b> – the cron replacement · <a href="https://firsttris.github.io/quadeck/systemd.html">docs →</a></sub></td>
   </tr>
   <tr>
-    <td><img src="docs/screenshot-backups.png" alt="Backups: last run, next run, repository size and target, what is backed up with its exclusions, recent runs and the snapshots to browse"><br><sub><b>Backups</b> – restic with snapshots to browse · <a href="docs/backups.md">docs →</a></sub></td>
-    <td><img src="docs/screenshot-speedtest.png" alt="Speed test: gauges for this device and the internet, results in Mbit/s and MB/s, the graph over 30 days, automatic runs"><br><sub><b>Speed test</b> – live gauge, both units, graph over time · <a href="docs/network.md#speed-test">docs →</a></sub></td>
+    <td><img src="docs/screenshot-backups.png" alt="Backups: last run, next run, repository size and target, what is backed up with its exclusions, recent runs and the snapshots to browse"><br><sub><b>Backups</b> – restic with snapshots to browse · <a href="https://firsttris.github.io/quadeck/backups.html">docs →</a></sub></td>
+    <td><img src="docs/screenshot-speedtest.png" alt="Speed test: gauges for this device and the internet, results in Mbit/s and MB/s, the graph over 30 days, automatic runs"><br><sub><b>Speed test</b> – live gauge, both units, graph over time · <a href="https://firsttris.github.io/quadeck/network.html#speed-test">docs →</a></sub></td>
   </tr>
   <tr>
-    <td colspan="2"><img src="docs/screenshot-themes.png" alt="The overview in the five color themes: Quadeck, Nord, Ocean, Amethyst and Copper"><br><sub><b>Color themes</b> – Quadeck, Nord, Ocean, Amethyst, Copper · <a href="docs/README.md#which-page-does-what">docs →</a></sub></td>
+    <td colspan="2"><img src="docs/screenshot-themes.png" alt="The overview in the five color themes: Quadeck, Nord, Ocean, Amethyst and Copper"><br><sub><b>Color themes</b> – Quadeck, Nord, Ocean, Amethyst, Copper · <a href="https://firsttris.github.io/quadeck/#which-page-does-what">docs →</a></sub></td>
   </tr>
 </table>
 
@@ -139,10 +139,10 @@ Good tools exist for neighbouring jobs. Quadeck is for one home server that runs
 ### Is there a web UI for Podman Quadlets?
 Yes, that is what Quadeck is: it lists, starts, stops and edits Quadlet units, checks every change
 with Podman's own Quadlet generator before saving, keeps a history of each file, and imports
-`docker-compose.yml` files into Quadlets. See [Units and Quadlets](docs/quadlets.md).
+`docker-compose.yml` files into Quadlets. See [Units and Quadlets](https://firsttris.github.io/quadeck/quadlets.html).
 
 ### Does Quadeck work with Docker?
-No, it is built for Podman. Coming from Docker, the [compose import](docs/quadlets.md) turns a
+No, it is built for Podman. Coming from Docker, the [compose import](https://firsttris.github.io/quadeck/quadlets.html) turns a
 `docker-compose.yml` into Quadlet files.
 
 ### Does it manage rootless Podman?
@@ -151,7 +151,7 @@ rootless containers and user Quadlets are not shown.
 
 ### Does it run as a container?
 No. It is one binary on the host with two systemd services: a web app without root, and a small root
-helper with a fixed list of actions behind a Unix socket. See [Security](docs/security.md).
+helper with a fixed list of actions behind a Unix socket. See [Security](https://firsttris.github.io/quadeck/security.html).
 
 ### Which distributions and hardware does it run on?
 x64 and arm64 (Raspberry Pi with a 64-bit OS included) on Arch, Fedora, RHEL and its rebuilds,
@@ -173,7 +173,7 @@ QUADECK_DATA_DIR=.data QUADECK_FIXTURES=fixtures/demo bun run dev   # http://loc
 
 Bun, TanStack Start (React), Tailwind, SQLite with Drizzle, Vitest and Playwright; one binary per
 platform through `bun build --compile`. Architecture, tests and releases:
-[docs/development.md](docs/development.md).
+[Development](https://firsttris.github.io/quadeck/development.html).
 
 ## 🤝 Contributing
 
