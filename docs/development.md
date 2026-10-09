@@ -119,9 +119,14 @@ generated notes, after checking that the tag matches `package.json`. `quadeck up
 ## Screenshots
 
 The pictures in `docs/` come from the demo data, in English, through `scripts/screenshots.mjs`.
-Build, start the demo with a fresh data directory, then run the script (the commands are at its
-top). It sets the password, restarts the two failed demo units for a healthy overview, and writes
-`docs/screenshot-*.png`.
+It sets the password, restarts the two failed demo units for a healthy overview, and writes
+`docs/screenshot-*.png` and the social preview. `bun run screenshots` (`scripts/screenshots.sh`)
+builds, starts the demo with a fresh data directory, runs the script and stops the demo again;
+`CHROMIUM_PATH=/usr/bin/chromium bun run screenshots` uses a local Chromium.
+
+After a change to the look, run **Update screenshots** (Actions → Run workflow,
+`.github/workflows/screenshots.yml`) on the branch: it takes the pictures in the official
+Playwright image and commits the ones that changed.
 
 ## Documentation website
 

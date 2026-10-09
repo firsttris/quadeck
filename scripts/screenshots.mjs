@@ -1,4 +1,5 @@
 // Takes the screenshots in docs/ from the demo data, in English.
+//   bun run screenshots (scripts/screenshots.sh starts the demo server and runs this script), or by hand:
 //   bun run build && rm -rf .shot-data && QUADECK_PORT=8686 QUADECK_HOST=127.0.0.1 QUADECK_DATA_DIR=.shot-data QUADECK_FIXTURES=fixtures/demo QUADECK_UNLOCK=quadeck bun scripts/start.ts
 //   CHROMIUM_PATH=/path/to/chromium node scripts/screenshots.mjs [docs]
 import { chromium } from '@playwright/test'
