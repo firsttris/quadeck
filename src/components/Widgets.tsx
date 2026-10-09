@@ -175,7 +175,7 @@ export function NoteWidget({ widget, editing, onEdit }: { widget: WidgetInstance
   const heading = title || m.widgets_note_name()
   return (
     <section className="flex flex-col gap-2 p-[18px]" aria-label={heading} data-testid="note-widget">
-      <div className="flex items-center gap-2 pr-16">
+      <div className="flex items-center gap-2 in-[.editing]:pr-16">
         <h2 className="h2 min-w-0 grow truncate">{heading}</h2>
         {/* in edit mode the ⚙ of the frame does this */}
         {!editing && (

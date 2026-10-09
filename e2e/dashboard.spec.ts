@@ -413,6 +413,70 @@ test.describe.serial('Quadeck', () => {
     await expect(page.getByTestId('service-tile').filter({ hasText: 'Jellyfin' })).toHaveAttribute('href', 'https://jellyfin.home.example')
   })
 
+  test('a newly picked icon shows right away, even after the old one failed to load', async ({ page }) => {
+    // Only "plex" exists; every other icon (the automatic one included) fails and falls back to a glyph.
+    await page.route('**/api/icons/*', (r) =>
+      r.request().url().endsWith('/api/icons/plex') ? r.fulfill({ contentType: 'image/svg+xml', body: '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 8 8"><rect width="8" height="8" fill="#e5a00d"/></svg>' }) : r.fulfill({ status: 404, body: 'not found' }),
+    )
+    await page.route('**/api/favicon/*', (r) => r.fulfill({ status: 404, body: 'not found' }))
+    await login(page)
+    await page.getByRole('img', { name: 'live verbunden' }).waitFor()
+    const icon = page.getByTestId('service-tile').filter({ hasText: 'Jellyfin' }).locator('[data-size]')
+    await expect(icon.locator('svg')).toBeVisible() // the fallback glyph
+    await page.getByRole('button', { name: 'Bearbeiten' }).click()
+    await page.getByRole('button', { name: 'Jellyfin bearbeiten' }).click()
+    let dialog = page.getByRole('dialog', { name: 'Jellyfin bearbeiten' })
+    await dialog.getByLabel('Icon suchen').fill('plex')
+    await dialog.getByRole('button', { name: 'Speichern' }).click()
+    await expect(dialog).toBeHidden()
+    await expect(icon).toHaveAttribute('data-icon', 'plex')
+    await expect(icon.locator('img')).toHaveAttribute('src', '/api/icons/plex') // without a reload
+    await expect.poll(() => icon.locator('img').evaluate((img: HTMLImageElement) => img.naturalWidth)).toBeGreaterThan(0)
+
+    // Opened again, the dialog shows this icon (not the one of the service edited before)
+    await page.getByRole('button', { name: 'Jellyfin bearbeiten' }).click()
+    dialog = page.getByRole('dialog', { name: 'Jellyfin bearbeiten' })
+    await expect(dialog.getByLabel('Icon suchen')).toHaveValue('plex')
+    await dialog.getByRole('button', { name: 'Auf automatisch zurücksetzen' }).click()
+    await expect(icon).not.toHaveAttribute('data-icon', 'plex')
+    await expect(icon.locator('svg')).toBeVisible()
+    await page.getByRole('button', { name: 'Fertig' }).click()
+  })
+
+  test('icon size of the service tiles: one setting for all, only in edit mode, kept across reloads, reset to medium', async ({ page }) => {
+    await login(page)
+    await page.getByRole('img', { name: 'live verbunden' }).waitFor()
+    const sizes = page.getByRole('radiogroup', { name: 'Icon-Größe' })
+    await expect(sizes).toHaveCount(0) // not outside edit mode
+    const icons = page.getByRole('region', { name: 'Services' }).locator('[data-size]')
+    const box = async () => (await page.getByTestId('service-tile').filter({ hasText: 'Jellyfin' }).locator('[data-size]').boundingBox())!.width
+    const medium = await box()
+
+    await page.getByRole('button', { name: 'Bearbeiten' }).click()
+    await expect(sizes.getByRole('radio', { name: 'Mittel' })).toHaveAttribute('aria-checked', 'true')
+    await sizes.getByRole('radio', { name: 'Groß' }).click()
+    await expect(sizes.getByRole('radio', { name: 'Groß' })).toHaveAttribute('aria-checked', 'true')
+    await expect.poll(box).toBeGreaterThan(medium)
+    await page.getByRole('button', { name: 'Fertig' }).click()
+
+    await page.reload()
+    await page.getByRole('img', { name: 'live verbunden' }).waitFor()
+    for (const el of await icons.all()) await expect(el).toHaveAttribute('data-size', 'lg') // every tile, not just one
+    // the tile keeps room for name and host under the larger icon
+    const tile = page.getByTestId('service-tile').filter({ hasText: 'Jellyfin' })
+    const host = (await tile.getByText('jellyfin.home.example').boundingBox())!
+    const frame = (await tile.boundingBox())!
+    expect(host.y + host.height).toBeLessThanOrEqual(frame.y + frame.height)
+
+    await page.getByRole('button', { name: 'Bearbeiten' }).click()
+    await sizes.getByRole('radio', { name: 'Klein' }).click()
+    await expect.poll(box).toBeLessThan(medium)
+    await page.getByRole('button', { name: 'Auf Auto-Layout zurücksetzen' }).click()
+    await expect(sizes.getByRole('radio', { name: 'Mittel' })).toHaveAttribute('aria-checked', 'true')
+    await expect.poll(box).toBe(medium)
+    await page.getByRole('button', { name: 'Fertig' }).click()
+  })
+
   test('animations: off, subtle, strong in the sidebar and the palette; kept per browser; "reduce motion" means off', async ({ page }) => {
     await login(page)
     const html = page.locator('html')
