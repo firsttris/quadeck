@@ -85,5 +85,10 @@ browser, like in SnapRAID UI and the CCU add-on:
 | **Subtle** (default) | the page fades in, the marker of the current page slides in, dialogs open softly, gauges and bars glide to new values, charts draw in; only warnings and errors pulse |
 | **Strong** | everything rises in one after the other, the current page glows in the navigation and entries move on hover, widgets and tiles light up and lift on hover, bars shimmer, status lights breathe, a running job glows |
 
+The login and setup page show the logo brought to life, a container ship being loaded: containers are lowered onto
+the deck one after the other, the ship rocks on the waves and the lights on the containers blink
+like running services; a wrong password shakes the message. It follows the color theme and stands
+still, fully loaded, when animations are off.
+
 Without a choice, the system's *reduce motion* setting means **Off**. In the overview's edit mode
 widgets never move by themselves, so dragging and resizing stay precise.

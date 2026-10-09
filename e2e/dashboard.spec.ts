@@ -86,6 +86,33 @@ test.describe.serial('Quadeck', () => {
     await expect(page).toHaveURL('/login')
   })
 
+  test('login scene: a container ship is loaded, a wrong password shakes; still and fully loaded with reduced motion', async ({ page, browser }) => {
+    await page.goto('/login')
+    const ship = page.locator('svg.auth-ship')
+    await expect(ship).toHaveAttribute('aria-hidden', 'true') // decoration only
+    await expect(ship.locator('.auth-box')).toHaveCount(11)
+    expect(await ship.locator('.auth-box').last().evaluate((el) => getComputedStyle(el).animationName)).toBe('auth-load')
+    expect(await page.locator('.auth-card').evaluate((el) => getComputedStyle(el).animationName)).toBe('auth-card-in')
+    for (const attempt of [1, 2]) {
+      await page.getByLabel('Passwort').fill(`wrong-${attempt}`)
+      await page.getByRole('button', { name: 'Anmelden' }).click()
+      const alert = page.getByRole('alert')
+      await expect(alert).toHaveText('Passwort ist falsch')
+      expect(await alert.evaluate((el) => getComputedStyle(el).animationName)).toBe('auth-shake')
+    }
+
+    const ctx = await browser.newContext({ reducedMotion: 'reduce' })
+    const still = await ctx.newPage()
+    await still.goto('/login')
+    const boxes = still.locator('svg.auth-ship .auth-box')
+    await expect(boxes).toHaveCount(11)
+    for (const el of await boxes.all()) {
+      expect(await el.evaluate((b) => [getComputedStyle(b).animationName, getComputedStyle(b).opacity])).toEqual(['none', '1'])
+    }
+    expect(await still.locator('.auth-hull').evaluate((el) => getComputedStyle(el).animationName)).toBe('none')
+    await ctx.close()
+  })
+
   test('privileged actions are locked until unlocked with the password; the lock runs out and can be set again', async ({ page }) => {
     await login(page)
     await page.getByRole('img', { name: 'live verbunden' }).waitFor()

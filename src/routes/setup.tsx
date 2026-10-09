@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useState } from 'react'
-import { AuthCard, useHydrated } from '~/components/AuthCard'
+import { AuthCard, AuthError, useHydrated } from '~/components/AuthCard'
 import { api } from '~/lib/api'
 import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
@@ -54,12 +54,9 @@ function Setup() {
           {m.shell_setup_repeat()}
           <input name="password2" type="password" required minLength={10} autoComplete="new-password" className="field" />
         </label>
-        {error && (
-          <p role="alert" className="m-0 text-[13px] text-[#ff8a80]">
-            {error}
-          </p>
-        )}
-        <button type="submit" className="btn primary justify-center" disabled={busy || !hydrated}>
+        {error && <AuthError>{error}</AuthError>}
+        <button type="submit" className="btn primary auth-submit justify-center" disabled={busy || !hydrated}>
+          <span className="auth-sheen" aria-hidden />
           {m.shell_setup_submit()}
         </button>
       </form>
