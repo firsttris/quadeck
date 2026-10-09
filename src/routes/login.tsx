@@ -1,6 +1,6 @@
 import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
-import { AuthCard, useHydrated } from '~/components/AuthCard'
+import { AuthCard, AuthError, useHydrated } from '~/components/AuthCard'
 import { Glyph } from '~/components/Glyph'
 import { api } from '~/lib/api'
 import { loginWithPasskey, passkeyErrorMessage, passkeysSupported } from '~/lib/passkeys'
@@ -46,12 +46,9 @@ function Login() {
           {m.shell_login_password()}
           <input name="password" type="password" required autoFocus autoComplete="current-password" className="field" />
         </label>
-        {error && (
-          <p role="alert" className="m-0 text-[13px] text-[#ff8a80]">
-            {error}
-          </p>
-        )}
-        <button type="submit" className="btn primary justify-center" disabled={busy || !hydrated}>
+        {error && <AuthError>{error}</AuthError>}
+        <button type="submit" className="btn primary auth-submit justify-center" disabled={busy || !hydrated}>
+          <span className="auth-sheen" aria-hidden />
           {m.shell_login_submit()}
         </button>
         {passkey && (

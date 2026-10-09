@@ -880,3 +880,144 @@
   --color-accent-2: #8fb3d9;
   --color-glow-2: #e3c46b;
 }
+
+/* ---------- login and setup (AuthCard): a container ship gets loaded ----------
+   Same motion language as the SnapRAID-UI login. Off and "reduce motion" stop it
+   through the rules above; the ship then simply stands fully loaded. */
+.auth-grid {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  opacity: 0.4;
+  background-image: linear-gradient(rgb(255 255 255 / 0.04) 1px, transparent 1px), linear-gradient(90deg, rgb(255 255 255 / 0.04) 1px, transparent 1px);
+  background-size: 48px 48px;
+  mask-image: radial-gradient(ellipse at center, black 30%, transparent 75%);
+}
+.auth > .auth-glow {
+  position: absolute;
+  width: 24rem;
+  height: 24rem;
+  border-radius: 9999px;
+  filter: blur(64px);
+  pointer-events: none;
+  animation: auth-glow 14s ease-in-out infinite;
+}
+.auth > .auth-card {
+  animation: auth-card-in 0.6s cubic-bezier(0.16, 1, 0.3, 1) backwards;
+  background: color-mix(in srgb, var(--color-panel) 82%, transparent);
+  backdrop-filter: blur(16px);
+  box-shadow: 0 24px 60px -20px rgb(0 0 0 / 0.7);
+}
+.auth-shake {
+  animation: auth-shake 0.45s ease-in-out;
+}
+.auth-submit {
+  position: relative;
+  overflow: hidden;
+}
+.auth-sheen {
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(100deg, transparent 30%, rgb(255 255 255 / 0.35) 50%, transparent 70%);
+  transform: translateX(-100%);
+  pointer-events: none;
+}
+.auth-submit:hover:not(:disabled) .auth-sheen {
+  animation: auth-sheen 0.9s ease;
+}
+.auth-ship g,
+.auth-ship path {
+  transform-box: fill-box;
+}
+.auth-hull {
+  transform-origin: center;
+  animation: auth-bob 5s ease-in-out infinite;
+}
+.auth-box {
+  animation: auth-load 0.7s cubic-bezier(0.34, 1.4, 0.64, 1) backwards;
+}
+.auth-led {
+  animation: auth-led 2s steps(1) infinite;
+}
+.auth-wave {
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  animation: auth-wave 3s linear infinite;
+}
+.auth-wave.slow {
+  animation-duration: 4.6s;
+  animation-direction: reverse;
+}
+@keyframes auth-card-in {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.98);
+  }
+}
+@keyframes auth-glow {
+  0%,
+  100% {
+    transform: translate(0, 0) scale(1);
+  }
+  50% {
+    transform: translate(40px, 30px) scale(1.15);
+  }
+}
+@keyframes auth-shake {
+  10%,
+  90% {
+    transform: translateX(-1px);
+  }
+  20%,
+  80% {
+    transform: translateX(3px);
+  }
+  30%,
+  50%,
+  70% {
+    transform: translateX(-5px);
+  }
+  40%,
+  60% {
+    transform: translateX(5px);
+  }
+}
+@keyframes auth-sheen {
+  to {
+    transform: translateX(100%);
+  }
+}
+@keyframes auth-bob {
+  0%,
+  100% {
+    transform: translateY(0) rotate(0deg);
+  }
+  50% {
+    transform: translateY(-2px) rotate(-0.8deg);
+  }
+}
+/* lowered from above by the crane, with a small bounce on the stack */
+@keyframes auth-load {
+  from {
+    opacity: 0;
+    transform: translateY(-46px);
+  }
+  40% {
+    opacity: 1;
+  }
+}
+@keyframes auth-led {
+  0%,
+  55%,
+  100% {
+    opacity: 0.25;
+  }
+  65% {
+    opacity: 1;
+  }
+}
+@keyframes auth-wave {
+  to {
+    transform: translateX(-40px);
+  }
+}
