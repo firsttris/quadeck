@@ -57,6 +57,34 @@
     color: var(--color-accent);
     text-decoration: none;
   }
+  /* Scrollbars like shadcn's ScrollArea: thin, round, no arrows, on a clear track,
+     brighter on hover. WebKit/Blink get the round thumb; Firefox only knows width and color
+     (set there alone, since Chrome would otherwise drop the ::-webkit rules). */
+  ::-webkit-scrollbar {
+    width: 10px;
+    height: 10px;
+  }
+  ::-webkit-scrollbar-track,
+  ::-webkit-scrollbar-corner {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    border: 3px solid transparent;
+    border-radius: 9999px;
+    background: var(--color-rim-strong) padding-box;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background-color: var(--color-dim);
+  }
+  ::-webkit-scrollbar-button {
+    display: none;
+  }
+  @supports (-moz-appearance: none) {
+    * {
+      scrollbar-width: thin;
+      scrollbar-color: var(--color-rim-strong) transparent;
+    }
+  }
   a:hover {
     color: var(--color-accent-soft);
   }
