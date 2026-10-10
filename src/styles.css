@@ -181,7 +181,6 @@
     border-radius: 50%;
     background: currentColor;
     box-shadow: 0 0 8px currentColor;
-    animation: alarm 1.6s infinite;
   }
   .live.off {
     color: var(--color-muted);
@@ -711,7 +710,9 @@
 [data-motion='strong'] dialog.modal[open] {
   animation: dialog-pop 0.28s cubic-bezier(0.16, 1, 0.3, 1);
 }
-[data-motion='strong'] .dot.ok {
+/* healthy lights only breathe here; on subtle only warnings and errors pulse */
+[data-motion='strong'] .dot.ok,
+[data-motion='strong'] .live:not(.off)::before {
   animation: breathe 2.8s ease-in-out infinite;
 }
 [data-motion='strong'] .dot.ok,
