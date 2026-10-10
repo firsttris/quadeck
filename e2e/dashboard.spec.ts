@@ -596,6 +596,29 @@ test.describe.serial('Quadeck', () => {
     await page.getByRole('button', { name: 'Fertig' }).click()
   })
 
+  test('animations: healthy lights stand still on subtle and only breathe on strong; warnings and errors pulse', async ({ page }) => {
+    await login(page)
+    await page.goto('/journal')
+    const live = page.locator('.live:not(.off)') // following the journal
+    await expect(live).toBeVisible()
+    const anim = (sel: string, pseudo?: string) => page.locator(sel).first().evaluate((el, p) => getComputedStyle(el, p).animationName, pseudo ?? null)
+    await expect(page.locator('html')).toHaveAttribute('data-motion', 'subtle')
+    expect(await anim('.live', '::before')).toBe('none')
+    await page.goto('/')
+    expect(await anim('.dot.ok')).toBe('none')
+    expect(await anim('.dot.bad')).toBe('alarm') // the failed demo unit on its alarm card
+
+    await page.evaluate(() => localStorage.setItem('quadeck-motion', 'strong'))
+    await page.reload()
+    await expect(page.locator('html')).toHaveAttribute('data-motion', 'strong')
+    expect(await anim('.dot.ok')).toBe('breathe')
+    expect(await anim('.dot.bad')).toBe('alarm')
+    await page.goto('/journal')
+    await expect(live).toBeVisible()
+    expect(await anim('.live', '::before')).toBe('breathe')
+    await page.evaluate(() => localStorage.removeItem('quadeck-motion'))
+  })
+
   test('units filter and journal', async ({ page }) => {
     await login(page)
     await page.getByRole('link', { name: /Units/ }).click()
