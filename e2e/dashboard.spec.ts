@@ -661,6 +661,29 @@ test.describe
       await expect(page.getByTestId('journal')).not.toContainText('Playback started')
     })
 
+    test('installable as an app: manifest, icons and the iOS tags, readable before the login', async ({ page, request }) => {
+      const manifest = await request.get('/manifest.webmanifest')
+      expect(manifest.ok()).toBe(true)
+      expect(manifest.headers()['content-type']).toContain('application/manifest+json')
+      const m = (await manifest.json()) as { name: string; start_url: string; display: string; icons: { src: string; sizes: string; purpose?: string }[] }
+      expect(m).toMatchObject({ name: 'Quadeck', start_url: '/', display: 'standalone' })
+      expect(m.icons.map((i) => i.sizes)).toEqual(expect.arrayContaining(['192x192', '512x512']))
+      expect(m.icons.some((i) => i.purpose === 'maskable')).toBe(true)
+      for (const icon of [...m.icons.map((i) => i.src), '/icons/apple-touch-icon.png']) {
+        const r = await request.get(icon)
+        expect(r.ok(), icon).toBe(true)
+      }
+
+      await page.goto('/login') // the login page already offers the install, before anyone signs in
+      await expect(page.locator('link[rel="manifest"]')).toHaveAttribute('href', '/manifest.webmanifest')
+      await expect(page.locator('link[rel="apple-touch-icon"]')).toHaveAttribute('href', '/icons/apple-touch-icon.png')
+      await expect(page.locator('meta[name="theme-color"]')).toHaveAttribute('content', '#0b0f14')
+      // Chrome's own verdict; Playwright's contexts are always incognito, nothing else may be missing
+      const cdp = await page.context().newCDPSession(page)
+      const { installabilityErrors } = (await cdp.send('Page.getInstallabilityErrors')) as { installabilityErrors: { errorId: string }[] }
+      expect(installabilityErrors.map((e) => e.errorId).filter((id) => id !== 'in-incognito')).toEqual([])
+    })
+
     test('API refuses anonymous and cross-site requests', async ({ request, page }) => {
       expect((await request.get('/api/events')).status()).toBe(401)
       expect((await request.post('/api/units', { data: { name: 'jellyfin.service', action: 'stop' } })).status()).toBe(401)

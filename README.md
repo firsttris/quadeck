@@ -97,7 +97,7 @@ a container of each distribution above. What works where, feature by feature: th
 | 🔔 **Notifications** | ntfy, Gotify, Telegram, e-mail or webhook when something fails, a disk fills up, the internet is slow or updates are waiting |
 
 Plus: power usage and its cost (CPU and GPU measured, disks estimated from their state), hardware details (memory slots, GPU passthrough lines, stable USB paths), a command palette
-(<kbd>Ctrl</kbd>+<kbd>K</kbd>), five color themes and three animation levels, English and German, a read-only mode and an unlock that expires after
+(<kbd>Ctrl</kbd>+<kbd>K</kbd>), five color themes and three animation levels, English and German, installable on a phone's home screen, a read-only mode and an unlock that expires after
 15 minutes. Every page is described in the [documentation](https://firsttris.github.io/quadeck/).
 
 ## 📸 Screenshots
