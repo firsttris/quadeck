@@ -8,49 +8,49 @@
 // snapshot list. The schedule is a pair of systemd units in /etc/systemd/system.
 
 import { randomBytes } from 'node:crypto'
-import { chmodSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync } from 'node:fs'
+import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { statfs } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
+import { m } from '~/paraglide/messages'
 import {
+  absPathProblem,
   BACKUP_TIMER,
   BACKUP_UNIT,
-  CHECK_TIMER,
-  CHECK_UNIT,
-  REPO_SECRETS,
-  SNAPSHOT_ID,
-  VOLUME_PATH,
-  absPathProblem,
-  backupArgs,
-  backupRunFrom,
-  backupUnits,
-  excludeFile,
-  forgetArgs,
-  parseLs,
-  parseSnapshots,
-  repoString,
-  suggestBackup,
+  type BackupClient,
   type BackupPlan,
   type BackupRun,
   type BackupSizes,
   type BackupSnapshot,
   type BackupState,
   type BackupSuggestion,
-  type LsEntry,
+  backupArgs,
+  backupRunFrom,
+  backupUnits,
+  CHECK_TIMER,
+  CHECK_UNIT,
   CLIENT_NAME,
-  targetQuadlet,
   clientRepo,
-  type BackupClient,
+  excludeFile,
   type FolderListing,
+  forgetArgs,
+  type LsEntry,
+  parseLs,
+  parseSnapshots,
+  REPO_SECRETS,
+  repoString,
+  SNAPSHOT_ID,
+  suggestBackup,
   type TargetConfig,
   type TargetState,
+  targetQuadlet,
+  VOLUME_PATH,
 } from '~/shared/backup'
+import { type ClientPlan, clientScript, defaultClientPlan } from '~/shared/backup-client'
 import { localize, msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
-import { clientScript, defaultClientPlan, type ClientPlan } from '~/shared/backup-client'
-import { HttpError } from '../auth'
-import { run, type ExecResult } from '../exec'
-import type { PodmanAdmin } from '../quadlets/backend'
 import { writeFileAtomic } from '../atomic'
+import { HttpError } from '../auth'
+import { type ExecResult, run } from '../exec'
+import type { PodmanAdmin } from '../quadlets/backend'
 import { dirsWithVolumes, systemDirFs, treeDirFs } from './dirs'
 
 export interface BackupAdmin {
@@ -376,7 +376,7 @@ export class SystemBackup implements BackupBackend {
   async saveBackupPlan(plan: BackupPlan, secrets: Record<string, string>): Promise<BackupState> {
     if (!this.installed()) throw new HttpError(409, msg(m.backup_error_notInstalled))
     this.ensureDir()
-    if (!existsSync(this.file('password'))) writePrivate(this.file('password'), randomBytes(32).toString('base64url') + '\n')
+    if (!existsSync(this.file('password'))) writePrivate(this.file('password'), `${randomBytes(32).toString('base64url')}\n`)
     const merged = { ...this.secrets(), ...secrets }
     const needed = REPO_SECRETS[plan.repo.kind]
     const missing = needed.filter((k) => !merged[k])
@@ -392,7 +392,12 @@ export class SystemBackup implements BackupBackend {
       if (init.code !== 0) throw new HttpError(422, msg(m.backup_error_repoInit, { message: init.stderr.trim() }))
       this.log(msg(m.backup_log_initialised, { repo: repoString(plan.repo) }))
     }
-    writePrivate(this.file('env'), Object.entries(merged).map(([k, v]) => `${k}=${v}`).join('\n') + '\n')
+    writePrivate(
+      this.file('env'),
+      `${Object.entries(merged)
+        .map(([k, v]) => `${k}=${v}`)
+        .join('\n')}\n`,
+    )
 
     writePrivate(this.file('plan.json'), JSON.stringify(plan, null, 2))
     writePrivate(this.file('excludes'), excludeFile(plan))
@@ -430,7 +435,10 @@ export class SystemBackup implements BackupBackend {
     const plan = this.requirePlan()
     if (kind === 'check' && plan.check === 'never') {
       // No unit for it: a one-off run of the same command.
-      const r = await this.exec(['systemd-run', '--unit=quadeck-backup-check-once', '--collect', '--quiet', '--description=Quadeck: check the backup repository (restic)', '--', ...this.self, 'backup', 'check'], { timeoutMs: 30_000 })
+      const r = await this.exec(
+        ['systemd-run', '--unit=quadeck-backup-check-once', '--collect', '--quiet', '--description=Quadeck: check the backup repository (restic)', '--', ...this.self, 'backup', 'check'],
+        { timeoutMs: 30_000 },
+      )
       if (r.code !== 0) throw new HttpError(500, r.stderr.trim())
       return
     }
@@ -494,7 +502,13 @@ export class SystemBackup implements BackupBackend {
     writePrivate(this.file('target.json'), JSON.stringify(t, null, 2))
     // The rest-server reads its users from .htpasswd in the data folder (and notices changes).
     if (t.config && existsSync(t.config.dataDir)) {
-      writePrivate(join(t.config.dataDir, '.htpasswd'), t.clients.filter((c) => !c.disabled).map((c) => `${c.name}:${c.hash}`).join('\n') + (t.clients.some((c) => !c.disabled) ? '\n' : ''))
+      writePrivate(
+        join(t.config.dataDir, '.htpasswd'),
+        t.clients
+          .filter((c) => !c.disabled)
+          .map((c) => `${c.name}:${c.hash}`)
+          .join('\n') + (t.clients.some((c) => !c.disabled) ? '\n' : ''),
+      )
     }
   }
 
@@ -517,7 +531,11 @@ export class SystemBackup implements BackupBackend {
       t.sizes = sizes
       writePrivate(this.file('target.json'), JSON.stringify(t, null, 2))
     }
-    const clients = t.clients.map(({ hash: _h, ...c }) => ({ ...c, ...(config ? clientRepoStatus(join(config.dataDir, c.name)) : {}), ...(t.sizes?.[c.name] !== undefined ? { size: t.sizes[c.name] } : {}) }))
+    const clients = t.clients.map(({ hash: _h, ...c }) => ({
+      ...c,
+      ...(config ? clientRepoStatus(join(config.dataDir, c.name)) : {}),
+      ...(t.sizes?.[c.name] !== undefined ? { size: t.sizes[c.name] } : {}),
+    }))
     let disk: TargetState['disk']
     if (config)
       try {
@@ -532,7 +550,7 @@ export class SystemBackup implements BackupBackend {
   async saveTarget(config: TargetConfig): Promise<string> {
     if (!existsSync(dirname(config.dataDir))) throw new HttpError(422, msg(m.backup_error_parentMissing, { path: dirname(config.dataDir) }))
     const plan = this.plan()
-    if (plan?.repo.kind === 'local' && (config.dataDir === plan.repo.location || config.dataDir.startsWith(plan.repo.location + '/'))) throw new HttpError(422, msg(m.backup_error_targetInRepo))
+    if (plan?.repo.kind === 'local' && (config.dataDir === plan.repo.location || config.dataDir.startsWith(`${plan.repo.location}/`))) throw new HttpError(422, msg(m.backup_error_targetInRepo))
     mkdirSync(config.dataDir, { recursive: true, mode: 0o700 })
     const t = this.target()
     this.writeTarget({ ...t, config })
@@ -621,7 +639,16 @@ export class SystemBackup implements BackupBackend {
     c.version ??= 0
     c.applied = { version: c.version, at: Date.now() }
     this.writeTarget(t)
-    return clientScript({ name: c.name, repo: clientRepo(t.config, c.name), user: c.name, access, appendOnly: t.config.appendOnly, plan: c.plan ?? defaultClientPlan(), version: c.version, quadeckUrl: link.url })
+    return clientScript({
+      name: c.name,
+      repo: clientRepo(t.config, c.name),
+      user: c.name,
+      access,
+      appendOnly: t.config.appendOnly,
+      plan: c.plan ?? defaultClientPlan(),
+      version: c.version,
+      quadeckUrl: link.url,
+    })
   }
 
   // ---------- runs (`quadeck backup run|check`, restore jobs) ----------
@@ -697,7 +724,14 @@ export class SystemBackup implements BackupBackend {
     }
     const r = await this.restic(plan, ['check', '--read-data-subset=5%'], 24 * 3600_000)
     this.log(r.stdout.trim())
-    const rec: BackupRun = { kind: 'check', startedAt, endedAt: Date.now(), status: r.code === 0 ? 'ok' : 'failed', errors: [], ...(r.code !== 0 ? { message: r.stderr.trim().split('\n').filter(Boolean).pop() ?? `restic ${r.code}` } : {}) }
+    const rec: BackupRun = {
+      kind: 'check',
+      startedAt,
+      endedAt: Date.now(),
+      status: r.code === 0 ? 'ok' : 'failed',
+      errors: [],
+      ...(r.code !== 0 ? { message: r.stderr.trim().split('\n').filter(Boolean).pop() ?? `restic ${r.code}` } : {}),
+    }
     if (r.code !== 0) this.log(r.stderr.trim())
     this.addRun(rec)
     return rec
@@ -706,7 +740,8 @@ export class SystemBackup implements BackupBackend {
   /** Restores paths of a snapshot into a folder or in place; returns restic's exit code. */
   async restore(spec: RestoreSpec): Promise<number> {
     const plan = this.requirePlan()
-    if (!SNAPSHOT_ID.test(spec.snapshot) || !spec.paths.length || spec.paths.some((p) => absPathProblem(p)) || (spec.target !== undefined && absPathProblem(spec.target))) throw new HttpError(400, msg(m.backup_error_path, { path: spec.target ?? '' }))
+    if (!SNAPSHOT_ID.test(spec.snapshot) || !spec.paths.length || spec.paths.some((p) => absPathProblem(p)) || (spec.target !== undefined && absPathProblem(spec.target)))
+      throw new HttpError(400, msg(m.backup_error_path, { path: spec.target ?? '' }))
     const stopped: string[] = []
     if (spec.target === undefined)
       for (const unit of spec.stop) {
@@ -750,7 +785,17 @@ export function isDir(p: string) {
 const DAY = 86_400_000
 
 /** The demo's folders besides the Quadlet mounts: a backup disk, media, a home. */
-const DEMO_DIRS = ['/mnt/backup', '/mnt/backup/old-borg', '/mnt/media/movies', '/mnt/media/tvshows', '/home/tristan/Downloads', '/home/tristan/.config', '/srv/backups', '/var/lib/containers/storage/volumes', '/opt']
+const DEMO_DIRS = [
+  '/mnt/backup',
+  '/mnt/backup/old-borg',
+  '/mnt/media/movies',
+  '/mnt/media/tvshows',
+  '/home/tristan/Downloads',
+  '/home/tristan/.config',
+  '/srv/backups',
+  '/var/lib/containers/storage/volumes',
+  '/opt',
+]
 const DEMO_MOUNTS = { '/': { size: 500e9, free: 210e9 }, '/mnt/backup': { size: 4e12, free: 2.6e12 }, '/mnt/media': { size: 8e12, free: 1.1e12 } }
 
 export class FixtureBackup implements BackupBackend {
@@ -804,9 +849,38 @@ export class FixtureBackup implements BackupBackend {
     })
     const ago = (h: number) => now - h * 3600_000
     this.clients = [
-      { name: 'laptop', created: ago(24 * 90), warnDays: 3, lastAt: ago(6), snapshots: 32, size: 84e9, plan: { ...defaultClientPlan(), folders: ['~/Dokumente', '~/Bilder', '~/Projekte'] }, version: 4, applied: { version: 4, at: ago(24 * 2) } },
-      { name: 'pc-wohnzimmer', created: ago(24 * 200), warnDays: 3, lastAt: ago(24 * 9 + 2), snapshots: 41, size: 121e9, plan: { ...defaultClientPlan(), schedule: { every: 'daily', time: '20:00' } }, version: 2, applied: { version: 2, at: ago(24 * 21) } },
-      { name: 'workstation', created: ago(24 * 30), lastAt: ago(1), snapshots: 18, size: 9e9, plan: { ...defaultClientPlan(), folders: ['~/Projekte', '~/.config'], schedule: { every: '6h', time: '00:00' } }, version: 3, applied: { version: 2, at: ago(24 * 5) } },
+      {
+        name: 'laptop',
+        created: ago(24 * 90),
+        warnDays: 3,
+        lastAt: ago(6),
+        snapshots: 32,
+        size: 84e9,
+        plan: { ...defaultClientPlan(), folders: ['~/Dokumente', '~/Bilder', '~/Projekte'] },
+        version: 4,
+        applied: { version: 4, at: ago(24 * 2) },
+      },
+      {
+        name: 'pc-wohnzimmer',
+        created: ago(24 * 200),
+        warnDays: 3,
+        lastAt: ago(24 * 9 + 2),
+        snapshots: 41,
+        size: 121e9,
+        plan: { ...defaultClientPlan(), schedule: { every: 'daily', time: '20:00' } },
+        version: 2,
+        applied: { version: 2, at: ago(24 * 21) },
+      },
+      {
+        name: 'workstation',
+        created: ago(24 * 30),
+        lastAt: ago(1),
+        snapshots: 18,
+        size: 9e9,
+        plan: { ...defaultClientPlan(), folders: ['~/Projekte', '~/.config'], schedule: { every: '6h', time: '00:00' } },
+        version: 3,
+        applied: { version: 2, at: ago(24 * 5) },
+      },
     ]
     this.runs.splice(9, 0, { kind: 'check', startedAt: at(9) + 3 * 3600_000, endedAt: at(9) + 3 * 3600_000 + 840_000, status: 'ok', errors: [] })
     const keepDays = [0, 1, 2, 3, 4, 5, 6, 13, 20, 27, 33, 64, 94, 125, 155]
@@ -814,7 +888,16 @@ export class FixtureBackup implements BackupBackend {
       const run = this.runs.filter((r) => r.kind === 'backup')[d]
       const time = at(d)
       const id = run?.snapshot ?? (0x31fa8d0c + d * 0x2345).toString(16).padStart(8, '0') + 'ab'.repeat(28)
-      return { id, short: id.slice(0, 8), time, paths: this.plan!.paths.map((p) => (p.startsWith('volume:') ? `/var/lib/containers/storage/volumes/${p.slice(7)}/_data` : p)), tags: ['quadeck'], files: run?.files ?? 204_000 - i * 400, bytes: run?.bytes ?? 351e9 - i * 4e9, added: run?.added ?? 0.9e9 }
+      return {
+        id,
+        short: id.slice(0, 8),
+        time,
+        paths: this.plan!.paths.map((p) => (p.startsWith('volume:') ? `/var/lib/containers/storage/volumes/${p.slice(7)}/_data` : p)),
+        tags: ['quadeck'],
+        files: run?.files ?? 204_000 - i * 400,
+        bytes: run?.bytes ?? 351e9 - i * 4e9,
+        added: run?.added ?? 0.9e9,
+      }
     })
   }
 
@@ -864,10 +947,19 @@ export class FixtureBackup implements BackupBackend {
     if (!SNAPSHOT_ID.test(snapshot)) throw new HttpError(400, msg(m.backup_error_path, { path: dir }))
     const t = (s: string) => Date.parse(s)
     const tree: Record<string, LsEntry[]> = {
-      '/': [{ name: 'etc', path: '/etc', type: 'dir', now: 'same' }, { name: 'srv', path: '/srv', type: 'dir', now: 'same' }],
-      '/srv': [{ name: 'immich', path: '/srv/immich', type: 'dir', now: 'same' }, { name: 'jellyfin', path: '/srv/jellyfin', type: 'dir', now: 'same' }],
+      '/': [
+        { name: 'etc', path: '/etc', type: 'dir', now: 'same' },
+        { name: 'srv', path: '/srv', type: 'dir', now: 'same' },
+      ],
+      '/srv': [
+        { name: 'immich', path: '/srv/immich', type: 'dir', now: 'same' },
+        { name: 'jellyfin', path: '/srv/jellyfin', type: 'dir', now: 'same' },
+      ],
       '/srv/immich': [{ name: 'upload', path: '/srv/immich/upload', type: 'dir', now: 'same' }],
-      '/srv/immich/upload': [{ name: 'library', path: '/srv/immich/upload/library', type: 'dir', now: 'same' }, { name: 'profile', path: '/srv/immich/upload/profile', type: 'dir', now: 'same' }],
+      '/srv/immich/upload': [
+        { name: 'library', path: '/srv/immich/upload/library', type: 'dir', now: 'same' },
+        { name: 'profile', path: '/srv/immich/upload/profile', type: 'dir', now: 'same' },
+      ],
       '/srv/immich/upload/library': [
         { name: '2022', path: '/srv/immich/upload/library/2022', type: 'dir', mtime: t('2022-12-31T18:00:00Z'), now: 'same' },
         { name: '2023-urlaub', path: '/srv/immich/upload/library/2023-urlaub', type: 'dir', mtime: t('2023-08-14T10:00:00Z'), now: 'missing' },
@@ -916,7 +1008,11 @@ export class FixtureBackup implements BackupBackend {
       this.running = undefined
       const now = Date.now()
       const id = randomBytes(32).toString('hex')
-      this.runs.unshift(kind === 'backup' ? { kind, startedAt: now - 4000, endedAt: now, status: 'ok', snapshot: id, filesNew: 3, filesChanged: 2, files: 212_411, bytes: 371.2e9, added: 12e6, errors: [] } : { kind, startedAt: now - 4000, endedAt: now, status: 'ok', errors: [] })
+      this.runs.unshift(
+        kind === 'backup'
+          ? { kind, startedAt: now - 4000, endedAt: now, status: 'ok', snapshot: id, filesNew: 3, filesChanged: 2, files: 212_411, bytes: 371.2e9, added: 12e6, errors: [] }
+          : { kind, startedAt: now - 4000, endedAt: now, status: 'ok', errors: [] },
+      )
       if (kind === 'backup') this.snapshots.unshift({ id, short: id.slice(0, 8), time: now, paths: this.snapshots[0]?.paths ?? [], tags: ['quadeck'], files: 212_411, bytes: 371.2e9, added: 12e6 })
     }, 1500)
   }
@@ -981,6 +1077,15 @@ export class FixtureBackup implements BackupBackend {
     if (!link || !c || !this.targetConfig) return undefined
     c.version ??= 0
     c.applied = { version: c.version, at: Date.now() }
-    return clientScript({ name: c.name, repo: clientRepo(this.targetConfig, c.name), user: c.name, access: accessPassword(), appendOnly: this.targetConfig.appendOnly, plan: c.plan ?? defaultClientPlan(), version: c.version, quadeckUrl: link.url })
+    return clientScript({
+      name: c.name,
+      repo: clientRepo(this.targetConfig, c.name),
+      user: c.name,
+      access: accessPassword(),
+      appendOnly: this.targetConfig.appendOnly,
+      plan: c.plan ?? defaultClientPlan(),
+      version: c.version,
+      quadeckUrl: link.url,
+    })
   }
 }

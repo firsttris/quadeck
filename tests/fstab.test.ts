@@ -2,12 +2,14 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { FixtureFstabHost, FstabManager, SystemFstabHost, parseBlockDevices, pathsInUse, usedUnder, verifyDiagnostics } from '~/server/fstab/backend'
+import { FixtureFstabHost, FstabManager, parseBlockDevices, pathsInUse, SystemFstabHost, usedUnder, verifyDiagnostics } from '~/server/fstab/backend'
 import {
   applyChange,
+  type BlockDevice,
   checkFile,
   checkInput,
   defaultOptions,
+  type EntryInput,
   escapeField,
   formatEntry,
   isBootCritical,
@@ -21,13 +23,20 @@ import {
   systemReason,
   targetProblem,
   unescapeField,
-  type BlockDevice,
-  type EntryInput,
 } from '~/shared/fstab'
 
 const SAMPLE = readFileSync('fixtures/demo/fstab', 'utf8')
 const backup: BlockDevice = { path: '/dev/sde1', name: 'sde1', disk: 'sde', fstype: 'ext4', uuid: 'd3e4f5a6-b7c8-4d9e-8f01-2a3b4c5d6e7f', label: 'Backup', size: 4e12, mountpoints: [] }
-const newEntry = (over: Partial<EntryInput> = {}): EntryInput => ({ spec: specFor(backup), file: '/mnt/backup', vfstype: 'ext4', options: defaultOptions('ext4'), freq: 0, passno: 2, note: 'Backup (WD40EFRX)', ...over })
+const newEntry = (over: Partial<EntryInput> = {}): EntryInput => ({
+  spec: specFor(backup),
+  file: '/mnt/backup',
+  vfstype: 'ext4',
+  options: defaultOptions('ext4'),
+  freq: 0,
+  passno: 2,
+  note: 'Backup (WD40EFRX)',
+  ...over,
+})
 
 describe('parse and write', () => {
   it('parses entries, keeps escapes and reports broken lines', () => {
@@ -50,7 +59,7 @@ describe('parse and write', () => {
   it('adds with a note, updates and removes in place; comments stay', () => {
     const added = applyChange(SAMPLE, { kind: 'add', entry: newEntry() })
     expect(added.startsWith(SAMPLE)).toBe(true)
-    expect(added.endsWith('\n\n# quadeck: Backup (WD40EFRX)\n' + formatEntry(newEntry()) + '\n')).toBe(true)
+    expect(added.endsWith(`\n\n# quadeck: Backup (WD40EFRX)\n${formatEntry(newEntry())}\n`)).toBe(true)
     const e = parseFstab(added).entries.find((x) => x.file === '/mnt/backup')!
     const updated = applyChange(added, { kind: 'update', line: e.line, original: e.raw, entry: newEntry({ options: ['nofail'] }) })
     expect(updated).toContain('/mnt/backup\text4\tnofail\t0\t2')
@@ -69,7 +78,7 @@ describe('rules', () => {
     expect(systemReason({ spec: 'UUID=x', file: 'none', vfstype: 'swap' })).toBe('Auslagerungsspeicher')
     expect(systemReason({ spec: root[0]!, file: '/.snapshots', vfstype: 'btrfs' }, root)).toMatch(/Subvolume/)
     expect(protectedLinesChanged(SAMPLE, SAMPLE.replace('subvol=home', 'subvol=home2'), root)).toMatch(/Systemeintrag/)
-    expect(protectedLinesChanged(SAMPLE, SAMPLE + 'UUID=y none swap defaults 0 0\n', root)).toMatch(/Neuer Systemeintrag/)
+    expect(protectedLinesChanged(SAMPLE, `${SAMPLE}UUID=y none swap defaults 0 0\n`, root)).toMatch(/Neuer Systemeintrag/)
     expect(protectedLinesChanged(SAMPLE, SAMPLE.replace('/mnt/disk3  xfs  defaults', '/mnt/disk3  xfs  defaults,nofail'), root)).toBeUndefined()
   })
 
@@ -105,7 +114,7 @@ describe('rules', () => {
 
   it('finds duplicate mount points in the whole file', () => {
     expect(checkFile(SAMPLE)).toEqual([])
-    expect(checkFile(SAMPLE + 'UUID=x /mnt/disk1 xfs defaults 0 0\n')[0]).toMatchObject({ line: 20, severity: 'error' })
+    expect(checkFile(`${SAMPLE}UUID=x /mnt/disk1 xfs defaults 0 0\n`)[0]).toMatchObject({ line: 20, severity: 'error' })
   })
 
   it('names devices, suggests targets and unit names like systemd-escape', () => {
@@ -127,8 +136,22 @@ describe('host helpers', () => {
   it('reads lsblk with nested partitions and skips what cannot be mounted', () => {
     const json = JSON.stringify({
       blockdevices: [
-        { name: 'sda', path: '/dev/sda', type: 'disk', size: 100, model: 'WDC X', children: [{ name: 'sda1', path: '/dev/sda1', type: 'part', size: 90, fstype: 'xfs', uuid: 'u1', mountpoints: ['/mnt/a'] }] },
-        { name: 'sdb', path: '/dev/sdb', type: 'disk', size: 100, fstype: 'linux_raid_member', children: [{ name: 'md0', path: '/dev/md0', type: 'raid1', size: 99, fstype: 'ext4', uuid: 'u2', mountpoints: [null] }] },
+        {
+          name: 'sda',
+          path: '/dev/sda',
+          type: 'disk',
+          size: 100,
+          model: 'WDC X',
+          children: [{ name: 'sda1', path: '/dev/sda1', type: 'part', size: 90, fstype: 'xfs', uuid: 'u1', mountpoints: ['/mnt/a'] }],
+        },
+        {
+          name: 'sdb',
+          path: '/dev/sdb',
+          type: 'disk',
+          size: 100,
+          fstype: 'linux_raid_member',
+          children: [{ name: 'md0', path: '/dev/md0', type: 'raid1', size: 99, fstype: 'ext4', uuid: 'u2', mountpoints: [null] }],
+        },
         { name: 'sdc', path: '/dev/sdc', type: 'disk', size: 100, children: [{ name: 'sdc1', path: '/dev/sdc1', type: 'part', size: 50, fstype: 'swap', uuid: 'u3', mountpoints: ['[SWAP]'] }] },
         { name: 'loop0', path: '/dev/loop0', type: 'loop', size: 10, fstype: 'squashfs' },
       ],
@@ -243,7 +266,7 @@ describe('manager (demo machine)', () => {
     const root = s.entries.find((e) => e.file === '/')!
     await expect(m.applyFstab({ kind: 'remove', line: root.line, original: root.raw }, false)).rejects.toThrow(/Systempartition/)
     await expect(m.applyFstab({ kind: 'restore', content: SAMPLE.replace('subvol=root', 'subvol=x') }, false)).rejects.toThrow(/Systemeintrag/)
-    await expect(m.applyFstab({ kind: 'restore', content: SAMPLE + 'LABEL=Backup /etc ext4 nofail 0 0\n' }, false)).rejects.toThrow(/Systemverzeichnis/)
+    await expect(m.applyFstab({ kind: 'restore', content: `${SAMPLE}LABEL=Backup /etc ext4 nofail 0 0\n` }, false)).rejects.toThrow(/Systemverzeichnis/)
   })
 
   it('mounts and unmounts, never system entries', async () => {

@@ -4,8 +4,8 @@
 // snippets, imports, matchers, headers …) is kept as written and only
 // editable as text.
 
-import { msg } from './i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from './i18n'
 import { getValues } from './ini'
 import type { Revision } from './quadlets'
 
@@ -82,7 +82,11 @@ export interface SiteOptions {
 
 export const NO_OPTIONS: SiteOptions = { lanOnly: false, compress: false, insecureTls: false, tlsInternal: false, proxyExtra: '', extra: '' }
 
-export type CaddyChange = { kind: 'site'; /** First address of the block to replace; empty = new. */ previous?: string; addresses: string[]; upstreams: string[]; options?: SiteOptions } | { kind: 'delete'; address: string } | { kind: 'text'; content: string } | { kind: 'block'; /** A domain of the block to replace. */ address: string; text: string }
+export type CaddyChange =
+  | { kind: 'site' /** First address of the block to replace; empty = new. */; previous?: string; addresses: string[]; upstreams: string[]; options?: SiteOptions }
+  | { kind: 'delete'; address: string }
+  | { kind: 'text'; content: string }
+  | { kind: 'block' /** A domain of the block to replace. */; address: string; text: string }
 
 export interface CaddyResult {
   state: CaddyState
@@ -138,15 +142,6 @@ function matchBrace(text: string, open: number): number {
     i++
   }
   return -1
-}
-
-/** Inner lines of a block without comments and blank lines. */
-function bodyLines(block: string): string[] {
-  const inner = block.slice(block.indexOf('{') + 1, block.lastIndexOf('}'))
-  return inner
-    .split('\n')
-    .map((l) => l.replace(/(^|\s)#.*$/, '').trim())
-    .filter(Boolean)
 }
 
 const UPSTREAM_TOKEN = /^(?:(?:https?|h2c):\/\/)?(?:\[[0-9a-f:]+\]|[A-Za-z0-9_.-]+)(?::\d{1,5})?$|^unix\/\/\S+$/
@@ -349,7 +344,7 @@ const tidy = (text: string) =>
 
 /** The file after a form change. Throws with a message the UI can show. */
 export function applyCaddyChange(text: string, change: CaddyChange): string {
-  if (change.kind === 'text') return change.content.endsWith('\n') ? change.content : change.content + '\n'
+  if (change.kind === 'text') return change.content.endsWith('\n') ? change.content : `${change.content}\n`
   const { blocks } = parseCaddyfile(text)
   const sites = blocks.filter((b) => b.kind === 'proxy' || b.kind === 'site')
   const find = (address: string) => sites.find((b) => b.addresses.includes(address))

@@ -1,9 +1,9 @@
 // Container image updates via `podman auto-update` (containers with the
 // io.containers.autoupdate label / AutoUpdate= in the Quadlet).
 
-import type { ImageUpdate } from '~/shared/packages'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
+import type { ImageUpdate } from '~/shared/packages'
 import { run } from '../exec'
 import { parseAutoUpdate } from './parse'
 

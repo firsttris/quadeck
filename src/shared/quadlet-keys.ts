@@ -2,8 +2,8 @@
 // may appear several times. `form` marks the keys the form view shows; all
 // other keys stay untouched in the file and are edited in the text view.
 
-import { msg, type Message } from './i18n'
 import { m } from '~/paraglide/messages'
+import { type Message, msg } from './i18n'
 import type { QuadletType } from './quadlets'
 
 export interface KeyDoc {

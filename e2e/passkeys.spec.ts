@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
 
 // Passkeys need a secure context with a host name: this spec runs on http://localhost instead of
 // 127.0.0.1, with Chromium's virtual authenticator (fingerprint always accepted).

@@ -1,21 +1,21 @@
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
-import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
 import { actionBusyLabel, useActions } from '~/components/Actions'
 import { BusyButton, Spinner, useBusy } from '~/components/Busy'
+import { ContainerUsageView } from '~/components/ContainerUsage'
 import { PageHeader } from '~/components/PageHeader'
 import { RemoveQuadletDialog } from '~/components/QuadletEditor'
-import { RowMenu, type MenuItem } from '~/components/RowMenu'
+import { type MenuItem, RowMenu } from '~/components/RowMenu'
+import { Sparkline } from '~/components/Sparkline'
+import { containerState, Pill, type Tone, unitState, unitTone } from '~/components/Status'
+import { TimersView } from '~/components/Timers'
 import { useToast } from '~/components/Toast'
 import { useGuardedApi } from '~/components/Unlock'
-import { Sparkline } from '~/components/Sparkline'
-import { TimersView } from '~/components/Timers'
-import { ContainerUsageView } from '~/components/ContainerUsage'
-import { containerState, Pill, unitState, unitTone, type Tone } from '~/components/Status'
 import { age, bytes, num } from '~/lib/format'
 import { useLiveState } from '~/lib/live'
-import { failureReason } from '~/shared/units'
-import { buildRows, FILTER_KEYS, failed, filters, matches, type Filter, type Row } from '~/lib/unit-rows'
+import { buildRows, FILTER_KEYS, type Filter, failed, filters, matches, type Row } from '~/lib/unit-rows'
 import { m } from '~/paraglide/messages'
+import { failureReason } from '~/shared/units'
 
 export const Route = createFileRoute('/_app/units')({
   validateSearch: (s: Record<string, unknown>): { filter?: Filter; view?: 'usage'; container?: string } => ({
@@ -56,7 +56,9 @@ function Units() {
   const { run, busy, busyAction, readonly } = useActions()
   const shown = rows.filter((r) => matches(r, filter))
   // Failed first, then containers, then by name.
-  shown.sort((a, b) => Number(!!failed(b)) - Number(!!failed(a)) || Number(!!b.container) - Number(!!a.container) || (a.unit?.name ?? a.container!.name).localeCompare(b.unit?.name ?? b.container!.name))
+  shown.sort(
+    (a, b) => Number(!!failed(b)) - Number(!!failed(a)) || Number(!!b.container) - Number(!!a.container) || (a.unit?.name ?? a.container!.name).localeCompare(b.unit?.name ?? b.container!.name),
+  )
   const counts = Object.fromEntries(FILTER_KEYS.map((k) => [k, rows.filter((r) => matches(r, k)).length]))
   return (
     <>
@@ -141,7 +143,19 @@ function Units() {
   )
 }
 
-function UnitRow({ row, run, busy, busyAction, readonly }: { row: Row; run: ReturnType<typeof useActions>['run']; busy: string | null; busyAction: ReturnType<typeof useActions>['busyAction']; readonly: boolean }) {
+function UnitRow({
+  row,
+  run,
+  busy,
+  busyAction,
+  readonly,
+}: {
+  row: Row
+  run: ReturnType<typeof useActions>['run']
+  busy: string | null
+  busyAction: ReturnType<typeof useActions>['busyAction']
+  readonly: boolean
+}) {
   const navigate = useNavigate()
   const guarded = useGuardedApi()
   const say = useToast()
@@ -150,7 +164,9 @@ function UnitRow({ row, run, busy, busyAction, readonly }: { row: Row; run: Retu
   const { unit: u, container: c } = row
   const name = u?.name ?? c!.name
   const st = status(row)
-  const listen = u?.socket?.listen.length ? `${m.units_listens({ addrs: (u.socket.listen.map((l) => l.replace(/ \((Stream|Datagram|SequentialPacket)\)$/, '')).join(', ')) })}${u.socket.triggers ? ` → ${u.socket.triggers}` : ''}` : ''
+  const listen = u?.socket?.listen.length
+    ? `${m.units_listens({ addrs: u.socket.listen.map((l) => l.replace(/ \((Stream|Datagram|SequentialPacket)\)$/, '')).join(', ') })}${u.socket.triggers ? ` → ${u.socket.triggers}` : ''}`
+    : ''
   const why = u ? (failureReason(u) ?? listen ?? '') || [u.quadlet?.file, c?.image].filter(Boolean).join(' · ') : c!.image
   const detail = why || (u && u.description !== u.name ? u.description : '')
   const target = u ? { kind: 'unit' as const, name: u.name } : { kind: 'container' as const, name: c!.name }
@@ -181,7 +197,9 @@ function UnitRow({ row, run, busy, busyAction, readonly }: { row: Row; run: Retu
       ? []
       : [
           ...(active ? [{ label: m.units_stopDots(), onSelect: () => run('stop', target), danger: true, disabled: busy === name, separator: true }] : []),
-          ...(bootable ? [{ label: m.units_startAtBoot(), checked: u!.unitFileState === 'enabled', onSelect: () => void setBoot(u!.unitFileState !== 'enabled'), disabled: !!boot.busy, separator: true }] : []),
+          ...(bootable
+            ? [{ label: m.units_startAtBoot(), checked: u!.unitFileState === 'enabled', onSelect: () => void setBoot(u!.unitFileState !== 'enabled'), disabled: !!boot.busy, separator: true }]
+            : []),
           ...(u?.quadlet ? [{ label: m.units_deleteQuadlet(), onSelect: () => setRemoving(true), danger: true, separator: !active || !!bootable }] : []),
         ]),
   ]
@@ -230,7 +248,13 @@ function UnitRow({ row, run, busy, busyAction, readonly }: { row: Row; run: Retu
       <td>
         <div className="flex justify-end gap-1.5">
           {!readonly && (
-            <BusyButton className="btn sm" busy={busy === name} busyLabel={actionBusyLabel(busyAction ?? primary)} onClick={() => run(primary, target)} aria-label={primary === 'restart' ? m.units_restartAria({ name }) : m.units_startAria({ name })}>
+            <BusyButton
+              className="btn sm"
+              busy={busy === name}
+              busyLabel={actionBusyLabel(busyAction ?? primary)}
+              onClick={() => run(primary, target)}
+              aria-label={primary === 'restart' ? m.units_restartAria({ name }) : m.units_startAria({ name })}
+            >
               {primary === 'restart' ? m.units_restart() : m.units_start()}
             </BusyButton>
           )}

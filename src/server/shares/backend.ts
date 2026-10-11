@@ -5,13 +5,13 @@
 import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
+import { type NfsExportInfo, type ShareChange, type ShareConnection, type SharePreview, type ShareService, type ShareServiceAction, type SharesState, validateNfs, validateSmb } from '~/shared/shares'
+import { writeFileAtomic } from '../atomic'
 import { HttpError } from '../auth'
 import { run } from '../exec'
-import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
-import { validateNfs, validateSmb, type NfsExportInfo, type ShareChange, type ShareConnection, type SharePreview, type ShareService, type ShareServiceAction, type SharesState } from '~/shared/shares'
 import { parseExportsFile, parseNfsdClientInfo, parseSmbstatusShares, setExport, setSmbShare, smbShares } from './config'
-import { writeFileAtomic } from '../atomic'
 
 export interface SharesAdmin {
   sharesState(): Promise<SharesState>
@@ -33,7 +33,15 @@ export function parseShareChange(v: unknown): ShareChange {
   if (o.kind === 'smb') {
     const s = o.spec as Record<string, unknown> | null
     const spec = s
-      ? { name: str(s.name).trim(), path: str(s.path).trim(), comment: str(s.comment).trim(), readOnly: s.readOnly === true, guestOk: s.guestOk === true, validUsers: str(s.validUsers).trim(), browseable: s.browseable !== false }
+      ? {
+          name: str(s.name).trim(),
+          path: str(s.path).trim(),
+          comment: str(s.comment).trim(),
+          readOnly: s.readOnly === true,
+          guestOk: s.guestOk === true,
+          validUsers: str(s.validUsers).trim(),
+          browseable: s.browseable !== false,
+        }
       : null
     if (spec) {
       const errs = validateSmb(spec)
@@ -265,7 +273,7 @@ export class FixtureShares implements SharesBackend {
   private files = new Map<string, string>()
   private svc = { smb: { active: true, enabled: true }, nfs: { active: true, enabled: true } }
 
-  constructor(private dir: string) {
+  constructor(dir: string) {
     this.files.set('/etc/samba/smb.conf', read(join(dir, 'smb.conf')) ?? '')
     this.files.set('/etc/exports', read(join(dir, 'exports')) ?? '')
   }

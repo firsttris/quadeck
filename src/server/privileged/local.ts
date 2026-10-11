@@ -1,50 +1,49 @@
-import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 import { existsSync } from 'node:fs'
-import type { JobSpec } from '~/shared/packages'
-import type { MaintenanceBackend } from '../packages/maintenance'
-import type { PodmanAdminBackend, RemoveAlso } from '../quadlets/backend'
-import type { PodmanConfigName } from '~/shared/quadlets'
-import type { SharesBackend } from '../shares/backend'
-import type { SshBackend } from '../ssh/backend'
-import type { SelfTestType, SmartBackend } from '../smart/backend'
-import type { FilesBackend } from '../files/backend'
-import { fileResponse } from '../files/serve'
-import type { TimersBackend } from '../timers/backend'
-import type { UnitEditorBackend } from '../systemd/editor'
-import type { NetworkAdmin } from '../network/collect'
-import type { FstabBackend } from '../fstab/backend'
-import type { BootBackend } from '../boot/backend'
-import type { BootEntryChange } from '~/shared/boot'
-import type { UsersBackend } from '../users/backend'
-import type { HardwareAdmin } from '../hardware/collect'
-import type { CaddyBackend } from '../caddy/backend'
-import type { BackupBackend } from '../backup/backend'
-import type { PowerBackend } from '../smart/power'
-import type { PowerSetting } from '~/shared/power'
-import { TARGET_QUADLET, type BackupPlan, type TargetConfig } from '~/shared/backup'
+import { hostname, userInfo } from 'node:os'
+import { m } from '~/paraglide/messages'
+import { type BackupPlan, TARGET_QUADLET, type TargetConfig } from '~/shared/backup'
 import type { ClientPlan } from '~/shared/backup-client'
+import type { BootEntryChange } from '~/shared/boot'
 import type { CaddyChange } from '~/shared/caddy'
-import type { UserChange } from '~/shared/users'
 import type { ConfigAction } from '~/shared/configfiles'
 import type { FstabChange } from '~/shared/fstab'
-import type { TimerAction, TimerSpec } from '~/shared/timers'
-import type { SshChange } from '~/shared/ssh'
-import type { ShareChange, ShareServiceAction } from '~/shared/shares'
-import { HttpError } from '../auth'
-import { runOk } from '../exec'
-import { config } from '../config'
-import { TerminalManager, ptySpawner } from '../terminal/sessions'
-import { demoSpawner } from '../terminal/demo'
-import { CONTAINER_NAME, type TerminalInfo } from '~/shared/terminal'
-import { hostname, userInfo } from 'node:os'
-import { cleanStorage, fixtureApi, readStorage, type PodmanApi, type QuadletRefs } from '../quadlets/storage'
-import { createSecret, removeSecret, secretsState } from '../quadlets/secrets'
+import { msg } from '~/shared/i18n'
+import type { JobSpec } from '~/shared/packages'
+import { type CleanupKind, type PodmanStorage, PRUNE_CALENDAR, PRUNE_COMMAND, PRUNE_TIMER, type PruneEvery, quadletKey } from '~/shared/podman-storage'
+import type { PowerSetting } from '~/shared/power'
+import type { PodmanConfigName } from '~/shared/quadlets'
 import { moveToSecret, plainValue, type SecretsState } from '~/shared/secrets'
-import type { WriteResult } from '../quadlets/backend'
-import { PRUNE_CALENDAR, PRUNE_COMMAND, PRUNE_TIMER, quadletKey, type CleanupKind, type PodmanStorage, type PruneEvery } from '~/shared/podman-storage'
+import type { ShareChange, ShareServiceAction } from '~/shared/shares'
+import type { SshChange } from '~/shared/ssh'
+import { CONTAINER_NAME, type TerminalInfo } from '~/shared/terminal'
+import type { TimerAction, TimerSpec } from '~/shared/timers'
+import type { UserChange } from '~/shared/users'
+import { HttpError } from '../auth'
+import type { BackupBackend } from '../backup/backend'
+import type { BootBackend } from '../boot/backend'
+import type { CaddyBackend } from '../caddy/backend'
+import { config } from '../config'
+import { runOk } from '../exec'
+import type { FilesBackend } from '../files/backend'
+import { fileResponse } from '../files/serve'
+import type { FstabBackend } from '../fstab/backend'
+import type { HardwareAdmin } from '../hardware/collect'
+import type { NetworkAdmin } from '../network/collect'
+import type { MaintenanceBackend } from '../packages/maintenance'
+import type { PodmanAdminBackend, RemoveAlso, WriteResult } from '../quadlets/backend'
+import { createSecret, removeSecret, secretsState } from '../quadlets/secrets'
+import { cleanStorage, fixtureApi, type PodmanApi, type QuadletRefs, readStorage } from '../quadlets/storage'
+import type { SharesBackend } from '../shares/backend'
+import type { SelfTestType, SmartBackend } from '../smart/backend'
+import type { PowerBackend } from '../smart/power'
+import type { SshBackend } from '../ssh/backend'
+import type { UnitEditorBackend } from '../systemd/editor'
+import { demoSpawner } from '../terminal/demo'
+import { ptySpawner, TerminalManager } from '../terminal/sessions'
+import type { TimersBackend } from '../timers/backend'
+import type { UsersBackend } from '../users/backend'
 import { assertContainerId, assertPodmanRead, assertUnitName, type Privileged, type UnitAction } from './actions'
-import { Gate } from './gate'
+import type { Gate } from './gate'
 
 const METHOD: Record<UnitAction, string> = { start: 'StartUnit', stop: 'StopUnit', restart: 'RestartUnit' }
 const manager = ['org.freedesktop.systemd1', '/org/freedesktop/systemd1', 'org.freedesktop.systemd1.Manager']
@@ -154,7 +153,12 @@ export class LocalPrivileged implements Privileged {
     const demo = !!config().fixturesDir
     const s = await readStorage(this.storageApi(), await this.quadletRefs(), demo ? () => ({ size: 512e9, used: 401e9 }) : undefined)
     const t = (await this.timers.timersState().catch(() => undefined))?.timers.find((x) => x.name === `${PRUNE_TIMER}.timer`)
-    if (t) s.prune = { every: t.calendars.some((c) => c.includes('-01')) || t.managed?.calendar.includes('-01') ? 'monthly' : 'weekly', ...(t.last ? { last: t.last } : {}), ...(t.next ? { next: t.next } : {}) }
+    if (t)
+      s.prune = {
+        every: t.calendars.some((c) => c.includes('-01')) || t.managed?.calendar.includes('-01') ? 'monthly' : 'weekly',
+        ...(t.last ? { last: t.last } : {}),
+        ...(t.next ? { next: t.next } : {}),
+      }
     return s
   }
 
@@ -176,7 +180,17 @@ export class LocalPrivileged implements Privileged {
     }
     // runuser -l: the user's own login shell and environment, as after an SSH login
     const argv = !isRoot ? [process.env.SHELL || 'bash', '-l'] : user === 'root' ? ['su', '-l', 'root'] : ['runuser', '-l', user]
-    return this.terminal.open({ argv, env: { ...env, ...(isRoot ? {} : { HOME: process.env.HOME ?? '/' }) }, cols, rows, owner: token ?? 'none', label: `${user}@${hostname()}`, kind: 'shell', user, idleMs })
+    return this.terminal.open({
+      argv,
+      env: { ...env, ...(isRoot ? {} : { HOME: process.env.HOME ?? '/' }) },
+      cols,
+      rows,
+      owner: token ?? 'none',
+      label: `${user}@${hostname()}`,
+      kind: 'shell',
+      user,
+      idleMs,
+    })
   }
   terminalStream(id: string) {
     return this.terminal.stream(id)
@@ -249,7 +263,18 @@ export class LocalPrivileged implements Privileged {
       if (exists) await this.timers.deleteTimer(`${PRUNE_TIMER}.timer`)
     } else
       await this.timers.saveTimer(
-        { name: PRUNE_TIMER, description: 'Quadeck: remove stopped containers and old image versions', command: PRUNE_COMMAND, user: '', workingDirectory: '', calendar: PRUNE_CALENDAR[every], persistent: true, randomDelay: 30, lowPriority: true, network: false },
+        {
+          name: PRUNE_TIMER,
+          description: 'Quadeck: remove stopped containers and old image versions',
+          command: PRUNE_COMMAND,
+          user: '',
+          workingDirectory: '',
+          calendar: PRUNE_CALENDAR[every],
+          persistent: true,
+          randomDelay: 30,
+          lowPriority: true,
+          network: false,
+        },
         exists ? PRUNE_TIMER : undefined,
         true,
       )

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
 
 const PASSWORD = 'e2e-password-123'
 
@@ -245,7 +245,11 @@ test('backups: target for clients, a client with its plan and one-time command, 
   const row = page.getByTestId('backup-client').filter({ hasText: 'tablet' })
   await expect(row).toContainText('noch keins')
   await expect(row).toContainText('5 Tagen')
-  await page.getByRole('button', { name: 'Neu lesen' }).or(page.getByRole('button', { name: 'Größen messen' })).first().click()
+  await page
+    .getByRole('button', { name: 'Neu lesen' })
+    .or(page.getByRole('button', { name: 'Größen messen' }))
+    .first()
+    .click()
   await expect(row).toContainText('übernommen')
   // A changed plan is marked until the computer runs the new command.
   await expect(page.getByTestId('backup-client').filter({ hasText: 'workstation' })).toContainText('Änderung nicht ausgeführt')

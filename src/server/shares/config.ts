@@ -1,8 +1,8 @@
 // Text operations on smb.conf and exports files. Only the edited share
 // changes; comments, [global] and everything Quadeck does not know stay.
 
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import type { NfsClient, NfsExportSpec, SmbShareInfo, SmbShareSpec } from '~/shared/shares'
 
 // ---------- smb.conf ----------
@@ -131,7 +131,7 @@ export function parseExportsFile(text: string): ExportLine[] {
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i]!.replace(/\r$/, '')
     const start = i
-    while (line.endsWith('\\') && i + 1 < lines.length) line = line.slice(0, -1) + ' ' + lines[++i]!
+    while (line.endsWith('\\') && i + 1 < lines.length) line = `${line.slice(0, -1)} ${lines[++i]!}`
     const t = line.trim()
     if (!t || t.startsWith('#')) continue
     const m = t.match(/^("([^"]+)"|(\S+))\s*(.*)$/)

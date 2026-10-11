@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
 
 // Demo data: the in-memory file tree of FixtureFiles (/mnt/disk1, /mnt/disk2, /srv).
 const PASSWORD = 'e2e-password-123'

@@ -1,13 +1,13 @@
 import { useNavigate } from '@tanstack/react-router'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { Fragment, useEffect, useMemo, useRef, useState } from 'react'
 import { useLang } from '~/i18n'
 import { useLiveState } from '~/lib/live'
-import { filterPalette, paletteItems, sectionLabel, type PaletteItem } from '~/lib/palette'
-import { useActions } from './Actions'
 import { setMotion } from '~/lib/motion'
+import { filterPalette, type PaletteItem, paletteItems, sectionLabel } from '~/lib/palette'
 import { setTheme } from '~/lib/theme'
-import { Glyph } from './Glyph'
 import { m } from '~/paraglide/messages'
+import { useActions } from './Actions'
+import { Glyph } from './Glyph'
 
 /** Strg+K / ⌘K: jump to services, pages and units, or run unit actions. */
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
@@ -18,7 +18,7 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   const [query, setQuery] = useState('')
   const [active, setActive] = useState(0)
   const dialog = useRef<HTMLDialogElement>(null)
-  const list = useRef<HTMLUListElement>(null)
+  const list = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -43,8 +43,10 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
   }, [open])
 
   // only while open: the items change with every live update
-  const all = useMemo(() => (open ? paletteItems(snapshot, readonly) : []), [open, snapshot, readonly, lang]) // eslint-disable-line react-hooks/exhaustive-deps
+  // biome-ignore lint/correctness/useExhaustiveDependencies: rebuilt when the language changes, too
+  const all = useMemo(() => (open ? paletteItems(snapshot, readonly) : []), [open, snapshot, readonly, lang])
   const results = useMemo(() => filterPalette(all, query), [all, query])
+  // biome-ignore lint/correctness/useExhaustiveDependencies: back to the first result when the query changes
   useEffect(() => setActive(0), [query])
   useEffect(() => {
     list.current?.querySelector<HTMLElement>(`[data-index="${active}"]`)?.scrollIntoView({ block: 'nearest' })
@@ -93,18 +95,24 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
             />
             <kbd className="mono rounded border border-rim-strong px-1.5 py-0.5 text-[11px] text-muted">Esc</kbd>
           </div>
-          <ul id="palette-list" ref={list} role="listbox" className="m-0 max-h-[60vh] list-none overflow-y-auto p-2">
-            {results.length === 0 && <li className="px-3 py-4 text-[13px] text-muted">{m.shell_palette_empty()}</li>}
+          <div id="palette-list" ref={list} role="listbox" className="max-h-[60vh] overflow-y-auto p-2">
+            {results.length === 0 && <div className="px-3 py-4 text-[13px] text-muted">{m.shell_palette_empty()}</div>}
             {results.map((item, n) => {
               const header = item.section !== lastSection ? item.section : null
               lastSection = item.section
               return (
-                <li key={item.id}>
-                  {header && <div className="px-3 pt-2 pb-1 text-[11px] tracking-[.07em] text-faint uppercase">{sectionLabel(header)}</div>}
+                <Fragment key={item.id}>
+                  {header && (
+                    <div className="px-3 pt-2 pb-1 text-[11px] tracking-[.07em] text-faint uppercase" aria-hidden>
+                      {sectionLabel(header)}
+                    </div>
+                  )}
+                  {/* biome-ignore lint/a11y/useKeyWithClickEvents: the keyboard stays in the search field and moves through the options with aria-activedescendant */}
                   <div
                     id={`pi-${n}`}
                     data-index={n}
                     role="option"
+                    tabIndex={-1}
                     aria-selected={n === active}
                     onMouseMove={() => setActive(n)}
                     onClick={() => execute(item)}
@@ -114,10 +122,10 @@ export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenCh
                     <span className="grow truncate">{item.label}</span>
                     {item.hint && <span className="truncate font-mono text-[11px] text-muted">{item.hint}</span>}
                   </div>
-                </li>
+                </Fragment>
               )
             })}
-          </ul>
+          </div>
         </div>
       )}
     </dialog>

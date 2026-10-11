@@ -1,8 +1,8 @@
 import { Database } from 'bun:sqlite'
-import { and, gte, lt, type SQL } from 'drizzle-orm'
-import { drizzle, type BunSQLiteDatabase } from 'drizzle-orm/bun-sqlite'
 import { chmodSync, mkdirSync } from 'node:fs'
 import { join } from 'node:path'
+import { and, gte, lt, type SQL } from 'drizzle-orm'
+import { type BunSQLiteDatabase, drizzle } from 'drizzle-orm/bun-sqlite'
 import { config } from '../config'
 import { migrations } from './migrations.gen'
 import * as schema from './schema'
@@ -13,7 +13,12 @@ let instance: { db: DB; sqlite: Database } | undefined
 
 export function migrate(sqlite: Database) {
   sqlite.run('CREATE TABLE IF NOT EXISTS __quadeck_migrations (tag TEXT PRIMARY KEY, applied_at INTEGER NOT NULL)')
-  const done = new Set(sqlite.query<{ tag: string }, []>('SELECT tag FROM __quadeck_migrations').all().map((r) => r.tag))
+  const done = new Set(
+    sqlite
+      .query<{ tag: string }, []>('SELECT tag FROM __quadeck_migrations')
+      .all()
+      .map((r) => r.tag),
+  )
   // a database created right now: the overview gets its starter widgets once (see server/layout.ts)
   const fresh = done.size === 0
   for (const m of migrations) {

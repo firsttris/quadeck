@@ -6,7 +6,10 @@ export function Gauge({ id, label, value, sub, p, bare }: { id: string; label: s
   const color = clamped > 0.85 ? '#f85149' : clamped > 0.7 ? '#d29922' : 'var(--color-accent)'
   return (
     // Narrow cards (container query on the card): smaller ring and text, stacked when very narrow.
-    <div className={`${bare ? '' : 'panel'} flex items-center gap-4 p-4 @max-[259px]:gap-3 @max-[259px]:p-3 @max-[169px]:flex-col @max-[169px]:items-start @max-[169px]:gap-2`} data-testid={`gauge-${id}`}>
+    <div
+      className={`${bare ? '' : 'panel'} flex items-center gap-4 p-4 @max-[259px]:gap-3 @max-[259px]:p-3 @max-[169px]:flex-col @max-[169px]:items-start @max-[169px]:gap-2`}
+      data-testid={`gauge-${id}`}
+    >
       <svg viewBox="0 0 84 84" className="size-[84px] shrink-0 @max-[259px]:size-[60px] @max-[169px]:size-[52px]" role="img" aria-label={`${label} ${Math.round(clamped * 100)} %`}>
         <defs>
           <filter id={`glow-${id}`} x="-50%" y="-50%" width="200%" height="200%">

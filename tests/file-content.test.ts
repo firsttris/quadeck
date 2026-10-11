@@ -1,8 +1,8 @@
 import { describe, expect, it } from 'vitest'
 import { commitLabel } from '~/server/quadlets/backend'
-import { setLangResolver } from '~/shared/i18n'
-import { LEGACY_MANAGED_HEADER, MANAGED_HEADER, emptySpec, renderService, renderTimer, specFromService } from '~/shared/timers'
 import { kernelEntry } from '~/shared/boot'
+import { setLangResolver } from '~/shared/i18n'
+import { emptySpec, LEGACY_MANAGED_HEADER, MANAGED_HEADER, renderService, renderTimer, specFromService } from '~/shared/timers'
 import { overrideTemplate } from '~/shared/unit-files'
 
 // What Quadeck writes into files is English, whatever language the UI is in;

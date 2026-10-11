@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { currentAlerts, defaultSettings, parseSettings } from '~/shared/notify'
-import { judgeSpeed, lastSlot, mbps, pingStats, usualDown, type SpeedResult } from '~/shared/speedtest'
+import { judgeSpeed, lastSlot, mbps, pingStats, type SpeedResult, usualDown } from '~/shared/speedtest'
 import type { Snapshot } from '~/shared/types'
 
 process.env.QUADECK_DATA_DIR = mkdtempSync(join(tmpdir(), 'quadeck-speed-'))

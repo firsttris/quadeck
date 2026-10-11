@@ -5,12 +5,26 @@
 
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
+import {
+  type Account,
+  changeProblem,
+  type GroupInfo,
+  isHuman,
+  knownGroups,
+  type LoginRecord,
+  parseGroup,
+  parseLast,
+  parsePasswd,
+  parseShadow,
+  passwordState,
+  type UserChange,
+  type UsersState,
+} from '~/shared/users'
 import { HttpError } from '../auth'
 import { run } from '../exec'
 import { parseAuthorizedKeys } from '../ssh/keys'
-import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
-import { changeProblem, isHuman, knownGroups, parseGroup, parseLast, parsePasswd, parseShadow, passwordState, type Account, type GroupInfo, type LoginRecord, type UserChange, type UsersState } from '~/shared/users'
 
 export interface UsersAdmin {
   usersState(): Promise<UsersState>
@@ -41,7 +55,10 @@ export function parseShells(text: string): string[] {
 }
 
 /** The state from the account files – shared by the real machine and the demo. */
-export function buildUsersState(files: { passwd: string; group: string; shadow: string; shells: string }, extra: { keys: (name: string, home: string) => number; samba?: Set<string>; history: LoginRecord[] }): UsersState {
+export function buildUsersState(
+  files: { passwd: string; group: string; shadow: string; shells: string },
+  extra: { keys: (name: string, home: string) => number; samba?: Set<string>; history: LoginRecord[] },
+): UsersState {
   const groups = parseGroup(files.group)
   const shadow = parseShadow(files.shadow)
   const passwd = parsePasswd(files.passwd)
@@ -208,15 +225,14 @@ export class FixtureUsers implements UsersBackend {
   }
 
   private edit(file: 'passwd' | 'group' | 'shadow', fn: (fields: string[][]) => string[][]) {
-    this.f[file] =
-      fn(
-        this.f[file]
-          .trim()
-          .split('\n')
-          .map((l) => l.split(':')),
-      )
-        .map((x) => x.join(':'))
-        .join('\n') + '\n'
+    this.f[file] = `${fn(
+      this.f[file]
+        .trim()
+        .split('\n')
+        .map((l) => l.split(':')),
+    )
+      .map((x) => x.join(':'))
+      .join('\n')}\n`
   }
 
   async applyUser(c: UserChange) {

@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -6,7 +6,6 @@ import { FixtureFiles, fileRootPaths, resolveInRoots, SystemFiles } from '~/serv
 import { fsJobSteps, prepareFsJob, systemFsOps } from '~/server/files/transfer'
 import { encodeSpec, parseJobSpec, runJobCommand } from '~/server/packages/job'
 import { fileKind, isSensitivePath, looksLikeText, validateName, validatePath } from '~/shared/files'
-import { chmodSync } from 'node:fs'
 
 function tree() {
   const base = mkdtempSync(join(tmpdir(), 'qd-files-'))
@@ -140,7 +139,8 @@ describe('opening files', () => {
   })
 
   it('treats keys and credentials as sensitive', () => {
-    for (const p of ['/home/anna/.ssh/config', '/srv/app/.env', '/srv/app/.env.production', '/data/certs/server.key', '/home/a/.docker/config.json', '/srv/id_ed25519']) expect(isSensitivePath(p)).toBe(true)
+    for (const p of ['/home/anna/.ssh/config', '/srv/app/.env', '/srv/app/.env.production', '/data/certs/server.key', '/home/a/.docker/config.json', '/srv/id_ed25519'])
+      expect(isSensitivePath(p)).toBe(true)
     for (const p of ['/srv/app/env.txt', '/srv/backup.sh', '/home/anna/notes.md']) expect(isSensitivePath(p)).toBe(false)
   })
 
@@ -174,7 +174,7 @@ describe('opening files', () => {
     const f = new FixtureFiles()
     const t = await f.readTextFile('/srv/scripts/backup.sh', false)
     expect(t.content).toMatch(/^#!\/bin\/sh\n/)
-    await f.writeTextFile('/srv/scripts/backup.sh', t.content + 'sync\n', t.hash)
+    await f.writeTextFile('/srv/scripts/backup.sh', `${t.content}sync\n`, t.hash)
     expect((await f.readTextFile('/srv/scripts/backup.sh', false)).content).toMatch(/sync\n$/)
     await expect(f.readTextFile('/srv/scripts/.env', false)).rejects.toMatchObject({ status: 423 })
     expect((await f.readTextFile('/srv/scripts/firmware', false)).refused).toBe('binary')

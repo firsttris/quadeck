@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { api, ApiError } from '~/lib/api'
+import { ApiError, api } from '~/lib/api'
 import { bytes, dateTime } from '~/lib/format'
+import { m } from '~/paraglide/messages'
 import { baseName, type TextFile } from '~/shared/files'
 import { useActions } from './Actions'
 import { BusyButton } from './Busy'
@@ -8,7 +9,6 @@ import { ConfirmDialog, Modal } from './Modal'
 import { DiffView, TextView } from './QuadletEditor'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
-import { m } from '~/paraglide/messages'
 
 /**
  * A text file from the explorer in the editor: read as root, saved after the
@@ -28,6 +28,7 @@ export function TextFileEditor({ path, onClose, onSaved }: { path: string; onClo
   const name = baseName(path)
   const url = `/api/files?read=${encodeURIComponent(path)}`
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: load once per file; onClose and guarded are new functions on every render
   useEffect(() => {
     let gone = false
     const show = (f: TextFile | undefined) => {
@@ -47,7 +48,6 @@ export function TextFileEditor({ path, onClose, onSaved }: { path: string; onClo
     return () => {
       gone = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url])
 
   const dirty = !!file && text !== file.content
@@ -119,13 +119,29 @@ export function TextFileEditor({ path, onClose, onSaved }: { path: string; onClo
             {canEdit ? m.common_cancel() : m.common_close()}
           </button>
           {canEdit && (
-            <button type="button" className="btn primary" disabled={!dirty} onClick={() => (setError(''), setConfirm(true))}>
+            <button
+              type="button"
+              className="btn primary"
+              disabled={!dirty}
+              onClick={() => {
+                setError('')
+                setConfirm(true)
+              }}
+            >
               {m.files_editor_next()}
             </button>
           )}
         </div>
       </Modal>
-      <ConfirmDialog open={discard} title={m.files_editor_unsaved()} body={<p className="m-0 font-mono text-[12px]">{path}</p>} confirm={m.common_close()} danger onConfirm={onClose} onClose={() => setDiscard(false)} />
+      <ConfirmDialog
+        open={discard}
+        title={m.files_editor_unsaved()}
+        body={<p className="m-0 font-mono text-[12px]">{path}</p>}
+        confirm={m.common_close()}
+        danger
+        onConfirm={onClose}
+        onClose={() => setDiscard(false)}
+      />
     </>
   )
 }

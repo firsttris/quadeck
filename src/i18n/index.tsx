@@ -5,9 +5,9 @@
  * The language comes from the qd_lang cookie, else from the browser
  * (Accept-Language), so the server renders the page in the right language.
  */
-import { Fragment, createContext, createElement, useContext, type ReactNode } from 'react'
+import { createContext, createElement, Fragment, type ReactNode, useContext } from 'react'
 import { api } from '~/lib/api'
-import { LANG_COOKIE, setClientLang, type Lang } from '~/shared/i18n'
+import { LANG_COOKIE, type Lang, setClientLang } from '~/shared/i18n'
 
 const Ctx = createContext<Lang>('de')
 
@@ -24,6 +24,7 @@ export const useLang = (): Lang => useContext(Ctx)
  * and push messages), then the page reloads so live data comes in the new language too.
  */
 export async function switchLang(lang: Lang) {
+  // biome-ignore lint/suspicious/noDocumentCookie: the Cookie Store API is missing in Firefox and older Safari
   document.cookie = `${LANG_COOKIE}=${lang}; path=/; max-age=31536000; samesite=strict`
   await api('/api/lang', { body: { lang } }).catch(() => {}) // not logged in yet: the cookie is enough
   location.reload()

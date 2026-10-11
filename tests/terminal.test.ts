@@ -2,16 +2,27 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { demoSpawner } from '~/server/terminal/demo'
-import { SCROLLBACK, TerminalManager, clampSize, type OpenSpec } from '~/server/terminal/sessions'
 import { Gate } from '~/server/privileged/gate'
+import { demoSpawner } from '~/server/terminal/demo'
+import { clampSize, type OpenSpec, SCROLLBACK, TerminalManager } from '~/server/terminal/sessions'
 import { ctrlKey, isLocalAddress, parseTerminalSettings } from '~/shared/terminal'
 
 process.env.QUADECK_DATA_DIR = mkdtempSync(join(tmpdir(), 'quadeck-term-'))
 const web = await import('~/server/terminal/web')
 const { PEER_HEADER } = await import('~/server/auth')
 
-const spec = (over: Partial<OpenSpec> = {}): OpenSpec => ({ argv: ['bash', '--noprofile', '--norc', '-i'], env: { PS1: '$ ', PATH: process.env.PATH! }, cols: 80, rows: 24, owner: 'tok', label: 'me@test', kind: 'shell', user: 'me', idleMs: 60_000, ...over })
+const spec = (over: Partial<OpenSpec> = {}): OpenSpec => ({
+  argv: ['bash', '--noprofile', '--norc', '-i'],
+  env: { PS1: '$ ', PATH: process.env.PATH! },
+  cols: 80,
+  rows: 24,
+  owner: 'tok',
+  label: 'me@test',
+  kind: 'shell',
+  user: 'me',
+  idleMs: 60_000,
+  ...over,
+})
 
 /** Reads a terminal stream into text (decoded output) until `until` shows up or the time is over. */
 async function read(res: Response, until: (text: string, raw: string) => boolean, ms = 4000) {
@@ -116,7 +127,8 @@ describe('the demo terminal', () => {
 
 describe('home network, keys, settings', () => {
   it('knows local addresses', () => {
-    for (const a of ['127.0.0.1', '10.1.2.3', '172.20.0.5', '192.168.178.20', '100.101.102.103', '169.254.1.1', '::1', 'fd12:3456::1', 'fe80::1%eth0', '::ffff:192.168.1.5', '[fd00::5]:443']) expect(isLocalAddress(a)).toBe(true)
+    for (const a of ['127.0.0.1', '10.1.2.3', '172.20.0.5', '192.168.178.20', '100.101.102.103', '169.254.1.1', '::1', 'fd12:3456::1', 'fe80::1%eth0', '::ffff:192.168.1.5', '[fd00::5]:443'])
+      expect(isLocalAddress(a)).toBe(true)
     for (const a of ['8.8.8.8', '172.32.0.1', '100.128.0.1', '2001:db8::1', '2a01:4f8::1', 'unknown', '']) expect(isLocalAddress(a)).toBe(false)
   })
   it('control keys and settings', () => {

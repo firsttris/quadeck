@@ -1,7 +1,7 @@
-import { HttpError } from '../auth'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import type { UserChange } from '~/shared/users'
+import { HttpError } from '../auth'
 
 // Request bodies → UserChange at both boundaries (API route and helper). The
 // content checks (name rules, existing groups, lock-out) follow in the backend.
@@ -21,7 +21,15 @@ export function parseUserChange(v: unknown): UserChange {
   }
   switch (c.kind) {
     case 'create':
-      return { kind: 'create', name, fullName: str(c.fullName ?? '', 100), admin: c.admin === true, password: c.password === undefined || c.password === '' ? undefined : str(c.password, 512), shell: str(c.shell, 100), groups: groups() }
+      return {
+        kind: 'create',
+        name,
+        fullName: str(c.fullName ?? '', 100),
+        admin: c.admin === true,
+        password: c.password === undefined || c.password === '' ? undefined : str(c.password, 512),
+        shell: str(c.shell, 100),
+        groups: groups(),
+      }
     case 'update':
       return { kind: 'update', name, fullName: str(c.fullName ?? '', 100), shell: str(c.shell, 100), groups: groups(), admin: c.admin === true }
     case 'password':

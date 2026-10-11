@@ -1,15 +1,15 @@
 import { useState } from 'react'
+import { pickMsg } from '~/i18n'
 import { api } from '~/lib/api'
 import { num } from '~/lib/format'
-import { STANDBY_MINUTES, WAKE_WARN_PER_DAY, type ApmMode, type DiskPower, type PowerSetting, type PowerState, type StandbyMinutes } from '~/shared/power'
+import { m } from '~/paraglide/messages'
+import { type ApmMode, type DiskPower, type PowerSetting, type PowerState, STANDBY_MINUTES, type StandbyMinutes, WAKE_WARN_PER_DAY } from '~/shared/power'
 import { useActions } from './Actions'
 import { BusyButton, useBusy } from './Busy'
 import { Modal } from './Modal'
 import { Dot } from './Status'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
-import { m } from '~/paraglide/messages'
-import { pickMsg } from '~/i18n'
 
 export type PowerInfo = PowerState & { wakes: Record<string, number> }
 
@@ -143,7 +143,13 @@ export function PowerDialog({ disk, info, onClose, onSaved }: { disk: DiskPower;
           {m.common_cancel()}
         </button>
         {!blocked && !readonly && (
-          <BusyButton className="btn primary" busy={work.is('save')} busyLabel={m.common_saving()} disabled={work.busy !== null || !info.installed} onClick={() => void work.run('save', () => save(setting))}>
+          <BusyButton
+            className="btn primary"
+            busy={work.is('save')}
+            busyLabel={m.common_saving()}
+            disabled={work.busy !== null || !info.installed}
+            onClick={() => void work.run('save', () => save(setting))}
+          >
             {m.common_save()}
           </BusyButton>
         )}

@@ -3,9 +3,9 @@
 
 import { createSocket } from 'node:dgram'
 import { connect } from 'node:net'
-import { CHECK_PORTS, MAC, deviceViews, forgetOld, inSubnets, magicPacket, mergeScan, type DeviceView, type KnownDevice, type ScanResult } from '~/shared/devices'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { CHECK_PORTS, type DeviceView, deviceViews, forgetOld, inSubnets, type KnownDevice, MAC, magicPacket, mergeScan, type ScanResult } from '~/shared/devices'
+import { msg } from '~/shared/i18n'
 import { HttpError } from './auth'
 import { getSetting, setSetting } from './settings'
 

@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { m } from '~/paraglide/messages'
 import { HttpError } from '~/server/auth'
 import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
@@ -6,7 +7,6 @@ import { privileged } from '~/server/privileged'
 import { allTerminals, assertTerminalAllowed, forget, owned, ownedBy, remember, setTerminalSettings, terminalSettings } from '~/server/terminal/web'
 import { unlockToken } from '~/server/unlock-sessions'
 import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 import { CONTAINER_NAME } from '~/shared/terminal'
 
 // GET: settings and this login's open terminals.
@@ -40,7 +40,13 @@ export const Route = createFileRoute('/api/terminal/')({
             assertTerminalAllowed(request)
             const t = b.target ?? {}
             if (t.kind === 'container' && (typeof t.name !== 'string' || !CONTAINER_NAME.test(t.name))) throw new HttpError(400, msg(m.terminal_error_container))
-            const info = await p.terminalOpen(token, t.kind === 'container' ? { kind: 'container', name: t.name as string } : { kind: 'shell' }, Number(b.cols) || 80, Number(b.rows) || 24, terminalSettings().idleMinutes)
+            const info = await p.terminalOpen(
+              token,
+              t.kind === 'container' ? { kind: 'container', name: t.name as string } : { kind: 'shell' },
+              Number(b.cols) || 80,
+              Number(b.rows) || 24,
+              terminalSettings().idleMinutes,
+            )
             remember(info, session.id)
             return Response.json(info)
           }

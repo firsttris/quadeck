@@ -1,4 +1,4 @@
-import { sqliteTable, text, integer, real, index, primaryKey } from 'drizzle-orm/sqlite-core'
+import { index, integer, primaryKey, real, sqliteTable, text } from 'drizzle-orm/sqlite-core'
 
 // SQLite only stores what the user decided plus a short metric history;
 // everything discovered is recomputed live.

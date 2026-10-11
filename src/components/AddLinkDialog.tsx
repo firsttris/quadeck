@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
 import { api } from '~/lib/api'
+import { m } from '~/paraglide/messages'
 import { BusyButton } from './Busy'
 import { Modal } from './Modal'
 import { IconPicker } from './ServiceDialog'
 import { useToast } from './Toast'
-import { m } from '~/paraglide/messages'
 
 /** "Link hinzufügen": manual links to devices and services without Quadlet (router, printer, other hosts). */
 export function AddLinkDialog({ open, onClose, groups }: { open: boolean; onClose: () => void; groups: string[] }) {
@@ -29,7 +29,7 @@ export function AddLinkDialog({ open, onClose, groups }: { open: boolean; onClos
             await api('/api/links', {
               body: { name: f.get('name'), url: f.get('url'), group: f.get('group'), icon, healthCheck: f.get('health') === 'on' },
             })
-            say(m.overview_dialog_added({ name: (String(f.get('name'))) }))
+            say(m.overview_dialog_added({ name: String(f.get('name')) }))
             onClose()
           } catch (err) {
             setError((err as Error).message)

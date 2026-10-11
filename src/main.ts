@@ -1,36 +1,36 @@
 // Process entry for the single binary: CLI commands plus the HTTP server
 // (static client assets + the TanStack Start handler).
 
-import { PEER_HEADER, ensureSetupToken, resetPassword } from './server/auth'
+import { statSync } from 'node:fs'
+import { ensureSetupToken, PEER_HEADER, resetPassword } from './server/auth'
+import { quadletContents, SystemBackup } from './server/backup/backend'
+import { SystemBoot } from './server/boot/backend'
+import { CaddyManager, SystemCaddyHost } from './server/caddy/backend'
 import { config } from './server/config'
 import { db } from './server/db'
-import { selfUpdate } from './server/update'
 import { checkExpectations, doctorReport, formatReport } from './server/doctor'
+import { SystemFiles } from './server/files/backend'
+import { FstabManager, SystemFstabHost } from './server/fstab/backend'
+import { SystemHardware } from './server/hardware/collect'
 import { installNoLang, installRequestLang, withRequestLang } from './server/lang'
-import { HELPER_UNIT, WEB_UNIT } from './unit-file'
-import { serveHelper } from './server/privileged/helper-server'
-import { LocalPrivileged } from './server/privileged/local'
-import { createGate } from './server/privileged'
-import { statSync } from 'node:fs'
+import { SystemNetwork } from './server/network/collect'
 import { cleanupSudoers } from './server/packages/aur'
 import { runJobCommand } from './server/packages/job'
+import { selfArgv } from './server/packages/jobs'
 import { SystemMaintenance } from './server/packages/maintenance'
-import { FstabManager, SystemFstabHost } from './server/fstab/backend'
-import { SystemBoot } from './server/boot/backend'
-import { SystemUsers } from './server/users/backend'
-import { SystemHardware } from './server/hardware/collect'
+import { createGate } from './server/privileged'
+import { serveHelper } from './server/privileged/helper-server'
+import { LocalPrivileged } from './server/privileged/local'
 import { SystemPodmanAdmin } from './server/quadlets/backend'
 import { SystemShares } from './server/shares/backend'
-import { SystemSsh } from './server/ssh/backend'
 import { SystemSmart } from './server/smart/backend'
-import { SystemFiles } from './server/files/backend'
-import { SystemTimers } from './server/timers/backend'
-import { SystemUnitEditor } from './server/systemd/editor'
-import { SystemNetwork } from './server/network/collect'
-import { CaddyManager, SystemCaddyHost } from './server/caddy/backend'
-import { SystemBackup, quadletContents } from './server/backup/backend'
 import { SystemPower } from './server/smart/power'
-import { selfArgv } from './server/packages/jobs'
+import { SystemSsh } from './server/ssh/backend'
+import { SystemUnitEditor } from './server/systemd/editor'
+import { SystemTimers } from './server/timers/backend'
+import { selfUpdate } from './server/update'
+import { SystemUsers } from './server/users/backend'
+import { HELPER_UNIT, WEB_UNIT } from './unit-file'
 
 export interface StartServer {
   fetch(request: Request): Response | Promise<Response>
@@ -161,7 +161,8 @@ export function serve(opts: MainOptions) {
     async fetch(req, srv) {
       const url = new URL(req.url)
       // .br/.gz copies are served in place of their file (content-encoding), never as files of their own
-      if ((req.method === 'GET' || req.method === 'HEAD') && opts.assets.has(url.pathname) && !PRECOMPRESSED.some(([, suffix]) => url.pathname.endsWith(suffix))) return staticAsset(req, url.pathname, opts.assets)
+      if ((req.method === 'GET' || req.method === 'HEAD') && opts.assets.has(url.pathname) && !PRECOMPRESSED.some(([, suffix]) => url.pathname.endsWith(suffix)))
+        return staticAsset(req, url.pathname, opts.assets)
       const headers = new Headers(req.headers)
       headers.delete(PEER_HEADER)
       headers.set(PEER_HEADER, srv.requestIP(req)?.address ?? 'unknown')
@@ -296,12 +297,12 @@ export async function main(argv: string[], opts: MainOptions) {
       }
       const b = new SystemBackup({ self: selfArgv() })
       const r = argv[1] === 'run' ? await b.runBackup() : await b.runCheck()
-      process.exit(r.status === 'failed' ? 1 : 0)
+      return process.exit(r.status === 'failed' ? 1 : 0)
     }
     case 'job':
       // Started by the helper only (systemd-run or child process), as root.
       installNoLang()
-      process.exit(await runJobCommand(argv[1]))
+      return process.exit(await runJobCommand(argv[1]))
     case 'doctor': {
       // --json for scripts, --expect key=value (repeatable) for CI
       installNoLang()
@@ -312,7 +313,7 @@ export async function main(argv: string[], opts: MainOptions) {
         argv.flatMap((a, i) => (a === '--expect' && argv[i + 1] ? [argv[i + 1]!] : a.startsWith('--expect=') ? [a.slice(9)] : [])),
       )
       for (const f of failed) console.error(`doctor: ${f}`)
-      process.exit(failed.length ? 1 : 0)
+      return process.exit(failed.length ? 1 : 0)
     }
     case 'update':
       await selfUpdate(opts.version, argv.includes('--force'))

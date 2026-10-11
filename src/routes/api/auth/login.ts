@@ -1,8 +1,8 @@
-import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 import { createFileRoute } from '@tanstack/react-router'
+import { m } from '~/paraglide/messages'
 import { beginAttempt, createSession, HttpError, sessionCookie, verifyPassword } from '~/server/auth'
 import { errorResponse, readJson } from '~/server/http'
+import { msg } from '~/shared/i18n'
 
 export const Route = createFileRoute('/api/auth/login')({
   server: {

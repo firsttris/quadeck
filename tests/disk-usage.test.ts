@@ -2,8 +2,8 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { fsTrend, fullInUnit, perMonth } from '~/shared/disk-usage'
 import { parseLsblk } from '~/server/collectors/disks'
+import { fsTrend, fullInUnit, perMonth } from '~/shared/disk-usage'
 
 process.env.QUADECK_DATA_DIR = mkdtempSync(join(tmpdir(), 'quadeck-fs-'))
 const { FsHistory, fsTrends, seedFsHistory } = await import('~/server/disk-history')
@@ -58,9 +58,16 @@ describe('trend and forecast', () => {
 describe('history in the database', () => {
   it('writes one sample per file system and hour, trends from it, keeps 400 days', () => {
     const h = new FsHistory(db)
-    const disks = [{ mount: '/mnt/disk1', size: 12 * TB, used: 9 * TB }, { mount: '/', size: 1 * TB, used: 0.3 * TB }]
+    const disks = [
+      { mount: '/mnt/disk1', size: 12 * TB, used: 9 * TB },
+      { mount: '/', size: 1 * TB, used: 0.3 * TB },
+    ]
     for (let d = 10; d >= 0; d--)
-      for (const min of [0, 10, 59]) h.record(disks.map((x) => ({ ...x, used: x.mount === '/' ? x.used : x.used + (10 - d) * 50e9 })), NOW - d * DAY + min * 60_000 - 30 * 60_000)
+      for (const min of [0, 10, 59])
+        h.record(
+          disks.map((x) => ({ ...x, used: x.mount === '/' ? x.used : x.used + (10 - d) * 50e9 })),
+          NOW - d * DAY + min * 60_000 - 30 * 60_000,
+        )
     const rows = db()
       .select()
       .from(schema.metricSamples)
@@ -68,21 +75,43 @@ describe('history in the database', () => {
       .filter((r) => r.metric.startsWith('fs:'))
     // three calls per hour, but one row each (the 10/59 minute calls fall into neighbouring hours)
     expect(rows.filter((r) => r.metric === 'fs:/mnt/disk1').length).toBeLessThanOrEqual(22)
-    const trends = fsTrends(db(), [{ mount: '/mnt/disk1', size: 12 * TB, used: 9.5 * TB }, { mount: '/', size: 1 * TB, used: 0.3 * TB }, { mount: '/new', size: TB, used: 1 }], NOW)
+    const trends = fsTrends(
+      db(),
+      [
+        { mount: '/mnt/disk1', size: 12 * TB, used: 9.5 * TB },
+        { mount: '/', size: 1 * TB, used: 0.3 * TB },
+        { mount: '/new', size: TB, used: 1 },
+      ],
+      NOW,
+    )
     expect(trends.get('/mnt/disk1')!.perDay / 1e9).toBeCloseTo(50, 0)
     expect(trends.get('/')!.steady).toBe(true)
     expect(trends.has('/new')).toBe(false)
     // 400 days, not the 7 days of the CPU history
-    db().insert(schema.metricSamples).values({ ts: NOW - 300 * DAY, metric: 'fs:/mnt/disk1', value: 1 }).run()
-    db().insert(schema.metricSamples).values({ ts: NOW - 401 * DAY, metric: 'fs:/mnt/disk1', value: 1 }).run()
+    db()
+      .insert(schema.metricSamples)
+      .values({ ts: NOW - 300 * DAY, metric: 'fs:/mnt/disk1', value: 1 })
+      .run()
+    db()
+      .insert(schema.metricSamples)
+      .values({ ts: NOW - 401 * DAY, metric: 'fs:/mnt/disk1', value: 1 })
+      .run()
     pruneHistory(db(), NOW)
-    const left = db().select().from(schema.metricSamples).all().filter((r) => r.metric === 'fs:/mnt/disk1').map((r) => r.ts)
+    const left = db()
+      .select()
+      .from(schema.metricSamples)
+      .all()
+      .filter((r) => r.metric === 'fs:/mnt/disk1')
+      .map((r) => r.ts)
     expect(left).toContain(NOW - 300 * DAY)
     expect(left).not.toContain(NOW - 401 * DAY)
   })
 
   it('the demo history gives the data disks a trend and the system disk none', () => {
-    const disks = [{ mount: '/', size: 1 * TB, used: 0.3 * TB }, { mount: '/mnt/a', size: 12 * TB, used: 10 * TB }]
+    const disks = [
+      { mount: '/', size: 1 * TB, used: 0.3 * TB },
+      { mount: '/mnt/a', size: 12 * TB, used: 10 * TB },
+    ]
     db().delete(schema.metricSamples).run()
     seedFsHistory(db(), disks, NOW)
     const t = fsTrends(db(), disks, NOW)

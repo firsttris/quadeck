@@ -38,7 +38,7 @@ export interface ArchiveEntry {
 }
 
 /** GNU tar's escape quoting (\\, \n, \t, octal \ooo) back to the name. */
-function unescape(s: string): string {
+function tarUnescape(s: string): string {
   return s.replace(/\\(\\|[0-7]{3}|[abfnrtv])/g, (_, c: string) => {
     if (c === '\\') return '\\'
     if (/^[0-7]{3}$/.test(c)) return String.fromCharCode(parseInt(c, 8))
@@ -59,8 +59,8 @@ export function parseTarList(out: string): ArchiveEntry[] {
     let name = mm[4]!
     let target: string | undefined
     const sep = type === 'link' ? ' -> ' : type === 'hardlink' ? ' link to ' : undefined
-    if (sep && name.includes(sep)) [name, target] = [name.slice(0, name.indexOf(sep)), unescape(name.slice(name.indexOf(sep) + sep.length))]
-    entries.push({ path: unescape(name), type, size: type === 'file' ? Number(mm[3]) : 0, ...(target !== undefined ? { target } : {}), ...(/[sStT]/.test(mm[2]!) ? { special: true } : {}) })
+    if (sep && name.includes(sep)) [name, target] = [name.slice(0, name.indexOf(sep)), tarUnescape(name.slice(name.indexOf(sep) + sep.length))]
+    entries.push({ path: tarUnescape(name), type, size: type === 'file' ? Number(mm[3]) : 0, ...(target !== undefined ? { target } : {}), ...(/[sStT]/.test(mm[2]!) ? { special: true } : {}) })
   }
   return entries
 }
@@ -126,7 +126,8 @@ export function checkEntries(entries: ArchiveEntry[]): ArchiveCheck {
     else if (e.type === 'other') problems.push({ path: raw, reason: 'device' })
     else if (e.special) problems.push({ path: raw, reason: 'special' })
     else if (e.type === 'link' && (e.target === undefined || e.target.startsWith('/') || inside(path, e.target) === undefined)) problems.push({ path: raw, reason: 'linkOutside', target: e.target })
-    else if (e.type === 'hardlink' && (e.target === undefined || e.target.startsWith('/') || normEntry(e.target).split('/').includes('..'))) problems.push({ path: raw, reason: 'linkOutside', target: e.target })
+    else if (e.type === 'hardlink' && (e.target === undefined || e.target.startsWith('/') || normEntry(e.target).split('/').includes('..')))
+      problems.push({ path: raw, reason: 'linkOutside', target: e.target })
     if (!path) continue
     tops.add(path.split('/')[0]!)
     if (e.type === 'dir') dirs++
@@ -159,4 +160,5 @@ export interface ArchivePreview {
 }
 
 /** Can it be unpacked as shown (overwrite: replace existing entries)? */
-export const extractBlocked = (p: ArchivePreview, overwrite: boolean) => !!p.missing || p.problems.length > 0 || !!p.linkInTarget || (p.free !== undefined && p.size > p.free) || (p.conflicts.length > 0 && !overwrite)
+export const extractBlocked = (p: ArchivePreview, overwrite: boolean) =>
+  !!p.missing || p.problems.length > 0 || !!p.linkInTarget || (p.free !== undefined && p.size > p.free) || (p.conflicts.length > 0 && !overwrite)

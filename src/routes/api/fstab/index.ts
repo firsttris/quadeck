@@ -1,13 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { HttpError } from '~/server/auth'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { HttpError } from '~/server/auth'
 import { parseFstabChange } from '~/server/fstab/parse'
 import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
 import { hubReady } from '~/server/hub'
 import { privileged } from '~/server/privileged'
 import { unlockToken } from '~/server/unlock-sessions'
+import { msg } from '~/shared/i18n'
 
 // fstab configurator.
 // GET → entries, devices, history · ?revision=id → content of an earlier version.
@@ -28,7 +28,7 @@ export const Route = createFileRoute('/api/fstab/')({
         if (b.validate) return Response.json(await p.validateFstab(parseFstabChange(b.validate)))
         assertWritable()
         const token = unlockToken(session.id)
-        let state
+        let state: Awaited<ReturnType<typeof p.applyFstab>>
         if (b.apply) state = await p.applyFstab(token, parseFstabChange(b.apply), b.confirm === true)
         else if (b.mount && typeof b.mount.target === 'string') state = await p.mountAction(token, b.mount.target, b.mount.action === 'unmount' ? 'unmount' : 'mount')
         else throw new HttpError(400, msg(m.common_errors_unknownRequest))

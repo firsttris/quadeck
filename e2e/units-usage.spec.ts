@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
 
 // Demo: 30 seeded days for the fixture containers (the stopped ones ran until three days ago).
 const PASSWORD = 'e2e-password-123'

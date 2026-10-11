@@ -5,7 +5,10 @@ import { readFileSync, writeFileSync } from 'node:fs'
 const journal = JSON.parse(readFileSync('drizzle/meta/_journal.json', 'utf8')) as { entries: { tag: string }[] }
 const migrations = journal.entries.map((e) => ({
   tag: e.tag,
-  statements: readFileSync(`drizzle/${e.tag}.sql`, 'utf8').split('--> statement-breakpoint').map((s) => s.trim()).filter(Boolean),
+  statements: readFileSync(`drizzle/${e.tag}.sql`, 'utf8')
+    .split('--> statement-breakpoint')
+    .map((s) => s.trim())
+    .filter(Boolean),
 }))
 writeFileSync(
   'src/server/db/migrations.gen.ts',

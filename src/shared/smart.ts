@@ -2,8 +2,8 @@
 // snapraid-ui's smart-health.ts (same thresholds and reasons); the data
 // comes from `smartctl --json` instead of `snapraid smart`.
 
-import { localeOf, msg } from './i18n'
 import { m } from '~/paraglide/messages'
+import { localeOf, msg } from './i18n'
 
 export type SmartStatus = 'OK' | 'FAIL' | 'PREFAIL' | 'LOGFAIL' | 'LOGERR' | 'SELFERR' | 'UNKNOWN'
 
@@ -173,8 +173,10 @@ export function assessSmart(disk: SmartDisk, baseline?: SmartBaseline): SmartAss
     if (error) found.push({ level: 'warning', reason: { kind: 'errors', attribute: error, count } })
   }
   if (disk.errorMedium) found.push({ level: 'warning', reason: { kind: 'errors', attribute: 'medium', count: disk.errorMedium } })
-  if (disk.wearLevel !== undefined && disk.wearLevel >= WORN_PERCENT) found.push({ level: disk.wearLevel >= CRITICAL_WEAR_PERCENT ? 'critical' : 'warning', reason: { kind: 'wear', percent: disk.wearLevel } })
-  if (disk.temperature !== undefined && disk.temperature > HOT_CELSIUS) found.push({ level: disk.temperature >= CRITICAL_CELSIUS ? 'critical' : 'warning', reason: { kind: 'temperature', celsius: disk.temperature } })
+  if (disk.wearLevel !== undefined && disk.wearLevel >= WORN_PERCENT)
+    found.push({ level: disk.wearLevel >= CRITICAL_WEAR_PERCENT ? 'critical' : 'warning', reason: { kind: 'wear', percent: disk.wearLevel } })
+  if (disk.temperature !== undefined && disk.temperature > HOT_CELSIUS)
+    found.push({ level: disk.temperature >= CRITICAL_CELSIUS ? 'critical' : 'warning', reason: { kind: 'temperature', celsius: disk.temperature } })
   const lastTest = disk.selfTests[0]
   if (lastTest && !lastTest.passed && disk.status !== 'SELFERR') found.push({ level: 'warning', reason: { kind: 'selftest', status: lastTest.status } })
   return { level: worst(found.map((f) => f.level)), reasons: found.map((f) => f.reason), notes }

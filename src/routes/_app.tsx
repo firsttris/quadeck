@@ -1,22 +1,22 @@
-import { Link, Outlet, createFileRoute, redirect, useRouterState } from '@tanstack/react-router'
+import { createFileRoute, Link, Outlet, redirect, useRouterState } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActionsProvider } from '~/components/Actions'
-import { CommandPalette } from '~/components/CommandPalette'
-import { JobChip, JobsProvider } from '~/components/Jobs'
-import { UnlockChip, UnlockProvider } from '~/components/Unlock'
 import { LangSelect } from '~/components/AuthCard'
+import { CommandPalette } from '~/components/CommandPalette'
 import { Glyph, Logo } from '~/components/Glyph'
+import { JobChip, JobsProvider } from '~/components/Jobs'
 import { MotionSelect } from '~/components/MotionSelect'
-import { ThemeSelect } from '~/components/ThemeSelect'
 import { PasskeysDialog } from '~/components/Passkeys'
 import { Dot } from '~/components/Status'
+import { ThemeSelect } from '~/components/ThemeSelect'
 import { ToastProvider } from '~/components/Toast'
+import { UnlockChip, UnlockProvider } from '~/components/Unlock'
+import { pickMsg } from '~/i18n'
 import { api, setCsrfToken } from '~/lib/api'
 import { duration } from '~/lib/format'
 import { LiveProvider, useLiveState } from '~/lib/live'
 import { getInitialSnapshot } from '~/lib/server-fns'
 import { m } from '~/paraglide/messages'
-import { pickMsg } from '~/i18n'
 
 export const Route = createFileRoute('/_app')({
   beforeLoad: ({ context }) => {
@@ -66,7 +66,12 @@ function AppLayout() {
   )
 }
 
-type NavItem = { to: '/' | '/units' | '/journal' | '/disks' | '/files' | '/shares' | '/backups' | '/ssh' | '/terminal' | '/network' | '/system' | '/notifications' | '/users'; label: string; glyph: string; badge: number }
+type NavItem = {
+  to: '/' | '/units' | '/journal' | '/disks' | '/files' | '/shares' | '/backups' | '/ssh' | '/terminal' | '/network' | '/system' | '/notifications' | '/users'
+  label: string
+  glyph: string
+  badge: number
+}
 
 function useNav(): { title?: string; items: NavItem[] }[] {
   const { snapshot } = useLiveState()
@@ -116,7 +121,7 @@ function MobileBar({ onMenu, onSearch }: { onMenu: () => void; onSearch: () => v
     <header className="sticky top-0 z-30 flex items-center gap-1 border-b border-line bg-bg/92 px-2 py-2 backdrop-blur md:hidden">
       <button type="button" className="relative grid h-10 w-10 place-items-center rounded-lg text-fg hover:bg-surface" onClick={onMenu} aria-label={m.shell_bar_openMenu()}>
         <Glyph name="menu" size={20} strokeWidth={2} />
-        {problems > 0 && <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-[#f85149]" aria-label={m.shell_bar_problems({ n: problems })} />}
+        {problems > 0 && <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-[#f85149]" role="img" aria-label={m.shell_bar_problems({ n: problems })} />}
       </button>
       <Link to="/" className="flex min-w-0 grow items-center gap-2 text-fg no-underline">
         <Logo size={26} />
@@ -145,7 +150,8 @@ function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => vo
   const [passkeys, setPasskeys] = useState(false)
 
   // The drawer closes when a page is chosen, on Escape, and doesn't let the page behind scroll.
-  useEffect(() => onClose(), [path]) // eslint-disable-line react-hooks/exhaustive-deps
+  // biome-ignore lint/correctness/useExhaustiveDependencies: close the drawer on navigation
+  useEffect(() => onClose(), [path])
   const closeButton = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     if (!open) return
@@ -227,7 +233,18 @@ function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => vo
             <span key={k} title={s.error} className="flex items-start gap-2 text-[#e3b341]">
               <Dot tone="warn" />
               <span className="line-clamp-2">
-                {pickMsg({ "podman": m.shell_sources_podman, "systemd": m.shell_sources_systemd, "caddy": m.shell_sources_caddy, "disks": m.shell_sources_disks, "system": m.shell_sources_system, "smart": m.shell_sources_smart }, k) ?? k}: {s.error}
+                {pickMsg(
+                  {
+                    podman: m.shell_sources_podman,
+                    systemd: m.shell_sources_systemd,
+                    caddy: m.shell_sources_caddy,
+                    disks: m.shell_sources_disks,
+                    system: m.shell_sources_system,
+                    smart: m.shell_sources_smart,
+                  },
+                  k,
+                ) ?? k}
+                : {s.error}
               </span>
             </span>
           ))}

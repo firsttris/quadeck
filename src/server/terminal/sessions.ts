@@ -5,8 +5,8 @@
 // alive). Sessions belong to the unlock token that opened them: locking ends them.
 
 import { randomBytes } from 'node:crypto'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import type { TerminalInfo } from '~/shared/terminal'
 import { HttpError } from '../auth'
 

@@ -2,26 +2,26 @@
 // "quadeck" group can open, offers a fixed list of operations and enforces
 // the unlock gate itself.
 
-import { parseItems } from '~/shared/podman-storage'
-import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 import { chmodSync, chownSync, existsSync, readFileSync, rmSync } from 'node:fs'
-import { HttpError } from '../auth'
-import { PACKAGE_NAME } from '~/shared/packages'
-import { parseJobSpec } from '../packages/job'
-import type { PodmanConfigName } from '~/shared/quadlets'
-import { parseShareChange } from '../shares/backend'
-import { parseSshChange } from '../ssh/backend'
-import { DISK_NAME } from '../smart/backend'
-import { parseSave, parseTimerAction } from '../timers/backend'
-import { parseFstabChange } from '../fstab/parse'
-import { parseCaddyChange } from '~/shared/caddy'
-import { QUADECK_URL, parseClientPlan } from '~/shared/backup-client'
-import { parsePowerSetting } from '~/shared/power'
+import { m } from '~/paraglide/messages'
 import { parseBackupPlan, parseClientChange, parseSecrets, parseTargetConfig, parseWarnDays } from '~/shared/backup'
+import { parseClientPlan, QUADECK_URL } from '~/shared/backup-client'
 import { parseBootEntryChange } from '~/shared/boot'
+import { parseCaddyChange } from '~/shared/caddy'
+import { msg } from '~/shared/i18n'
+import { PACKAGE_NAME } from '~/shared/packages'
+import { parseItems } from '~/shared/podman-storage'
+import { parsePowerSetting } from '~/shared/power'
+import type { PodmanConfigName } from '~/shared/quadlets'
+import { HttpError } from '../auth'
+import { parseFstabChange } from '../fstab/parse'
+import { parseJobSpec } from '../packages/job'
+import { parseShareChange } from '../shares/backend'
+import { DISK_NAME } from '../smart/backend'
+import { parseSshChange } from '../ssh/backend'
+import { parseSave, parseTimerAction } from '../timers/backend'
 import { parseUserChange } from '../users/parse'
-import { UNIT_ACTIONS, type Privileged, type UnitAction } from './actions'
+import { type Privileged, UNIT_ACTIONS, type UnitAction } from './actions'
 
 type Handler = (body: Record<string, unknown>, p: Privileged) => Promise<unknown>
 
@@ -286,7 +286,7 @@ function groupId(name: string): number | undefined {
   try {
     const line = readFileSync('/etc/group', 'utf8')
       .split('\n')
-      .find((l) => l.startsWith(name + ':'))
+      .find((l) => l.startsWith(`${name}:`))
     return line ? Number(line.split(':')[2]) : undefined
   } catch {
     return undefined

@@ -1,11 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { m } from '~/paraglide/messages'
 import { HttpError } from '~/server/auth'
 import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
 import { privileged } from '~/server/privileged'
 import { unlockToken } from '~/server/unlock-sessions'
 import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 
 // Unit editor.
 // GET ?unit=x → files · ?unit&path&history → versions · ?unit&path&revision=id → content.
@@ -32,7 +32,10 @@ export const Route = createFileRoute('/api/systemd/')({
         if (b.validate) return Response.json(await p.validateUnitFile(str(b.validate.unit), str(b.validate.path), str(b.validate.content)))
         assertWritable()
         const token = unlockToken(session.id)
-        if (b.write) return Response.json(await p.writeUnitFile(token, str(b.write.unit), str(b.write.path), str(b.write.content), b.write.restart === true, typeof b.write.expected === 'string' ? b.write.expected : undefined))
+        if (b.write)
+          return Response.json(
+            await p.writeUnitFile(token, str(b.write.unit), str(b.write.path), str(b.write.content), b.write.restart === true, typeof b.write.expected === 'string' ? b.write.expected : undefined),
+          )
         if (b.delete) {
           await p.deleteUnitFile(token, str(b.delete.unit), str(b.delete.path))
           return Response.json({ ok: true })

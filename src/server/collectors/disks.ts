@@ -4,10 +4,10 @@
 import { existsSync, readdirSync, readFileSync, readlinkSync } from 'node:fs'
 import { statfs } from 'node:fs/promises'
 import { basename } from 'node:path'
+import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import type { SmartDisk, TempSensorGap } from '~/shared/smart'
 import type { Disk } from '~/shared/types'
-import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 import { runOk } from '../exec'
 
 interface LsblkDev {
@@ -84,7 +84,7 @@ function readDriveTemps(): Map<string, number> {
         for (const b of readdirSync(`${base}/device/block`)) temps.set(b, t)
       } else if (name === 'nvme') {
         const ctrl = basename(readlinkSync(`${base}/device`)) // nvme0
-        for (const b of readdirSync('/sys/block').filter((x) => x.startsWith(ctrl + 'n'))) temps.set(b, t)
+        for (const b of readdirSync('/sys/block').filter((x) => x.startsWith(`${ctrl}n`))) temps.set(b, t)
       }
     } catch {
       // sensor without block mapping
@@ -101,7 +101,17 @@ export async function collectDisks(): Promise<Disk[]> {
     parseLsblk(json).map(async (fs): Promise<Disk | undefined> => {
       try {
         const s = await statfs(fs.mount)
-        return { dev: fs.dev, path: fs.path, mount: fs.mount, fstype: fs.fstype, size: s.blocks * s.bsize, used: (s.blocks - s.bfree) * s.bsize, tempC: temps.get(fs.dev), role: diskRole(fs.mount), disks: fs.disks.length ? fs.disks : [fs.dev] }
+        return {
+          dev: fs.dev,
+          path: fs.path,
+          mount: fs.mount,
+          fstype: fs.fstype,
+          size: s.blocks * s.bsize,
+          used: (s.blocks - s.bfree) * s.bsize,
+          tempC: temps.get(fs.dev),
+          role: diskRole(fs.mount),
+          disks: fs.disks.length ? fs.disks : [fs.dev],
+        }
       } catch {
         return undefined
       }

@@ -2,38 +2,38 @@ import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, wri
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { LinkStore, SystemBackup, accessPassword, clientRepoStatus, parseEnvFile } from '~/server/backup/backend'
-import { defaultClientPlan } from '~/shared/backup-client'
+import { accessPassword, clientRepoStatus, LinkStore, parseEnvFile, SystemBackup } from '~/server/backup/backend'
 import { run } from '~/server/exec'
 import { parseJobSpec } from '~/server/packages/job'
 import {
+  type BackupPlan,
   backupAlert,
   backupArgs,
   backupRunFrom,
   backupUnits,
   checkCalendar,
+  clientRepo,
   defaultPlan,
   excludeFile,
   forgetArgs,
+  nextBackupRun,
   onCalendar,
   parseBackupPlan,
+  parseClientChange,
   parseLs,
   parseSecrets,
   parseSnapshots,
+  parseTargetConfig,
+  parseWarnDays,
+  RETENTION_PRESETS,
   retentionEstimate,
   retentionPoints,
   retentionPreset,
-  RETENTION_PRESETS,
-  nextBackupRun,
-  suggestBackup,
-  type BackupPlan,
-  clientRepo,
-  parseClientChange,
-  parseTargetConfig,
-  parseWarnDays,
   staleClients,
+  suggestBackup,
   targetQuadlet,
 } from '~/shared/backup'
+import { defaultClientPlan } from '~/shared/backup-client'
 import { lintQuadlet } from '~/shared/ini'
 
 const plan = (over: Partial<BackupPlan> = {}): BackupPlan => ({
@@ -50,7 +50,12 @@ const plan = (over: Partial<BackupPlan> = {}): BackupPlan => ({
 
 describe('parseBackupPlan', () => {
   it('accepts a sound plan and normalises it', () => {
-    const { plan: p, error } = parseBackupPlan({ ...plan(), paths: ['/srv/app', '/srv/app', 'volume:caddy-data'], exclude: { presets: ['caches', 'bogus'], dirs: [], patterns: ['  *.iso ', ''] }, extra: 1 })
+    const { plan: p, error } = parseBackupPlan({
+      ...plan(),
+      paths: ['/srv/app', '/srv/app', 'volume:caddy-data'],
+      exclude: { presets: ['caches', 'bogus'], dirs: [], patterns: ['  *.iso ', ''] },
+      extra: 1,
+    })
     expect(error).toBeUndefined()
     expect(p!.paths).toEqual(['/srv/app', 'volume:caddy-data'])
     expect(p!.exclude).toEqual({ presets: ['caches'], dirs: [], patterns: ['*.iso'] })
@@ -154,11 +159,17 @@ describe('restic arguments and units', () => {
 
 describe('suggestions from the Quadlets', () => {
   const files = [
-    { name: 'jellyfin.container', content: '[Container]\nImage=docker.io/jellyfin/jellyfin:latest\nVolume=/srv/jellyfin/config:/config:Z\nVolume=/srv/jellyfin/cache:/cache:Z\nVolume=/mnt/storage/media:/media:ro\n' },
+    {
+      name: 'jellyfin.container',
+      content: '[Container]\nImage=docker.io/jellyfin/jellyfin:latest\nVolume=/srv/jellyfin/config:/config:Z\nVolume=/srv/jellyfin/cache:/cache:Z\nVolume=/mnt/storage/media:/media:ro\n',
+    },
     { name: 'immich.container', content: '[Container]\nImage=ghcr.io/immich-app/immich-server:release\nVolume=/srv/immich/upload/:/usr/src/app/upload:Z\nVolume=/etc/localtime:/etc/localtime:ro\n' },
     { name: 'immich-db.container', content: '[Container]\nImage=docker.io/tensorchord/pgvecto-rs:pg14-v0.2.0\nVolume=immich-db.volume:/var/lib/postgresql/data\n' },
     { name: 'immich-db.volume', content: '[Volume]\n' },
-    { name: 'caddy.container', content: '[Container]\nImage=docker.io/library/caddy:2\nVolume=/etc/caddy:/etc/caddy:Z\nVolume=caddy-data:/data\nVolume=/run/podman/podman.sock:/var/run/docker.sock\n' },
+    {
+      name: 'caddy.container',
+      content: '[Container]\nImage=docker.io/library/caddy:2\nVolume=/etc/caddy:/etc/caddy:Z\nVolume=caddy-data:/data\nVolume=/run/podman/podman.sock:/var/run/docker.sock\n',
+    },
   ]
   it('offers the data folders and volumes, skips sockets and what apps rebuild', () => {
     const s = suggestBackup(files)
@@ -197,7 +208,19 @@ describe('the setup wizard', () => {
       { daysAgo: 7, rule: 'weekly' },
       { daysAgo: 30, rule: 'monthly' },
     ])
-    expect(forgetArgs(plan({ keep: { daily: 7, weekly: 4, monthly: 12, yearly: 10 } }))).toEqual(['--tag', 'quadeck', '--prune', '--keep-daily', '7', '--keep-weekly', '4', '--keep-monthly', '12', '--keep-yearly', '10'])
+    expect(forgetArgs(plan({ keep: { daily: 7, weekly: 4, monthly: 12, yearly: 10 } }))).toEqual([
+      '--tag',
+      'quadeck',
+      '--prune',
+      '--keep-daily',
+      '7',
+      '--keep-weekly',
+      '4',
+      '--keep-monthly',
+      '12',
+      '--keep-yearly',
+      '10',
+    ])
     expect(parseBackupPlan(plan({ keep: { daily: 0, weekly: 0, monthly: 0, yearly: 3 } })).plan?.keep).toEqual({ daily: 0, weekly: 0, monthly: 0, yearly: 3 })
     expect(parseBackupPlan(plan({ keep: { daily: 7, weekly: 0, monthly: 0, yearly: 0 } })).plan?.keep).toEqual({ daily: 7, weekly: 0, monthly: 0 })
     expect(parseBackupPlan(plan({ keep: { daily: 0, weekly: 0, monthly: 0 } })).error).toBeTruthy()
@@ -206,7 +229,10 @@ describe('the setup wizard', () => {
 
   it('the next run of the schedule', () => {
     const wed = new Date(2026, 9, 7, 14, 30) // Wednesday 14:30
-    const at = (t: number) => { const d = new Date(t); return [d.getDay(), d.getDate(), d.getHours(), d.getMinutes()] }
+    const at = (t: number) => {
+      const d = new Date(t)
+      return [d.getDay(), d.getDate(), d.getHours(), d.getMinutes()]
+    }
     expect(at(nextBackupRun({ every: 'daily', time: '03:00' }, wed))).toEqual([4, 8, 3, 0])
     expect(at(nextBackupRun({ every: 'daily', time: '23:15' }, wed))).toEqual([3, 7, 23, 15])
     expect(at(nextBackupRun({ every: '6h', time: '02:00' }, wed))).toEqual([3, 7, 20, 0])
@@ -242,8 +268,26 @@ describe('restic output', () => {
     '{"message_type":"summary","files_new":2,"files_changed":1,"data_added":2105,"total_files_processed":10,"total_bytes_processed":600,"snapshot_id":"0b48d009ee9f"}',
   ].join('\n')
   it('a run with unreadable files is a warning, a crash a failure', () => {
-    expect(backupRunFrom(3, out, '', 1, 2)).toMatchObject({ status: 'warning', snapshot: '0b48d009ee9f', filesNew: 2, files: 10, added: 2105, errors: ['/srv/app/secret: permission denied', '/srv/app/gone'] })
-    expect(backupRunFrom(0, out.split('\n').filter((l) => !l.includes('error')).join('\n'), '', 1, 2).status).toBe('ok')
+    expect(backupRunFrom(3, out, '', 1, 2)).toMatchObject({
+      status: 'warning',
+      snapshot: '0b48d009ee9f',
+      filesNew: 2,
+      files: 10,
+      added: 2105,
+      errors: ['/srv/app/secret: permission denied', '/srv/app/gone'],
+    })
+    expect(
+      backupRunFrom(
+        0,
+        out
+          .split('\n')
+          .filter((l) => !l.includes('error'))
+          .join('\n'),
+        '',
+        1,
+        2,
+      ).status,
+    ).toBe('ok')
     expect(backupRunFrom(1, '', 'Fatal: unable to open repository\n', 1, 2)).toMatchObject({ status: 'failed', message: 'Fatal: unable to open repository' })
     expect(backupRunFrom(3, '', '', 1, 2).status).toBe('failed') // 3 without a summary: nothing was saved
   })
@@ -285,7 +329,13 @@ describe('restic output', () => {
 
 describe('restore job spec', () => {
   it('checks snapshot, paths, target and units', () => {
-    expect(parseJobSpec({ kind: 'backup-restore', snapshot: 'aaaa1111', paths: ['/srv/a'], stop: ['db.service'], target: '/srv/restore/x' })).toEqual({ kind: 'backup-restore', snapshot: 'aaaa1111', paths: ['/srv/a'], stop: ['db.service'], target: '/srv/restore/x' })
+    expect(parseJobSpec({ kind: 'backup-restore', snapshot: 'aaaa1111', paths: ['/srv/a'], stop: ['db.service'], target: '/srv/restore/x' })).toEqual({
+      kind: 'backup-restore',
+      snapshot: 'aaaa1111',
+      paths: ['/srv/a'],
+      stop: ['db.service'],
+      target: '/srv/restore/x',
+    })
     for (const bad of [
       { snapshot: 'x; rm', paths: ['/srv/a'], stop: [] },
       { snapshot: 'aaaa1111', paths: [], stop: [] },
@@ -329,7 +379,12 @@ describe.skipIf(!hasRestic)('SystemBackup with restic', () => {
     const unitDir = join(root, 'units')
     mkdirSync(unitDir)
     const b = new SystemBackup({ dir, unitDir, self: ['/usr/local/bin/quadeck'], exec, log: () => {} })
-    const p = plan({ repo: { kind: 'local', location: join(root, 'repo') }, paths: [join(src, 'app')], exclude: { presets: ['caches', 'temp', 'nobackup'], dirs: [join(src, 'app/cache')], patterns: [] }, stop: ['db.service'] })
+    const p = plan({
+      repo: { kind: 'local', location: join(root, 'repo') },
+      paths: [join(src, 'app')],
+      exclude: { presets: ['caches', 'temp', 'nobackup'], dirs: [join(src, 'app/cache')], patterns: [] },
+      stop: ['db.service'],
+    })
     return { root, src, dir, unitDir, calls, b, p, exec }
   }
 
@@ -448,7 +503,8 @@ describe('backup target for clients', () => {
   const cfg = { dataDir: '/srv/backups', port: 8000, appendOnly: true, url: 'http://nas.lan:8000' }
   it('checks the target and writes a Quadlet the linter accepts', () => {
     expect(parseTargetConfig({ ...cfg, dataDir: '/srv/backups/', url: 'http://nas.lan:8000/' })).toEqual({ config: cfg })
-    for (const bad of [{ dataDir: 'backups' }, { dataDir: '/' }, { port: 0 }, { port: 70000 }, { url: 'nas.lan:8000' }, { url: 'http://u:p@nas/' }, { url: 'http://nas lan' }]) expect(parseTargetConfig({ ...cfg, ...bad }).error).toBeTruthy()
+    for (const bad of [{ dataDir: 'backups' }, { dataDir: '/' }, { port: 0 }, { port: 70000 }, { url: 'nas.lan:8000' }, { url: 'http://u:p@nas/' }, { url: 'http://nas lan' }])
+      expect(parseTargetConfig({ ...cfg, ...bad }).error).toBeTruthy()
     const q = targetQuadlet(cfg)
     expect(q).toContain('Image=docker.io/restic/rest-server:latest')
     expect(q).toContain('Volume=/srv/backups:/data:Z')
@@ -524,7 +580,10 @@ describe('SystemBackup: clients', () => {
     expect(htpasswd(dataDir)).toContain(line) // the same access comes back
 
     const renewed = await b.renewClient('laptop')
-    const hash = htpasswd(dataDir).split('\n').find((l) => l.startsWith('laptop:'))!.slice(7)
+    const hash = htpasswd(dataDir)
+      .split('\n')
+      .find((l) => l.startsWith('laptop:'))!
+      .slice(7)
     expect(await Bun.password.verify(renewed.password, hash)).toBe(true)
     expect(await Bun.password.verify(password, hash)).toBe(false)
 
@@ -549,26 +608,30 @@ describe('SystemBackup: clients', () => {
     expect(existsSync(join(root, 'nope'))).toBe(false)
   })
 
-  it.skipIf(!hasRestic)('reads the last backup of a client from its repository without the password', async () => {
-    const { root, b, dataDir } = setup()
-    await b.saveTarget({ dataDir, port: 8000, appendOnly: false, url: 'http://nas:8000' })
-    await b.addClient('laptop', 3)
-    expect(clientRepoStatus(join(dataDir, 'laptop'))).toEqual({ snapshots: 0 })
-    // What a client does through the rest-server, done locally into the same folder.
-    mkdirSync(join(root, 'home'))
-    writeFileSync(join(root, 'home/doc.txt'), 'hello')
-    writeFileSync(join(root, 'pw'), 'client-secret\n')
-    const env = { RESTIC_REPOSITORY: join(dataDir, 'laptop'), RESTIC_PASSWORD_FILE: join(root, 'pw'), RESTIC_CACHE_DIR: join(root, 'cache') }
-    expect((await run(['restic', 'init'], { env })).code).toBe(0)
-    const before = Date.now()
-    expect((await run(['restic', 'backup', join(root, 'home')], { env })).code).toBe(0)
-    const st = await b.targetState(true)
-    const c = st.clients.find((x) => x.name === 'laptop')!
-    expect(c.snapshots).toBe(1)
-    expect(c.lastAt).toBeGreaterThanOrEqual(before - 1000)
-    expect(c.size).toBeGreaterThan(0)
-    expect(st.disk?.free).toBeGreaterThan(0)
-  }, 60_000)
+  it.skipIf(!hasRestic)(
+    'reads the last backup of a client from its repository without the password',
+    async () => {
+      const { root, b, dataDir } = setup()
+      await b.saveTarget({ dataDir, port: 8000, appendOnly: false, url: 'http://nas:8000' })
+      await b.addClient('laptop', 3)
+      expect(clientRepoStatus(join(dataDir, 'laptop'))).toEqual({ snapshots: 0 })
+      // What a client does through the rest-server, done locally into the same folder.
+      mkdirSync(join(root, 'home'))
+      writeFileSync(join(root, 'home/doc.txt'), 'hello')
+      writeFileSync(join(root, 'pw'), 'client-secret\n')
+      const env = { RESTIC_REPOSITORY: join(dataDir, 'laptop'), RESTIC_PASSWORD_FILE: join(root, 'pw'), RESTIC_CACHE_DIR: join(root, 'cache') }
+      expect((await run(['restic', 'init'], { env })).code).toBe(0)
+      const before = Date.now()
+      expect((await run(['restic', 'backup', join(root, 'home')], { env })).code).toBe(0)
+      const st = await b.targetState(true)
+      const c = st.clients.find((x) => x.name === 'laptop')!
+      expect(c.snapshots).toBe(1)
+      expect(c.lastAt).toBeGreaterThanOrEqual(before - 1000)
+      expect(c.size).toBeGreaterThan(0)
+      expect(st.disk?.free).toBeGreaterThan(0)
+    },
+    60_000,
+  )
 })
 
 describe('one-time links for the client script', () => {

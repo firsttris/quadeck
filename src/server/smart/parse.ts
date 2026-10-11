@@ -1,7 +1,7 @@
 // smartctl --json output → SmartDisk (unit-tested with captured output).
 
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import type { SmartAttribute, SmartDisk, SmartSelfTest, SmartStatus } from '~/shared/smart'
 
 /** smartctl exit status bits (man smartctl, "RETURN VALUES"). */

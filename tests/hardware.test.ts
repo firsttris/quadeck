@@ -1,7 +1,7 @@
 import { readFileSync } from 'node:fs'
 import { describe, expect, it } from 'vitest'
 import { FixtureHardware, SystemHardware } from '~/server/hardware/collect'
-import { buildHardware, gpuQuadletLine, lookupIds, parseCpu, parseDmidecode, pcieGen, pciGroup, shortGpuName, type HardwareRaw } from '~/shared/hardware'
+import { buildHardware, gpuQuadletLine, type HardwareRaw, lookupIds, parseCpu, parseDmidecode, pcieGen, pciGroup, shortGpuName } from '~/shared/hardware'
 
 const RAW = JSON.parse(readFileSync('fixtures/demo/hardware.json', 'utf8')) as HardwareRaw
 const NOW = Date.UTC(2026, 9, 2)
@@ -22,14 +22,30 @@ describe('parsers', () => {
   })
 
   it('reads the CPU from lscpu -J (nested) and from cpuinfo alone', () => {
-    expect(parseCpu(RAW.lscpu, RAW.cpuinfo)).toEqual({ model: '12th Gen Intel(R) Core(TM) i5-12500', vendor: 'GenuineIntel', sockets: 1, cores: 6, threads: 12, maxMHz: 4600, virtualization: 'VT-x', cache: '18 MiB (1 instance)' })
+    expect(parseCpu(RAW.lscpu, RAW.cpuinfo)).toEqual({
+      model: '12th Gen Intel(R) Core(TM) i5-12500',
+      vendor: 'GenuineIntel',
+      sockets: 1,
+      cores: 6,
+      threads: 12,
+      maxMHz: 4600,
+      virtualization: 'VT-x',
+      cache: '18 MiB (1 instance)',
+    })
     const info = 'processor\t: 0\nvendor_id\t: AuthenticAMD\nmodel name\t: AMD Ryzen 5 5600G\nphysical id\t: 0\ncpu cores\t: 6\nflags\t\t: fpu svm\n\nprocessor\t: 1\nphysical id\t: 0\n'
     expect(parseCpu(undefined, info)).toMatchObject({ model: 'AMD Ryzen 5 5600G', cores: 6, threads: 2, virtualization: 'AMD-V' })
   })
 
   it('looks names up in pci.ids', () => {
     const ids = `# comment\n8086  Intel Corporation\n\t125c  Ethernet Controller I226-V\n\t\t8086 0000  Subsystem\n144d  Samsung Electronics Co Ltd\n\ta80a  NVMe SSD Controller PM9A1/PM9A3/980PRO\nC 01  Mass storage controller\n\t08  Non-Volatile memory controller\nC 02  Network controller\n`
-    const r = lookupIds(ids, [{ vendor: '8086', device: '125c' }, { vendor: '144d', device: 'a80a' }], ['0108', '02'])
+    const r = lookupIds(
+      ids,
+      [
+        { vendor: '8086', device: '125c' },
+        { vendor: '144d', device: 'a80a' },
+      ],
+      ['0108', '02'],
+    )
     expect(r.vendors.get('8086')).toBe('Intel Corporation')
     expect(r.devices.get('8086:125c')).toBe('Ethernet Controller I226-V')
     expect(r.devices.get('144d:a80a')).toBe('NVMe SSD Controller PM9A1/PM9A3/980PRO')
@@ -39,7 +55,13 @@ describe('parsers', () => {
 
   it('knows PCIe generations, groups and GPU names', () => {
     expect([pcieGen('2.5 GT/s PCIe'), pcieGen('8.0 GT/s PCIe'), pcieGen('16.0 GT/s PCIe'), pcieGen('Unknown')]).toEqual([1, 3, 4, undefined])
-    expect([pciGroup('0x010802'), pciGroup('0x010601'), pciGroup('0x020000'), pciGroup('0x030000'), pciGroup('0x0c0330')]).toEqual(['NVMe', 'Speicher-Controller', 'Netzwerk', 'Grafik', 'USB-Controller'])
+    expect([pciGroup('0x010802'), pciGroup('0x010601'), pciGroup('0x020000'), pciGroup('0x030000'), pciGroup('0x0c0330')]).toEqual([
+      'NVMe',
+      'Speicher-Controller',
+      'Netzwerk',
+      'Grafik',
+      'USB-Controller',
+    ])
     expect(shortGpuName('Intel Corporation DG2 [Arc A380]')).toBe('Arc A380')
     expect(shortGpuName('NVIDIA GeForce RTX 3060')).toBe('GeForce RTX 3060')
     expect(gpuQuadletLine(['/dev/dri/card1', '/dev/dri/renderD129'])).toBe('AddDevice=/dev/dri/renderD129')
@@ -60,14 +82,20 @@ describe('the spec sheet', () => {
     expect(h.pci.find((p) => p.address === '0000:04:00.0')!.downgraded).toBe('läuft mit x1 statt x2')
     expect(h.pci.find((p) => p.group === 'Grafik' && p.linkWidth)!.downgraded).toBeUndefined() // GPUs slow their link down when idle
     expect(h.sata.find((a) => a.disk === 'sdc')!.slow).toBe(true)
-    expect(h.warnings.map((w) => w.text)).toEqual([expect.stringMatching(/^ASM1166 .*x1 statt x2/), expect.stringMatching(/^sdc .*3.0 Gbps statt 6.0 Gbps/), expect.stringMatching(/BIOS ist von 2022/)])
+    expect(h.warnings.map((w) => w.text)).toEqual([
+      expect.stringMatching(/^ASM1166 .*x1 statt x2/),
+      expect.stringMatching(/^sdc .*3.0 Gbps statt 6.0 Gbps/),
+      expect.stringMatching(/BIOS ist von 2022/),
+    ])
   })
 
   it('warns about a hot sensor and a slow NVMe; tells a VM apart', () => {
     const raw: HardwareRaw = {
       ...RAW,
       virt: 'kvm',
-      pci: [{ address: '0000:01:00.0', class: '0x010802', vendor: '144d', device: 'a80a', linkSpeed: '8.0 GT/s PCIe', linkWidth: 4, maxLinkSpeed: '16.0 GT/s PCIe', maxLinkWidth: 4, names: ['nvme0'] }],
+      pci: [
+        { address: '0000:01:00.0', class: '0x010802', vendor: '144d', device: 'a80a', linkSpeed: '8.0 GT/s PCIe', linkWidth: 4, maxLinkSpeed: '16.0 GT/s PCIe', maxLinkWidth: 4, names: ['nvme0'] },
+      ],
       ata: [],
       sensors: [{ chip: 'coretemp', label: 'Package id 0', kind: 'temp', value: 97, crit: 100 }],
       dmi: { bios_date: '01/01/2025' },

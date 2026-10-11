@@ -1,7 +1,7 @@
 // Builds the single binary: vite build, then `bun build --compile` with the
 // client assets embedded. Usage: bun scripts/compile.ts [target…]
 //   targets: bun-linux-x64-baseline bun-linux-arm64 bun-linux-x64-musl bun-linux-arm64-musl
-import { readdirSync, statSync, writeFileSync, mkdirSync } from 'node:fs'
+import { mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { $ } from 'bun'
 import pkg from '../package.json'
@@ -26,7 +26,7 @@ const lines = [
   `const assets = new Map<string, string>([${files.map((f, i) => `['/${relative('dist/client', f)}', f${i}]`).join(', ')}])`,
   `await main(process.argv.slice(2), { server, assets, version: ${JSON.stringify(pkg.version)} })`,
 ]
-writeFileSync('build/entry.ts', lines.join('\n') + '\n')
+writeFileSync('build/entry.ts', `${lines.join('\n')}\n`)
 
 mkdirSync('release', { recursive: true })
 for (const target of targets) {

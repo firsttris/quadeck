@@ -4,9 +4,9 @@
 import { randomBytes } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { basename } from 'node:path'
-import type { JobInfo, JobSpec, JobState } from '~/shared/packages'
-import { localize, msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { localize, msg } from '~/shared/i18n'
+import type { JobInfo, JobSpec, JobState } from '~/shared/packages'
 import { HttpError } from '../auth'
 import { run } from '../exec'
 import { EXIT_MARKER, encodeSpec, jobTitle } from './job'
@@ -22,7 +22,6 @@ export interface Launcher {
 
 const MAX_LINES = 20_000
 const KEEP_JOBS = 20
-// eslint-disable-next-line no-control-regex
 const ANSI = /\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*\x07/g
 
 /**
@@ -37,7 +36,6 @@ export function lineSplitter(emit: (l: string) => void) {
   const out = (raw: string) => {
     const l = clean(raw)
     if (!l.trim()) {
-      // eslint-disable-next-line no-control-regex
       if (/[\r\x1b]/.test(raw)) return // only control codes and spaces
       if (blank) return
       blank = true
@@ -175,9 +173,24 @@ export class SystemdLauncher implements Launcher {
     const other = active.stdout.trim().split(/\s+/)[0]
     if (other) throw new HttpError(409, msg(m.packages_error_jobRunning, { job: other }))
     const env = FORWARD_ENV.filter((k) => process.env[k]).map((k) => `--setenv=${k}=${process.env[k]}`)
-    const r = await run(['systemd-run', `--unit=${unit}`, '--collect', '--quiet', `--description=Quadeck: ${localize(jobTitle(spec), 'en')}`, '--property=Type=exec', ...env, '--', ...selfArgv(), 'job', encodeSpec(spec)], {
-      timeoutMs: 30_000,
-    })
+    const r = await run(
+      [
+        'systemd-run',
+        `--unit=${unit}`,
+        '--collect',
+        '--quiet',
+        `--description=Quadeck: ${localize(jobTitle(spec), 'en')}`,
+        '--property=Type=exec',
+        ...env,
+        '--',
+        ...selfArgv(),
+        'job',
+        encodeSpec(spec),
+      ],
+      {
+        timeoutMs: 30_000,
+      },
+    )
     if (r.code !== 0) throw new Error(`systemd-run: ${r.stderr.trim()}`)
     sink.line(msg(m.packages_job_runningAsUnit, { unit }))
     void this.follow(unit, sink).catch((e) => failJob(sink, e))
@@ -225,7 +238,7 @@ export function journalPoll(stdout: string): { cursor?: string; text: string } {
   if (lines.at(-1) === '') lines.pop()
   const cur = lines.findLast((l) => l.startsWith('-- cursor: '))
   const body = lines.filter((l) => !l.startsWith('-- cursor: ') && l !== '-- No entries --')
-  return { ...(cur ? { cursor: cur.slice('-- cursor: '.length) } : {}), text: body.length ? body.join('\n') + '\n' : '' }
+  return { ...(cur ? { cursor: cur.slice('-- cursor: '.length) } : {}), text: body.length ? `${body.join('\n')}\n` : '' }
 }
 
 export function defaultLauncher(): Launcher {

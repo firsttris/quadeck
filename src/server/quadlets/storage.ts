@@ -3,9 +3,19 @@
 
 import { readFileSync, statfsSync } from 'node:fs'
 import { join } from 'node:path'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
-import { confirmItems, normalizeImage, type CleanupItem, type CleanupResult, type PodmanContainer, type PodmanImage, type PodmanNetwork, type PodmanStorage, type PodmanVolume } from '~/shared/podman-storage'
+import { msg } from '~/shared/i18n'
+import {
+  type CleanupItem,
+  type CleanupResult,
+  confirmItems,
+  normalizeImage,
+  type PodmanContainer,
+  type PodmanImage,
+  type PodmanNetwork,
+  type PodmanStorage,
+  type PodmanVolume,
+} from '~/shared/podman-storage'
 
 export type PodmanApi = (path: string, init?: RequestInit) => Promise<Response>
 
@@ -117,7 +127,12 @@ export async function readStorage(api: PodmanApi, refs: QuadletRefs, disk: (root
       }
     })
   // Infra containers hold their pod's networks and volumes too.
-  const users = list.map((c, i) => ({ id: c.Id, volumes: (mounts[i]?.Mounts ?? []).filter((m) => m.Type === 'volume' && m.Name).map((m) => m.Name!), networks: c.Networks ?? [], imageId: c.ImageID ?? '' }))
+  const users = list.map((c, i) => ({
+    id: c.Id,
+    volumes: (mounts[i]?.Mounts ?? []).filter((m) => m.Type === 'volume' && m.Name).map((m) => m.Name!),
+    networks: c.Networks ?? [],
+    imageId: c.ImageID ?? '',
+  }))
 
   const quadletImages = refs.images.map((r) => ({ file: r.file, ref: normalizeImage(r.image) }))
   const outImages: PodmanImage[] = images.map((im) => {
@@ -215,13 +230,15 @@ export async function cleanStorage(api: PodmanApi, refs: QuadletRefs, requested:
  */
 export function fixtureApi(dir: string): PodmanApi {
   const g = globalThis as unknown as { __qdPodmanFixture?: Record<string, unknown[]> & { df: DfReport } }
-  const state = (g.__qdPodmanFixture ??= JSON.parse(readFileSync(join(dir, 'podman-storage.json'), 'utf8')))
+  g.__qdPodmanFixture ??= JSON.parse(readFileSync(join(dir, 'podman-storage.json'), 'utf8'))
+  const state = g.__qdPodmanFixture!
   const json = (v: unknown, status = 200) => new Response(JSON.stringify(v), { status, headers: { 'content-type': 'application/json' } })
   return async (path, init) => {
     const p = path.replace(/^\/v[\d.]+\/libpod/, '').split('?')[0]!
     const containers = state.containers as (ListContainer & { Mounts: ContainerInspect['Mounts'] })[]
     // secrets: names and dates only, the value is dropped (like Podman, it is never shown again)
-    const secrets = (state.secrets ??= []) as { ID: string; Spec: { Name: string }; CreatedAt: string; UpdatedAt: string }[]
+    state.secrets ??= []
+    const secrets = state.secrets as { ID: string; Spec: { Name: string }; CreatedAt: string; UpdatedAt: string }[]
     if (p === '/secrets/json') return json(secrets)
     if (p === '/secrets/create' && init?.method === 'POST') {
       const q = new URLSearchParams(path.split('?')[1] ?? '')
@@ -247,7 +264,14 @@ export function fixtureApi(dir: string): PodmanApi {
       const list = state[key] as { Id?: string; Name?: string; name?: string }[]
       const i = list.findIndex((x) => (x.Id && sameId(x.Id, id)) || x.Name === id || x.name === id)
       if (i < 0) return json({ message: 'no such object' }, 404)
-      const inUse = key === 'images' ? containers.some((c) => c.ImageID && sameId(c.ImageID, id)) : key === 'volumes' ? containers.some((c) => (c.Mounts ?? []).some((m) => m.Name === id)) : key === 'networks' ? containers.some((c) => (c.Networks ?? []).includes(id)) : containers[i]?.State === 'running'
+      const inUse =
+        key === 'images'
+          ? containers.some((c) => c.ImageID && sameId(c.ImageID, id))
+          : key === 'volumes'
+            ? containers.some((c) => (c.Mounts ?? []).some((m) => m.Name === id))
+            : key === 'networks'
+              ? containers.some((c) => (c.Networks ?? []).includes(id))
+              : containers[i]?.State === 'running'
       if (inUse) return json({ message: `${id} is in use` }, 409)
       list.splice(i, 1)
       return json([{ Id: id }])

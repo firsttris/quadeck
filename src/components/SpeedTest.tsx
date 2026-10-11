@@ -1,12 +1,14 @@
+import { Link } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
-import { api, ApiError, csrfHeaders } from '~/lib/api'
+import { ApiError, api, csrfHeaders } from '~/lib/api'
+import { m } from '~/paraglide/messages'
 import { localeOf } from '~/shared/i18n'
 import { mbps, pingStats, type SpeedResult, type SpeedSchedule } from '~/shared/speedtest'
 import { HistoryChart } from './HistoryChart'
-import { useGuardedApi } from './Unlock'
 import { useToast } from './Toast'
-import { Link } from '@tanstack/react-router'
-import { m } from '~/paraglide/messages'
+import { useGuardedApi } from './Unlock'
+
+const HOURS = Array.from({ length: 24 }, (_, h) => h)
 
 const SECONDS = 6
 const dateFmt = (ts: number) => new Date(ts).toLocaleString(localeOf(), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -19,11 +21,11 @@ type Live = { phase: Phase; value: number; done: number; samples: number[] }
 
 // ---------- measuring in the browser (this device ↔ server) ----------
 
-async function run(phase: Phase, onTick: (value: number, done: number) => void, work: (signal: AbortSignal, add: (n: number) => void) => Promise<void>): Promise<number> {
+async function run(phase: Phase, report: (phase: Phase, value: number, done: number) => void, work: (signal: AbortSignal, add: (n: number) => void) => Promise<void>): Promise<number> {
   const ctrl = new AbortController()
   let bytes = 0
   const start = performance.now()
-  const tick = setInterval(() => onTick(mbps(bytes, performance.now() - start), Math.min(1, (performance.now() - start) / (SECONDS * 1000))), 200)
+  const tick = setInterval(() => report(phase, mbps(bytes, performance.now() - start), Math.min(1, (performance.now() - start) / (SECONDS * 1000))), 200)
   const stop = setTimeout(() => ctrl.abort(), SECONDS * 1000)
   const worker = async () => {
     while (!ctrl.signal.aborted && performance.now() - start < SECONDS * 1000)
@@ -50,32 +52,24 @@ async function clientTest(report: (phase: Phase, value: number, done: number) =>
     times.push(performance.now() - t)
     report('ping', Math.round(times.at(-1)!), (i + 1) / 10)
   }
-  const down = await run(
-    'down',
-    (v, d) => report('down', v, d),
-    async (signal, add) => {
-      const r = await fetch(`/api/speedtest?down=${100 * 1024 * 1024}`, { cache: 'no-store', signal })
-      const reader = r.body!.getReader()
-      for (;;) {
-        const { value, done } = await reader.read()
-        if (done) break
-        add(value.length)
-      }
-    },
-  )
+  const down = await run('down', report, async (signal, add) => {
+    const r = await fetch(`/api/speedtest?down=${100 * 1024 * 1024}`, { cache: 'no-store', signal })
+    const reader = r.body!.getReader()
+    for (;;) {
+      const { value, done } = await reader.read()
+      if (done) break
+      add(value.length)
+    }
+  })
   // fetch has no upload progress: requests grow while one takes less than a second.
   let size = 1024 * 1024
-  const up = await run(
-    'up',
-    (v, d) => report('up', v, d),
-    async (signal, add) => {
-      const t = performance.now()
-      const r = await fetch('/api/speedtest?up', { method: 'POST', body: new Uint8Array(size), headers: { 'content-type': 'application/octet-stream', ...csrfHeaders() }, signal, cache: 'no-store' })
-      if (!r.ok) throw new Error(m.common_http({ status: r.status }))
-      add(((await r.json()) as { bytes: number }).bytes)
-      if (performance.now() - t < 1000 && size < 32 * 1024 * 1024) size *= 2
-    },
-  )
+  const up = await run('up', report, async (signal, add) => {
+    const t = performance.now()
+    const r = await fetch('/api/speedtest?up', { method: 'POST', body: new Uint8Array(size), headers: { 'content-type': 'application/octet-stream', ...csrfHeaders() }, signal, cache: 'no-store' })
+    if (!r.ok) throw new Error(m.common_http({ status: r.status }))
+    add(((await r.json()) as { bytes: number }).bytes)
+    if (performance.now() - t < 1000 && size < 32 * 1024 * 1024) size *= 2
+  })
   return { down, up, ...pingStats(times) }
 }
 
@@ -92,8 +86,7 @@ async function internetTest(report: (phase: Phase, value: number, done: number) 
     const { value, done } = await reader.read()
     if (done) break
     buf += value
-    let nl: number
-    while ((nl = buf.indexOf('\n')) >= 0) {
+    for (let nl = buf.indexOf('\n'); nl >= 0; nl = buf.indexOf('\n')) {
       const line = JSON.parse(buf.slice(0, nl)) as { phase?: Phase; value?: number; done?: number; history?: SpeedResult[]; error?: string }
       buf = buf.slice(nl + 1)
       if (line.error) throw new Error(line.error)
@@ -123,7 +116,11 @@ const ARC = (() => {
   return `M ${x1} ${y1} A ${R} ${R} 0 1 1 ${x2} ${y2}`
 })()
 
-const COLORS: Record<Phase, [string, string]> = { ping: ['#8b949e', '#c9d1d9'], down: ['color-mix(in srgb, var(--color-accent) 78%, black)', 'var(--color-accent)'], up: ['color-mix(in srgb, var(--color-accent-2) 78%, black)', 'var(--color-accent-2)'] }
+const COLORS: Record<Phase, [string, string]> = {
+  ping: ['#8b949e', '#c9d1d9'],
+  down: ['color-mix(in srgb, var(--color-accent) 78%, black)', 'var(--color-accent)'],
+  up: ['color-mix(in srgb, var(--color-accent-2) 78%, black)', 'var(--color-accent-2)'],
+}
 
 function Gauge({ live, idle }: { live: Live | null; idle?: SpeedResult }) {
   const phase = live?.phase ?? 'down'
@@ -147,7 +144,17 @@ function Gauge({ live, idle }: { live: Live | null; idle?: SpeedResult }) {
         </filter>
       </defs>
       <path d={ARC} fill="none" stroke="rgba(255,255,255,.07)" strokeWidth="14" strokeLinecap="round" />
-      <path d={ARC} fill="none" stroke={`url(#${gid})`} strokeWidth="14" strokeLinecap="round" pathLength={100} strokeDasharray={`${frac * 100} 100`} filter="url(#glow)" style={{ transition: 'stroke-dasharray .35s ease-out' }} />
+      <path
+        d={ARC}
+        fill="none"
+        stroke={`url(#${gid})`}
+        strokeWidth="14"
+        strokeLinecap="round"
+        pathLength={100}
+        strokeDasharray={`${frac * 100} 100`}
+        filter="url(#glow)"
+        style={{ transition: 'stroke-dasharray .35s ease-out' }}
+      />
       {TICKS.map((t) => {
         const [x1, y1] = point(pos(t), R - 12)
         const [x2, y2] = point(pos(t), R - 18)
@@ -212,13 +219,13 @@ export function SpeedTest() {
       // shown again on the next try
     }
   }
+  // biome-ignore lint/correctness/useExhaustiveDependencies: load once on mount
   useEffect(() => {
     mounted.current = true
     void load()
     return () => {
       mounted.current = false
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   const report = (phase: Phase, value: number, done: number) => {
@@ -231,7 +238,10 @@ export function SpeedTest() {
     setError('')
     setLive({ phase: 'ping', value: 0, done: 0, samples: [] })
     try {
-      const h = kind === 'internet' ? await internetTest(report) : (await api<{ history: SpeedResult[] }>('/api/speedtest', { body: { client: { ...(await clientTest(report)), where: browserName() } } })).history
+      const h =
+        kind === 'internet'
+          ? await internetTest(report)
+          : (await api<{ history: SpeedResult[] }>('/api/speedtest', { body: { client: { ...(await clientTest(report)), where: browserName() } } })).history
       if (mounted.current) setHistory(h)
       void load()
     } catch (e) {
@@ -266,7 +276,10 @@ export function SpeedTest() {
               const at = running && live ? ['ping', 'down', 'up'].indexOf(live.phase) : -1
               const state = !running ? 'idle' : order < at ? 'done' : order === at ? 'now' : 'next'
               return (
-                <li key={p} className={`relative overflow-hidden rounded-full border px-3 py-1 ${state === 'now' ? 'border-accent/60 text-fg' : state === 'done' ? 'border-line text-[#7ee2a8]' : 'border-line text-muted'}`}>
+                <li
+                  key={p}
+                  className={`relative overflow-hidden rounded-full border px-3 py-1 ${state === 'now' ? 'border-accent/60 text-fg' : state === 'done' ? 'border-line text-[#7ee2a8]' : 'border-line text-muted'}`}
+                >
                   {state === 'now' && <span className="absolute inset-y-0 left-0 bg-accent/15" style={{ width: `${(live?.done ?? 0) * 100}%`, transition: 'width .2s linear' }} />}
                   <span className="relative">
                     {state === 'done' ? '✓ ' : ''}
@@ -387,7 +400,16 @@ function SpeedChart({ series }: { series: Info['series'] }) {
               { label: `↑ ${m.speed_up()}`, color: 'var(--color-accent-2)', points: series.up },
             ]}
           />
-          <HistoryChart detailed height={60} span={span} now={now} label={m.speed_ping()} yMin={0} format={(v) => `${num(v)} ms`} series={[{ label: m.speed_ping(), color: '#8b949e', points: series.ping }]} />
+          <HistoryChart
+            detailed
+            height={60}
+            span={span}
+            now={now}
+            label={m.speed_ping()}
+            yMin={0}
+            format={(v) => `${num(v)} ms`}
+            series={[{ label: m.speed_ping(), color: '#8b949e', points: series.ping }]}
+          />
         </>
       ) : (
         <p className="m-0 text-[13px] text-muted">{m.speed_chart_empty()}</p>
@@ -423,12 +445,18 @@ function AutoPanel({ schedule, next, onSaved }: { schedule: SpeedSchedule; next?
           <input type="checkbox" checked={s.enabled} onChange={(e) => void save({ ...s, enabled: e.target.checked })} />
           <span className="font-medium">{m.speed_auto_enabled()}</span>
         </label>
-        <select className="field !w-auto !py-1" aria-label={m.speed_auto_every()} value={s.every} disabled={!s.enabled} onChange={(e) => void save({ ...s, every: e.target.value as SpeedSchedule['every'] })}>
+        <select
+          className="field !w-auto !py-1"
+          aria-label={m.speed_auto_every()}
+          value={s.every}
+          disabled={!s.enabled}
+          onChange={(e) => void save({ ...s, every: e.target.value as SpeedSchedule['every'] })}
+        >
           <option value="daily">{m.speed_auto_daily()}</option>
           <option value="6h">{m.speed_auto_6h()}</option>
         </select>
         <select className="field !w-auto !py-1" aria-label={m.speed_auto_hour()} value={s.hour} disabled={!s.enabled} onChange={(e) => void save({ ...s, hour: Number(e.target.value) })}>
-          {Array.from({ length: 24 }, (_, h) => (
+          {HOURS.map((h) => (
             <option key={h} value={h}>
               {String(h).padStart(2, '0')}:00
             </option>

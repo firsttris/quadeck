@@ -2,8 +2,8 @@
 // itself (APM, hdparm -B). Set per disk, bound to its serial number through a udev rule, so it
 // survives reboots and replugging. No I/O here.
 
-import { msg } from './i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from './i18n'
 
 export const STANDBY_MINUTES = [0, 10, 20, 30, 60, 120] as const
 export type StandbyMinutes = (typeof STANDBY_MINUTES)[number]
@@ -72,7 +72,7 @@ export function powerRules(settings: Record<string, PowerSetting>, hdparm: strin
     .filter(([serial]) => SERIAL.test(serial))
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([serial, s]) => `ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", ENV{ID_SERIAL_SHORT}=="${serial}", RUN+="${hdparm} ${hdparmArgs(s).join(' ')} /dev/%k"`)
-  return [HEADER, ...lines].join('\n') + '\n'
+  return `${[HEADER, ...lines].join('\n')}\n`
 }
 
 /** Quadeck's own rules file back into settings (lines it did not write are ignored). */

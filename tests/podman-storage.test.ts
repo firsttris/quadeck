@@ -1,7 +1,21 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { run } from '~/server/exec'
-import { cleanStorage, fixtureApi, readStorage, type PodmanApi, type QuadletRefs } from '~/server/quadlets/storage'
-import { PRUNE_CALENDAR, PRUNE_COMMAND, cleanupPlan, confirmItems, defaultSelection, normalizeImage, parseItems, parseSelection, planSize, quadletKey, storageSummary, type CleanupSelection, type PodmanStorage } from '~/shared/podman-storage'
+import { cleanStorage, fixtureApi, type PodmanApi, type QuadletRefs, readStorage } from '~/server/quadlets/storage'
+import {
+  type CleanupSelection,
+  cleanupPlan,
+  confirmItems,
+  defaultSelection,
+  normalizeImage,
+  type PodmanStorage,
+  PRUNE_CALENDAR,
+  PRUNE_COMMAND,
+  parseItems,
+  parseSelection,
+  planSize,
+  quadletKey,
+  storageSummary,
+} from '~/shared/podman-storage'
 
 const refs: QuadletRefs = {
   images: [
@@ -67,7 +81,7 @@ describe('reading storage', () => {
     expect(old.map((i) => i.previously)).toEqual(['ghcr.io/immich-app/immich-server:release', 'docker.io/jellyfin/jellyfin:latest', 'ghcr.io/immich-app/immich-machine-learning:release', undefined])
     expect(old.every((i) => i.quadlets.length === 0)).toBe(true) // the old version is not what the Quadlet names
     const vol = (n: string) => s.volumes.find((v) => v.name === n)!
-    expect(vol('caddy-data').usedBy).toEqual(['caddy' + '0'.repeat(59)])
+    expect(vol('caddy-data').usedBy).toEqual([`caddy${'0'.repeat(59)}`])
     expect(vol('nextcloud-data').usedBy).toEqual([])
     expect(vol('nextcloud-data').size).toBe(2_100_000_000)
     expect(s.volumes.filter((v) => v.anonymous)).toHaveLength(2)
@@ -76,7 +90,7 @@ describe('reading storage', () => {
     expect(s.root).toBe('/var/lib/containers/storage')
     expect(s.disk).toEqual({ size: 100, used: 40 })
     const c = s.containers.find((x) => x.name === 'old-nginx')!
-    expect(c).toMatchObject({ state: 'exited', exitCode: 137, volumes: ['3f9c0a' + 'e'.repeat(58)] })
+    expect(c).toMatchObject({ state: 'exited', exitCode: 137, volumes: [`3f9c0a${'e'.repeat(58)}`] })
     expect(c.exitedAt).toBeGreaterThan(0)
   })
 
@@ -94,14 +108,27 @@ describe('reading storage', () => {
     ])
     // Quadlet containers stay even when stopped; so do their images and volumes.
     const all = cleanupPlan(s, { containers: true, dangling: true, unusedImages: true, networks: true, volumes: s.volumes.map((v) => v.name) })
-    for (const keep of ['immich-ml', 'qbittorrent', 'scratch', 'caddy-data', 'qbittorrent-config', 'immich', 'podman', 'media', 'docker.io/library/alpine:3', 'lscr.io/linuxserver/qbittorrent:latest', 'ghcr.io/immich-app/immich-machine-learning:release']) expect(all.map((i) => i.label)).not.toContain(keep)
+    for (const keep of [
+      'immich-ml',
+      'qbittorrent',
+      'scratch',
+      'caddy-data',
+      'qbittorrent-config',
+      'immich',
+      'podman',
+      'media',
+      'docker.io/library/alpine:3',
+      'lscr.io/linuxserver/qbittorrent:latest',
+      'ghcr.io/immich-app/immich-machine-learning:release',
+    ])
+      expect(all.map((i) => i.label)).not.toContain(keep)
   })
 
   it('cascades: images, volumes and networks freed by removing their containers', () => {
     expect(labels(s, { networks: true })).toEqual(['network:nextcloud_default'])
     expect(labels(s, { unusedImages: true })).toEqual(['image:docker.io/library/nextcloud:29'])
     expect(labels(s, { containers: true, unusedImages: true }).filter((l) => l.startsWith('image'))).toEqual(['image:docker.io/library/nginx:1.25', 'image:docker.io/library/nextcloud:29'])
-    const anon = '3f9c0a' + 'e'.repeat(58)
+    const anon = `3f9c0a${'e'.repeat(58)}`
     expect(labels(s, { volumes: [anon, 'nextcloud-data', 'caddy-data'] })).toEqual(['volume:nextcloud-data']) // anon still used by the stopped old-nginx
     expect(labels(s, { containers: true, volumes: [anon, 'nextcloud-data', 'caddy-data'] }).filter((l) => l.startsWith('volume'))).toEqual(['volume:nextcloud-data', 'volume:3f9c0aeeeeee…'])
   })
@@ -126,7 +153,11 @@ describe('cleaning up', () => {
       if (i?.method === 'DELETE') calls.push(p.replace(/^\/v[\d.]+\/libpod/, ''))
       return api(p, i)
     }
-    const r = await cleanStorage(spy, refs, plan.map(({ kind, id }) => ({ kind, id })))
+    const r = await cleanStorage(
+      spy,
+      refs,
+      plan.map(({ kind, id }) => ({ kind, id })),
+    )
     expect(r.skipped).toBe(0)
     expect(r.results.every((x) => x.ok)).toBe(true)
     expect(calls[0]).toMatch(/^\/containers\//)
@@ -146,7 +177,16 @@ describe('cleaning up', () => {
     const nextcloud = s.images.find((i) => i.names.includes('docker.io/library/nextcloud:29'))!
     // a container using nextcloud:29 and nextcloud-data appears between preview and click
     const state = g.__qdPodmanFixture as { containers: unknown[] }
-    state.containers.push({ Id: 'beef'.repeat(16), Names: ['nextcloud'], Image: 'docker.io/library/nextcloud:29', ImageID: nextcloud.id, State: 'running', Labels: {}, Networks: ['nextcloud_default'], Mounts: [{ Type: 'volume', Name: 'nextcloud-data' }] })
+    state.containers.push({
+      Id: 'beef'.repeat(16),
+      Names: ['nextcloud'],
+      Image: 'docker.io/library/nextcloud:29',
+      ImageID: nextcloud.id,
+      State: 'running',
+      Labels: {},
+      Networks: ['nextcloud_default'],
+      Mounts: [{ Type: 'volume', Name: 'nextcloud-data' }],
+    })
     const methods: string[] = []
     const r = await cleanStorage(
       (p, i) => {
@@ -159,7 +199,7 @@ describe('cleaning up', () => {
         { kind: 'volume', id: 'nextcloud-data' },
         { kind: 'network', id: 'nextcloud_default' },
         { kind: 'volume', id: 'caddy-data' },
-        { kind: 'container', id: 'jellyfin' + '0'.repeat(56) }, // running, owned by a Quadlet
+        { kind: 'container', id: `jellyfin${'0'.repeat(56)}` }, // running, owned by a Quadlet
       ],
     )
     expect(r.results).toEqual([])

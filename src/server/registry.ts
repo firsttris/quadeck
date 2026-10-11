@@ -7,10 +7,10 @@
 //   4. labels quadeck.* in the Quadlet file
 //   5. overrides from the UI (SQLite)
 
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import type { Container, Health, IconRef, Service, ServiceGroup } from '~/shared/types'
-import { colorFor, knownApp, matchIcon, slugCandidates, slugify, type IconIndex } from './icons'
+import { colorFor, type IconIndex, knownApp, matchIcon, slugCandidates, slugify } from './icons'
 import type { ServiceCandidate } from './providers/types'
 
 export interface Override {

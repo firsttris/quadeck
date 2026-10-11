@@ -2,14 +2,14 @@
 // keys keeps every other line (comments, unknown keys, order) unchanged, so
 // the form and the text view can work on the same file.
 
-import { getValue, parseIni } from './ini-parse'
-import { isSensitive, splitEnvironment } from './secrets'
-import { msg } from './i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from './i18n'
+import { getValue, parseIni } from './ini-parse'
 import { QUADLET_KEYS, QUADLET_SECTION } from './quadlet-keys'
 import type { Diagnostic, QuadletType } from './quadlets'
+import { isSensitive, splitEnvironment } from './secrets'
 
-export { getValue, getValues, parseIni, type IniEntry } from './ini-parse'
+export { getValue, getValues, type IniEntry, parseIni } from './ini-parse'
 
 /**
  * Sets all values of a key: replaces the existing lines in place (the first
@@ -54,7 +54,7 @@ export function setValues(text: string, section: string, key: string, values: st
   }
   const body = text.replace(/\s*$/, '')
   const nl = `${cr}\n`
-  return (body ? `${body}${nl}${nl}` : '') + block.join('\n') + '\n'
+  return `${(body ? `${body}${nl}${nl}` : '') + block.join('\n')}\n`
 }
 
 const SYSTEMD_SECTIONS = new Set(['Unit', 'Service', 'Install', 'Timer', 'Socket', 'Path', 'Quadlet'])
@@ -89,8 +89,11 @@ export function lintQuadlet(text: string, type: QuadletType): Diagnostic[] {
     }
     if (!doc.multi && seen.has(e.key!)) diags.push({ line, severity: 'warning', message: msg(m.ini_lint_duplicateKey, { key: e.key ?? '', line }) })
     seen.set(e.key!, line)
-    if (e.key === 'Environment' && e.value) for (const a of splitEnvironment(e.value)) if (isSensitive(a.key) && a.value && !/^\$\{?\w+\}?$/.test(a.value)) diags.push({ line, severity: 'warning', message: msg(m.ini_lint_plainSecret, { key: a.key }) })
-    if (doc.options && e.value && !doc.options.includes(e.value)) diags.push({ line, severity: 'warning', message: msg(m.ini_lint_unexpectedValue, { key: e.key ?? '', value: e.value, list: doc.options.filter(Boolean).join(', ') }) })
+    if (e.key === 'Environment' && e.value)
+      for (const a of splitEnvironment(e.value))
+        if (isSensitive(a.key) && a.value && !/^\$\{?\w+\}?$/.test(a.value)) diags.push({ line, severity: 'warning', message: msg(m.ini_lint_plainSecret, { key: a.key }) })
+    if (doc.options && e.value && !doc.options.includes(e.value))
+      diags.push({ line, severity: 'warning', message: msg(m.ini_lint_unexpectedValue, { key: e.key ?? '', value: e.value, list: doc.options.filter(Boolean).join(', ') }) })
   }
   if (!entries.some((e) => e.kind === 'section' && e.section === main)) diags.push({ severity: 'error', message: msg(m.ini_lint_sectionMissing, { main }) })
   else if (type === 'container' && !getValue(text, main, 'Image') && !getValue(text, main, 'Rootfs')) diags.push({ severity: 'error', message: msg(m.ini_lint_imageMissing) })

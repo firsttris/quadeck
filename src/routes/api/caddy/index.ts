@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { m } from '~/paraglide/messages'
 import { HttpError } from '~/server/auth'
 import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
@@ -7,7 +8,6 @@ import { privileged } from '~/server/privileged'
 import { unlockToken } from '~/server/unlock-sessions'
 import { parseCaddyChange } from '~/shared/caddy'
 import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 
 // Reverse proxy (Caddyfile).
 // GET → file, sites, how it goes live · ?revision=id → content of an earlier version.
@@ -27,7 +27,7 @@ export const Route = createFileRoute('/api/caddy/')({
         const p = privileged()
         const token = unlockToken(session.id)
         if (b.apply) {
-          let change
+          let change: ReturnType<typeof parseCaddyChange>
           try {
             change = parseCaddyChange(b.apply)
           } catch (e) {
@@ -39,10 +39,7 @@ export const Route = createFileRoute('/api/caddy/')({
           return Response.json(r)
         }
         if (b.path === null || typeof b.path === 'string') return Response.json(await p.setCaddyPath(token, b.path))
-        throw new HttpError(
-          400,
-          msg(m.common_errors_unknownRequest),
-        )
+        throw new HttpError(400, msg(m.common_errors_unknownRequest))
       }),
     },
   },

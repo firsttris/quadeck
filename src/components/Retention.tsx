@@ -1,8 +1,8 @@
 import { useState } from 'react'
-import { retentionPresetLabel, spanLabel } from '~/lib/backup-labels'
-import { RETENTION_PRESETS, retentionEstimate, retentionPoints, retentionPreset, type BackupPlan, type RetentionPreset } from '~/shared/backup'
 import { pickMsg } from '~/i18n'
+import { retentionPresetLabel, spanLabel } from '~/lib/backup-labels'
 import { m } from '~/paraglide/messages'
+import { type BackupPlan, RETENTION_PRESETS, type RetentionPreset, retentionEstimate, retentionPoints, retentionPreset } from '~/shared/backup'
 
 type Keep = BackupPlan['keep']
 type Rule = 'daily' | 'weekly' | 'monthly' | 'yearly'
@@ -42,7 +42,14 @@ export function RetentionPicker({ keep, onChange }: { keep: Keep; onChange: (kee
           {(['daily', 'weekly', 'monthly', 'yearly'] as const).map((k) => (
             <label key={k} className="flex flex-col gap-1.5 text-[13px]">
               {pickMsg({ daily: m.backup_setup_keepDaily, weekly: m.backup_setup_keepWeekly, monthly: m.backup_setup_keepMonthly, yearly: m.backup_setup_keepYearly }, k)}
-              <input className="field" type="number" min={0} max={1000} value={keep[k] ?? 0} onChange={(e) => onChange({ ...keep, [k]: Math.max(0, Math.min(1000, Math.round(Number(e.target.value) || 0))) })} />
+              <input
+                className="field"
+                type="number"
+                min={0}
+                max={1000}
+                value={keep[k] ?? 0}
+                onChange={(e) => onChange({ ...keep, [k]: Math.max(0, Math.min(1000, Math.round(Number(e.target.value) || 0))) })}
+              />
             </label>
           ))}
         </div>
@@ -66,7 +73,11 @@ function Timeline({ keep, days }: { keep: Keep; days: number }) {
       <div className="relative h-[22px]">
         <div className="absolute inset-x-0 top-[10px] h-[2px] bg-rim" />
         {points.map((p) => (
-          <span key={p.daysAgo} className="absolute top-[5px] size-3 -translate-x-1/2 rounded-full" style={{ left: `${x(p.daysAgo)}%`, background: RULE_COLOR[p.rule], boxShadow: `0 0 6px ${RULE_COLOR[p.rule]}` }} />
+          <span
+            key={p.daysAgo}
+            className="absolute top-[5px] size-3 -translate-x-1/2 rounded-full"
+            style={{ left: `${x(p.daysAgo)}%`, background: RULE_COLOR[p.rule], boxShadow: `0 0 6px ${RULE_COLOR[p.rule]}` }}
+          />
         ))}
       </div>
       <div className="flex justify-between text-[11px] text-faint">

@@ -1,12 +1,12 @@
 import { useEffect, useState } from 'react'
 import { api } from '~/lib/api'
+import { fieldLabel } from '~/lib/classes'
+import { m } from '~/paraglide/messages'
 import type { Service } from '~/shared/types'
 import { BusyButton, useBusy } from './Busy'
 import { Glyph } from './Glyph'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
-import { m } from '~/paraglide/messages'
-import { fieldLabel } from '~/lib/classes'
 
 /** Icon picker over the dashboard-icons index; empty value = automatic. */
 export function IconPicker({ value, onChange }: { value: string; onChange: (v: string) => void }) {
@@ -117,7 +117,7 @@ export function ServiceDialog({ service, groups, onClose }: { service: Service |
             body: { key: s.key, name: f.get('name'), group: f.get('group'), url: f.get('url'), icon, pinned: f.get('pinned') === 'on', hidden: f.get('hidden') === 'on' },
           })
         }
-        say(m.overview_dialog_saved({ name: (String(f.get('name') || s.name)) }))
+        say(m.overview_dialog_saved({ name: String(f.get('name') || s.name) }))
         onClose()
       } catch (e) {
         setError((e as Error).message)
@@ -148,7 +148,7 @@ export function ServiceDialog({ service, groups, onClose }: { service: Service |
       >
         {!manual && (
           <p className="m-0 text-[12px] text-muted">
-            {m.overview_dialog_detectedFrom({ source: (s.source === 'caddy' ? 'Caddy' : m.overview_dialog_sourceLabel()) })}
+            {m.overview_dialog_detectedFrom({ source: s.source === 'caddy' ? 'Caddy' : m.overview_dialog_sourceLabel() })}
             {s.container ? ` · ${m.overview_alert_container({ name: s.container })}` : ''}
             {s.unit ? ` · ${s.unit}` : ''}
             {m.overview_dialog_emptyFollows()}

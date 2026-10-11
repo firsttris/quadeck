@@ -1,10 +1,10 @@
 // Types shared by the package/update views and the server side
 // (web app, root helper and the `quadeck job` runner).
 
-import type { KernelFlavor } from './boot'
-import type { PackFormat } from './archives'
-import { msg } from './i18n'
 import { m } from '~/paraglide/messages'
+import type { PackFormat } from './archives'
+import type { KernelFlavor } from './boot'
+import { msg } from './i18n'
 
 export type ManagerId = 'pacman' | 'apt' | 'dnf' | 'zypper' | 'apk' | 'rpm-ostree' | 'transactional-update'
 
@@ -216,11 +216,66 @@ export const PROTECTED_PACKAGES: Record<ManagerId, string[]> = {
     'ca-certificates',
     'init',
   ],
-  dnf: ['dnf', 'dnf5', 'rpm', 'glibc', 'systemd', 'bash', 'coreutils', 'filesystem', 'setup', 'shadow-utils', 'util-linux', 'sudo', 'openssh-server', 'podman', 'iproute', 'kernel', 'kernel-core', 'grub2-common', 'ca-certificates'],
-  zypper: ['zypper', 'rpm', 'glibc', 'systemd', 'bash', 'coreutils', 'filesystem', 'shadow', 'util-linux', 'sudo', 'openssh-server', 'podman', 'iproute2', 'kernel-default', 'grub2', 'ca-certificates'],
+  dnf: [
+    'dnf',
+    'dnf5',
+    'rpm',
+    'glibc',
+    'systemd',
+    'bash',
+    'coreutils',
+    'filesystem',
+    'setup',
+    'shadow-utils',
+    'util-linux',
+    'sudo',
+    'openssh-server',
+    'podman',
+    'iproute',
+    'kernel',
+    'kernel-core',
+    'grub2-common',
+    'ca-certificates',
+  ],
+  zypper: [
+    'zypper',
+    'rpm',
+    'glibc',
+    'systemd',
+    'bash',
+    'coreutils',
+    'filesystem',
+    'shadow',
+    'util-linux',
+    'sudo',
+    'openssh-server',
+    'podman',
+    'iproute2',
+    'kernel-default',
+    'grub2',
+    'ca-certificates',
+  ],
   apk: ['apk-tools', 'alpine-base', 'busybox', 'musl', 'openrc', 'openssh', 'podman', 'sudo', 'ca-certificates', 'linux-lts'],
   'rpm-ostree': [],
-  'transactional-update': ['zypper', 'rpm', 'glibc', 'systemd', 'bash', 'coreutils', 'filesystem', 'shadow', 'util-linux', 'sudo', 'openssh-server', 'podman', 'iproute2', 'kernel-default', 'ca-certificates', 'transactional-update', 'tukit'],
+  'transactional-update': [
+    'zypper',
+    'rpm',
+    'glibc',
+    'systemd',
+    'bash',
+    'coreutils',
+    'filesystem',
+    'shadow',
+    'util-linux',
+    'sudo',
+    'openssh-server',
+    'podman',
+    'iproute2',
+    'kernel-default',
+    'ca-certificates',
+    'transactional-update',
+    'tukit',
+  ],
 }
 
 export const PACKAGE_NAME = /^[A-Za-z0-9@_+][A-Za-z0-9@._+:-]{0,127}$/
@@ -240,7 +295,15 @@ export const FEATURES: Record<Feature, { label: string; packages: Record<Manager
     get label() {
       return msg(m.packages_feature_smartmontools)
     },
-    packages: { pacman: ['smartmontools'], apt: ['smartmontools'], dnf: ['smartmontools'], zypper: ['smartmontools'], apk: ['smartmontools'], 'rpm-ostree': ['smartmontools'], 'transactional-update': ['smartmontools'] },
+    packages: {
+      pacman: ['smartmontools'],
+      apt: ['smartmontools'],
+      dnf: ['smartmontools'],
+      zypper: ['smartmontools'],
+      apk: ['smartmontools'],
+      'rpm-ostree': ['smartmontools'],
+      'transactional-update': ['smartmontools'],
+    },
   },
   samba: {
     get label() {
@@ -252,13 +315,29 @@ export const FEATURES: Record<Feature, { label: string; packages: Record<Manager
     get label() {
       return msg(m.packages_feature_nfs)
     },
-    packages: { pacman: ['nfs-utils'], apt: ['nfs-kernel-server'], dnf: ['nfs-utils'], zypper: ['nfs-kernel-server'], apk: ['nfs-utils'], 'rpm-ostree': ['nfs-utils'], 'transactional-update': ['nfs-kernel-server'] },
+    packages: {
+      pacman: ['nfs-utils'],
+      apt: ['nfs-kernel-server'],
+      dnf: ['nfs-utils'],
+      zypper: ['nfs-kernel-server'],
+      apk: ['nfs-utils'],
+      'rpm-ostree': ['nfs-utils'],
+      'transactional-update': ['nfs-kernel-server'],
+    },
   },
   ssh: {
     get label() {
       return msg(m.packages_feature_openssh)
     },
-    packages: { pacman: ['openssh'], apt: ['openssh-server'], dnf: ['openssh-server'], zypper: ['openssh-server'], apk: ['openssh'], 'rpm-ostree': ['openssh-server'], 'transactional-update': ['openssh-server'] },
+    packages: {
+      pacman: ['openssh'],
+      apt: ['openssh-server'],
+      dnf: ['openssh-server'],
+      zypper: ['openssh-server'],
+      apk: ['openssh'],
+      'rpm-ostree': ['openssh-server'],
+      'transactional-update': ['openssh-server'],
+    },
   },
   hdparm: {
     label: 'hdparm',
@@ -266,7 +345,15 @@ export const FEATURES: Record<Feature, { label: string; packages: Record<Manager
   },
   zip: {
     label: 'zip / unzip',
-    packages: { pacman: ['zip', 'unzip'], apt: ['zip', 'unzip'], dnf: ['zip', 'unzip'], zypper: ['zip', 'unzip'], apk: ['zip', 'unzip'], 'rpm-ostree': ['zip', 'unzip'], 'transactional-update': ['zip', 'unzip'] },
+    packages: {
+      pacman: ['zip', 'unzip'],
+      apt: ['zip', 'unzip'],
+      dnf: ['zip', 'unzip'],
+      zypper: ['zip', 'unzip'],
+      apk: ['zip', 'unzip'],
+      'rpm-ostree': ['zip', 'unzip'],
+      'transactional-update': ['zip', 'unzip'],
+    },
   },
   restic: {
     label: 'restic',

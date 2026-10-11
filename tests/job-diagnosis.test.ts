@@ -2,8 +2,8 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { diagnoseJob, errorLines, isTerminalCommand, pkgName } from '~/shared/job-diagnosis'
 import { parseJobSpec, runningPackageManagers } from '~/server/packages/job'
+import { diagnoseJob, errorLines, isTerminalCommand, pkgName } from '~/shared/job-diagnosis'
 
 const up = { kind: 'upgrade' } as const
 const aur = { kind: 'aur-upgrade' } as const
@@ -65,9 +65,16 @@ error: could not lock database: File exists
   })
 
   it('apt: lock held by another process, interrupted dpkg', () => {
-    expect(diagnoseJob(up, ['E: Could not get lock /var/lib/dpkg/lock-frontend. It is held by process 1234 (unattended-upgr)'], 'apt')).toMatchObject({ kind: 'dpkgBusy', a: 'unattended-upgr', actions: [{ type: 'retry' }] })
+    expect(diagnoseJob(up, ['E: Could not get lock /var/lib/dpkg/lock-frontend. It is held by process 1234 (unattended-upgr)'], 'apt')).toMatchObject({
+      kind: 'dpkgBusy',
+      a: 'unattended-upgr',
+      actions: [{ type: 'retry' }],
+    })
     expect(diagnoseJob(up, ['E: Could not get lock /var/lib/dpkg/lock-frontend - open (11: Resource temporarily unavailable)'], 'apt')?.kind).toBe('dpkgBusy')
-    expect(diagnoseJob(up, ["E: dpkg was interrupted, you must manually run 'dpkg --configure -a' to correct the problem."], 'apt')).toMatchObject({ kind: 'dpkgInterrupted', actions: [{ type: 'terminal', command: 'dpkg-configure' }] })
+    expect(diagnoseJob(up, ["E: dpkg was interrupted, you must manually run 'dpkg --configure -a' to correct the problem."], 'apt')).toMatchObject({
+      kind: 'dpkgInterrupted',
+      actions: [{ type: 'terminal', command: 'dpkg-configure' }],
+    })
   })
 
   it('downloads and a full disk', () => {
@@ -75,7 +82,12 @@ error: could not lock database: File exists
 warning: failed to retrieve some files
 error: failed to commit transaction (failed to retrieve some files)`)
     expect(diagnoseJob(up, dl)).toMatchObject({ kind: 'download', unchanged: true, lines: [0, 1, 2], actions: [{ type: 'retry' }] })
-    expect(diagnoseJob(up, ['error: Partition / too full: 63248 blocks needed, 41020 blocks free', 'error: failed to commit transaction (not enough free disk space)'])).toMatchObject({ kind: 'diskFull', a: '/', unchanged: true, actions: [{ type: 'cache' }, { type: 'disks' }, { type: 'terminal' }] })
+    expect(diagnoseJob(up, ['error: Partition / too full: 63248 blocks needed, 41020 blocks free', 'error: failed to commit transaction (not enough free disk space)'])).toMatchObject({
+      kind: 'diskFull',
+      a: '/',
+      unchanged: true,
+      actions: [{ type: 'cache' }, { type: 'disks' }, { type: 'terminal' }],
+    })
     // mid-way (makepkg, dpkg): not "nothing changed"
     const mid = diagnoseJob(aur, ['tar: ./usr/lib/libfoo.so: Cannot write: No space left on device'])!
     expect(mid.kind).toBe('diskFull')
@@ -140,7 +152,10 @@ done`)
 
   it('running package managers from /proc', () => {
     const proc = mkdtempSync(join(tmpdir(), 'qd-proc-'))
-    const add = (pid: string, comm: string) => (mkdirSync(join(proc, pid)), writeFileSync(join(proc, pid, 'comm'), `${comm}\n`))
+    const add = (pid: string, comm: string) => {
+      mkdirSync(join(proc, pid))
+      writeFileSync(join(proc, pid, 'comm'), `${comm}\n`)
+    }
     add('1', 'systemd')
     add('200', 'bash')
     expect(runningPackageManagers(proc)).toEqual([])

@@ -1,9 +1,10 @@
 // Passkeys in the browser: WebAuthn needs a secure context and a host name, not an IP address
 // (src/server/passkeys.ts checks the same on the server).
-import { startAuthentication, startRegistration, WebAuthnError } from '@simplewebauthn/browser'
+
 import type { PublicKeyCredentialCreationOptionsJSON, PublicKeyCredentialRequestOptionsJSON } from '@simplewebauthn/browser'
-import { api } from './api'
+import { startAuthentication, startRegistration, WebAuthnError } from '@simplewebauthn/browser'
 import { m } from '~/paraglide/messages'
+import { api } from './api'
 
 export function passkeysSupported(): boolean {
   if (typeof window === 'undefined' || !window.isSecureContext || !window.PublicKeyCredential) return false
@@ -13,7 +14,7 @@ export function passkeysSupported(): boolean {
 
 /** True when the user closed the browser's passkey dialog or it timed out. */
 export function isCancelled(e: unknown): boolean {
-  const err = e instanceof WebAuthnError ? (e.cause as Error | undefined) ?? e : (e as Error | undefined)
+  const err = e instanceof WebAuthnError ? ((e.cause as Error | undefined) ?? e) : (e as Error | undefined)
   return err?.name === 'NotAllowedError' || err?.name === 'AbortError'
 }
 

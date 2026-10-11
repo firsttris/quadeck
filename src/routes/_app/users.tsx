@@ -1,20 +1,20 @@
-import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useActions } from '~/components/Actions'
 import { BusyButton } from '~/components/Busy'
 import { Glyph } from '~/components/Glyph'
 import { Modal } from '~/components/Modal'
 import { PageHeader } from '~/components/PageHeader'
-import { SshKeys, SshPreviewDialog, type SshPending } from '~/components/SshKeys'
+import { SshKeys, type SshPending, SshPreviewDialog } from '~/components/SshKeys'
 import { Dot, Pill } from '~/components/Status'
 import { useToast } from '~/components/Toast'
 import { useGuardedApi } from '~/components/Unlock'
+import { fieldLabel } from '~/lib/classes'
 import { dateTime, relative } from '~/lib/format'
+import { m } from '~/paraglide/messages'
 import { msg } from '~/shared/i18n'
 import type { SshState } from '~/shared/ssh'
-import { USER_NAME, changeProblem, describeChange, fullNameProblem, nameProblem, passwordProblem, type Account, type UserChange, type UsersState } from '~/shared/users'
-import { m } from '~/paraglide/messages'
-import { fieldLabel } from '~/lib/classes'
+import { type Account, changeProblem, describeChange, fullNameProblem, nameProblem, passwordProblem, USER_NAME, type UserChange, type UsersState } from '~/shared/users'
 
 export const Route = createFileRoute('/_app/users')({
   validateSearch: (s: Record<string, unknown>): { user?: string } => ({ user: typeof s.user === 'string' && USER_NAME.test(s.user) ? s.user : undefined }),
@@ -245,7 +245,13 @@ function AccountDetail({
             <div className="grid grid-cols-1 gap-1.5 md:grid-cols-2">
               {offered.map((g) => (
                 <label key={g.name} className="flex items-start gap-2 text-[13px]">
-                  <input type="checkbox" className="mt-[3px]" checked={groups.includes(g.name)} disabled={readonly} onChange={(e) => setGroups((x) => (e.target.checked ? [...x, g.name] : x.filter((n) => n !== g.name)))} />
+                  <input
+                    type="checkbox"
+                    className="mt-[3px]"
+                    checked={groups.includes(g.name)}
+                    disabled={readonly}
+                    onChange={(e) => setGroups((x) => (e.target.checked ? [...x, g.name] : x.filter((n) => n !== g.name)))}
+                  />
                   <span>
                     <span className="font-mono">{g.name}</span>
                     {g.text && <span className="block text-[12px] text-muted">{g.text}</span>}
@@ -281,11 +287,19 @@ function AccountDetail({
               {m.users_login_setPassword()}
             </button>
             {a.locked ? (
-              <button type="button" className="btn sm" onClick={() => onChange({ kind: 'unlock', name: a.name }, m.users_login_unlockTitle({ name: a.name }), m.users_login_unlock(), m.users_login_unlocked({ name: a.name }))}>
+              <button
+                type="button"
+                className="btn sm"
+                onClick={() => onChange({ kind: 'unlock', name: a.name }, m.users_login_unlockTitle({ name: a.name }), m.users_login_unlock(), m.users_login_unlocked({ name: a.name }))}
+              >
                 {m.users_login_unlockDots()}
               </button>
             ) : (
-              <button type="button" className="btn sm" onClick={() => onChange({ kind: 'lock', name: a.name }, m.users_login_lockTitle({ name: a.name }), m.users_login_lock(), m.users_login_lockedToast({ name: a.name }), true)}>
+              <button
+                type="button"
+                className="btn sm"
+                onClick={() => onChange({ kind: 'lock', name: a.name }, m.users_login_lockTitle({ name: a.name }), m.users_login_lock(), m.users_login_lockedToast({ name: a.name }), true)}
+              >
                 {m.users_login_lockDots()}
               </button>
             )}
@@ -311,6 +325,7 @@ function AccountDetail({
         <h2 className="h2 px-[18px] pt-4 pb-2">{m.users_history_title()}</h2>
         {history.length === 0 && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{m.users_history_none()}</p>}
         {history.slice(0, 15).map((h, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: login records have no id, the log order is their identity
           <div key={i} className="flex flex-wrap items-center gap-x-3 border-t border-line px-[18px] py-[7px] text-[13px]" data-testid="login-record">
             <Dot tone={h.active ? 'ok' : 'idle'} label={h.active ? m.users_history_loggedIn() : m.users_history_ended()} />
             <span className="font-mono text-[12px]" suppressHydrationWarning>
@@ -332,7 +347,11 @@ function AccountDetail({
           <label className="flex grow items-center gap-2">
             <input type="checkbox" checked={removeHome} onChange={(e) => setRemoveHome(e.target.checked)} /> {m.users_remove_alsoHome({ home: a.home })}
           </label>
-          <button type="button" className="btn sm danger" onClick={() => onChange({ kind: 'delete', name: a.name, removeHome }, m.users_remove_title({ name: a.name }), m.users_remove_confirm(), m.users_remove_done({ name: a.name }), true)}>
+          <button
+            type="button"
+            className="btn sm danger"
+            onClick={() => onChange({ kind: 'delete', name: a.name, removeHome }, m.users_remove_title({ name: a.name }), m.users_remove_confirm(), m.users_remove_done({ name: a.name }), true)}
+          >
             <Glyph name="trash" size={13} /> {m.users_remove_button()}
           </button>
         </section>
@@ -341,7 +360,17 @@ function AccountDetail({
   )
 }
 
-function ConfirmChange({ state, pending, onClose, onConfirm }: { state: UsersState; pending: { change: UserChange; title: string; confirm: string; danger?: boolean }; onClose: () => void; onConfirm: (c: UserChange) => Promise<void> }) {
+function ConfirmChange({
+  state,
+  pending,
+  onClose,
+  onConfirm,
+}: {
+  state: UsersState
+  pending: { change: UserChange; title: string; confirm: string; danger?: boolean }
+  onClose: () => void
+  onConfirm: (c: UserChange) => Promise<void>
+}) {
   const [busy, setBusy] = useState(false)
   const problem = changeProblem(state, pending.change)
   return (
@@ -428,7 +457,9 @@ function CreateDialog({ state, onClose, onCreate }: { state: UsersState; onClose
   const [groups, setGroups] = useState<string[]>([])
   const [busy, setBusy] = useState(false)
   const change: Extract<UserChange, { kind: 'create' }> = { kind: 'create', name, fullName, admin, password: withPassword ? pw : undefined, shell, groups }
-  const problem = !name ? undefined : (nameProblem(name) ?? (withPassword && pw ? (passwordProblem(pw) ?? (again && pw !== again ? m.users_create_mismatch() : undefined)) : undefined) ?? changeProblem(state, change))
+  const problem = !name
+    ? undefined
+    : (nameProblem(name) ?? (withPassword && pw ? (passwordProblem(pw) ?? (again && pw !== again ? m.users_create_mismatch() : undefined)) : undefined) ?? changeProblem(state, change))
   const ready = !!name && !problem && (!withPassword || (!!pw && pw === again))
   const label = fieldLabel
   return (
@@ -499,7 +530,12 @@ function CreateDialog({ state, onClose, onCreate }: { state: UsersState; onClose
                 .filter((g) => g.name !== state.adminGroup)
                 .map((g) => (
                   <label key={g.name} className="flex items-start gap-2 text-[13px]">
-                    <input type="checkbox" className="mt-[3px]" checked={groups.includes(g.name)} onChange={(e) => setGroups((x) => (e.target.checked ? [...x, g.name] : x.filter((n) => n !== g.name)))} />
+                    <input
+                      type="checkbox"
+                      className="mt-[3px]"
+                      checked={groups.includes(g.name)}
+                      onChange={(e) => setGroups((x) => (e.target.checked ? [...x, g.name] : x.filter((n) => n !== g.name)))}
+                    />
                     <span>
                       <span className="font-mono">{g.name}</span>
                       {g.text && <span className="block text-[12px] text-muted">{g.text}</span>}

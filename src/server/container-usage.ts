@@ -3,7 +3,7 @@
 // kept 30 days. Keyed by container name, which a Quadlet keeps across re-creation.
 
 import { and, gte, lt, sql } from 'drizzle-orm'
-import { USAGE_RANGES, type ContainerUsage, type UsageRange } from '~/shared/container-usage'
+import { type ContainerUsage, USAGE_RANGES, type UsageRange } from '~/shared/container-usage'
 import type { Container } from '~/shared/types'
 import type { DB } from './db'
 import { metricPrefix, schema } from './db'
@@ -63,7 +63,10 @@ export class UsageRecorder {
     this.acc.clear()
     const t = schema.metricSamples
     this.d().transaction((tx) => {
-      for (let i = 0; i < rows.length; i += 500) tx.insert(t).values(rows.slice(i, i + 500)).run()
+      for (let i = 0; i < rows.length; i += 500)
+        tx.insert(t)
+          .values(rows.slice(i, i + 500))
+          .run()
     })
   }
 }
@@ -120,16 +123,12 @@ export function queryUsage(d: DB, range: UsageRange, units: Map<string, string> 
 /** Demo: 30 days for the fixture containers (fixtures only, when there is nothing yet). */
 export function seedUsageHistory(d: DB, containers: Pick<Container, 'name' | 'state' | 'cpu' | 'memUsage'>[], now = Date.now()) {
   const t = schema.metricSamples
-  if (
-    d
-      .select({ n: sql<number>`count(*)` })
-      .from(t)
-      .where(metricPrefix('ct:'))
-      .get()!.n > 0
-  )
-    return
+  if (d.select({ n: sql<number>`count(*)` }).from(t).where(metricPrefix('ct:')).get()!.n > 0) return
   let seed = 23
-  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+  const rnd = () => {
+    seed = (seed * 16807) % 2147483647
+    return seed / 2147483647
+  }
   const rows: { ts: number; metric: string; value: number }[] = []
   const end = Math.floor(now / USAGE_BUCKET_MS) * USAGE_BUCKET_MS
   for (const c of containers) {
@@ -144,10 +143,18 @@ export function seedUsageHistory(d: DB, containers: Pick<Container, 'name' | 'st
       const busy = c.name === 'jellyfin' ? evening * (rnd() > 0.5 ? 6 : 1.5) : c.name.startsWith('immich') ? night * 4 + evening : evening * 0.5
       const cpu = baseCpu * (0.5 + rnd() * 0.5) * (1 + busy)
       const mem = baseMem * (0.85 + rnd() * 0.15) * (1 + busy * 0.08)
-      rows.push({ ts, metric: `ct:${c.name}:cpu`, value: cpu }, { ts, metric: `ct:${c.name}:cpumax`, value: cpu * (1.3 + rnd()) }, { ts, metric: `ct:${c.name}:mem`, value: mem }, { ts, metric: `ct:${c.name}:memmax`, value: mem * 1.05 })
+      rows.push(
+        { ts, metric: `ct:${c.name}:cpu`, value: cpu },
+        { ts, metric: `ct:${c.name}:cpumax`, value: cpu * (1.3 + rnd()) },
+        { ts, metric: `ct:${c.name}:mem`, value: mem },
+        { ts, metric: `ct:${c.name}:memmax`, value: mem * 1.05 },
+      )
     }
   }
   d.transaction((tx) => {
-    for (let i = 0; i < rows.length; i += 500) tx.insert(t).values(rows.slice(i, i + 500)).run()
+    for (let i = 0; i < rows.length; i += 500)
+      tx.insert(t)
+        .values(rows.slice(i, i + 500))
+        .run()
   })
 }

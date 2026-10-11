@@ -7,12 +7,12 @@
 import { copyFileSync, existsSync, lstatSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { type ConfigAction, type ConfigFileInfo, describeConfigFile, parseConfigPath, replaceRisk } from '~/shared/configfiles'
+import { msg } from '~/shared/i18n'
+import { writeFileAtomic } from '../atomic'
 import { HttpError } from '../auth'
 import { run } from '../exec'
-import { describeConfigFile, parseConfigPath, replaceRisk, type ConfigAction, type ConfigFileInfo } from '~/shared/configfiles'
-import { writeFileAtomic } from '../atomic'
 
 const MAX = 512 * 1024
 
@@ -46,7 +46,7 @@ export async function configFileInfo(fs: ConfigFs, path: string): Promise<Config
     liveContent: binary ? undefined : liveContent,
     binary: binary || undefined,
     replaceRisk: binary || parsed.kind === 'save' ? undefined : replaceRisk(parsed.live, liveContent, content),
-    ...describeConfigFile(path, parsed.kind, parsed.live),
+    ...describeConfigFile(parsed.kind, parsed.live),
   }
 }
 
@@ -66,7 +66,7 @@ export async function applyConfigAction(fs: ConfigFs, path: string, action: Conf
     const err = await fs.check(f.check, text)
     if (err) throw new HttpError(422, msg(m.configfiles_error_checkRejected, { check: f.check, reason: err }))
   }
-  fs.write(f.live, text.endsWith('\n') ? text : text + '\n')
+  fs.write(f.live, text.endsWith('\n') ? text : `${text}\n`)
   fs.remove(path)
   // Fast follow-ups right away; mkinitcpio takes a while and runs as a job from the page.
   let warning: string | undefined
@@ -128,7 +128,14 @@ export class SystemConfigFs implements ConfigFs {
   }
 
   async after(what: NonNullable<ConfigFileInfo['after']>) {
-    const argv = what === 'sshd-reload' ? ['systemctl', 'try-reload-or-restart', 'sshd.service', 'ssh.service'] : what === 'smb-reload' ? ['smbcontrol', 'smbd', 'reload-config'] : what === 'locale-gen' ? ['locale-gen'] : undefined
+    const argv =
+      what === 'sshd-reload'
+        ? ['systemctl', 'try-reload-or-restart', 'sshd.service', 'ssh.service']
+        : what === 'smb-reload'
+          ? ['smbcontrol', 'smbd', 'reload-config']
+          : what === 'locale-gen'
+            ? ['locale-gen']
+            : undefined
     if (!argv || !Bun.which(argv[0]!)) return undefined
     const r = await run(argv, { timeoutMs: 120_000 })
     return r.code === 0 ? undefined : msg(m.configfiles_warn_afterFailed, { command: argv.join(' '), output: (r.stderr || r.stdout).trim().slice(0, 200) })

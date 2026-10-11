@@ -1,34 +1,34 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { ApiError, api } from '~/lib/api'
+import { fieldLabel } from '~/lib/classes'
 import { diskSize } from '~/lib/format'
+import { m } from '~/paraglide/messages'
 import {
-  FS_PACKAGE,
+  type BlockDevice,
   defaultOptions,
   defaultPassno,
+  type EntryInput,
+  FS_PACKAGE,
+  type FstabChange,
+  type FstabCheck,
+  type FstabState,
   formatEntry,
+  type MountView,
   optionDoc,
   optionName,
   optionValue,
   specFor,
   suggestTarget,
-  type BlockDevice,
-  type EntryInput,
-  type FstabChange,
-  type FstabCheck,
-  type FstabState,
-  type MountView,
 } from '~/shared/fstab'
+import { msg } from '~/shared/i18n'
 import { useActions } from './Actions'
 import { BusyButton } from './Busy'
 import { Glyph } from './Glyph'
 import { ConfirmDialog, Modal } from './Modal'
-import { DiffView, Diagnostics, HistoryDialog } from './QuadletEditor'
+import { Diagnostics, DiffView, HistoryDialog } from './QuadletEditor'
 import { Pill } from './Status'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
-import { ApiError, api } from '~/lib/api'
-import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
-import { fieldLabel } from '~/lib/classes'
 
 const FAT_LIKE = ['vfat', 'exfat', 'ntfs3', 'ntfs', 'ntfs-3g']
 
@@ -246,7 +246,23 @@ export function MountsView() {
   )
 }
 
-function EntryRow({ e, readonly, busy, locked, onEdit, onMount, onRemove }: { e: MountView; readonly: boolean; busy: boolean; locked: boolean; onEdit: () => void; onMount: (a: 'mount' | 'unmount') => void; onRemove: () => void }) {
+function EntryRow({
+  e,
+  readonly,
+  busy,
+  locked,
+  onEdit,
+  onMount,
+  onRemove,
+}: {
+  e: MountView
+  readonly: boolean
+  busy: boolean
+  locked: boolean
+  onEdit: () => void
+  onMount: (a: 'mount' | 'unmount') => void
+  onRemove: () => void
+}) {
   return (
     <tr data-testid="fstab-entry">
       <td>
@@ -272,7 +288,13 @@ function EntryRow({ e, readonly, busy, locked, onEdit, onMount, onRemove }: { e:
       </td>
       <td>
         <div className="flex flex-col items-start gap-1">
-          {e.mounted ? <Pill tone="ok">{m.disks_mounts_pillMounted()}</Pill> : e.missing ? <Pill tone="bad">{m.disks_mounts_pillMissing()}</Pill> : <Pill tone="idle">{m.disks_mounts_pillNotMounted()}</Pill>}
+          {e.mounted ? (
+            <Pill tone="ok">{m.disks_mounts_pillMounted()}</Pill>
+          ) : e.missing ? (
+            <Pill tone="bad">{m.disks_mounts_pillMissing()}</Pill>
+          ) : (
+            <Pill tone="idle">{m.disks_mounts_pillNotMounted()}</Pill>
+          )}
           {e.bootCritical ? (
             <span className="text-[12px] text-[#e3b341]" title={m.disks_mounts_blocksBootTitle()}>
               {m.disks_mounts_blocksBoot()}
@@ -366,7 +388,7 @@ function toInput(f: Form, note?: string): EntryInput {
     .filter(Boolean)
   if (extra.includes('defaults')) o.push('defaults')
   if (f.nofail) o.push('nofail')
-  if (f.nofail && f.timeout) o.push(`x-systemd.device-timeout=${/^\d+$/.test(f.timeout) ? f.timeout + 's' : f.timeout}`)
+  if (f.nofail && f.timeout) o.push(`x-systemd.device-timeout=${/^\d+$/.test(f.timeout) ? `${f.timeout}s` : f.timeout}`)
   if (f.automount) o.push('x-systemd.automount')
   if (f.noatime) o.push('noatime')
   if (f.ro) o.push('ro')
@@ -396,11 +418,30 @@ function Toggle({ checked, onChange, label, help, warn }: { checked: boolean; on
 
 const label = fieldLabel
 
-function EntryDialog({ entry, device, taken, onClose, onReview }: { entry?: MountView; device?: BlockDevice; taken: string[]; onClose: () => void; onReview: (c: FstabChange, title: string) => Promise<void> }) {
+function EntryDialog({
+  entry,
+  device,
+  taken,
+  onClose,
+  onReview,
+}: {
+  entry?: MountView
+  device?: BlockDevice
+  taken: string[]
+  onClose: () => void
+  onReview: (c: FstabChange, title: string) => Promise<void>
+}) {
   const initial = useMemo<Form>(() => {
     if (entry) return toForm(entry)
     const d = device!
-    return toForm({ spec: specFor(d), file: suggestTarget(d, taken), vfstype: d.fstype === 'ntfs' ? 'ntfs3' : d.fstype, options: defaultOptions(d.fstype === 'ntfs' ? 'ntfs3' : d.fstype), passno: defaultPassno(d.fstype), freq: 0 })
+    return toForm({
+      spec: specFor(d),
+      file: suggestTarget(d, taken),
+      vfstype: d.fstype === 'ntfs' ? 'ntfs3' : d.fstype,
+      options: defaultOptions(d.fstype === 'ntfs' ? 'ntfs3' : d.fstype),
+      passno: defaultPassno(d.fstype),
+      freq: 0,
+    })
   }, [entry, device, taken])
   const [f, setF] = useState<Form>(initial)
   const [check, setCheck] = useState<FstabCheck | null>(null)
@@ -412,6 +453,7 @@ function EntryDialog({ entry, device, taken, onClose, onReview }: { entry?: Moun
   const key = JSON.stringify(change)
 
   // Checks on the server while typing (no unlock needed, nothing is written).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: key stands for the change, which is a new object on every render
   useEffect(() => {
     setChecking(true)
     const timer = setTimeout(() => {
@@ -421,7 +463,7 @@ function EntryDialog({ entry, device, taken, onClose, onReview }: { entry?: Moun
         .finally(() => setChecking(false))
     }, 350)
     return () => clearTimeout(timer)
-  }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [key])
 
   const fat = FAT_LIKE.includes(f.vfstype)
   const specs = device ? (['uuid', 'label', 'partuuid'] as const).filter((b) => b === 'uuid' || (b === 'label' ? device.label : device.partuuid)).map((b) => specFor(device, b)) : []
@@ -445,6 +487,7 @@ function EntryDialog({ entry, device, taken, onClose, onReview }: { entry?: Moun
             <input className="field font-mono" value={f.vfstype} onChange={(e) => set('vfstype', e.target.value)} required />
           </label>
         </div>
+        {/* biome-ignore lint/a11y/noLabelWithoutControl: both branches render the control */}
         <label className={label}>
           {m.disks_mounts_source()}
           {specs.length > 1 ? (
@@ -466,7 +509,13 @@ function EntryDialog({ entry, device, taken, onClose, onReview }: { entry?: Moun
           <legend className="px-1 text-[12px] font-medium text-muted">{m.disks_mounts_options()}</legend>
           <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
             <div className="flex flex-col gap-1.5">
-              <Toggle checked={f.nofail} onChange={(v) => set('nofail', v)} label={m.disks_mounts_nofail()} help={m.disks_mounts_nofailHelp()} warn={!f.nofail && !f.automount ? m.disks_mounts_nofailWarn() : undefined} />
+              <Toggle
+                checked={f.nofail}
+                onChange={(v) => set('nofail', v)}
+                label={m.disks_mounts_nofail()}
+                help={m.disks_mounts_nofailHelp()}
+                warn={!f.nofail && !f.automount ? m.disks_mounts_nofailWarn() : undefined}
+              />
               {f.nofail && (
                 <label className="ml-6 flex items-center gap-2 text-[12px] text-muted">
                   {m.disks_mounts_waitBefore()}
@@ -517,7 +566,7 @@ function EntryDialog({ entry, device, taken, onClose, onReview }: { entry?: Moun
 
         <div className="flex flex-col gap-2">
           <span className="text-[12px] font-medium text-muted">{m.disks_mounts_lineInFstab()}</span>
-          <pre className="joblog !min-h-0 whitespace-pre-wrap" aria-label={m.disks_mounts_fstabLine()}>
+          <pre className="joblog !min-h-0 whitespace-pre-wrap" role="group" aria-label={m.disks_mounts_fstabLine()}>
             {formatEntry(input).replace(/\t/g, '  ')}
           </pre>
           {check && <Diagnostics items={check.diagnostics} />}
@@ -545,7 +594,17 @@ function EntryDialog({ entry, device, taken, onClose, onReview }: { entry?: Moun
 
 // ---------- confirm & write ----------
 
-function ApplyDialog({ pending, onClose, onApplied, onConflict }: { pending: { change: FstabChange; check: FstabCheck; title: string }; onClose: () => void; onApplied: (s: FstabState, msg: string) => void; onConflict: () => void }) {
+function ApplyDialog({
+  pending,
+  onClose,
+  onApplied,
+  onConflict,
+}: {
+  pending: { change: FstabChange; check: FstabCheck; title: string }
+  onClose: () => void
+  onApplied: (s: FstabState, msg: string) => void
+  onConflict: () => void
+}) {
   const guarded = useGuardedApi()
   const [confirm, setConfirm] = useState(false)
   const [busy, setBusy] = useState(false)

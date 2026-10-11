@@ -5,10 +5,10 @@
 
 import { existsSync, readdirSync, readFileSync, readlinkSync, realpathSync } from 'node:fs'
 import { basename, join } from 'node:path'
-import { run } from '../exec'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
-import { buildHardware, lookupIds, type AtaRaw, type Hardware, type HardwareRaw, type PciRaw, type SensorRaw, type UsbRaw } from '~/shared/hardware'
+import { type AtaRaw, buildHardware, type Hardware, type HardwareRaw, lookupIds, type PciRaw, type SensorRaw, type UsbRaw } from '~/shared/hardware'
+import { msg } from '~/shared/i18n'
+import { run } from '../exec'
 
 export interface HardwareAdmin {
   hardware(): Promise<Hardware>
@@ -220,7 +220,9 @@ export class FixtureHardware implements HardwareAdmin {
     const raw = JSON.parse(read(join(this.dir, 'hardware.json')) ?? '{}') as HardwareRaw
     // Sensors move a little, like on a real machine.
     const t = Date.now() / 60_000
-    raw.sensors = raw.sensors.map((s, i) => (s.kind === 'temp' ? { ...s, value: Math.round((s.value + Math.sin(t + i) * 1.5) * 10) / 10 } : s.kind === 'fan' && s.value ? { ...s, value: Math.round(s.value + Math.sin(t + i) * 30) } : s))
+    raw.sensors = raw.sensors.map((s, i) =>
+      s.kind === 'temp' ? { ...s, value: Math.round((s.value + Math.sin(t + i) * 1.5) * 10) / 10 } : s.kind === 'fan' && s.value ? { ...s, value: Math.round(s.value + Math.sin(t + i) * 30) } : s,
+    )
     return buildHardware(raw)
   }
 }

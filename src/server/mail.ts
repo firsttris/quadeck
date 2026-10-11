@@ -3,8 +3,8 @@
 // on the local network.
 
 import nodemailer from 'nodemailer'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import type { Channel } from '~/shared/notify'
 
 export type Mail = (c: Channel, m: { from: string; to: string[]; subject: string; text: string }) => Promise<void>

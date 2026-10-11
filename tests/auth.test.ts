@@ -55,7 +55,7 @@ describe('setup, password and sessions', () => {
     expect(statSync(join(dir, 'setup-token')).mode & 0o777).toBe(0o600)
     expect(auth.ensureSetupToken()).toBe(token)
     expect(auth.checkSetupToken('wrong')).toBe(false)
-    expect(auth.checkSetupToken(token + '\n')).toBe(true)
+    expect(auth.checkSetupToken(`${token}\n`)).toBe(true)
   })
 
   it('enforces a minimum password length and verifies with argon2id', async () => {
@@ -112,7 +112,7 @@ describe('login throttling', () => {
     const r = new Request('http://x/', { headers: { [auth.PEER_HEADER]: '10.0.0.9' } })
     const pending = Array.from({ length: 4 }, () => auth.beginAttempt(r))
     expect(() => auth.beginAttempt(r)).toThrow(/gleichzeitige/) // global cap
-    pending.forEach((f) => f(false))
+    for (const f of pending) f(false)
     auth.beginAttempt(r)(false) // 5th failure
     expect(() => auth.beginAttempt(r)).toThrow(/warten/)
     const other = new Request('http://x/', { headers: { [auth.PEER_HEADER]: '10.0.0.10' } })
@@ -143,7 +143,9 @@ describe('request parsing', () => {
         c.enqueue(new Uint8Array(16 * 1024).fill(32))
       },
     })
-    await expect(readJson(new Request('http://nas:8484/api/x', { method: 'POST', body: endless, headers: { 'content-type': 'application/json' }, duplex: 'half' } as RequestInit))).rejects.toMatchObject({ status: 413 })
+    await expect(
+      readJson(new Request('http://nas:8484/api/x', { method: 'POST', body: endless, headers: { 'content-type': 'application/json' }, duplex: 'half' } as RequestInit)),
+    ).rejects.toMatchObject({ status: 413 })
     expect(pulled).toBeLessThan(10)
   })
 

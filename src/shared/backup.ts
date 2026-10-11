@@ -2,8 +2,8 @@
 // it (exclude file, restic arguments, systemd units), suggestions from the
 // Quadlets, and restic's JSON output. No I/O here.
 
-import { msg } from './i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from './i18n'
 import { quadletMounts, quadletType, quadletUnit, quadletValues } from './quadlets'
 
 export type RepoKind = 'local' | 'sftp' | 's3' | 'b2' | 'rest'
@@ -143,12 +143,12 @@ export interface BackupSizes {
   excludes: { path: string; bytes?: number }[]
 }
 
-const CTRL = /[\x00-\x1f\x7f]/ // eslint-disable-line no-control-regex
+const CTRL = /[\x00-\x1f\x7f]/
 export const VOLUME_PATH = /^volume:[A-Za-z0-9][A-Za-z0-9_.-]{0,200}$/
 export const SNAPSHOT_ID = /^([0-9a-f]{8,64}|latest)$/
 export const STOP_UNIT = /^[A-Za-z0-9:_.\\@-]{1,200}\.service$/
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
-const SECRET_VALUE = /^[^\x00-\x1f\x7f]{0,500}$/ // eslint-disable-line no-control-regex
+const SECRET_VALUE = /^[^\x00-\x1f\x7f]{0,500}$/
 
 /** An absolute, normalized path without control characters; `/` itself is not allowed. */
 export function absPathProblem(p: unknown): string | undefined {
@@ -157,7 +157,7 @@ export function absPathProblem(p: unknown): string | undefined {
   return undefined
 }
 
-const inside = (child: string, parent: string) => child === parent || child.startsWith(parent + '/')
+const inside = (child: string, parent: string) => child === parent || child.startsWith(`${parent}/`)
 
 export function repoProblem(kind: RepoKind, location: string): string | undefined {
   if (!location || location.length > 500 || CTRL.test(location) || /\s/.test(location)) return msg(m.backup_error_repo)
@@ -263,7 +263,7 @@ export function repoString(r: BackupPlan['repo']): string {
 /** Lines of the exclude file restic reads with --exclude-file. */
 export function excludeFile(plan: BackupPlan): string {
   const lines = ['# Written by Quadeck – changes are overwritten', ...plan.exclude.presets.flatMap((p) => PRESET_PATTERNS[p]), ...plan.exclude.dirs, ...plan.exclude.patterns]
-  return lines.join('\n') + '\n'
+  return `${lines.join('\n')}\n`
 }
 
 /** `restic backup` arguments after the command (paths already resolved). */
@@ -376,7 +376,8 @@ export function backupUnits(plan: BackupPlan, self: string[], dir?: string): Rec
   const exec = (cmd: string) => [...self, 'backup', cmd].map(quoteArg).join(' ')
   const service = (what: string, cmd: string) =>
     `# Written by Quadeck (Backups page) – changes are overwritten\n[Unit]\nDescription=Quadeck: ${what}\nWants=network-online.target\nAfter=network-online.target\n\n[Service]\nType=oneshot\n${dir ? `Environment=${quoteArg(`QUADECK_BACKUP_DIR=${dir}`)}\n` : ''}ExecStart=${exec(cmd)}\nNice=10\nIOSchedulingClass=idle\n`
-  const timer = (what: string, cal: string) => `# Written by Quadeck (Backups page) – changes are overwritten\n[Unit]\nDescription=Quadeck: ${what}\n\n[Timer]\nOnCalendar=${cal}\nPersistent=true\nRandomizedDelaySec=5min\n\n[Install]\nWantedBy=timers.target\n`
+  const timer = (what: string, cal: string) =>
+    `# Written by Quadeck (Backups page) – changes are overwritten\n[Unit]\nDescription=Quadeck: ${what}\n\n[Timer]\nOnCalendar=${cal}\nPersistent=true\nRandomizedDelaySec=5min\n\n[Install]\nWantedBy=timers.target\n`
   const check = checkCalendar(plan)
   return {
     [BACKUP_UNIT]: service('backup (restic)', 'run'),
@@ -404,7 +405,7 @@ const MEDIA_DIR = /^(movies|films?|filme|tv|tvshows|tv-shows|series|serien|shows
 function broadReason(path: string, from: string, all: { path: string; from: string }[]): 'broad' | 'contains' | 'media' | undefined {
   if (path.split('/').length <= 2 || /^\/home\/[^/]+$/.test(path)) return 'broad' // /mnt, /srv, /home/tristan
   // Holds folders of other containers (an app's own sub-folder, like its cache, is fine).
-  if (all.some((q) => q.from !== from && q.path.startsWith(path + '/'))) return 'contains'
+  if (all.some((q) => q.from !== from && q.path.startsWith(`${path}/`))) return 'contains'
   if (path.split('/').some((seg) => MEDIA_DIR.test(seg))) return 'media'
   return undefined
 }
@@ -415,7 +416,10 @@ export function suggestBackup(files: { name: string; content: string }[]): Backu
   const stop: BackupSuggestion['stop'] = []
   const seen = new Set<string>()
   for (const f of files.filter((x) => quadletType(x.name) === 'container').sort((a, b) => a.name.localeCompare(b.name))) {
-    const from = f.name.split('/').pop()!.replace(/\.container$/, '')
+    const from = f.name
+      .split('/')
+      .pop()!
+      .replace(/\.container$/, '')
     const image = quadletValues(f.content, 'Container', 'Image')[0] ?? ''
     const mounts = quadletMounts(f.content, 'Container', files)
     for (const mnt of mounts) {
@@ -561,7 +565,7 @@ export function parseLs(stdout: string, dir: string): LsEntry[] {
       ...(typeof o.size === 'number' ? { size: o.size } : {}),
       ...(typeof o.mtime === 'string' ? { mtime: Date.parse(o.mtime) } : {}),
     }))
-    .sort((a, b) => (a.type === 'dir') === (b.type === 'dir') ? a.name.localeCompare(b.name) : a.type === 'dir' ? -1 : 1)
+    .sort((a, b) => ((a.type === 'dir') === (b.type === 'dir') ? a.name.localeCompare(b.name) : a.type === 'dir' ? -1 : 1))
 }
 
 /** Alert for the notifications: the last backup failed, or none succeeded for `days`. */
@@ -627,7 +631,7 @@ export function parseTargetConfig(v: unknown): { config?: TargetConfig; error?: 
   const port = Number(o.port)
   if (!Number.isInteger(port) || port < 1 || port > 65535) return { error: msg(m.backup_error_port) }
   const url = typeof o.url === 'string' ? o.url.trim().replace(/\/+$/, '') : ''
-  if (!/^https?:\/\/[A-Za-z0-9.-]+(:\d{1,5})?(\/[A-Za-z0-9._~\/-]*)?$/.test(url)) return { error: msg(m.backup_error_url) }
+  if (!/^https?:\/\/[A-Za-z0-9.-]+(:\d{1,5})?(\/[A-Za-z0-9._~/-]*)?$/.test(url)) return { error: msg(m.backup_error_url) }
   return { config: { dataDir, port, appendOnly: o.appendOnly === true, url } }
 }
 

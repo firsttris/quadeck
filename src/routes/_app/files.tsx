@@ -2,8 +2,8 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useCallback } from 'react'
 import { FileExplorer, type Side } from '~/components/FileExplorer'
 import { PageHeader } from '~/components/PageHeader'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 
 export const Route = createFileRoute('/_app/files')({
   // path: the (left) folder; right: the second pane's folder ("" = open, not chosen yet)

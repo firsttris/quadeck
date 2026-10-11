@@ -1,7 +1,7 @@
 // System collector: CPU, RAM, load, uptime, network and temperature from /proc and /sys.
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
-import { hostname, cpus, release } from 'node:os'
+import { cpus, hostname, release } from 'node:os'
 import type { HostInfo, SystemMetrics } from '~/shared/types'
 
 const read = (p: string) => {

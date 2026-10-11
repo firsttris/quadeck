@@ -3,7 +3,7 @@
 export interface DiffLine {
   op: ' ' | '+' | '-'
   text: string
-}/**
+} /**
  * Line diff. The common start and end are cut off first (a save usually changes a few lines in
  * the middle); the rest is Myers' O((N+M)·D) algorithm, whose memory grows with the number of
  * changed lines D, not with the file size squared. Beyond MAX_EDITS changes the rest is shown as
@@ -78,8 +78,6 @@ function backtrack(x: string[], y: string[], trace: Int32Array[], edits: number)
   }
   return rev.reverse()
 }
-
-
 
 /** Changed lines with `context` unchanged lines around them; gaps become null. */
 export function hunks(d: DiffLine[], context = 3): (DiffLine | null)[] {

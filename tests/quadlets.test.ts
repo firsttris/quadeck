@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -170,8 +170,18 @@ describe('diff', () => {
     const a = Array.from({ length: MAX_EDITS + 10 }, (_, i) => `a${i}`).join('\n')
     const b = Array.from({ length: MAX_EDITS + 10 }, (_, i) => `b${i}`).join('\n')
     const d = diffLines(a, b)
-    expect(d.filter((l) => l.op === '-').map((l) => l.text).join('\n')).toBe(a)
-    expect(d.filter((l) => l.op === '+').map((l) => l.text).join('\n')).toBe(b)
+    expect(
+      d
+        .filter((l) => l.op === '-')
+        .map((l) => l.text)
+        .join('\n'),
+    ).toBe(a)
+    expect(
+      d
+        .filter((l) => l.op === '+')
+        .map((l) => l.text)
+        .join('\n'),
+    ).toBe(b)
   })
 
   it('always reproduces both texts', () => {
@@ -180,8 +190,18 @@ describe('diff', () => {
       const a = rnd()
       const b = rnd()
       const d = diffLines(a, b)
-      expect(d.filter((l) => l.op !== '+').map((l) => l.text).join('\n')).toBe(a)
-      expect(d.filter((l) => l.op !== '-').map((l) => l.text).join('\n')).toBe(b)
+      expect(
+        d
+          .filter((l) => l.op !== '+')
+          .map((l) => l.text)
+          .join('\n'),
+      ).toBe(a)
+      expect(
+        d
+          .filter((l) => l.op !== '-')
+          .map((l) => l.text)
+          .join('\n'),
+      ).toBe(b)
     }
   })
 })
@@ -277,7 +297,15 @@ describe('SystemPodmanAdmin on a temp directory', () => {
     const root = mkdtempSync(join(tmpdir(), 'qd-quadlets-'))
     const dir = join(root, 'systemd')
     const calls: string[] = []
-    const admin = new SystemPodmanAdmin({ dir, gitDir: join(root, 'git'), confDir: root, manager: async (m: string, _s?: string, ...a: string[]) => (calls.push([m, ...a].join(' ')), '') })
+    const admin = new SystemPodmanAdmin({
+      dir,
+      gitDir: join(root, 'git'),
+      confDir: root,
+      manager: async (m: string, _s?: string, ...a: string[]) => {
+        calls.push([m, ...a].join(' '))
+        return ''
+      },
+    })
     await expect(admin.writeQuadlet('web.container', '[Container]\n', false)).rejects.toMatchObject({ status: 422 })
     expect(existsSync(join(dir, 'web.container'))).toBe(false)
 
@@ -307,8 +335,20 @@ describe('SystemPodmanAdmin on a temp directory', () => {
     writeFileSync(join(dir, 'app-data.volume'), '[Volume]\n')
     writeFileSync(join(dir, 'other.container'), '[Container]\nImage=docker.io/library/other\nVolume=shared:/s\n')
     const calls: string[] = []
-    const exec = async (argv: string[]) => (calls.push(argv.join(' ')), { code: argv[1] === 'rmi' ? 2 : 0, stdout: '', stderr: argv[1] === 'rmi' ? 'image is in use by a container' : '' })
-    const admin = new SystemPodmanAdmin({ dir, gitDir: join(root, 'git'), confDir: root, manager: async (m: string, _s?: string, ...a: string[]) => (calls.push([m, ...a].join(' ')), ''), exec })
+    const exec = async (argv: string[]) => {
+      calls.push(argv.join(' '))
+      return { code: argv[1] === 'rmi' ? 2 : 0, stdout: '', stderr: argv[1] === 'rmi' ? 'image is in use by a container' : '' }
+    }
+    const admin = new SystemPodmanAdmin({
+      dir,
+      gitDir: join(root, 'git'),
+      confDir: root,
+      manager: async (m: string, _s?: string, ...a: string[]) => {
+        calls.push([m, ...a].join(' '))
+        return ''
+      },
+      exec,
+    })
     const r = await admin.deleteQuadlet('app.container', { image: true, volumes: true })
     expect(calls).toEqual([
       'systemctl stop app.service',
@@ -370,7 +410,10 @@ describe('SystemPodmanAdmin on a temp directory', () => {
 
 describe('removalPlan', () => {
   const files = [
-    { name: 'app.container', content: '[Container]\nImage=docker.io/library/app:1\nVolume=db.volume:/var/lib/db\nVolume=cache:/cache:Z\nVolume=/srv/app:/config\nVolume=./rel:/x\nVolume=/anonymous\nVolume=-rf:/bad\n' },
+    {
+      name: 'app.container',
+      content: '[Container]\nImage=docker.io/library/app:1\nVolume=db.volume:/var/lib/db\nVolume=cache:/cache:Z\nVolume=/srv/app:/config\nVolume=./rel:/x\nVolume=/anonymous\nVolume=-rf:/bad\n',
+    },
     { name: 'db.volume', content: '[Volume]\nVolumeName=appdb\n' },
     { name: 'web.container', content: '[Container]\nImage=docker.io/library/app:1\nVolume=cache:/c\n' },
     { name: 'built.container', content: '[Container]\nImage=app.build\n' },

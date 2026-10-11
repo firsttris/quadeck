@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
 
 // Demo: a pretend shell (no process is started), so this runs the whole path –
 // unlock, helper session, output stream, input – without handing out a real shell.

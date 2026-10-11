@@ -1,8 +1,8 @@
-import { mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync, existsSync, chmodSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { FixtureConfigFs, SystemConfigFs, applyConfigAction, configFileInfo } from '~/server/packages/configfiles'
+import { applyConfigAction, configFileInfo, FixtureConfigFs, SystemConfigFs } from '~/server/packages/configfiles'
 import { findConfigFiles } from '~/server/packages/maintenance'
 import { describeConfigFile, parseConfigPath } from '~/shared/configfiles'
 
@@ -17,11 +17,11 @@ describe('rules', () => {
   })
 
   it('protects account files and explains the tricky ones', () => {
-    expect(describeConfigFile('/etc/passwd.pacnew', 'new', '/etc/passwd').noReplace).toMatch(/kennt deine Benutzer nicht/)
-    expect(describeConfigFile('/etc/shells.pacnew', 'new', '/etc/shells').noReplace).toMatch(/zsh, fish/)
-    expect(describeConfigFile('/etc/ssh/sshd_config.pacnew', 'new', '/etc/ssh/sshd_config')).toMatchObject({ check: 'sshd -t', after: 'sshd-reload' })
-    expect(describeConfigFile('/etc/mkinitcpio.conf.pacnew', 'new', '/etc/mkinitcpio.conf')).toMatchObject({ after: 'mkinitcpio', note: expect.stringMatching(/HOOKS/) })
-    expect(describeConfigFile('/etc/pam.d/kde.pacsave', 'save', '/etc/pam.d/kde').note).toMatch(/^Gesicherte Fassung/)
+    expect(describeConfigFile('new', '/etc/passwd').noReplace).toMatch(/kennt deine Benutzer nicht/)
+    expect(describeConfigFile('new', '/etc/shells').noReplace).toMatch(/zsh, fish/)
+    expect(describeConfigFile('new', '/etc/ssh/sshd_config')).toMatchObject({ check: 'sshd -t', after: 'sshd-reload' })
+    expect(describeConfigFile('new', '/etc/mkinitcpio.conf')).toMatchObject({ after: 'mkinitcpio', note: expect.stringMatching(/HOOKS/) })
+    expect(describeConfigFile('save', '/etc/pam.d/kde').note).toMatch(/^Gesicherte Fassung/)
   })
 })
 
@@ -53,7 +53,14 @@ describe('demo', () => {
 
   it('shows both versions; refuses paths outside the list', async () => {
     const { fs } = setup()
-    expect(await configFileInfo(fs, '/etc/ssh/sshd_config.pacnew')).toMatchObject({ live: '/etc/ssh/sshd_config', kind: 'new', liveExists: true, liveContent: 'Port 22\nUsePAM yes\n', content: '#Port 22\nUsePAM yes\n', check: 'sshd -t' })
+    expect(await configFileInfo(fs, '/etc/ssh/sshd_config.pacnew')).toMatchObject({
+      live: '/etc/ssh/sshd_config',
+      kind: 'new',
+      liveExists: true,
+      liveContent: 'Port 22\nUsePAM yes\n',
+      content: '#Port 22\nUsePAM yes\n',
+      check: 'sshd -t',
+    })
     await expect(configFileInfo(fs, '/etc/shadow')).rejects.toThrow(/nicht \(mehr\) in der Liste/)
   })
 

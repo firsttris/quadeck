@@ -1,8 +1,8 @@
 // authorized_keys, sshd -T, journal lines: pure functions (unit-tested).
 
 import { createHash } from 'node:crypto'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import { KEY_TYPES, type RootLogin, type SshKey, type SshLogin, type SshSettings } from '~/shared/ssh'
 
 /** Length-prefixed fields of an SSH wire-format blob. */
@@ -33,7 +33,7 @@ function keyBits(type: string, blob: Buffer): number | undefined {
   return undefined
 }
 
-export const fingerprint = (blob: Buffer) => 'SHA256:' + createHash('sha256').update(blob).digest('base64').replace(/=+$/, '')
+export const fingerprint = (blob: Buffer) => `SHA256:${createHash('sha256').update(blob).digest('base64').replace(/=+$/, '')}`
 
 /**
  * One authorized_keys line → key, or an error. Options before the key type
@@ -42,7 +42,6 @@ export const fingerprint = (blob: Buffer) => 'SHA256:' + createHash('sha256').up
 export function parseKeyLine(line: string): { key: SshKey; blob: string } | { error: string } {
   const t = line.trim()
   if (!t || t.startsWith('#')) return { error: msg(m.ssh_keyError_empty) }
-  // eslint-disable-next-line no-control-regex
   if (/[\x00-\x08\x0a-\x1f\x7f]/.test(t)) return { error: msg(m.ssh_keyError_controlChars) }
   const tokens = t.match(/(?:[^\s"]+|"[^"]*")+/g) ?? []
   const idx = tokens.findIndex((x) => (KEY_TYPES as readonly string[]).includes(x) || x === 'ssh-dss')

@@ -19,7 +19,14 @@ describe('motion level', () => {
       fn({ getItem: () => stored }, { documentElement: html }, { matchMedia: () => ({ matches: reduced }) })
       return html.dataset.motion
     }
-    for (const [stored, reduced] of [['strong', true], ['off', false], [null, true], [null, false], ['wild', false]] as const) expect(run(stored, reduced)).toBe(resolveMotion(stored, reduced))
+    for (const [stored, reduced] of [
+      ['strong', true],
+      ['off', false],
+      [null, true],
+      [null, false],
+      ['wild', false],
+    ] as const)
+      expect(run(stored, reduced)).toBe(resolveMotion(stored, reduced))
     // blocked storage: the system decides
     const html = { dataset: {} as Record<string, string> }
     new Function('localStorage', 'document', 'window', MOTION_INIT_SCRIPT)(

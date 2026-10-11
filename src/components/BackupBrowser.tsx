@@ -1,16 +1,16 @@
 import { useEffect, useState } from 'react'
+import { pickMsg } from '~/i18n'
 import { api } from '~/lib/api'
 import { bytes } from '~/lib/format'
-import { localeOf } from '~/shared/i18n'
+import { m } from '~/paraglide/messages'
 import type { BackupState, BackupSuggestion, LsEntry } from '~/shared/backup'
+import { localeOf } from '~/shared/i18n'
 import { useActions } from './Actions'
 import { BusyButton, useBusy } from './Busy'
 import { useJobs } from './Jobs'
 import { ConfirmDialog } from './Modal'
 import { useToast } from './Toast'
 import { useUnlock } from './Unlock'
-import { m } from '~/paraglide/messages'
-import { pickMsg } from '~/i18n'
 
 const dateTime = (ts: number) => new Date(ts).toLocaleString(localeOf(), { weekday: 'short', day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' })
 const nowLabel = (n: LsEntry['now']) => (n ? pickMsg({ same: m.backup_now_same, changed: m.backup_now_changed, missing: m.backup_now_missing }, n) : '')
@@ -56,7 +56,15 @@ export function BackupBrowser({ state, snapshot, dir, onNavigate }: { state: Bac
   const chosen = (entries ?? []).filter((e) => selected.includes(e.path))
   const size = chosen.reduce((n, e) => n + (e.size ?? 0), 0)
   // In place: stop what the plan stops, plus the containers whose folders are being restored.
-  const stop = [...new Set([...(state.plan?.stop ?? []), ...(suggestion?.paths ?? []).filter((p) => p.path.startsWith('/') && selected.some((s) => s === p.path || s.startsWith(p.path + '/') || p.path.startsWith(s + '/'))).map((p) => suggestion!.stop.find((x) => x.from === p.from)?.unit).filter((u): u is string => !!u)])]
+  const stop = [
+    ...new Set([
+      ...(state.plan?.stop ?? []),
+      ...(suggestion?.paths ?? [])
+        .filter((p) => p.path.startsWith('/') && selected.some((s) => s === p.path || s.startsWith(`${p.path}/`) || p.path.startsWith(`${s}/`)))
+        .map((p) => suggestion!.stop.find((x) => x.from === p.from)?.unit)
+        .filter((u): u is string => !!u),
+    ]),
+  ]
 
   const download = async (e: LsEntry) => {
     if (!(await unlock.ensure())) return
@@ -94,12 +102,13 @@ export function BackupBrowser({ state, snapshot, dir, onNavigate }: { state: Bac
               /
             </button>
             {crumbs.map((c, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: breadcrumbs, the position is the path
               <span key={i} className="flex items-center gap-1.5">
                 {i > 0 && <span aria-hidden="true">/</span>}
                 {i === crumbs.length - 1 ? (
                   <span className="text-fg">{c}</span>
                 ) : (
-                  <button type="button" className="text-accent hover:text-accent-soft" onClick={() => onNavigate(snapshot, '/' + crumbs.slice(0, i + 1).join('/'))}>
+                  <button type="button" className="text-accent hover:text-accent-soft" onClick={() => onNavigate(snapshot, `/${crumbs.slice(0, i + 1).join('/')}`)}>
                     {c}
                   </button>
                 )}
@@ -119,7 +128,12 @@ export function BackupBrowser({ state, snapshot, dir, onNavigate }: { state: Bac
                 <thead>
                   <tr>
                     <th className="w-[28px]">
-                      <input type="checkbox" aria-label={m.backup_browse_all()} checked={entries.length > 0 && selected.length === entries.length} onChange={(e) => setSelected(e.target.checked ? entries.map((x) => x.path) : [])} />
+                      <input
+                        type="checkbox"
+                        aria-label={m.backup_browse_all()}
+                        checked={entries.length > 0 && selected.length === entries.length}
+                        onChange={(e) => setSelected(e.target.checked ? entries.map((x) => x.path) : [])}
+                      />
                     </th>
                     <th>{m.backup_browse_name()}</th>
                     <th>{m.backup_browse_size()}</th>
@@ -132,7 +146,12 @@ export function BackupBrowser({ state, snapshot, dir, onNavigate }: { state: Bac
                   {entries.map((e) => (
                     <tr key={e.path} data-testid="backup-entry">
                       <td>
-                        <input type="checkbox" aria-label={m.backup_browse_select({ name: e.name })} checked={selected.includes(e.path)} onChange={(ev) => setSelected(ev.target.checked ? [...selected, e.path] : selected.filter((p) => p !== e.path))} />
+                        <input
+                          type="checkbox"
+                          aria-label={m.backup_browse_select({ name: e.name })}
+                          checked={selected.includes(e.path)}
+                          onChange={(ev) => setSelected(ev.target.checked ? [...selected, e.path] : selected.filter((p) => p !== e.path))}
+                        />
                       </td>
                       <td className="font-mono text-[13px]">
                         {e.type === 'dir' ? (
@@ -147,7 +166,13 @@ export function BackupBrowser({ state, snapshot, dir, onNavigate }: { state: Bac
                       <td className="text-subtle" suppressHydrationWarning>
                         {e.mtime ? dateTime(e.mtime) : ''}
                       </td>
-                      <td>{e.now && e.now !== 'same' ? <span className={`chip ${e.now === 'missing' ? 'text-[#ff8a80]' : ''}`}>{nowLabel(e.now)}</span> : e.now ? <span className="text-[12px] text-muted">{nowLabel(e.now)}</span> : null}</td>
+                      <td>
+                        {e.now && e.now !== 'same' ? (
+                          <span className={`chip ${e.now === 'missing' ? 'text-[#ff8a80]' : ''}`}>{nowLabel(e.now)}</span>
+                        ) : e.now ? (
+                          <span className="text-[12px] text-muted">{nowLabel(e.now)}</span>
+                        ) : null}
+                      </td>
                       <td className="text-right">
                         {!readonly && e.type !== 'symlink' && e.type !== 'other' && (
                           <button type="button" className="btn sm" onClick={() => void download(e)} aria-label={m.backup_browse_downloadName({ name: e.name })}>
@@ -177,7 +202,13 @@ export function BackupBrowser({ state, snapshot, dir, onNavigate }: { state: Bac
                   <input type="radio" name="where" className="mt-0.5" checked={where === 'new'} onChange={() => setWhere('new')} />
                   <span className="flex min-w-0 grow flex-col gap-1.5">
                     {m.backup_restore_new()}
-                    <input className="field !py-1.5 font-mono text-[12px]" value={target} aria-label={m.backup_restore_target()} disabled={where !== 'new'} onChange={(e) => setTarget(e.target.value.trim())} />
+                    <input
+                      className="field !py-1.5 font-mono text-[12px]"
+                      value={target}
+                      aria-label={m.backup_restore_target()}
+                      disabled={where !== 'new'}
+                      onChange={(e) => setTarget(e.target.value.trim())}
+                    />
                   </span>
                 </label>
                 <label className="flex items-start gap-2 text-[13px]">
@@ -187,7 +218,13 @@ export function BackupBrowser({ state, snapshot, dir, onNavigate }: { state: Bac
                     <span className="block text-[12px] text-[#e3b341]">{stop.length ? m.backup_restore_inPlaceStop({ units: stop.join(', ') }) : m.backup_restore_inPlaceWarn()}</span>
                   </span>
                 </label>
-                <BusyButton className="btn primary self-start" busy={restoring.is('new')} busyLabel={m.common_starting()} disabled={!!jobs.running || jobs.starting || (where === 'new' && !target.startsWith('/'))} onClick={() => (where === 'inplace' ? setConfirm(true) : void restoring.run('new', restore))}>
+                <BusyButton
+                  className="btn primary self-start"
+                  busy={restoring.is('new')}
+                  busyLabel={m.common_starting()}
+                  disabled={!!jobs.running || jobs.starting || (where === 'new' && !target.startsWith('/'))}
+                  onClick={() => (where === 'inplace' ? setConfirm(true) : void restoring.run('new', restore))}
+                >
                   {m.backup_restore_start()}
                 </BusyButton>
                 <p className="m-0 text-[12px] text-muted">{m.backup_restore_job()}</p>
@@ -221,5 +258,5 @@ export function commonDir(paths: string[]): string {
     out.push(seg)
   }
   // A single path is itself the folder to show.
-  return '/' + out.join('/')
+  return `/${out.join('/')}`
 }

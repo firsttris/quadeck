@@ -6,7 +6,7 @@ import { existsSync, readFileSync } from 'node:fs'
 import { hostname } from 'node:os'
 import { BUILTIN_OUI, hostsOf, inSubnets, lanSubnets, ouiOf, parseAvahi, parseFping, parseNeigh, parseOui, parsePingTime, type ScanResult, type SeenDevice } from '~/shared/devices'
 import type { NetInterface } from '~/shared/network'
-import { run as exec, type ExecResult } from '../exec'
+import { type ExecResult, run as exec } from '../exec'
 
 export const OUI_FILES = ['/usr/share/hwdata/oui.txt', '/usr/share/ieee-data/oui.txt', '/usr/share/misc/oui.txt', '/usr/share/nmap/nmap-mac-prefixes']
 

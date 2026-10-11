@@ -2,37 +2,37 @@
 // runs where root is (the helper or a single root process);
 // FixtureMaintenance serves demo data for development and E2E tests.
 
-import { readdirSync, readFileSync, type Dirent } from 'node:fs'
+import { type Dirent, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { m } from '~/paraglide/messages'
+import type { ConfigAction, ConfigFileInfo } from '~/shared/configfiles'
+import { msg } from '~/shared/i18n'
 import {
+  type CacheEntry,
   FEATURES,
-  PROTECTED_PACKAGES,
   type ImageUpdatesReport,
   type InstalledPackage,
   type JobInfo,
   type JobSpec,
   type JobState,
-  type CacheEntry,
   type PackageCacheReport,
   type PackageDetail,
   type PackageOverview,
   type PackageUpdate,
+  PROTECTED_PACKAGES,
   type RemovePreview,
   type UpdatesReport,
 } from '~/shared/packages'
-import { localize, msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 import { HttpError } from '../auth'
-import { aurInfo, aurUpdates } from './aur'
-import { fileRootPaths, type FixtureFiles } from '../files/backend'
-import { prepareFsJob, systemFsOps } from '../files/transfer'
 import { assertExtractable, preparePack, systemArchiveHost } from '../files/archives'
+import { type FixtureFiles, fileRootPaths } from '../files/backend'
+import { prepareFsJob, systemFsOps } from '../files/transfer'
+import { aurInfo, aurUpdates } from './aur'
+import { dirUsage, systemCachePlans } from './cache'
+import { applyConfigAction, configFileInfo, FixtureConfigFs, SystemConfigFs } from './configfiles'
 import { imageUpdates } from './images'
 import { defaultLauncher, JobManager, type JobSink, type Launcher } from './jobs'
 import { detectProvider, type Provider } from './providers'
-import { dirUsage, systemCachePlans } from './cache'
-import { FixtureConfigFs, SystemConfigFs, applyConfigAction, configFileInfo } from './configfiles'
-import type { ConfigAction, ConfigFileInfo } from '~/shared/configfiles'
 
 export interface Maintenance {
   overview(): Promise<PackageOverview>
@@ -97,7 +97,12 @@ export function single<T>(fn: () => Promise<T>, generation: () => number = () =>
   return () => {
     const gen = generation()
     if (inflight?.gen === gen) return inflight.p
-    const run: { gen: number; p: Promise<T> } = { gen, p: fn().finally(() => inflight === run && (inflight = undefined)) }
+    const run: { gen: number; p: Promise<T> } = {
+      gen,
+      p: fn().finally(() => {
+        if (inflight === run) inflight = undefined
+      }),
+    }
     inflight = run
     return run.p
   }
@@ -199,25 +204,28 @@ export class SystemMaintenance implements MaintenanceBackend {
     return d ? { ...d, protected: protectedSet(p).has(d.name) } : null
   }
 
-  private refreshUpdates = single(async (): Promise<UpdatesReport> => {
-    const p = this.need()
-    const gen = this.gen.updates
-    const report: UpdatesReport = { checkedAt: Date.now(), repo: [], aur: [] }
-    try {
-      report.repo = await p.updates()
-    } catch (e) {
-      report.error = (e as Error).message
-    }
-    if (p.id === 'pacman') {
+  private refreshUpdates = single(
+    async (): Promise<UpdatesReport> => {
+      const p = this.need()
+      const gen = this.gen.updates
+      const report: UpdatesReport = { checkedAt: Date.now(), repo: [], aur: [] }
       try {
-        report.aur = await aurUpdates()
+        report.repo = await p.updates()
       } catch (e) {
-        report.aurError = (e as Error).message
+        report.error = (e as Error).message
       }
-    }
-    if (gen === this.gen.updates) this.updatesCache = report
-    return report
-  }, () => this.gen.updates)
+      if (p.id === 'pacman') {
+        try {
+          report.aur = await aurUpdates()
+        } catch (e) {
+          report.aurError = (e as Error).message
+        }
+      }
+      if (gen === this.gen.updates) this.updatesCache = report
+      return report
+    },
+    () => this.gen.updates,
+  )
 
   async updates(refresh: boolean) {
     const c = this.updatesCache
@@ -231,17 +239,20 @@ export class SystemMaintenance implements MaintenanceBackend {
     return previewResult(p, await p.removePreview(names))
   }
 
-  private refreshImages = single(async (): Promise<ImageUpdatesReport> => {
-    const gen = this.gen.images
-    const report: ImageUpdatesReport = { checkedAt: Date.now(), items: [] }
-    try {
-      report.items = await imageUpdates()
-    } catch (e) {
-      report.error = (e as Error).message
-    }
-    if (gen === this.gen.images) this.imagesCache = report
-    return report
-  }, () => this.gen.images)
+  private refreshImages = single(
+    async (): Promise<ImageUpdatesReport> => {
+      const gen = this.gen.images
+      const report: ImageUpdatesReport = { checkedAt: Date.now(), items: [] }
+      try {
+        report.items = await imageUpdates()
+      } catch (e) {
+        report.error = (e as Error).message
+      }
+      if (gen === this.gen.images) this.imagesCache = report
+      return report
+    },
+    () => this.gen.images,
+  )
 
   async imageUpdates(refresh: boolean) {
     const c = this.imagesCache
@@ -398,7 +409,11 @@ export class FixtureMaintenance implements MaintenanceBackend {
         return sink.exit(1)
       }
     } else if (spec.kind === 'fs-extract' || spec.kind === 'fs-pack') {
-      await say(spec.kind === 'fs-extract' ? `$ tar -x -v -f ${spec.archive} -C ${spec.toDir} --no-same-owner --no-same-permissions` : `$ ${spec.format === 'zip' ? 'zip -r -y' : 'tar -c -v -z -f'} ${spec.name} …`)
+      await say(
+        spec.kind === 'fs-extract'
+          ? `$ tar -x -v -f ${spec.archive} -C ${spec.toDir} --no-same-owner --no-same-permissions`
+          : `$ ${spec.format === 'zip' ? 'zip -r -y' : 'tar -c -v -z -f'} ${spec.name} …`,
+      )
       try {
         for (const l of spec.kind === 'fs-extract' ? await this.files!.extract(spec) : await this.files!.pack(spec)) await say(l)
       } catch (e) {
@@ -430,7 +445,10 @@ export class FixtureMaintenance implements MaintenanceBackend {
       await say(`installing ${spec.flavor}...`)
       await say(`==> Building image from preset: /etc/mkinitcpio.d/${spec.flavor}.preset: 'default'`)
       await say(`==> Image generation successful`)
-      d.installed = [...d.installed.filter((p) => p.name !== spec.flavor), { ...d.installed.find((p) => p.name === 'linux')!, name: spec.flavor, version: spec.flavor === 'linux-lts' ? '6.12.48-1' : '6.10.1.arch1-1', reason: 'explicit' }]
+      d.installed = [
+        ...d.installed.filter((p) => p.name !== spec.flavor),
+        { ...d.installed.find((p) => p.name === 'linux')!, name: spec.flavor, version: spec.flavor === 'linux-lts' ? '6.12.48-1' : '6.10.1.arch1-1', reason: 'explicit' },
+      ]
     } else if (spec.kind === 'kernel-remove') {
       await say(`$ pacman -Rns --noconfirm --noprogressbar --color never -- ${spec.flavor}`)
       await say(`removing ${spec.flavor}...`)

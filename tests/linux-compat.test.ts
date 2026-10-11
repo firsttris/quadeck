@@ -2,12 +2,17 @@ import { mkdtempSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { checkExpectations, type DoctorReport, formatReport, osIds, parsePodmanVersion, quadletSupport } from '~/server/doctor'
 import { assertNoMountsInside, fsJobSteps, gnuCoreutils, mountsInside } from '~/server/files/transfer'
-import { TransactionalUpdate, rootReadOnly, snapshotPending } from '~/server/packages/providers'
-import { checkExpectations, formatReport, osIds, parsePodmanVersion, quadletSupport, type DoctorReport } from '~/server/doctor'
+import { rootReadOnly, snapshotPending, TransactionalUpdate } from '~/server/packages/providers'
 import { FEATURES, installCommand } from '~/shared/packages'
 
-const MOUNTS = ['/dev/sda2 / btrfs ro,relatime,subvolid=268,subvol=/@/.snapshots/5/snapshot 0 0', '/dev/sdb1 /mnt/disk2 ext4 rw,relatime 0 0', '/dev/sdc1 /mnt/disk2/Fotos/USB\\040Stick vfat rw 0 0', 'proc /proc proc rw 0 0'].join('\n')
+const MOUNTS = [
+  '/dev/sda2 / btrfs ro,relatime,subvolid=268,subvol=/@/.snapshots/5/snapshot 0 0',
+  '/dev/sdb1 /mnt/disk2 ext4 rw,relatime 0 0',
+  '/dev/sdc1 /mnt/disk2/Fotos/USB\\040Stick vfat rw 0 0',
+  'proc /proc proc rw 0 0',
+].join('\n')
 
 describe('file jobs with BusyBox', () => {
   it('tells BusyBox/Toybox cp from GNU (and compatible) cp', () => {
@@ -67,7 +72,19 @@ describe('transactional-update (openSUSE MicroOS)', () => {
 })
 
 describe('quadeck doctor', () => {
-  const base: DoctorReport = { os: 'Debian GNU/Linux 12 (bookworm)', osIds: ['debian'], arch: 'x64', libc: 'glibc', packageManager: 'apt', init: 'systemd', podman: '4.3.1', quadlets: false, coreutils: 'gnu', bootLoader: 'other', root: true }
+  const base: DoctorReport = {
+    os: 'Debian GNU/Linux 12 (bookworm)',
+    osIds: ['debian'],
+    arch: 'x64',
+    libc: 'glibc',
+    packageManager: 'apt',
+    init: 'systemd',
+    podman: '4.3.1',
+    quadlets: false,
+    coreutils: 'gnu',
+    bootLoader: 'other',
+    root: true,
+  }
 
   it('knows which Podman has Quadlets', () => {
     expect(parsePodmanVersion('podman version 4.3.1')).toEqual([4, 3, 1])
@@ -89,7 +106,9 @@ describe('quadeck doctor', () => {
     const text = formatReport(base)
     expect(text).toMatch(/Podman:\s+4\.3\.1 {2}– Quadlets need Podman 4\.4 or newer/)
     expect(text).toMatch(/Boot loader:\s+other {2}– boot entries need systemd-boot/)
-    expect(formatReport({ ...base, init: 'other', packageManager: null, podman: null })).toMatch(/Package manager: none {2}– package pages hidden[\s\S]*Init:\s+other[\s\S]*not installed {2}– container pages hidden/)
+    expect(formatReport({ ...base, init: 'other', packageManager: null, podman: null })).toMatch(
+      /Package manager: none {2}– package pages hidden[\s\S]*Init:\s+other[\s\S]*not installed {2}– container pages hidden/,
+    )
   })
 
   it('checks --expect for CI', () => {

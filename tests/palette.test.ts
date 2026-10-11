@@ -8,10 +8,29 @@ const snap = {
     {
       name: 'Medien',
       note: '',
-      items: [{ key: 'ct:jellyfin', name: 'Jellyfin', url: 'https://jf.home', host: 'jf.home', group: 'Medien', icon: { kind: 'glyph', glyph: 'play' }, iconFallback: 'play', color: '#fff', health: 'ok', source: 'caddy', container: 'jellyfin' }],
+      items: [
+        {
+          key: 'ct:jellyfin',
+          name: 'Jellyfin',
+          url: 'https://jf.home',
+          host: 'jf.home',
+          group: 'Medien',
+          icon: { kind: 'glyph', glyph: 'play' },
+          iconFallback: 'play',
+          color: '#fff',
+          health: 'ok',
+          source: 'caddy',
+          container: 'jellyfin',
+        },
+      ],
     },
   ],
-  units: [unit('jellyfin.service'), unit('broken.service', { active: 'failed', sub: 'failed', kind: 'service' }), unit('systemd-udevd.service', { kind: 'service', sub: 'running' }), unit('foo.timer', { kind: 'timer', sub: 'waiting' })],
+  units: [
+    unit('jellyfin.service'),
+    unit('broken.service', { active: 'failed', sub: 'failed', kind: 'service' }),
+    unit('systemd-udevd.service', { kind: 'service', sub: 'running' }),
+    unit('foo.timer', { kind: 'timer', sub: 'waiting' }),
+  ],
 } as unknown as Snapshot
 
 describe('command palette', () => {

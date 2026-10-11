@@ -5,51 +5,67 @@
 //                      helper (`quadeck helper`) over a Unix socket
 // Both enforce the unlock gate where the root actions actually run.
 
-import type { CleanupKind, CleanupResult, PodmanStorage, PruneEvery } from '~/shared/podman-storage'
-import type { TerminalInfo } from '~/shared/terminal'
-import type { SecretsState } from '~/shared/secrets'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
-import type { JobInfo, JobSpec } from '~/shared/packages'
-import type { Maintenance } from '../packages/maintenance'
-import type { PodmanAdmin, RemoveAlso, WriteResult } from '../quadlets/backend'
-import type { PodmanConfigName } from '~/shared/quadlets'
-import type { SharesAdmin } from '../shares/backend'
-import type { SshAdmin } from '../ssh/backend'
-import type { SelfTestType, SmartAdmin } from '../smart/backend'
-import type { FilesAdmin } from '../files/backend'
-import type { TextFile } from '~/shared/files'
 import type { ArchivePreview } from '~/shared/archives'
-import type { TimersAdmin } from '../timers/backend'
-import type { UnitEditorAdmin } from '../systemd/editor'
-import type { NetworkAdmin } from '../network/collect'
-import type { FstabAdmin } from '../fstab/backend'
-import type { BootAdmin } from '../boot/backend'
-import type { UsersAdmin } from '../users/backend'
-import type { HardwareAdmin } from '../hardware/collect'
-import type { CaddyAdmin } from '../caddy/backend'
-import type { BackupAdmin } from '../backup/backend'
-import type { PowerAdmin } from '../smart/power'
-import type { PowerSetting, PowerState } from '~/shared/power'
 import type { BackupPlan, BackupState, TargetConfig, TargetState } from '~/shared/backup'
 import type { ClientPlan } from '~/shared/backup-client'
-import type { CaddyChange, CaddyResult, CaddyState } from '~/shared/caddy'
-import type { UserChange, UsersState } from '~/shared/users'
-import type { ConfigAction, ConfigFileInfo } from '~/shared/configfiles'
 import type { BootEntryChange, BootState } from '~/shared/boot'
+import type { CaddyChange, CaddyResult, CaddyState } from '~/shared/caddy'
+import type { ConfigAction, ConfigFileInfo } from '~/shared/configfiles'
+import type { TextFile } from '~/shared/files'
 import type { FstabChange, FstabState } from '~/shared/fstab'
-import type { UnitWriteResult } from '~/shared/unit-files'
-import type { TimerAction, TimerSpec, TimersState } from '~/shared/timers'
+import { msg } from '~/shared/i18n'
+import type { JobInfo, JobSpec } from '~/shared/packages'
+import type { CleanupKind, CleanupResult, PodmanStorage, PruneEvery } from '~/shared/podman-storage'
+import type { PowerSetting, PowerState } from '~/shared/power'
+import type { PodmanConfigName } from '~/shared/quadlets'
+import type { SecretsState } from '~/shared/secrets'
+import type { ShareChange, ShareServiceAction, SharesState } from '~/shared/shares'
 import type { SmartReport } from '~/shared/smart'
 import type { SshChange, SshState } from '~/shared/ssh'
-import type { ShareChange, ShareServiceAction, SharesState } from '~/shared/shares'
+import type { TerminalInfo } from '~/shared/terminal'
+import type { TimerAction, TimerSpec, TimersState } from '~/shared/timers'
+import type { UnitWriteResult } from '~/shared/unit-files'
+import type { UserChange, UsersState } from '~/shared/users'
+import type { BackupAdmin } from '../backup/backend'
+import type { BootAdmin } from '../boot/backend'
+import type { CaddyAdmin } from '../caddy/backend'
+import type { FilesAdmin } from '../files/backend'
+import type { FstabAdmin } from '../fstab/backend'
+import type { HardwareAdmin } from '../hardware/collect'
+import type { NetworkAdmin } from '../network/collect'
+import type { Maintenance } from '../packages/maintenance'
+import type { PodmanAdmin, RemoveAlso, WriteResult } from '../quadlets/backend'
+import type { SharesAdmin } from '../shares/backend'
+import type { SelfTestType, SmartAdmin } from '../smart/backend'
+import type { PowerAdmin } from '../smart/power'
+import type { SshAdmin } from '../ssh/backend'
+import type { UnitEditorAdmin } from '../systemd/editor'
+import type { TimersAdmin } from '../timers/backend'
+import type { UsersAdmin } from '../users/backend'
 import type { UnlockInfo } from './gate'
 
 export type UnitAction = 'start' | 'stop' | 'restart'
 export const UNIT_ACTIONS: readonly UnitAction[] = ['start', 'stop', 'restart']
 
 /** Package/image reads need no unlock (they change nothing); jobs do. */
-export interface Privileged extends Maintenance, PodmanAdmin, SharesAdmin, SshAdmin, SmartAdmin, FilesAdmin, TimersAdmin, UnitEditorAdmin, NetworkAdmin, FstabAdmin, BootAdmin, UsersAdmin, HardwareAdmin, CaddyAdmin, BackupAdmin, PowerAdmin {
+export interface Privileged
+  extends Maintenance,
+    PodmanAdmin,
+    SharesAdmin,
+    SshAdmin,
+    SmartAdmin,
+    FilesAdmin,
+    TimersAdmin,
+    UnitEditorAdmin,
+    NetworkAdmin,
+    FstabAdmin,
+    BootAdmin,
+    UsersAdmin,
+    HardwareAdmin,
+    CaddyAdmin,
+    BackupAdmin,
+    PowerAdmin {
   readonly kind: 'local' | 'helper'
   info(): Promise<UnlockInfo>
   unlock(user: string, password: string): Promise<{ token: string; expiresAt: number }>

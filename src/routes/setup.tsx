@@ -2,8 +2,8 @@ import { createFileRoute, redirect } from '@tanstack/react-router'
 import { useState } from 'react'
 import { AuthCard, AuthError, useHydrated } from '~/components/AuthCard'
 import { api } from '~/lib/api'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 
 export const Route = createFileRoute('/setup')({
   validateSearch: (s: Record<string, unknown>): { token?: string } => ({ token: typeof s.token === 'string' ? s.token : undefined }),

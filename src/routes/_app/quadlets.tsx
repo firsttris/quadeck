@@ -1,4 +1,4 @@
-import { Link, createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
 import { useActions } from '~/components/Actions'
 import { BusyButton } from '~/components/Busy'
@@ -12,8 +12,8 @@ import { useGuardedApi } from '~/components/Unlock'
 import { api } from '~/lib/api'
 import { useLiveState } from '~/lib/live'
 import { templates } from '~/lib/quadlet-templates'
-import { QUADLET_NAME, QUADLET_TYPES, type ComposeResult, type QuadletFile, type QuadletType, type Revision } from '~/shared/quadlets'
 import { m } from '~/paraglide/messages'
+import { type ComposeResult, QUADLET_NAME, QUADLET_TYPES, type QuadletFile, type QuadletType, type Revision } from '~/shared/quadlets'
 
 export const Route = createFileRoute('/_app/quadlets')({
   // Podman settings used to be a tab here; they now live on the System page.
@@ -203,6 +203,7 @@ function NewDialog({ open, existing, onClose, onCreate }: { open: boolean; exist
   const [template, setTemplate] = useState(TEMPLATES[0]!.id)
   const t = TEMPLATES.find((x) => x.id === template)!
   const [type, setType] = useState<QuadletType>(t.type)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset the type when another template is picked
   useEffect(() => setType(t.type), [template, t.type])
   const name = `${base.trim()}.${type}`
   const valid = QUADLET_NAME.test(name)
@@ -316,7 +317,13 @@ function ComposeDialog({ open, existing, onClose, onDone }: { open: boolean; exi
           </label>
           <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
             docker-compose.yml
-            <textarea className="field h-[300px] font-mono text-[12px]" spellCheck={false} value={yaml} onChange={(e) => setYaml(e.target.value)} placeholder={'services:\n  web:\n    image: nginx\n    ports:\n      - "8080:80"'} />
+            <textarea
+              className="field h-[300px] font-mono text-[12px]"
+              spellCheck={false}
+              value={yaml}
+              onChange={(e) => setYaml(e.target.value)}
+              placeholder={'services:\n  web:\n    image: nginx\n    ports:\n      - "8080:80"'}
+            />
           </label>
         </>
       ) : (
@@ -324,6 +331,7 @@ function ComposeDialog({ open, existing, onClose, onDone }: { open: boolean; exi
           {result.warnings.length > 0 && (
             <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[13px] text-[#e3b341]" aria-label={m.quadlets_compose_warnings()}>
               {result.warnings.map((w, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: derived warnings in order, the same text may repeat
                 <li key={i}>{w}</li>
               ))}
             </ul>

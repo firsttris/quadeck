@@ -1,11 +1,11 @@
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import type { Health, Unit } from '~/shared/types'
 
 export type Tone = 'ok' | 'warn' | 'bad' | 'idle'
 
 export function Dot({ tone, label }: { tone: Tone; label?: string }) {
-  return <span className={`dot ${tone === 'idle' ? '' : tone}`} role={label ? 'img' : undefined} aria-label={label} />
+  return label ? <span className={`dot ${tone === 'idle' ? '' : tone}`} role="img" aria-label={label} /> : <span className={`dot ${tone === 'idle' ? '' : tone}`} />
 }
 
 export function Pill({ tone, children }: { tone: Tone; children: React.ReactNode }) {

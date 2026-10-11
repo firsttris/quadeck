@@ -1,8 +1,8 @@
 // Number/size/time formatting for the UI, in the viewer's language.
 
-import { describeCalendar } from '~/shared/timers'
-import { localeOf, msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { localeOf, msg } from '~/shared/i18n'
+import { describeCalendar } from '~/shared/timers'
 
 const nf = (digits: number) => new Intl.NumberFormat(localeOf(), { maximumFractionDigits: digits, minimumFractionDigits: digits })
 

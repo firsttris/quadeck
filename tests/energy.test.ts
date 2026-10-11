@@ -4,13 +4,15 @@ import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { SystemPower } from '~/server/smart/power'
 import {
-  DEFAULT_ENERGY,
   cpuEstimate,
   cpuZone,
+  DEFAULT_ENERGY,
   dailyAverage,
   dayStart,
   group,
+  type HourEnergy,
   monthProjection,
+  type PowerSample,
   parseEnergySettings,
   parseLsblkKinds,
   powerNow,
@@ -18,8 +20,6 @@ import {
   standbySavings,
   sumSplit,
   withSettings,
-  type HourEnergy,
-  type PowerSample,
 } from '~/shared/energy'
 
 process.env.QUADECK_DATA_DIR = mkdtempSync(join(tmpdir(), 'quadeck-energy-'))
@@ -134,12 +134,18 @@ describe('power now', () => {
     expect(withSettings(p, { price: 0, baseW: 10, lossPct: 50 })).toMatchObject({ rest: 10 + (19 + 10) * 0.5, total: 19 + 10 + 14.5 })
     expect(cpuEstimate(-1)).toBe(4)
     expect(cpuEstimate(9)).toBe(34)
-    expect(gpuWatts([{ id: 'a', name: 'x', vendor: 'nvidia', utilKind: 'load', powerW: 7 }, { id: 'b', name: 'y', vendor: 'intel', utilKind: 'clock' }])).toBe(7)
+    expect(
+      gpuWatts([
+        { id: 'a', name: 'x', vendor: 'nvidia', utilKind: 'load', powerW: 7 },
+        { id: 'b', name: 'y', vendor: 'intel', utilKind: 'clock' },
+      ]),
+    ).toBe(7)
     expect(gpuWatts([{ id: 'b', name: 'y', vendor: 'intel', utilKind: 'clock' }])).toBeUndefined()
   })
   it('settings: comma decimals, bounds', () => {
     expect(parseEnergySettings({ price: '0,32', baseW: '12', lossPct: 8 })).toEqual({ price: 0.32, baseW: 12, lossPct: 8 })
-    for (const bad of [{ price: -1, baseW: 1, lossPct: 1 }, { price: 1, baseW: 501, lossPct: 1 }, { price: 1, baseW: 1, lossPct: 60 }, { price: 'x', baseW: 1, lossPct: 1 }, {}]) expect(() => parseEnergySettings(bad)).toThrow()
+    for (const bad of [{ price: -1, baseW: 1, lossPct: 1 }, { price: 1, baseW: 501, lossPct: 1 }, { price: 1, baseW: 1, lossPct: 60 }, { price: 'x', baseW: 1, lossPct: 1 }, {}])
+      expect(() => parseEnergySettings(bad)).toThrow()
   })
 })
 
@@ -216,7 +222,14 @@ describe('the meter', () => {
 
     // pruning keeps energy (two years) but not week-old live samples
     const old = Date.now() - 400 * 86_400_000
-    db().insert(schema.metricSamples).values([{ ts: old, metric: 'energy:cpu', value: 1 }, { ts: old, metric: 'cpu', value: 1 }, { ts: Date.now() - 800 * 86_400_000, metric: 'energy:cpu', value: 1 }]).run()
+    db()
+      .insert(schema.metricSamples)
+      .values([
+        { ts: old, metric: 'energy:cpu', value: 1 },
+        { ts: old, metric: 'cpu', value: 1 },
+        { ts: Date.now() - 800 * 86_400_000, metric: 'energy:cpu', value: 1 },
+      ])
+      .run()
     pruneHistory(db())
     expect(energyHours(db(), old - 1000, old + 1000)).toHaveLength(1)
     expect(energyHours(db(), Date.now() - 900 * 86_400_000, Date.now() - 700 * 86_400_000)).toHaveLength(0)

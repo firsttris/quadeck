@@ -1,17 +1,17 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { HttpError } from '~/server/auth'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { HttpError } from '~/server/auth'
+import { hostTempSensorGap, tempSensorGap } from '~/server/collectors/disks'
+import { config } from '~/server/config'
 import { db } from '~/server/db'
 import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
-import { hostTempSensorGap, tempSensorGap } from '~/server/collectors/disks'
-import { config } from '~/server/config'
 import { hubReady } from '~/server/hub'
 import { querySmartHistory, smartBaselines } from '~/server/metrics'
 import { privileged } from '~/server/privileged'
 import { DISK_NAME } from '~/server/smart/backend'
 import { unlockToken } from '~/server/unlock-sessions'
+import { msg } from '~/shared/i18n'
 import type { SmartReport } from '~/shared/smart'
 
 // GET: SMART of all disks (cached 15 min); ?history=<disk id>&days=90 → trends.
@@ -42,7 +42,7 @@ export const Route = createFileRoute('/api/disks/smart')({
       POST: authed(async ({ request }, session) => {
         const b = await readJson<{ selftest?: { disk?: unknown; type?: unknown } }>(request)
         const p = privileged()
-        let report
+        let report: Awaited<ReturnType<typeof p.smartReport>>
         if (b.selftest) {
           assertWritable()
           const { disk, type } = b.selftest

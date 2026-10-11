@@ -3,8 +3,8 @@
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import type { SharesState } from '~/shared/shares'
 import type { Share } from '~/shared/types'
 
@@ -20,7 +20,7 @@ function logicalLines(text: string, comment: RegExp): string[] {
     const line = raw.replace(/\r$/, '')
     if (!cur && comment.test(line.trim())) continue
     if (line.endsWith('\\')) {
-      cur += line.slice(0, -1) + ' '
+      cur += `${line.slice(0, -1)} `
       continue
     }
     out.push((cur + line).trim())
@@ -43,16 +43,16 @@ export function parseSmbConf(text: string): Share[] {
   }
   const shares: Share[] = []
   for (const { name, opts } of sections) {
-    if (SKIP_SECTIONS.has(name.toLowerCase()) || yes(opts['printable']) || yes(opts['print ok']) || !opts['path']) continue
-    if (no(opts['available'])) continue
+    if (SKIP_SECTIONS.has(name.toLowerCase()) || yes(opts.printable) || yes(opts['print ok']) || !opts.path) continue
+    if (no(opts.available)) continue
     // "writable", "writeable" and "write ok" are inverse synonyms of "read only" (default: read only = yes).
-    const writable = [opts['writable'], opts['writeable'], opts['write ok']].some(yes) || no(opts['read only'])
+    const writable = [opts.writable, opts.writeable, opts['write ok']].some(yes) || no(opts['read only'])
     const readonly = yes(opts['read only']) || !writable
     const notes: string[] = []
-    if (yes(opts['guest ok']) || yes(opts['public'])) notes.push(msg(m.shares_note_guestsAllowed))
+    if (yes(opts['guest ok']) || yes(opts.public)) notes.push(msg(m.shares_note_guestsAllowed))
     if (opts['valid users']) notes.push(msg(m.shares_note_onlyUsers, { users: opts['valid users'] }))
-    if (no(opts['browseable']) || no(opts['browsable'])) notes.push(msg(m.shares_smb_hidden))
-    shares.push({ type: 'SMB', name, path: opts['path'], access: readonly ? msg(m.shares_smb_read) : msg(m.shares_smb_readWrite), note: notes.join(' · ') || undefined })
+    if (no(opts.browseable) || no(opts.browsable)) notes.push(msg(m.shares_smb_hidden))
+    shares.push({ type: 'SMB', name, path: opts.path, access: readonly ? msg(m.shares_smb_read) : msg(m.shares_smb_readWrite), note: notes.join(' · ') || undefined })
   }
   return shares
 }

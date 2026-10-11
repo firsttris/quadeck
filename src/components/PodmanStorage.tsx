@@ -1,31 +1,31 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { pickMsg } from '~/i18n'
 import { api } from '~/lib/api'
 import { age, bytes, pct, relative } from '~/lib/format'
+import { m } from '~/paraglide/messages'
 import {
-  cleanupPlan,
-  containerLabel,
-  defaultSelection,
-  imageLabel,
-  planSize,
-  removableContainer,
-  shortId,
-  storageSummary,
   type CleanupItem,
   type CleanupKind,
   type CleanupResult,
   type CleanupSelection,
+  cleanupPlan,
+  containerLabel,
+  defaultSelection,
+  imageLabel,
   type PodmanImage,
   type PodmanStorage,
   type PodmanVolume,
   type PruneEvery,
+  planSize,
+  removableContainer,
+  shortId,
+  storageSummary,
 } from '~/shared/podman-storage'
 import { useActions } from './Actions'
 import { BusyButton, Spinner, useBusy } from './Busy'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
-import { m } from '~/paraglide/messages'
-import { pickMsg } from '~/i18n'
 
 type Tab = 'images' | 'volumes' | 'containers'
 type Cleaned = { results: CleanupResult[]; skipped: number; storage: PodmanStorage }
@@ -102,9 +102,24 @@ export function PodmanStorageCard() {
     )
   const total = sum.images.size + sum.volumes.size + sum.containers.size
   const tiles: [string, number, string, string | undefined][] = [
-    [m.podstore_images(), sum.images.size, m.podstore_imagesCount({ n: sum.images.count }), sum.images.free ? m.podstore_freeUnused({ size: bytes(sum.images.free), n: sum.images.unused }) : undefined],
-    [m.podstore_volumes(), sum.volumes.size, m.podstore_volumesCount({ n: sum.volumes.count }), sum.volumes.free || sum.volumes.unused ? m.podstore_freeOrphan({ size: bytes(sum.volumes.free), n: sum.volumes.unused }) : undefined],
-    [m.podstore_containers(), sum.containers.size, m.podstore_containersCount({ n: sum.containers.count, running: sum.containers.running }), sum.containers.stopped ? m.podstore_freeStopped({ size: bytes(sum.containers.free), n: sum.containers.stopped }) : undefined],
+    [
+      m.podstore_images(),
+      sum.images.size,
+      m.podstore_imagesCount({ n: sum.images.count }),
+      sum.images.free ? m.podstore_freeUnused({ size: bytes(sum.images.free), n: sum.images.unused }) : undefined,
+    ],
+    [
+      m.podstore_volumes(),
+      sum.volumes.size,
+      m.podstore_volumesCount({ n: sum.volumes.count }),
+      sum.volumes.free || sum.volumes.unused ? m.podstore_freeOrphan({ size: bytes(sum.volumes.free), n: sum.volumes.unused }) : undefined,
+    ],
+    [
+      m.podstore_containers(),
+      sum.containers.size,
+      m.podstore_containersCount({ n: sum.containers.count, running: sum.containers.running }),
+      sum.containers.stopped ? m.podstore_freeStopped({ size: bytes(sum.containers.free), n: sum.containers.stopped }) : undefined,
+    ],
   ]
   const stopped = s.containers.filter((c) => c.state !== 'running')
 
@@ -257,7 +272,9 @@ function ImagesTable({ s, busy, removing, onRemove }: { s: PodmanStorage; busy: 
               </td>
               <td>{bytes(i.size)}</td>
               <td className="text-[13px] text-subtle">{age(i.created)}</td>
-              <td className="text-[13px]">{users.length ? users.join(', ') : i.quadlets.length ? m.podstore_quadletStopped({ files: i.quadlets.join(', ') }) : <span className="text-[#e3b341]">{m.podstore_nobody()}</span>}</td>
+              <td className="text-[13px]">
+                {users.length ? users.join(', ') : i.quadlets.length ? m.podstore_quadletStopped({ files: i.quadlets.join(', ') }) : <span className="text-[#e3b341]">{m.podstore_nobody()}</span>}
+              </td>
               <td className="text-right">
                 {unused ? (
                   <BusyButton
@@ -317,7 +334,14 @@ function VolumesTable({ s, busy, removing, onRemove }: { s: PodmanStorage; busy:
                 <td className="text-[13px]">{users.length ? users.join(', ') : <span className="text-[#e3b341]">{m.podstore_nobody()}</span>}</td>
                 <td className="text-right">
                   {orphan && !v.quadlet ? (
-                    <BusyButton className="btn sm danger" busy={removing === `volume:${v.name}`} busyLabel={m.podstore_removing()} disabled={busy} onClick={() => setConfirm(v)} aria-label={m.podstore_removeFor({ name: v.name })}>
+                    <BusyButton
+                      className="btn sm danger"
+                      busy={removing === `volume:${v.name}`}
+                      busyLabel={m.podstore_removing()}
+                      disabled={busy}
+                      onClick={() => setConfirm(v)}
+                      aria-label={m.podstore_removeFor({ name: v.name })}
+                    >
                       {m.podstore_removeDots()}
                     </BusyButton>
                   ) : (
@@ -370,7 +394,8 @@ function CleanupDialog({ s, onClose, remove }: { s: PodmanStorage; onClose: () =
   const effective = { ...sel, volumes: volumesOn ? sel.volumes : [] }
   const plan = cleanupPlan(s, effective)
   /** What one checkbox adds (images and networks freed by removing the selected containers count). */
-  const only = (k: keyof Omit<CleanupSelection, 'volumes'>, kind: CleanupKind) => cleanupPlan(s, { containers: sel.containers, dangling: false, unusedImages: false, networks: false, volumes: [], [k]: true }).filter((i) => i.kind === kind)
+  const only = (k: keyof Omit<CleanupSelection, 'volumes'>, kind: CleanupKind) =>
+    cleanupPlan(s, { containers: sel.containers, dangling: false, unusedImages: false, networks: false, volumes: [], [k]: true }).filter((i) => i.kind === kind)
   const toggle = (k: keyof Omit<CleanupSelection, 'volumes'>) => setSel({ ...sel, [k]: !sel[k] })
   const run = async () => {
     setBusy(true)
@@ -443,7 +468,12 @@ function CleanupDialog({ s, onClose, remove }: { s: PodmanStorage; onClose: () =
             <fieldset className="m-0 flex flex-col gap-1.5 border-0 py-0 pr-0 pl-6" aria-label={m.podstore_sel_volumes()}>
               {orphans.map((v) => (
                 <label key={v.id} className="flex items-center gap-2 text-[13px]">
-                  <input type="checkbox" checked={sel.volumes.includes(v.id)} disabled={busy} onChange={(e) => setSel({ ...sel, volumes: e.target.checked ? [...sel.volumes, v.id] : sel.volumes.filter((x) => x !== v.id) })} />
+                  <input
+                    type="checkbox"
+                    checked={sel.volumes.includes(v.id)}
+                    disabled={busy}
+                    onChange={(e) => setSel({ ...sel, volumes: e.target.checked ? [...sel.volumes, v.id] : sel.volumes.filter((x) => x !== v.id) })}
+                  />
                   <span className="grow font-mono">{v.label}</span>
                   <span className="text-subtle">{bytes(v.size)}</span>
                 </label>

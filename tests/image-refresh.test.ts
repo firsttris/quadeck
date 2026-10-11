@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import type { JobSink, Launcher } from '~/server/packages/jobs'
-import { imagesAfterJob, single, SystemMaintenance } from '~/server/packages/maintenance'
+import { imagesAfterJob, SystemMaintenance, single } from '~/server/packages/maintenance'
 import type { ImageUpdatesReport } from '~/shared/packages'
 
 const report = (): ImageUpdatesReport => ({

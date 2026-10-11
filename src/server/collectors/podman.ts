@@ -2,9 +2,9 @@
 // Podman REST API on podman.sock. Read-only except for start/stop/restart of
 // containers that have no systemd unit.
 
-import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 import { existsSync } from 'node:fs'
+import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import type { Container, ContainerPort } from '~/shared/types'
 
 export const UNIT_LABEL = 'PODMAN_SYSTEMD_UNIT'

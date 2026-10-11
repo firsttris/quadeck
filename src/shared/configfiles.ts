@@ -1,8 +1,8 @@
 // Config files a package update left next to the live ones (.pacnew & co.):
 // what they are, what may be done with them and what to watch out for.
 
-import { msg } from './i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from './i18n'
 
 export type ConfigAction = 'replace' | 'keep' | 'merge'
 
@@ -69,7 +69,7 @@ const notes = (): [RegExp, string, Partial<Pick<ConfigFileInfo, 'check' | 'after
   [/^\/etc\/tpm2-tss\//, msg(m.configfiles_hint_tpm)],
 ]
 
-export function describeConfigFile(path: string, kind: 'new' | 'save', live: string): Pick<ConfigFileInfo, 'note' | 'noReplace' | 'check' | 'after'> {
+export function describeConfigFile(kind: 'new' | 'save', live: string): Pick<ConfigFileInfo, 'note' | 'noReplace' | 'check' | 'after'> {
   const hit = notes().find(([re]) => re.test(live))
   const blocked = noReplace()[live]
   const save = kind === 'save' ? msg(m.configfiles_hint_orphanSave) : undefined

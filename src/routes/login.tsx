@@ -4,8 +4,8 @@ import { AuthCard, AuthError, useHydrated } from '~/components/AuthCard'
 import { Glyph } from '~/components/Glyph'
 import { api } from '~/lib/api'
 import { loginWithPasskey, passkeyErrorMessage, passkeysSupported } from '~/lib/passkeys'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 
 export const Route = createFileRoute('/login')({
   beforeLoad: ({ context }) => {

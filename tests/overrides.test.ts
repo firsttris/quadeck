@@ -29,7 +29,12 @@ describe('service overrides', () => {
   it('upserts, toggles hidden without touching other fields, and deletes', () => {
     ov.saveOverride(ov.validateOverride({ key: 'ct:a', name: 'A', pinned: true }))
     ov.setHidden('ct:a', true)
-    const row = () => db().select().from(schema.serviceOverrides).all().find((r) => r.serviceKey === 'ct:a')
+    const row = () =>
+      db()
+        .select()
+        .from(schema.serviceOverrides)
+        .all()
+        .find((r) => r.serviceKey === 'ct:a')
     expect(row()).toMatchObject({ name: 'A', pinned: true, hidden: true })
     ov.saveOverride(ov.validateOverride({ key: 'ct:a', name: '', pinned: false }))
     expect(row()).toMatchObject({ name: null, pinned: false, hidden: false })

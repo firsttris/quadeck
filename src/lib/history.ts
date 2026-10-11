@@ -47,8 +47,8 @@ export function useMetricHistory(range: HistoryRange): { series: MetricHistory; 
     const extra = new Map<MetricName, [number, number][]>()
     for (const p of live) {
       if (p.ts <= (server[p.metric]?.at(-1)?.[0] ?? 0)) continue
-      let list = extra.get(p.metric)
-      if (!list) extra.set(p.metric, (list = []))
+      const list = extra.get(p.metric) ?? []
+      extra.set(p.metric, list)
       list.push([p.ts, p.value])
     }
     for (const [m, pts] of extra) out[m] = [...(server[m] ?? []), ...pts]

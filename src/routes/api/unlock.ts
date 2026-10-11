@@ -1,11 +1,11 @@
-import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 import { createFileRoute } from '@tanstack/react-router'
+import { m } from '~/paraglide/messages'
 import { HttpError } from '~/server/auth'
 import { config } from '~/server/config'
 import { authed, readJson } from '~/server/http'
 import { privileged } from '~/server/privileged'
 import { clearUnlockToken, setUnlockToken, unlockToken } from '~/server/unlock-sessions'
+import { msg } from '~/shared/i18n'
 
 // Unlock privileged actions for this session (admin password, checked where
 // the root actions run). GET: state · POST: unlock · DELETE: lock.

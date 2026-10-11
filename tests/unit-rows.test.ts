@@ -4,7 +4,18 @@ import type { Container, Unit } from '~/shared/types'
 
 const unit = (name: string, o: Partial<Unit> = {}): Unit => ({ name, description: name, load: 'loaded', active: 'active', sub: 'running', kind: 'service', ...o })
 const ct = (name: string, o: Partial<Container> = {}): Container => ({
-  id: name, name, image: 'img', state: 'running', status: 'Up', labels: {}, ports: [], networks: [], aliases: [], ips: [], cpuHistory: [], ...o,
+  id: name,
+  name,
+  image: 'img',
+  state: 'running',
+  status: 'Up',
+  labels: {},
+  ports: [],
+  networks: [],
+  aliases: [],
+  ips: [],
+  cpuHistory: [],
+  ...o,
 })
 
 describe('unit rows', () => {

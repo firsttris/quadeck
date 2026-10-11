@@ -4,8 +4,8 @@
 import { existsSync, lstatSync, readdirSync, readFileSync, realpathSync } from 'node:fs'
 import { join } from 'node:path'
 import type { CacheEntry, ManagerId } from '~/shared/packages'
-import type { Step } from './providers'
 import { aurHelper, aurUser, passwdEntry } from './aur'
+import type { Step } from './providers'
 
 export interface CachePlan extends Omit<CacheEntry, 'size' | 'files' | 'truncated'> {
   /** Clean-up commands, run by the job as root (the AUR cache: as its owner). */
@@ -68,7 +68,14 @@ export function cachePlans(manager: ManagerId | null, aur: { helper?: 'yay' | 'p
     // yay keeps one folder per package (sources and build), paru the same under clone/; files next
     // to them (yay's vcs.json, paru's devel.toml) track -git packages and stay
     const path = aur.helper === 'yay' ? join(aur.home, '.cache/yay') : join(aur.home, '.cache/paru/clone')
-    plans.push({ id: 'aur', path, owner: aur.user, keep: 'files', helper: aur.helper, steps: [{ argv: ['find', path, '-mindepth', '1', '-maxdepth', '1', '-type', 'd', '-exec', 'rm', '-rf', '--one-file-system', '--', '{}', '+'] }] })
+    plans.push({
+      id: 'aur',
+      path,
+      owner: aur.user,
+      keep: 'files',
+      helper: aur.helper,
+      steps: [{ argv: ['find', path, '-mindepth', '1', '-maxdepth', '1', '-type', 'd', '-exec', 'rm', '-rf', '--one-file-system', '--', '{}', '+'] }],
+    })
   }
   return plans
 }

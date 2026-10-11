@@ -100,7 +100,23 @@ export function buildUnit(l: ListedUnit, p: Record<string, string>): Unit {
   }
 }
 
-const PROPS = ['Id', 'Type', 'Result', 'ExecMainStatus', 'MemoryCurrent', 'MemoryMax', 'StateChangeTimestamp', 'UnitFileState', 'SourcePath', 'TimersCalendar', 'NextElapseUSecRealtime', 'LastTriggerUSec', 'Unit', 'Listen', 'Triggers']
+const PROPS = [
+  'Id',
+  'Type',
+  'Result',
+  'ExecMainStatus',
+  'MemoryCurrent',
+  'MemoryMax',
+  'StateChangeTimestamp',
+  'UnitFileState',
+  'SourcePath',
+  'TimersCalendar',
+  'NextElapseUSecRealtime',
+  'LastTriggerUSec',
+  'Unit',
+  'Listen',
+  'Triggers',
+]
 
 /** Which units are worth showing: services, timers, sockets and anything generated from a Quadlet. */
 const relevant = (u: ListedUnit) => u.load !== 'not-found' && /\.(service|timer|socket)$/.test(u.name)
@@ -125,9 +141,7 @@ export class UnitCollector {
   /** systemd < 251 has no --timestamp: learned once, not retried on every batch. */
   private timestamps = true
 
-  constructor(
-    private opts: { refreshMs?: number; now?: () => number; list?: () => Promise<ListedUnit[]>; show?: (args: string[]) => Promise<{ code: number; stdout: string }> } = {},
-  ) {}
+  constructor(private opts: { refreshMs?: number; now?: () => number; list?: () => Promise<ListedUnit[]>; show?: (args: string[]) => Promise<{ code: number; stdout: string }> } = {}) {}
 
   private async show(names: string[]) {
     const show = this.opts.show ?? ((args: string[]) => run(['systemctl', 'show', ...args]))
@@ -170,4 +184,3 @@ export async function systemdVersion(): Promise<string | undefined> {
   const r = await run(['systemctl', '--version'])
   return r.stdout.match(/systemd (\d+)/)?.[1]
 }
-

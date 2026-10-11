@@ -1,8 +1,8 @@
 // docker-compose.yml → Quadlet files. Covers the common keys; everything
 // else is reported as a warning so nothing disappears silently.
 
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import type { ComposeResult } from '~/shared/quadlets'
 
 type Obj = Record<string, unknown>

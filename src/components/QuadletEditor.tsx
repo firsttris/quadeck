@@ -1,29 +1,31 @@
 import { useEffect, useMemo, useRef, useState } from 'react'
-import { contentHash } from '~/shared/caddy'
 import { api } from '~/lib/api'
 import { diffLines, hunks } from '~/lib/diff'
 import { relative } from '~/lib/format'
+import { m } from '~/paraglide/messages'
+import { contentHash } from '~/shared/caddy'
 import { getValues, lintQuadlet, parseIni, setValues } from '~/shared/ini'
-import { QUADLET_KEYS, QUADLET_SECTION, SYSTEMD_KEYS, type KeyDoc } from '~/shared/quadlet-keys'
-import { quadletType, quadletUnit, type Diagnostic, type RemovalPlan, type Revision, type ValidateResult } from '~/shared/quadlets'
+import { type KeyDoc, QUADLET_KEYS, QUADLET_SECTION, SYSTEMD_KEYS } from '~/shared/quadlet-keys'
+import { type Diagnostic, quadletType, quadletUnit, type RemovalPlan, type Revision, type ValidateResult } from '~/shared/quadlets'
 import { BusyButton } from './Busy'
 import { Glyph } from './Glyph'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
-import { m } from '~/paraglide/messages'
 
 export function DiffView({ before, after }: { before: string; after: string }) {
   const lines = useMemo(() => hunks(diffLines(before, after)), [before, after])
   if (!lines.length) return <p className="m-0 text-[13px] text-muted">{m.quadlets_editor_noChanges()}</p>
   return (
-    <pre className="joblog !min-h-0" aria-label={m.quadlets_editor_changes()}>
+    <pre className="joblog !min-h-0" role="group" aria-label={m.quadlets_editor_changes()}>
       {lines.map((l, i) =>
         l === null ? (
+          // biome-ignore lint/suspicious/noArrayIndexKey: diff lines, in order
           <div key={i} className="text-subtle">
             ⋯
           </div>
         ) : (
+          // biome-ignore lint/suspicious/noArrayIndexKey: diff lines, in order
           <div key={i} className={l.op === '+' ? 'bg-[rgba(63,185,80,.12)] text-[#7ee2a8]' : l.op === '-' ? 'bg-[rgba(248,81,73,.12)] text-[#ff8a80]' : 'text-muted'}>
             {l.op} {l.text || ' '}
           </div>
@@ -38,6 +40,7 @@ export function Diagnostics({ items, onLine }: { items: Diagnostic[]; onLine?: (
   return (
     <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[13px]" aria-label={m.quadlets_editor_hints()}>
       {items.map((d, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: derived from the text on every render, in order
         <li key={i} className={`flex items-start gap-2 ${d.severity === 'error' ? 'text-[#ff8a80]' : 'text-[#e3b341]'}`}>
           <span className="font-mono text-[11px] uppercase">{d.severity === 'error' ? m.quadlets_editor_error() : m.quadlets_editor_hint()}</span>
           {d.line && onLine ? (
@@ -79,9 +82,10 @@ export function Field({ section, k, doc, text, onChange }: { section: string; k:
       {doc.multi ? (
         <div className="flex flex-col gap-1.5">
           {values.map((v, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: controlled inputs of a repeated key, the position is the identity
             <div key={i} className="flex gap-1.5">
               {input(v, (nv) => set(values.map((x, j) => (j === i ? nv : x))), `${k} ${i + 1}`)}
-              <button type="button" className="btn sm" aria-label={m.quadlets_editor_removeEntry({ label: (`${k} ${i + 1}`) })} onClick={() => set(values.filter((_, j) => j !== i))}>
+              <button type="button" className="btn sm" aria-label={m.quadlets_editor_removeEntry({ label: `${k} ${i + 1}` })} onClick={() => set(values.filter((_, j) => j !== i))}>
                 <Glyph name="trash" size={13} />
               </button>
             </div>
@@ -130,7 +134,21 @@ function FormView({ name, text, onChange }: { name: string; text: string; onChan
   )
 }
 
-export function TextView({ text, onChange, jump, label, readOnly, height = 520 }: { text: string; onChange: (t: string) => void; jump: number | null; label?: string; readOnly?: boolean; height?: number }) {
+export function TextView({
+  text,
+  onChange,
+  jump,
+  label,
+  readOnly,
+  height = 520,
+}: {
+  text: string
+  onChange: (t: string) => void
+  jump: number | null
+  label?: string
+  readOnly?: boolean
+  height?: number
+}) {
   const fileLabel = m.quadlets_editor_fileLabel()
   const ref = useRef<HTMLTextAreaElement>(null)
   const gutter = useRef<HTMLDivElement>(null)
@@ -148,6 +166,7 @@ export function TextView({ text, onChange, jump, label, readOnly, height = 520 }
     <div className="flex overflow-hidden rounded-[10px] border border-edge bg-bg font-mono text-[13px] leading-[19.5px]">
       <div ref={gutter} aria-hidden className="select-none overflow-hidden border-r border-line px-2 py-2.5 text-right text-subtle" style={{ height }}>
         {Array.from({ length: count }, (_, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: line numbers
           <div key={i}>{i + 1}</div>
         ))}
       </div>
@@ -184,6 +203,10 @@ export function QuadletEditor({ name, initial, isNew, history, readonly, onSaved
   const [text, setText] = useState(initial)
   const [mode, setMode] = useState<'form' | 'text'>('form')
   const [server, setServer] = useState<ValidateResult | null>(null)
+  const edit = (t: string) => {
+    setText(t)
+    setServer(null)
+  }
   const [checking, setChecking] = useState(false)
   const [review, setReview] = useState(false)
   const [restart, setRestart] = useState(true)
@@ -193,6 +216,7 @@ export function QuadletEditor({ name, initial, isNew, history, readonly, onSaved
   const [confirmDelete, setConfirmDelete] = useState(false)
   const [showGenerated, setShowGenerated] = useState(false)
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset when another file or template opens
   useEffect(() => {
     setText(initial)
     setServer(null)
@@ -226,7 +250,10 @@ export function QuadletEditor({ name, initial, isNew, history, readonly, onSaved
     setSaving(true)
     try {
       // the hash of what was loaded: a save from elsewhere in between gives 409 instead of being overwritten
-      const r = await guarded<{ unit: string; restarted: boolean; warning?: string }>('/api/quadlets/file', { method: 'PUT', body: { name, content: text, restart, expected: contentHash(isNew ? '' : initial) } })
+      const r = await guarded<{ unit: string; restarted: boolean; warning?: string }>('/api/quadlets/file', {
+        method: 'PUT',
+        body: { name, content: text, restart, expected: contentHash(isNew ? '' : initial) },
+      })
       if (!r) return
       setReview(false)
       if (r.warning) say(r.warning, 'bad')
@@ -259,7 +286,7 @@ export function QuadletEditor({ name, initial, isNew, history, readonly, onSaved
         </div>
       </div>
 
-      {mode === 'form' ? <FormView name={name} text={text} onChange={(t) => (setText(t), setServer(null))} /> : <TextView text={text} jump={jump} onChange={(t) => (setText(t), setServer(null))} />}
+      {mode === 'form' ? <FormView name={name} text={text} onChange={edit} /> : <TextView text={text} jump={jump} onChange={edit} />}
 
       <Diagnostics
         items={diags}
@@ -292,7 +319,7 @@ export function QuadletEditor({ name, initial, isNew, history, readonly, onSaved
         )}
         <span className="grow" />
         {dirty && !isNew && (
-          <button type="button" className="btn sm" onClick={() => (setText(initial), setServer(null))}>
+          <button type="button" className="btn sm" onClick={() => edit(initial)}>
             {m.quadlets_editor_discard()}
           </button>
         )}
@@ -469,6 +496,7 @@ export function HistoryDialog({
   useEffect(() => {
     setSel(open ? (history[1] ?? history[0] ?? null) : null)
   }, [open, history])
+  // biome-ignore lint/correctness/useExhaustiveDependencies: load when the selection or the file changes; url is a new function on every render
   useEffect(() => {
     setContent(null)
     if (!sel) return
@@ -476,7 +504,7 @@ export function HistoryDialog({
       .then((r) => r.json())
       .then((d: { content?: string }) => setContent(d.content ?? ''))
       .catch(() => setContent(''))
-  }, [sel, name]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [sel, name])
   return (
     <Modal open={open} onClose={onClose} title={m.quadlets_history_title({ name })} wide>
       <div className="flex flex-wrap gap-1.5" role="listbox" aria-label={m.quadlets_history_versions()}>

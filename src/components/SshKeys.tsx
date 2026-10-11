@@ -2,6 +2,7 @@ import { Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
 import { api } from '~/lib/api'
 import { relative } from '~/lib/format'
+import { m } from '~/paraglide/messages'
 import type { SshChange, SshKey, SshPreview, SshState } from '~/shared/ssh'
 import { useActions } from './Actions'
 import { Glyph } from './Glyph'
@@ -10,7 +11,6 @@ import { DiffView } from './QuadletEditor'
 import { Pill } from './Status'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
-import { m } from '~/paraglide/messages'
 
 // SSH keys per user and the preview/confirm dialog for SSH changes – shared by
 // the SSH page and the users page.
@@ -82,8 +82,16 @@ export function SshKeys({ state, onPreview, only }: { state: SshState; onPreview
             <button
               type="button"
               className="btn sm danger"
-              aria-label={m.ssh_keys_removeLabel({ name: (k.comment || k.fingerprint) })}
-              onClick={() => onPreview({ change: { kind: 'remove-key', user: user.name, fingerprint: k.fingerprint }, title: m.ssh_keys_removeTitle({ name: (k.comment || keyLabel(k)), user: user.name }), confirm: m.ssh_keys_remove(), danger: true, done: m.ssh_keys_removed() })}
+              aria-label={m.ssh_keys_removeLabel({ name: k.comment || k.fingerprint })}
+              onClick={() =>
+                onPreview({
+                  change: { kind: 'remove-key', user: user.name, fingerprint: k.fingerprint },
+                  title: m.ssh_keys_removeTitle({ name: k.comment || keyLabel(k), user: user.name }),
+                  confirm: m.ssh_keys_remove(),
+                  danger: true,
+                  done: m.ssh_keys_removed(),
+                })
+              }
             >
               <Glyph name="trash" size={13} />
             </button>
@@ -95,13 +103,24 @@ export function SshKeys({ state, onPreview, only }: { state: SshState; onPreview
           className="flex flex-col gap-2 border-t border-line px-[18px] py-3"
           onSubmit={(e) => {
             e.preventDefault()
-            onPreview({ change: { kind: 'add-key', user: user.name, key: newKey.trim() }, title: m.ssh_keys_addTitle({ user: user.name }), confirm: m.ssh_keys_add(), done: m.ssh_keys_added({ user: user.name }) })
+            onPreview({
+              change: { kind: 'add-key', user: user.name, key: newKey.trim() },
+              title: m.ssh_keys_addTitle({ user: user.name }),
+              confirm: m.ssh_keys_add(),
+              done: m.ssh_keys_added({ user: user.name }),
+            })
             setNewKey('')
           }}
         >
           <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
             {m.ssh_keys_addLabel()}
-            <textarea className="field h-[64px] font-mono text-[12px]" spellCheck={false} value={newKey} onChange={(e) => setNewKey(e.target.value.replace(/\r?\n/g, ' '))} placeholder={m.ssh_keys_placeholder()} />
+            <textarea
+              className="field h-[64px] font-mono text-[12px]"
+              spellCheck={false}
+              value={newKey}
+              onChange={(e) => setNewKey(e.target.value.replace(/\r?\n/g, ' '))}
+              placeholder={m.ssh_keys_placeholder()}
+            />
           </label>
           <button type="submit" className="btn sm self-end" disabled={!newKey.trim()}>
             <Glyph name="plus" size={13} /> {m.ssh_keys_check()}

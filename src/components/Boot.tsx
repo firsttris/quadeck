@@ -1,33 +1,33 @@
 import { useCallback, useEffect, useState } from 'react'
+import { rich } from '~/i18n'
 import { diskSize } from '~/lib/format'
+import { m } from '~/paraglide/messages'
 import {
-  KERNEL_FLAVORS,
-  copyEntryContent,
-  copyEntryName,
-  describeTimeout,
-  isEditableEntry,
-  newEntryContent,
-  hiddenAutoEntry,
-  timeoutChoices,
-  kernelRemoveProblem,
-  parseCmdline,
   type BootEntry,
   type BootEntryFile,
   type BootState,
+  copyEntryContent,
+  copyEntryName,
+  describeTimeout,
+  hiddenAutoEntry,
+  isEditableEntry,
+  KERNEL_FLAVORS,
   type KernelFlavor,
+  kernelRemoveProblem,
+  newEntryContent,
+  parseCmdline,
+  timeoutChoices,
 } from '~/shared/boot'
 import { useActions } from './Actions'
+import { BootEntryEditor, type EntryEditorInit, RenameEntry } from './BootEntryEditor'
 import { BusyButton, useBusy } from './Busy'
 import { Glyph } from './Glyph'
 import { useJobs } from './Jobs'
-import { BootEntryEditor, RenameEntry, type EntryEditorInit } from './BootEntryEditor'
 import { ConfirmDialog, Modal } from './Modal'
 import { RowMenu } from './RowMenu'
 import { Pill } from './Status'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
-import { m } from '~/paraglide/messages'
-import { rich } from '~/i18n'
 
 const WARN_COLOR = { critical: 'text-[#ff8a80]', warning: 'text-[#e3b341]', info: 'text-muted' } as const
 
@@ -82,6 +82,7 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
       setError((e as Error).message)
     }
   }, [])
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reload when a job finishes
   useEffect(() => {
     void load()
   }, [load, jobs.finished])
@@ -179,7 +180,10 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
               <h2 className="h2">{m.boot_reboot()}</h2>
               {rebootReason && <p className="m-0 text-[13px] text-[#e3b341]">{m.boot_recommended({ reason: rebootReason })}</p>}
               <p className="m-0 text-[13px] text-muted">
-                {m.boot_rebootText({ entry: (def ? `${def.title}${def.version ? ` ${def.version}` : ''}` : undefined) ?? '', hasEntry: String(!!(def ? `${def.title}${def.version ? ` ${def.version}` : ''}` : undefined)) })}
+                {m.boot_rebootText({
+                  entry: (def ? `${def.title}${def.version ? ` ${def.version}` : ''}` : undefined) ?? '',
+                  hasEntry: String(!!(def ? `${def.title}${def.version ? ` ${def.version}` : ''}` : undefined)),
+                })}
                 {jobs.running && <span className="text-[#e3b341]">{m.boot_jobRunning({ title: jobs.running.title })}</span>}
               </p>
               {oneshot && (
@@ -249,7 +253,9 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
                         disabled={!!busy}
                         onChange={(e) => void change('timeout', { timeout: e.target.value }, m.boot_timeoutSaved())}
                       >
-                        {!timeoutChoices().some((c) => c.value === String(state.timeout)) && state.timeout !== undefined && state.timeout !== 0 && <option value={String(state.timeout)}>{describeTimeout(state.timeout)}</option>}
+                        {!timeoutChoices().some((c) => c.value === String(state.timeout)) && state.timeout !== undefined && state.timeout !== 0 && (
+                          <option value={String(state.timeout)}>{describeTimeout(state.timeout)}</option>
+                        )}
                         {timeoutChoices().map((c) => (
                           <option key={c.value} value={c.value}>
                             {c.label}
@@ -264,7 +270,13 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
                 <p className="m-0 text-muted">{state.loader === 'grub' ? m.boot_grub() : m.boot_noSystemdBoot()}</p>
               )}
               {sd && !readonly && state.warnings.some((w) => w.text.includes('bootctl update')) && (
-                <BusyButton className="btn sm self-start" busy={busy === 'update'} busyLabel={m.common_working()} disabled={!!busy} onClick={() => void change('update', { update: true }, m.boot_updated())}>
+                <BusyButton
+                  className="btn sm self-start"
+                  busy={busy === 'update'}
+                  busyLabel={m.common_working()}
+                  disabled={!!busy}
+                  onClick={() => void change('update', { update: true }, m.boot_updated())}
+                >
                   {m.boot_updateLoader()}
                 </BusyButton>
               )}
@@ -303,11 +315,22 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
                           {!readonly && (
                             <div className="inline-flex gap-1.5">
                               {!e.isDefault && (
-                                <button type="button" className="btn sm" disabled={!!busy || e.missing.length > 0} onClick={() => void change('default', { default: e.id }, m.boot_nowDefault({ name: `${e.title} ${e.version ?? ''}` }))}>
+                                <button
+                                  type="button"
+                                  className="btn sm"
+                                  disabled={!!busy || e.missing.length > 0}
+                                  onClick={() => void change('default', { default: e.id }, m.boot_nowDefault({ name: `${e.title} ${e.version ?? ''}` }))}
+                                >
                                   {m.boot_makeDefault()}
                                 </button>
                               )}
-                              <button type="button" className="btn sm" disabled={e.missing.length > 0} onClick={() => setReboot({ entry: e })} aria-label={m.boot_bootOnceWith({ name: `${e.title} ${e.version ?? ''}` })}>
+                              <button
+                                type="button"
+                                className="btn sm"
+                                disabled={e.missing.length > 0}
+                                onClick={() => setReboot({ entry: e })}
+                                aria-label={m.boot_bootOnceWith({ name: `${e.title} ${e.version ?? ''}` })}
+                              >
                                 {m.boot_bootOnce()}
                               </button>
                               {isEditableEntry(e) && (
@@ -364,7 +387,13 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
                           {!readonly && (
                             <div className="inline-flex gap-1.5">
                               {!k.installed && (
-                                <BusyButton className="btn sm" busy={rowBusy.is(`install:${k.pkg}`)} busyLabel={m.common_starting()} disabled={!!jobs.running || jobs.starting} onClick={() => void rowBusy.run(`install:${k.pkg}`, () => jobs.start({ kind: 'kernel-install', flavor: k.pkg }))}>
+                                <BusyButton
+                                  className="btn sm"
+                                  busy={rowBusy.is(`install:${k.pkg}`)}
+                                  busyLabel={m.common_starting()}
+                                  disabled={!!jobs.running || jobs.starting}
+                                  onClick={() => void rowBusy.run(`install:${k.pkg}`, () => jobs.start({ kind: 'kernel-install', flavor: k.pkg }))}
+                                >
                                   {m.boot_install()}
                                 </BusyButton>
                               )}
@@ -391,7 +420,14 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
                                 </BusyButton>
                               )}
                               {k.installed && (
-                                <button type="button" className="btn sm" disabled={!!removeProblem || !!jobs.running} title={removeProblem} onClick={() => setRemoveKernel(k.pkg)} aria-label={m.boot_removeKernel({ pkg: k.pkg })}>
+                                <button
+                                  type="button"
+                                  className="btn sm"
+                                  disabled={!!removeProblem || !!jobs.running}
+                                  title={removeProblem}
+                                  onClick={() => setRemoveKernel(k.pkg)}
+                                  aria-label={m.boot_removeKernel({ pkg: k.pkg })}
+                                >
                                   {m.boot_removeDots()}
                                 </button>
                               )}
@@ -423,6 +459,7 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
               </p>
             </div>
             {params.map((p, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: a parameter may appear twice, its position is its identity
               <div key={`${p.name}${i}`} className="flex flex-wrap items-baseline gap-x-3 border-t border-line px-[18px] py-[7px] text-[13px]" data-testid="kernel-param">
                 <span className="font-mono">
                   {p.name}
@@ -441,7 +478,7 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
             {m.boot_newFile()} <span className="font-mono">{entryPreview.path}</span>
             {m.boot_newFileText()}
           </p>
-          <pre className="joblog !min-h-0 whitespace-pre-wrap" aria-label={m.boot_newEntry()}>
+          <pre className="joblog !min-h-0 whitespace-pre-wrap" role="group" aria-label={m.boot_newEntry()}>
             {entryPreview.content}
           </pre>
           <div className="flex justify-end gap-2">

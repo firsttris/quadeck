@@ -1,14 +1,14 @@
 import { Link } from '@tanstack/react-router'
-import { useState, type ReactNode } from 'react'
-import { useMetricHistory } from '~/lib/history'
+import { type ReactNode, useState } from 'react'
+import { pickMsg } from '~/i18n'
 import { bytes, num, rate } from '~/lib/format'
+import { useMetricHistory } from '~/lib/history'
+import { m } from '~/paraglide/messages'
 import { HISTORY_RANGES, type HistoryRange, type MetricHistory, type MetricName, type Snapshot } from '~/shared/types'
 import { recentlyDragged } from './EditableGrid'
 import { Gauge } from './Gauge'
 import { HistoryChart } from './HistoryChart'
 import { Modal } from './Modal'
-import { m } from '~/paraglide/messages'
-import { pickMsg } from '~/i18n'
 
 export type MetricCardId = 'cpu' | 'ram' | 'temp' | 'net' | 'gpu' | 'power'
 
@@ -32,7 +32,12 @@ const FORMAT: Record<Unit, (v: number) => string> = {
 }
 const RANGE: Record<Unit, { yMin?: number; yMax?: number }> = { pct: { yMin: 0, yMax: 1 }, temp: {}, rate: { yMin: 0 }, watt: { yMin: 0 } }
 
-const RANGE_LABEL: Record<HistoryRange, () => string> = { "1h": m.overview_metrics_ranges_1h, "6h": m.overview_metrics_ranges_6h, "24h": m.overview_metrics_ranges_24h, "7d": m.overview_metrics_ranges_7d }
+const RANGE_LABEL: Record<HistoryRange, () => string> = {
+  '1h': m.overview_metrics_ranges_1h,
+  '6h': m.overview_metrics_ranges_6h,
+  '24h': m.overview_metrics_ranges_24h,
+  '7d': m.overview_metrics_ranges_7d,
+}
 
 function charts(id: MetricCardId, gpuClock: boolean): ChartDef[] {
   switch (id) {
@@ -57,7 +62,11 @@ function charts(id: MetricCardId, gpuClock: boolean): ChartDef[] {
       return [{ title: m.energy_card_chart(), unit: 'watt', series: [{ metric: 'power', label: m.energy_card_server(), color: AMBER }] }]
     case 'gpu':
       return [
-        { title: gpuClock ? m.overview_metrics_clockShare() : m.overview_metrics_utilization(), unit: 'pct', series: [{ metric: 'gpu_util', label: gpuClock ? m.overview_metrics_clock() : 'GPU', color: ACCENT }] },
+        {
+          title: gpuClock ? m.overview_metrics_clockShare() : m.overview_metrics_utilization(),
+          unit: 'pct',
+          series: [{ metric: 'gpu_util', label: gpuClock ? m.overview_metrics_clock() : 'GPU', color: ACCENT }],
+        },
         { title: m.overview_metrics_temperature(), unit: 'temp', series: [{ metric: 'gpu_temp', label: 'GPU', color: AMBER }] },
         { title: m.overview_metrics_vram(), unit: 'pct', series: [{ metric: 'gpu_mem', label: 'VRAM', color: VIOLET }] },
       ]
@@ -65,19 +74,43 @@ function charts(id: MetricCardId, gpuClock: boolean): ChartDef[] {
 }
 
 /** Card label (CPU, RAM, CPU-Temp, Netz, GPU). */
-const metricLabel = (id: MetricCardId) => pickMsg({ "services": m.overview_cards_services, "storage": m.overview_cards_storage, "timers": m.overview_cards_timers, "shares": m.overview_cards_shares, "cpu": m.overview_cards_cpu, "ram": m.overview_cards_ram, "temp": m.overview_cards_temp, "net": m.overview_cards_net, "gpu": m.overview_cards_gpu, "power": m.overview_cards_power }, id)
+const metricLabel = (id: MetricCardId) =>
+  pickMsg(
+    {
+      services: m.overview_cards_services,
+      storage: m.overview_cards_storage,
+      timers: m.overview_cards_timers,
+      shares: m.overview_cards_shares,
+      cpu: m.overview_cards_cpu,
+      ram: m.overview_cards_ram,
+      temp: m.overview_cards_temp,
+      net: m.overview_cards_net,
+      gpu: m.overview_cards_gpu,
+      power: m.overview_cards_power,
+    },
+    id,
+  )
 
 function gauge(id: MetricCardId, snapshot: Snapshot): ReactNode {
   const s = snapshot.system
   const h = snapshot.host
   switch (id) {
     case 'cpu':
-      return <Gauge bare id="cpu" label="CPU" p={s?.cpu ?? 0} value={s ? FORMAT.pct(s.cpu) : '–'} sub={m.overview_metrics_cores({ n: h.cpuCores, load: (s ? num(s.load[0], 2) : '–') })} />
+      return <Gauge bare id="cpu" label="CPU" p={s?.cpu ?? 0} value={s ? FORMAT.pct(s.cpu) : '–'} sub={m.overview_metrics_cores({ n: h.cpuCores, load: s ? num(s.load[0], 2) : '–' })} />
     case 'ram':
       return <Gauge bare id="ram" label="RAM" p={s ? s.memUsed / s.memTotal : 0} value={s ? bytes(s.memUsed) : '–'} sub={s ? m.overview_metrics_of({ total: bytes(s.memTotal, 0) }) : ''} />
     case 'temp': {
       const tp = s?.temp
-      return <Gauge bare id="temp" label={m.overview_cards_temp()} p={tp ? Math.min(1, Math.max(0, (tp.celsius - 30) / 60)) : 0} value={tp ? `${Math.round(tp.celsius)} °C` : '–'} sub={tp?.sensor ?? m.overview_metrics_noSensor()} />
+      return (
+        <Gauge
+          bare
+          id="temp"
+          label={m.overview_cards_temp()}
+          p={tp ? Math.min(1, Math.max(0, (tp.celsius - 30) / 60)) : 0}
+          value={tp ? `${Math.round(tp.celsius)} °C` : '–'}
+          sub={tp?.sensor ?? m.overview_metrics_noSensor()}
+        />
+      )
     }
     case 'net': {
       const netMax = s?.net.speedMbps ? (s.net.speedMbps * 1e6) / 8 : 125e6
@@ -107,7 +140,11 @@ function gauge(id: MetricCardId, snapshot: Snapshot): ReactNode {
     }
     case 'gpu': {
       const g = s?.gpus?.[0]
-      const parts = [g?.tempC !== undefined ? `${Math.round(g.tempC)} °C` : '', g?.memTotal ? `VRAM ${bytes(g.memUsed ?? 0)}/${bytes(g.memTotal, 0)}` : '', g?.powerW !== undefined ? `${num(g.powerW, 0)} W` : '']
+      const parts = [
+        g?.tempC !== undefined ? `${Math.round(g.tempC)} °C` : '',
+        g?.memTotal ? `VRAM ${bytes(g.memUsed ?? 0)}/${bytes(g.memTotal, 0)}` : '',
+        g?.powerW !== undefined ? `${num(g.powerW, 0)} W` : '',
+      ]
       return (
         <Gauge
           bare
@@ -192,7 +229,11 @@ function DetailBody({ id, snapshot }: { id: MetricCardId; snapshot: Snapshot }) 
                 <span key={s.metric} className="flex items-center gap-1.5 text-[12px] text-muted" data-testid={`stats-${s.metric}`}>
                   <span className="inline-block h-2 w-2 rounded-full" style={{ background: s.color }} />
                   {d.series.length > 1 && <span>{s.label}</span>}
-                  {st ? <span className="font-mono">{m.overview_metrics_stats({ min: (FORMAT[d.unit](st.min)), avg: (FORMAT[d.unit](st.avg)), max: (FORMAT[d.unit](st.max)) })}</span> : <span>{m.overview_metrics_noData()}</span>}
+                  {st ? (
+                    <span className="font-mono">{m.overview_metrics_stats({ min: FORMAT[d.unit](st.min), avg: FORMAT[d.unit](st.avg), max: FORMAT[d.unit](st.max) })}</span>
+                  ) : (
+                    <span>{m.overview_metrics_noData()}</span>
+                  )}
                 </span>
               )
             })}
@@ -200,7 +241,11 @@ function DetailBody({ id, snapshot }: { id: MetricCardId; snapshot: Snapshot }) 
           <div className="pb-5">
             <HistoryChart
               detailed
-              label={m.overview_metrics_chartLabel({ label: metricLabel(id), title: d.title, range: pickMsg({ "1h": m.overview_metrics_ranges_1h, "6h": m.overview_metrics_ranges_6h, "24h": m.overview_metrics_ranges_24h, "7d": m.overview_metrics_ranges_7d }, range) })}
+              label={m.overview_metrics_chartLabel({
+                label: metricLabel(id),
+                title: d.title,
+                range: pickMsg({ '1h': m.overview_metrics_ranges_1h, '6h': m.overview_metrics_ranges_6h, '24h': m.overview_metrics_ranges_24h, '7d': m.overview_metrics_ranges_7d }, range),
+              })}
               series={d.series.map((s) => ({ label: s.label, color: s.color, points: series[s.metric] ?? [] }))}
               span={HISTORY_RANGES[range]}
               now={now}
@@ -218,7 +263,14 @@ function DetailBody({ id, snapshot }: { id: MetricCardId; snapshot: Snapshot }) 
 
 export function MetricDialog({ id, snapshot, onClose }: { id: MetricCardId | null; snapshot: Snapshot; onClose: () => void }) {
   const g = snapshot.system?.gpus?.[0]
-  const title = id === 'gpu' && g ? m.overview_metrics_gpuTitle({ name: g.name }) : id === 'temp' ? m.overview_metrics_cpuTempTitle({ sensor: snapshot.system?.temp?.sensor ?? "", hasSensor: String(snapshot.system?.temp?.sensor !== undefined) }) : id ? m.overview_metrics_historyTitle({ label: metricLabel(id) }) : ''
+  const title =
+    id === 'gpu' && g
+      ? m.overview_metrics_gpuTitle({ name: g.name })
+      : id === 'temp'
+        ? m.overview_metrics_cpuTempTitle({ sensor: snapshot.system?.temp?.sensor ?? '', hasSensor: String(snapshot.system?.temp?.sensor !== undefined) })
+        : id
+          ? m.overview_metrics_historyTitle({ label: metricLabel(id) })
+          : ''
   return (
     <Modal open={!!id} onClose={onClose} title={title} wide>
       {id && <DetailBody id={id} snapshot={snapshot} />}

@@ -1,10 +1,10 @@
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { decodeSpec, encodeSpec, parseJobSpec, spawnForward } from '~/server/packages/job'
-import { JobManager, journalPoll, lineSplitter, type JobSink } from '~/server/packages/jobs'
-import { FixtureMaintenance, SystemMaintenance, findConfigFiles } from '~/server/packages/maintenance'
+import { JobManager, type JobSink, journalPoll, lineSplitter } from '~/server/packages/jobs'
+import { FixtureMaintenance, findConfigFiles, SystemMaintenance } from '~/server/packages/maintenance'
 import * as p from '~/server/packages/parse'
 import { kernelReplaced } from '~/server/packages/providers'
 
@@ -171,7 +171,9 @@ v | repo-oss   | podman | 5.1.0-1.1       | 5.2.0-1.1         | x86_64`
 
 describe('podman auto-update and news', () => {
   it('parses podman auto-update --dry-run --format json', () => {
-    const out = JSON.stringify([{ Unit: 'jellyfin.service', Container: '3fe1 (jellyfin)', ContainerName: 'jellyfin', Image: 'docker.io/jellyfin/jellyfin:latest', Policy: 'registry', Updated: 'pending' }])
+    const out = JSON.stringify([
+      { Unit: 'jellyfin.service', Container: '3fe1 (jellyfin)', ContainerName: 'jellyfin', Image: 'docker.io/jellyfin/jellyfin:latest', Policy: 'registry', Updated: 'pending' },
+    ])
     expect(p.parseAutoUpdate(out)).toEqual([{ unit: 'jellyfin.service', container: 'jellyfin', image: 'docker.io/jellyfin/jellyfin:latest', policy: 'registry', updated: 'pending' }])
     expect(p.parseAutoUpdate('null')).toEqual([])
   })
@@ -270,7 +272,7 @@ describe('jobs', () => {
     const got: string[] = []
     const s = lineSplitter((l) => got.push(l))
     // pacman -Syu without a terminal: one line of erase codes per download step
-    s.push(':: Retrieving packages...\n' + '\x1b[K\r\x1b[1A\n'.repeat(40) + '\r \r\n')
+    s.push(`:: Retrieving packages...\n${'\x1b[K\r\x1b[1A\n'.repeat(40)}\r \r\n`)
     s.push('\n\n\n(31/31) checking keys in keyring\n\nend\n')
     s.flush()
     expect(got).toEqual([':: Retrieving packages...', '', '(31/31) checking keys in keyring', '', 'end'])
@@ -278,7 +280,11 @@ describe('jobs', () => {
 
   it('runs one job at a time and stops at the exit marker', async () => {
     let sink: JobSink | undefined
-    const m = new JobManager({ start: async (_id, _spec, s) => void (sink = s) })
+    const m = new JobManager({
+      start: async (_id, _spec, s) => {
+        sink = s
+      },
+    })
     const j = await m.start({ kind: 'upgrade' })
     expect(j.title).toBe('Systemupdate')
     await expect(m.start({ kind: 'upgrade' })).rejects.toMatchObject({ status: 409 })
@@ -294,7 +300,11 @@ describe('jobs', () => {
 
   it('drops the update list the moment the upgrade ends, also against a check that was still running', async () => {
     let sink: JobSink | undefined
-    const m = new SystemMaintenance({ start: async (_id, _spec, s) => void (sink = s) })
+    const m = new SystemMaintenance({
+      start: async (_id, _spec, s) => {
+        sink = s
+      },
+    })
     let pending = [{ name: 'linux', from: '6.1', to: '6.2' }]
     let release: (() => void) | undefined
     let slow = false
@@ -331,9 +341,16 @@ describe('jobs', () => {
 
   it('ends a job and frees the slot even when the after-job hook throws', async () => {
     let sink: JobSink | undefined
-    const m = new JobManager({ start: async (_id, _spec, s) => void (sink = s) }, () => {
-      throw new Error('hook broke')
-    })
+    const m = new JobManager(
+      {
+        start: async (_id, _spec, s) => {
+          sink = s
+        },
+      },
+      () => {
+        throw new Error('hook broke')
+      },
+    )
     const j = await m.start({ kind: 'upgrade' })
     expect(() => sink!.line('::quadeck-exit 0')).not.toThrow()
     expect(m.get(j.id, 0)!.status).toBe('ok')

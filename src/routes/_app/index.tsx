@@ -1,29 +1,29 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { actionBusyLabel, useActions } from '~/components/Actions'
-import { BusyButton, useBusy } from '~/components/Busy'
 import { AddLinkDialog } from '~/components/AddLinkDialog'
-import { EditableGrid, recentlyDragged, type DefaultItem, type GridSpec } from '~/components/EditableGrid'
-import { MetricCard, MetricDialog, type MetricCardId } from '~/components/MetricCards'
+import { BusyButton, useBusy } from '~/components/Busy'
+import { AlertsWidget, BackupsWidget, ContainersWidget, DevicesWidget, DiskWidget, LinksWidget, LoginsWidget, ServiceWidget, SpeedWidget, UpdatesWidget } from '~/components/DashWidgets'
+import { type DefaultItem, EditableGrid, type GridSpec, recentlyDragged } from '~/components/EditableGrid'
 import { Glyph } from '~/components/Glyph'
+import { MetricCard, type MetricCardId, MetricDialog } from '~/components/MetricCards'
 import { ConfirmDialog } from '~/components/Modal'
 import { ServiceDialog } from '~/components/ServiceDialog'
 import { ServiceTile } from '~/components/ServiceTile'
 import { Dot, Pill } from '~/components/Status'
 import { useToast } from '~/components/Toast'
-import { NoteDialog, NoteWidget, WidgetCatalog, WidgetSettingsDialog, widgetName, type CatalogEntry, type CatalogKind, type Configurable } from '~/components/Widgets'
-import { AlertsWidget, BackupsWidget, ContainersWidget, DevicesWidget, DiskWidget, LinksWidget, LoginsWidget, ServiceWidget, SpeedWidget, UpdatesWidget } from '~/components/DashWidgets'
+import { type CatalogEntry, type CatalogKind, type Configurable, NoteDialog, NoteWidget, WidgetCatalog, WidgetSettingsDialog, widgetName } from '~/components/Widgets'
+import { pickMsg } from '~/i18n'
 import { api } from '~/lib/api'
 import { calendarLabel, diskSize, pct, relative } from '~/lib/format'
 import { useMetricHistory } from '~/lib/history'
 import { useLive } from '~/lib/live'
 import { getDashboardLayout } from '~/lib/server-fns'
-import { ICON_SIZES, type DashboardLayout, type GridItem, type IconSize, type LayoutScope } from '~/shared/layout'
+import { m } from '~/paraglide/messages'
+import { type DashboardLayout, type GridItem, ICON_SIZES, type IconSize, type LayoutScope } from '~/shared/layout'
 import type { Disk, Service, ServiceGroup, Share, Snapshot, Unit } from '~/shared/types'
 import { failureReason } from '~/shared/units'
-import { m } from '~/paraglide/messages'
-import { pickMsg } from '~/i18n'
-import { BUILTIN_CARDS, INSTANCE_KINDS, WIDGETS, defaultConfig, isBuiltinCard, type BuiltinCard, type InstanceKind, type WidgetInstance } from '~/shared/widgets'
+import { BUILTIN_CARDS, type BuiltinCard, defaultConfig, INSTANCE_KINDS, type InstanceKind, isBuiltinCard, WIDGETS, type WidgetInstance } from '~/shared/widgets'
 
 export const Route = createFileRoute('/_app/')({
   // ?edit opens the edit mode (command palette: "Edit overview")
@@ -157,7 +157,7 @@ function Overview() {
         for (const it of items) byId.set(it.i, it)
         return { ...l, layouts: { ...l.layouts, [scope]: { ...l.layouts[scope], [bp]: [...byId.values()] } } }
       })
-      api('/api/layout', { body: { scope, breakpoint: bp, items } }).catch((e) => say(m.overview_edit_layoutNotSaved({ msg: ((e as Error).message) }), 'bad'))
+      api('/api/layout', { body: { scope, breakpoint: bp, items } }).catch((e) => say(m.overview_edit_layoutNotSaved({ msg: (e as Error).message }), 'bad'))
     },
     [say],
   )
@@ -198,7 +198,11 @@ function Overview() {
   const [configuring, setConfiguring] = useState<string | null>(null)
   const [removing, setRemoving] = useState<WidgetInstance | null>(null)
   const catalogEntries: CatalogEntry[] = [
-    ...BUILTIN_CARDS.map((id) => ({ kind: id, count: visible.includes(id) ? 1 : 0, unavailable: !available(id) ? (id === 'gpu' ? m.widgets_catalog_noGpu() : m.widgets_catalog_noPower()) : undefined })),
+    ...BUILTIN_CARDS.map((id) => ({
+      kind: id,
+      count: visible.includes(id) ? 1 : 0,
+      unavailable: !available(id) ? (id === 'gpu' ? m.widgets_catalog_noGpu() : m.widgets_catalog_noPower()) : undefined,
+    })),
     ...INSTANCE_KINDS.map((k) => ({ kind: k, count: layout.widgets.filter((w) => w.kind === k).length })),
   ]
   const addWidget = async (kind: CatalogKind) => {
@@ -221,7 +225,11 @@ function Overview() {
   const dropWidget = async (w: WidgetInstance) => {
     try {
       await api(`/api/layout/widgets?id=${encodeURIComponent(w.id)}`, { method: 'DELETE' })
-      setLayout((l) => ({ ...l, widgets: l.widgets.filter((x) => x.id !== w.id), layouts: { ...l.layouts, page: Object.fromEntries(Object.entries(l.layouts.page).map(([bp, items]) => [bp, items.filter((it) => it.i !== w.id)])) } }))
+      setLayout((l) => ({
+        ...l,
+        widgets: l.widgets.filter((x) => x.id !== w.id),
+        layouts: { ...l.layouts, page: Object.fromEntries(Object.entries(l.layouts.page).map(([bp, items]) => [bp, items.filter((it) => it.i !== w.id)])) },
+      }))
     } catch (e) {
       say((e as Error).message, 'bad')
     }
@@ -237,17 +245,19 @@ function Overview() {
   const history = useMetricHistory('1h')
   const [detail, setDetail] = useState<MetricCardId | null>(null)
   const metric = (id: MetricCardId) => <MetricCard id={id} snapshot={snapshot} history={history.series} now={history.now} onOpen={editing ? () => {} : setDetail} />
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only rebuilt when the set of cards changes, not on every layout save
   const pageSpec: GridSpec = useMemo(
     () => ({
       ...PAGE_GRID_BASE,
       defaults: (bp) => [...visible.map((id) => ({ i: id, ...CARD_DEFAULTS[bp]![id] })), ...layout.widgets.map((w) => ({ i: w.id, ...INSTANCE_DEFAULTS[w.kind][bp]! }))],
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [shownIds.join()],
   )
 
   const nodes: Record<string, React.ReactNode> = {
-    services: <Services groups={snapshot.services} editing={editing} saved={layout.layouts.tiles} onSave={(bp, items) => save('tiles', bp, items)} iconSize={layout.iconSize} onIconSize={setIconSize} />,
+    services: (
+      <Services groups={snapshot.services} editing={editing} saved={layout.layouts.tiles} onSave={(bp, items) => save('tiles', bp, items)} iconSize={layout.iconSize} onIconSize={setIconSize} />
+    ),
     storage: <Storage disks={snapshot.disks} smart={snapshot.smart ?? []} />,
     timers: <Timers units={snapshot.units} />,
     shares: <Shares shares={snapshot.shares} error={snapshot.sources.shares?.error} />,
@@ -272,7 +282,9 @@ function Overview() {
     else if (w.kind === 'links') nodes[w.id] = <LinksWidget config={w.config} />
   }
   const configured = layout.widgets.find((w) => w.id === configuring && w.kind !== 'note' && WIDGETS[w.kind].configurable) as Configurable | undefined
-  const unitChoices = snapshot.units.filter((u) => u.name.endsWith('.service')).map((u) => ({ name: u.name, label: u.description && u.description !== u.name ? `${u.name} · ${u.description}` : u.name }))
+  const unitChoices = snapshot.units
+    .filter((u) => u.name.endsWith('.service'))
+    .map((u) => ({ name: u.name, label: u.description && u.description !== u.name ? `${u.name} · ${u.description}` : u.name }))
   const mounts = snapshot.disks.filter((d) => d.mount).map((d) => ({ mount: d.mount, label: `${d.mount} · ${d.dev} · ${diskSize(d.size)}` }))
   const editedNote = layout.widgets.find((w) => w.id === noteEdit && w.kind === 'note') as (WidgetInstance & { kind: 'note' }) | undefined
 
@@ -344,7 +356,13 @@ function Overview() {
                 <Glyph name="grip" size={15} strokeWidth={3.2} />
               </button>
               {instance(id) && WIDGETS[instance(id)!.kind].configurable && (
-                <button type="button" className="no-drag" onClick={() => (instance(id)!.kind === 'note' ? setNoteEdit(id) : setConfiguring(id))} aria-label={m.overview_edit_settings({ label })} title={m.overview_edit_settingsTitle()}>
+                <button
+                  type="button"
+                  className="no-drag"
+                  onClick={() => (instance(id)!.kind === 'note' ? setNoteEdit(id) : setConfiguring(id))}
+                  aria-label={m.overview_edit_settings({ label })}
+                  title={m.overview_edit_settingsTitle()}
+                >
                   <Glyph name="settings" size={14} />
                 </button>
               )}
@@ -356,7 +374,11 @@ function Overview() {
         }}
       />
       {editing && (
-        <button type="button" className="mt-4 grid min-h-[64px] w-full place-items-center rounded-[12px] border-[1.5px] border-dashed border-accent/35 text-[13px] text-accent" onClick={() => setCatalog(true)}>
+        <button
+          type="button"
+          className="mt-4 grid min-h-[64px] w-full place-items-center rounded-[12px] border-[1.5px] border-dashed border-accent/35 text-[13px] text-accent"
+          onClick={() => setCatalog(true)}
+        >
           <span className="flex items-center gap-1.5">
             <Glyph name="plus" size={14} strokeWidth={2} />
             {m.widgets_catalog_open()}
@@ -527,7 +549,7 @@ function Services({
       <ServiceDialog service={edited} groups={groupNames} onClose={() => setEditingKey(null)} />
       <ConfirmDialog
         open={!!removing}
-        title={m.overview_services_removeTitle({ name: (removing?.name ?? '') })}
+        title={m.overview_services_removeTitle({ name: removing?.name ?? '' })}
         body={<p className="m-0">{m.overview_services_removeBody()}</p>}
         confirm={m.common_remove()}
         danger
@@ -565,12 +587,10 @@ function TileGroup({
   onEdit: (s: Service) => void
 }) {
   const keys = group.items.map((s) => s.key).join('\n')
-  const spec: GridSpec = useMemo(
-    () => ({ ...TILE_GRID_BASE, rowHeight: TILE_ROW[iconSize], defaults: (_bp, cols) => flowTiles(group.items, cols) }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [keys, iconSize],
-  )
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only rebuilt when the tiles or the icon size change
+  const spec: GridSpec = useMemo(() => ({ ...TILE_GRID_BASE, rowHeight: TILE_ROW[iconSize], defaults: (_bp, cols) => flowTiles(group.items, cols) }), [keys, iconSize])
   // Only this group's tiles are relevant for its grid.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keys stand for the group's items, which are new on every update
   const own = useMemo(() => {
     const ids = new Set(group.items.map((s) => s.key))
     return Object.fromEntries(Object.entries(saved).map(([bp, items]) => [bp, items.filter((it) => ids.has(it.i))]))
@@ -578,13 +598,18 @@ function TileGroup({
   return (
     <div className="flex flex-col gap-[10px]">
       <div className="flex items-center gap-2">
-        <span className="text-[11px] tracking-[.08em] text-muted uppercase">{pickMsg({ "Medien": m.overview_groupNames_Medien, "Netzwerk": m.overview_groupNames_Netzwerk, "Produktivit\u00e4t": m.overview_groupNames_Produktivitaet }, group.name)}</span>
+        <span className="text-[11px] tracking-[.08em] text-muted uppercase">
+          {pickMsg({ Medien: m.overview_groupNames_Medien, Netzwerk: m.overview_groupNames_Netzwerk, 'Produktivit\u00e4t': m.overview_groupNames_Produktivitaet }, group.name)}
+        </span>
         <span className="text-[11px] text-dim">{group.note}</span>
       </div>
       <EditableGrid
         spec={spec}
         ssrBreakpoint="sm"
-        items={group.items.map((s) => ({ i: s.key, node: <ServiceTile s={s} size={iconSize} editing={editing} onEdit={() => onEdit(s)} onDelete={s.manualId !== undefined ? () => onDelete(s) : undefined} /> }))}
+        items={group.items.map((s) => ({
+          i: s.key,
+          node: <ServiceTile s={s} size={iconSize} editing={editing} onEdit={() => onEdit(s)} onDelete={s.manualId !== undefined ? () => onDelete(s) : undefined} />,
+        }))}
         saved={own}
         editing={editing}
         onSave={onSave}

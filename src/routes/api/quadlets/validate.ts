@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { m } from '~/paraglide/messages'
 import { HttpError } from '~/server/auth'
 import { authed, readJson } from '~/server/http'
 import { privileged } from '~/server/privileged'
 import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 
 // Lint + Quadlet generator dry run; changes nothing.
 export const Route = createFileRoute('/api/quadlets/validate')({

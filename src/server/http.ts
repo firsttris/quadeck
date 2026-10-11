@@ -1,8 +1,8 @@
-import { ActionError } from './hub'
-import { HttpError, requireSession, type Session } from './auth'
-import { localize, localizeResponse } from './lang'
-import { currentLang, msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { currentLang, msg } from '~/shared/i18n'
+import { HttpError, requireSession, type Session } from './auth'
+import { ActionError } from './hub'
+import { localize, localizeResponse } from './lang'
 
 export function errorResponse(e: unknown): Response {
   if (e instanceof HttpError || e instanceof ActionError) return Response.json({ error: localize(e.message, currentLang()) }, { status: e.status })

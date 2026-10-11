@@ -17,7 +17,10 @@ export const Route = createFileRoute('/api/backup/script/$token')({
           script = undefined
         }
         if (script) return new Response(script, { headers })
-        return new Response("#!/bin/sh\necho 'quadeck-backup: this link was already used or has expired – create a new one in Quadeck (Backups → Clients).' >&2\nexit 1\n", { status: 200, headers: { ...headers, 'x-quadeck-link': 'invalid' } })
+        return new Response("#!/bin/sh\necho 'quadeck-backup: this link was already used or has expired – create a new one in Quadeck (Backups → Clients).' >&2\nexit 1\n", {
+          status: 200,
+          headers: { ...headers, 'x-quadeck-link': 'invalid' },
+        })
       },
     },
   },

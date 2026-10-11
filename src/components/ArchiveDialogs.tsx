@@ -2,19 +2,27 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { bytes, diskSize } from '~/lib/format'
-import { archiveStem, extractBlocked, packName, PACK_FORMATS, type ArchivePreview, type PackFormat } from '~/shared/archives'
+import { m } from '~/paraglide/messages'
+import { type ArchivePreview, archiveStem, extractBlocked, PACK_FORMATS, type PackFormat, packName } from '~/shared/archives'
 import { baseName, joinPath, validateName } from '~/shared/files'
 import { BusyButton, Spinner, useBusy } from './Busy'
 import { InstallHint } from './InstallHint'
 import { useJobs } from './Jobs'
 import { Modal } from './Modal'
 import { useUnlock } from './Unlock'
-import { m } from '~/paraglide/messages'
 
 type Target = 'new' | 'here' | 'other'
 
 const reasonText = (r: ArchivePreview['problems'][number]) =>
-  r.reason === 'absolute' ? m.files_unpack_why_absolute() : r.reason === 'parent' ? m.files_unpack_why_parent() : r.reason === 'linkOutside' ? m.files_unpack_why_link({ target: r.target ?? '?' }) : r.reason === 'special' ? m.files_unpack_why_special() : m.files_unpack_why_device()
+  r.reason === 'absolute'
+    ? m.files_unpack_why_absolute()
+    : r.reason === 'parent'
+      ? m.files_unpack_why_parent()
+      : r.reason === 'linkOutside'
+        ? m.files_unpack_why_link({ target: r.target ?? '?' })
+        : r.reason === 'special'
+          ? m.files_unpack_why_special()
+          : m.files_unpack_why_device()
 
 /** Unpack `archive`: into a new folder (default), here, or the other pane's folder. */
 export function UnpackDialog({ archive, here, other, onClose }: { archive: string; here: string; other?: string; onClose: () => void }) {
@@ -131,7 +139,10 @@ export function UnpackDialog({ archive, here, other, onClose }: { archive: strin
             <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[13px]" aria-label={m.files_unpack_checks()}>
               {ok(true, m.files_unpack_check_paths())}
               {ok(!p.linkInTarget, p.linkInTarget ? m.files_archive_linkInTarget({ path: p.linkInTarget }) : m.files_unpack_check_links())}
-              {ok(p.free === undefined || p.size <= p.free, p.free !== undefined && p.size > p.free ? m.files_archive_noSpace() : m.files_unpack_check_space({ size: bytes(p.size), free: p.free !== undefined ? diskSize(p.free) : '?' }))}
+              {ok(
+                p.free === undefined || p.size <= p.free,
+                p.free !== undefined && p.size > p.free ? m.files_archive_noSpace() : m.files_unpack_check_space({ size: bytes(p.size), free: p.free !== undefined ? diskSize(p.free) : '?' }),
+              )}
               {ok(true, m.files_unpack_check_roots())}
             </ul>
           )}

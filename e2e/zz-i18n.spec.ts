@@ -1,5 +1,5 @@
-import { expect, test, type Page } from '@playwright/test'
 import { readFileSync } from 'node:fs'
+import { expect, type Page, test } from '@playwright/test'
 
 // Runs last (zz-): it opens dialogs and menus on every page.
 // English UI: switch the language and walk through every page and tab looking
@@ -120,7 +120,26 @@ test.describe('English', () => {
     page.on('console', (m) => {
       if (m.type() === 'error' && /hydrat/i.test(m.text())) mismatches.push(m.text().slice(0, 300))
     })
-    const pages = ['/', '/units', '/units?filter=timer', '/units?filter=socket', '/journal', '/disks', '/files', '/shares', '/backups', '/backups?tab=clients', '/ssh', '/network', '/system', '/notifications', '/users', '/hardware', '/quadlets', '/systemd']
+    const pages = [
+      '/',
+      '/units',
+      '/units?filter=timer',
+      '/units?filter=socket',
+      '/journal',
+      '/disks',
+      '/files',
+      '/shares',
+      '/backups',
+      '/backups?tab=clients',
+      '/ssh',
+      '/network',
+      '/system',
+      '/notifications',
+      '/users',
+      '/hardware',
+      '/quadlets',
+      '/systemd',
+    ]
     for (const p of pages) {
       await page.goto(p)
       await page.waitForLoadState('networkidle').catch(() => {})

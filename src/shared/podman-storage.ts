@@ -129,7 +129,9 @@ export function cleanupPlan(s: PodmanStorage, sel: CleanupSelection): CleanupIte
     if ((i.dangling && sel.dangling) || (!i.dangling && sel.unusedImages)) out.push({ kind: 'image', id: i.id, label: imageLabel(i), size: i.size })
   }
   const pick = new Set(sel.volumes)
-  for (const v of s.volumes) if (pick.has(v.name) && !v.quadlet && unusedAfter(v.usedBy, gone)) out.push({ kind: 'volume', id: v.name, label: v.anonymous ? `${v.name.slice(0, 12)}…` : v.name, ...(v.size !== undefined ? { size: v.size } : {}) })
+  for (const v of s.volumes)
+    if (pick.has(v.name) && !v.quadlet && unusedAfter(v.usedBy, gone))
+      out.push({ kind: 'volume', id: v.name, label: v.anonymous ? `${v.name.slice(0, 12)}…` : v.name, ...(v.size !== undefined ? { size: v.size } : {}) })
   if (sel.networks) for (const n of s.networks) if (!n.builtin && !n.quadlet && unusedAfter(n.usedBy, gone)) out.push({ kind: 'network', id: n.name, label: n.name })
   return out
 }
@@ -152,7 +154,13 @@ export function storageSummary(s: PodmanStorage) {
   return {
     images: { count: s.images.length, size: sum(s.images.map((i) => i.size)), free: planSize(of('image')), unused: of('image').length },
     volumes: { count: s.volumes.length, size: sum(s.volumes.map((v) => v.size)), free: planSize(of('volume')), unused: of('volume').length },
-    containers: { count: s.containers.length, running: s.containers.filter((c) => RUNNING.has(c.state)).length, size: sum(s.containers.map((c) => c.size)), free: planSize(of('container')), stopped: of('container').length },
+    containers: {
+      count: s.containers.length,
+      running: s.containers.filter((c) => RUNNING.has(c.state)).length,
+      size: sum(s.containers.map((c) => c.size)),
+      free: planSize(of('container')),
+      stopped: of('container').length,
+    },
   }
 }
 
@@ -198,6 +206,13 @@ export function parseSelection(v: unknown): CleanupSelection {
 export function parseItems(v: unknown): { kind: CleanupKind; id: string }[] {
   if (!Array.isArray(v)) return []
   return v
-    .filter((x): x is { kind: CleanupKind; id: string } => !!x && typeof x === 'object' && ['container', 'image', 'volume', 'network'].includes((x as { kind: string }).kind) && typeof (x as { id: unknown }).id === 'string' && /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test((x as { id: string }).id))
+    .filter(
+      (x): x is { kind: CleanupKind; id: string } =>
+        !!x &&
+        typeof x === 'object' &&
+        ['container', 'image', 'volume', 'network'].includes((x as { kind: string }).kind) &&
+        typeof (x as { id: unknown }).id === 'string' &&
+        /^[A-Za-z0-9][A-Za-z0-9_.:-]{0,127}$/.test((x as { id: string }).id),
+    )
     .slice(0, 1000)
 }

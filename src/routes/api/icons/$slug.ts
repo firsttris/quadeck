@@ -9,7 +9,12 @@ export const Route = createFileRoute('/api/icons/$slug')({
         const f = await iconFile(params.slug)
         if (!f) return new Response('not found', { status: 404 })
         return new Response(Bun.file(f.path), {
-          headers: { 'content-type': f.type, 'cache-control': 'private, max-age=86400', 'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'", 'x-content-type-options': 'nosniff' },
+          headers: {
+            'content-type': f.type,
+            'cache-control': 'private, max-age=86400',
+            'content-security-policy': "default-src 'none'; style-src 'unsafe-inline'",
+            'x-content-type-options': 'nosniff',
+          },
         })
       }),
     },

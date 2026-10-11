@@ -1,6 +1,6 @@
-import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 import { createMiddleware, createStart } from '@tanstack/react-start'
+import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import { isSameOrigin } from './server/auth'
 
 // Defence in depth: every unsafe request (server routes and server functions)

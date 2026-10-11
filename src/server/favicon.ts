@@ -39,7 +39,7 @@ export async function faviconFor(key: string, url: string): Promise<{ data: Uint
   const target = new URL('/favicon.ico', url).toString()
   const id = new Bun.CryptoHasher('sha256').update(`${key}\n${target}`).digest('hex').slice(0, 32)
   const file = join(dir, id)
-  if (existsSync(file) && existsSync(file + '.type')) return { data: readFileSync(file), type: readFileSync(file + '.type', 'utf8') }
+  if (existsSync(file) && existsSync(`${file}.type`)) return { data: readFileSync(file), type: readFileSync(`${file}.type`, 'utf8') }
   if ((misses.get(id) ?? 0) > Date.now()) return undefined
   try {
     const res = await fetch(target, { redirect: 'manual', signal: AbortSignal.timeout(5000), tls: { rejectUnauthorized: false } } as RequestInit)
@@ -52,7 +52,7 @@ export async function faviconFor(key: string, url: string): Promise<{ data: Uint
     if (!data?.length) throw new Error('no favicon')
     mkdirSync(dir, { recursive: true })
     writeFileSync(file, data)
-    writeFileSync(file + '.type', type)
+    writeFileSync(`${file}.type`, type)
     return { data, type }
   } catch {
     misses.set(id, Date.now() + 3600_000)

@@ -7,20 +7,20 @@
 // - Adding one asks for the admin password again, so a stolen session cannot plant its own.
 // - `quadeck passwd` removes every passkey together with the password.
 
-import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 import {
-  generateAuthenticationOptions,
-  generateRegistrationOptions,
-  verifyAuthenticationResponse,
-  verifyRegistrationResponse,
   type AuthenticationResponseJSON,
   type AuthenticatorTransportFuture,
+  generateAuthenticationOptions,
+  generateRegistrationOptions,
   type PublicKeyCredentialCreationOptionsJSON,
   type PublicKeyCredentialRequestOptionsJSON,
   type RegistrationResponseJSON,
+  verifyAuthenticationResponse,
+  verifyRegistrationResponse,
 } from '@simplewebauthn/server'
 import { eq } from 'drizzle-orm'
+import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import { HttpError } from './auth'
 import { db, schema } from './db'
 import { getSetting, setSetting } from './settings'
@@ -168,7 +168,7 @@ export async function register(request: Request, sessionId: string, response: Re
   const { origin, rpId } = relyingParty(request)
   const challenge = signedChallenge(response?.response?.clientDataJSON)
   if (!takeChallenge(challenge, 'register', rpId, sessionId)) throw new HttpError(400, msg(m.api_passkey_expired))
-  let verification
+  let verification: Awaited<ReturnType<typeof verifyRegistrationResponse>>
   try {
     verification = await verifyRegistrationResponse({ response, expectedChallenge: challenge, expectedOrigin: origin, expectedRPID: rpId, requireUserVerification: true })
   } catch (e) {
@@ -208,7 +208,7 @@ export async function verifyLogin(request: Request, response: AuthenticationResp
   const id = typeof response?.id === 'string' ? response.id : ''
   const passkey = id ? db().select().from(schema.passkeys).where(eq(schema.passkeys.id, id)).get() : undefined
   if (!passkey || passkey.rpId !== rpId) return false
-  let verification
+  let verification: Awaited<ReturnType<typeof verifyAuthenticationResponse>>
   try {
     verification = await verifyAuthenticationResponse({
       response,

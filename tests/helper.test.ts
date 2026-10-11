@@ -1,33 +1,33 @@
-import { FixtureHardware } from '../src/server/hardware/collect'
-import { FixtureUsers } from '../src/server/users/backend'
-import { FixtureBoot } from '../src/server/boot/backend'
-import { FixtureFstabHost, FstabManager } from '../src/server/fstab/backend'
 import { mkdtempSync, statSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
+import { FixtureBackup } from '~/server/backup/backend'
+import { CaddyManager, FixtureCaddyHost } from '~/server/caddy/backend'
+import { FixtureFiles } from '~/server/files/backend'
+import { FixtureNetwork } from '~/server/network/collect'
+import { FixtureMaintenance } from '~/server/packages/maintenance'
 import { crypt, isAdmin, suggestedUser, verifySystemPassword } from '~/server/privileged/crypt'
 import { Gate } from '~/server/privileged/gate'
 import { HelperClient } from '~/server/privileged/helper-client'
 import { serveHelper } from '~/server/privileged/helper-server'
 import { LocalPrivileged } from '~/server/privileged/local'
-import { FixtureMaintenance } from '~/server/packages/maintenance'
 import { FixturePodmanAdmin } from '~/server/quadlets/backend'
 import { FixtureShares } from '~/server/shares/backend'
-import { FixtureSsh } from '~/server/ssh/backend'
 import { FixtureSmart } from '~/server/smart/backend'
-import { FixtureFiles } from '~/server/files/backend'
-import { FixtureTimers } from '~/server/timers/backend'
-import { FixtureUnitEditor } from '~/server/systemd/editor'
-import { FixtureNetwork } from '~/server/network/collect'
-import { CaddyManager, FixtureCaddyHost } from '~/server/caddy/backend'
-import { FixtureBackup } from '~/server/backup/backend'
 import { FixturePower } from '~/server/smart/power'
+import { FixtureSsh } from '~/server/ssh/backend'
+import { FixtureUnitEditor } from '~/server/systemd/editor'
+import { FixtureTimers } from '~/server/timers/backend'
+import { FixtureBoot } from '../src/server/boot/backend'
+import { FixtureFstabHost, FstabManager } from '../src/server/fstab/backend'
+import { FixtureHardware } from '../src/server/hardware/collect'
+import { FixtureUsers } from '../src/server/users/backend'
 
 // sha512-crypt of "geheim-123"
 const HASH = '$6$quadeckt$pgIhFnbK6xs46yd0LWpDYqO6iRlF44QJuqBQ7i2j0gU.Rxvby3N1AG9aVgJxVbQQawFROmuIr9MJ9V3/.cG9w.'
 const files = {
-  shadow: ['root:' + HASH + ':19000:0:99999:7:::', 'tristan:' + HASH + ':19000::::::', 'locked:!:19000::::::', 'guest:' + HASH + ':19000::::::'].join('\n'),
+  shadow: [`root:${HASH}:19000:0:99999:7:::`, `tristan:${HASH}:19000::::::`, 'locked:!:19000::::::', `guest:${HASH}:19000::::::`].join('\n'),
   group: ['root:x:0:', 'wheel:x:998:tristan', 'quadeck:x:961:'].join('\n'),
 }
 
@@ -43,7 +43,7 @@ describe('system password check (crypt + /etc/shadow)', () => {
     expect(verifySystemPassword(files, 'tristan', 'nope')).toBe('wrong')
     expect(verifySystemPassword(files, 'guest', 'geheim-123')).toBe('not-admin')
     expect(verifySystemPassword(files, 'locked', 'x')).toBe('not-admin')
-    expect(verifySystemPassword({ ...files, group: files.group + '\nsudo:x:27:locked' }, 'locked', 'x')).toBe('no-password')
+    expect(verifySystemPassword({ ...files, group: `${files.group}\nsudo:x:27:locked` }, 'locked', 'x')).toBe('no-password')
     expect(verifySystemPassword(files, '../etc', 'x')).toBe('wrong')
     expect(isAdmin(files, 'tristan')).toBe(true)
     expect(suggestedUser(files)).toBe('tristan')
@@ -88,7 +88,29 @@ describe('gate', () => {
 describe('helper over a Unix socket', () => {
   const dir = mkdtempSync(join(tmpdir(), 'quadeck-helper-'))
   const socket = join(dir, 'helper.sock')
-  const server = serveHelper(socket, new LocalPrivileged(new Gate('system', 15, { authFiles: () => files }), join(dir, 'no-podman.sock'), new FixtureMaintenance('fixtures/demo'), new FixturePodmanAdmin('fixtures/demo'), new FixtureShares('fixtures/demo'), new FixtureSsh('fixtures/demo'), new FixtureSmart('fixtures/demo'), new FixtureFiles(), new FixtureTimers('fixtures/demo'), new FixtureUnitEditor('fixtures/demo'), new FixtureNetwork('fixtures/demo'), new FstabManager(new FixtureFstabHost('fixtures/demo')), new FixtureBoot('fixtures/demo'), new FixtureUsers('fixtures/demo'), new FixtureHardware('fixtures/demo'), new CaddyManager(new FixtureCaddyHost('fixtures/demo')), new FixtureBackup(), new FixturePower()))
+  const server = serveHelper(
+    socket,
+    new LocalPrivileged(
+      new Gate('system', 15, { authFiles: () => files }),
+      join(dir, 'no-podman.sock'),
+      new FixtureMaintenance('fixtures/demo'),
+      new FixturePodmanAdmin('fixtures/demo'),
+      new FixtureShares('fixtures/demo'),
+      new FixtureSsh('fixtures/demo'),
+      new FixtureSmart('fixtures/demo'),
+      new FixtureFiles(),
+      new FixtureTimers('fixtures/demo'),
+      new FixtureUnitEditor('fixtures/demo'),
+      new FixtureNetwork('fixtures/demo'),
+      new FstabManager(new FixtureFstabHost('fixtures/demo')),
+      new FixtureBoot('fixtures/demo'),
+      new FixtureUsers('fixtures/demo'),
+      new FixtureHardware('fixtures/demo'),
+      new CaddyManager(new FixtureCaddyHost('fixtures/demo')),
+      new FixtureBackup(),
+      new FixturePower(),
+    ),
+  )
   const client = new HelperClient(socket)
   afterAll(() => server.stop(true))
 
@@ -98,7 +120,29 @@ describe('helper over a Unix socket', () => {
 
   it('keeps the umask the helper writes system files with', () => {
     const old = process.umask(0o022)
-    const other = serveHelper(join(dir, 'second.sock'), new LocalPrivileged(new Gate('none', 15), join(dir, 'no-podman.sock'), new FixtureMaintenance('fixtures/demo'), new FixturePodmanAdmin('fixtures/demo'), new FixtureShares('fixtures/demo'), new FixtureSsh('fixtures/demo'), new FixtureSmart('fixtures/demo'), new FixtureFiles(), new FixtureTimers('fixtures/demo'), new FixtureUnitEditor('fixtures/demo'), new FixtureNetwork('fixtures/demo'), new FstabManager(new FixtureFstabHost('fixtures/demo')), new FixtureBoot('fixtures/demo'), new FixtureUsers('fixtures/demo'), new FixtureHardware('fixtures/demo'), new CaddyManager(new FixtureCaddyHost('fixtures/demo')), new FixtureBackup(), new FixturePower()))
+    const other = serveHelper(
+      join(dir, 'second.sock'),
+      new LocalPrivileged(
+        new Gate('none', 15),
+        join(dir, 'no-podman.sock'),
+        new FixtureMaintenance('fixtures/demo'),
+        new FixturePodmanAdmin('fixtures/demo'),
+        new FixtureShares('fixtures/demo'),
+        new FixtureSsh('fixtures/demo'),
+        new FixtureSmart('fixtures/demo'),
+        new FixtureFiles(),
+        new FixtureTimers('fixtures/demo'),
+        new FixtureUnitEditor('fixtures/demo'),
+        new FixtureNetwork('fixtures/demo'),
+        new FstabManager(new FixtureFstabHost('fixtures/demo')),
+        new FixtureBoot('fixtures/demo'),
+        new FixtureUsers('fixtures/demo'),
+        new FixtureHardware('fixtures/demo'),
+        new CaddyManager(new FixtureCaddyHost('fixtures/demo')),
+        new FixtureBackup(),
+        new FixturePower(),
+      ),
+    )
     try {
       expect(process.umask()).toBe(0o022)
       expect(statSync(join(dir, 'second.sock')).mode & 0o777).toBe(0o660)

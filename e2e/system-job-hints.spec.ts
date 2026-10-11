@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
 
 // Runs after dashboard.spec.ts (password set there). The demo's first AUR update fails like a
 // broken PKGBUILD; the job dialog explains it and the second run succeeds.

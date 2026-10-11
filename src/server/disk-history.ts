@@ -4,7 +4,7 @@
 // sleeping disks stay asleep.
 
 import { and, gte, sql } from 'drizzle-orm'
-import { FS_BUCKET_MS, TREND_SPAN_MS, fsTrend, type FsTrend } from '~/shared/disk-usage'
+import { FS_BUCKET_MS, type FsTrend, fsTrend, TREND_SPAN_MS } from '~/shared/disk-usage'
 import type { Disk } from '~/shared/types'
 import type { DB } from './db'
 import { metricPrefix, schema } from './db'
@@ -64,11 +64,14 @@ export function seedFsHistory(d: DB, disks: Pick<Disk, 'mount' | 'size' | 'used'
     const perDay = x.mount === '/' ? 0 : [20e9, 60e9, 35e9, 12e9][i % 4]!
     for (let ts = end - 60 * 86_400_000; ts <= end; ts += 3 * FS_BUCKET_MS) {
       const days = (end - ts) / 86_400_000
-      const wiggle = Math.sin(ts / 86_400_000 / 7 * Math.PI * 2) * perDay * 1.5
+      const wiggle = Math.sin((ts / 86_400_000 / 7) * Math.PI * 2) * perDay * 1.5
       rows.push({ ts, metric: fsMetric(x.mount), value: Math.max(0, x.used - perDay * days + wiggle) })
     }
   }
   d.transaction((tx) => {
-    for (let i = 0; i < rows.length; i += 500) tx.insert(t).values(rows.slice(i, i + 500)).run()
+    for (let i = 0; i < rows.length; i += 500)
+      tx.insert(t)
+        .values(rows.slice(i, i + 500))
+        .run()
   })
 }

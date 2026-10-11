@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { judgeSettings, keyLoginPossible, loginUsers, parseSshChange, SystemSsh } from '~/server/ssh/backend'
-import { addKey, parseAuthLog, parseAuthorizedKeys, parseEstablished, parseDropIn, parseKeyLine, parseSshdT, removeKey, renderDropIn } from '~/server/ssh/keys'
+import { addKey, parseAuthLog, parseAuthorizedKeys, parseDropIn, parseEstablished, parseKeyLine, parseSshdT, removeKey, renderDropIn } from '~/server/ssh/keys'
 import type { SshUser } from '~/shared/ssh'
 
 const demo = JSON.parse(readFileSync('fixtures/demo/ssh.json', 'utf8')) as { users: { keys: string[] }[]; hostKeys: string[] }
@@ -136,7 +136,10 @@ describe('SystemSsh on a temp directory', () => {
     const home = join(root, 'home', 'tristan')
     mkdirSync(home, { recursive: true, mode: 0o755 })
     const passwd = join(root, 'passwd')
-    writeFileSync(passwd, `root:x:0:0:root:${join(root, 'roothome')}:/bin/bash\nbin:x:1:1::/:/usr/bin/nologin\ntristan:x:1000:1000::${home}:/bin/bash\nquadeck:x:970:970::/var/lib/quadeck:/usr/bin/nologin\n`)
+    writeFileSync(
+      passwd,
+      `root:x:0:0:root:${join(root, 'roothome')}:/bin/bash\nbin:x:1:1::/:/usr/bin/nologin\ntristan:x:1000:1000::${home}:/bin/bash\nquadeck:x:970:970::/var/lib/quadeck:/usr/bin/nologin\n`,
+    )
     expect(loginUsers(readFileSync(passwd, 'utf8')).map((u) => u.name)).toEqual(['root', 'tristan'])
 
     const s = new SystemSsh({ etc, passwd, live: false })

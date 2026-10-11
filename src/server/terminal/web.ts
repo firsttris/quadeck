@@ -1,10 +1,10 @@
 // The web app's side of the terminal: the opt-in settings, which login session owns which
 // terminal (only its owner can read, type or close), and "home network only".
 
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import { DEFAULT_TERMINAL, isLocalAddress, parseTerminalSettings, type TerminalInfo, type TerminalSettings } from '~/shared/terminal'
-import { HttpError, clientKey } from '../auth'
+import { clientKey, HttpError } from '../auth'
 import { getSetting, setSetting } from '../settings'
 
 const KEY = 'terminal.settings'

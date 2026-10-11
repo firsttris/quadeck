@@ -9,7 +9,8 @@ const ANSWERS: Record<string, string> = {
   ls: 'Dokumente  Downloads  docker-compose.yml  notes.txt',
   whoami: '',
   uptime: ' 09:41:07 up 3 days,  4:12,  1 user,  load average: 0.42, 0.37, 0.31',
-  'podman ps': 'CONTAINER ID  IMAGE                                     NAMES     STATUS\n1a2b3c4d5e6f  docker.io/jellyfin/jellyfin:latest        jellyfin  Up 26 hours (healthy)\n2b3c4d5e6f7a  ghcr.io/immich-app/immich-server:release  immich    Up 26 hours',
+  'podman ps':
+    'CONTAINER ID  IMAGE                                     NAMES     STATUS\n1a2b3c4d5e6f  docker.io/jellyfin/jellyfin:latest        jellyfin  Up 26 hours (healthy)\n2b3c4d5e6f7a  ghcr.io/immich-app/immich-server:release  immich    Up 26 hours',
   'df -h': 'Filesystem      Size  Used Avail Use% Mounted on\n/dev/sda1        11T  7.9T  3.0T  73% /mnt/disk1',
 }
 
@@ -45,7 +46,7 @@ export const demoSpawner: Spawner = (spec, onData) => {
               return
             }
             const answer = cmd === 'whoami' ? spec.user : cmd ? (ANSWERS[cmd] ?? `${cmd.split(' ')[0]}: demo only – try help`) : ''
-            out(`\r\n${answer ? answer.replace(/\n/g, '\r\n') + '\r\n' : ''}${prompt}`)
+            out(`\r\n${answer ? `${answer.replace(/\n/g, '\r\n')}\r\n` : ''}${prompt}`)
           } else if (ch === '\x7f') {
             if (line) {
               line = line.slice(0, -1)

@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { m } from '~/paraglide/messages'
 import { HttpError } from '~/server/auth'
 import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
@@ -6,7 +7,6 @@ import { privileged } from '~/server/privileged'
 import { parseSave, parseTimerAction } from '~/server/timers/backend'
 import { unlockToken } from '~/server/unlock-sessions'
 import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 
 // GET: all timers · ?calendar=expr → next runs · ?files=x.timer → unit files.
 // POST (unlock): { save: { spec, previous?, enable } } · { delete: name } ·

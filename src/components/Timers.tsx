@@ -4,6 +4,30 @@
 
 import { Link, useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
+import { pickMsg } from '~/i18n'
+import { relative } from '~/lib/format'
+import { usePolling } from '~/lib/polling'
+import { m } from '~/paraglide/messages'
+import { currentLang, msg } from '~/shared/i18n'
+import {
+  buildCalendar,
+  type CalendarPreview,
+  cronToCalendar,
+  DAYS,
+  type Day,
+  dayLabel,
+  describeCalendar,
+  emptySpec,
+  parseCalendar,
+  renderService,
+  renderTimer,
+  type Schedule,
+  specErrors,
+  type TimerAction,
+  type TimerEntry,
+  type TimerSpec,
+  type TimersState,
+} from '~/shared/timers'
 import { useActions } from './Actions'
 import { BusyButton, Spinner, useBusy } from './Busy'
 import { ConfirmDialog, Modal } from './Modal'
@@ -11,30 +35,6 @@ import { RowMenu } from './RowMenu'
 import { Pill, type Tone } from './Status'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
-import { relative } from '~/lib/format'
-import { currentLang, msg } from '~/shared/i18n'
-import {
-  DAYS,
-  dayLabel,
-  buildCalendar,
-  cronToCalendar,
-  describeCalendar,
-  emptySpec,
-  parseCalendar,
-  renderService,
-  renderTimer,
-  specErrors,
-  type CalendarPreview,
-  type Day,
-  type Schedule,
-  type TimerAction,
-  type TimerEntry,
-  type TimerSpec,
-  type TimersState,
-} from '~/shared/timers'
-import { m } from '~/paraglide/messages'
-import { pickMsg } from '~/i18n'
-import { usePolling } from '~/lib/polling'
 
 const two = (n: number) => String(n).padStart(2, '0')
 
@@ -216,6 +216,7 @@ export function TimersView() {
                       type="checkbox"
                       role="switch"
                       aria-label={m.timers_list_activeAria({ name: t.name })}
+                      aria-checked={t.enabled}
                       checked={t.enabled}
                       disabled={readonly || busy === t.name || t.unitFileState === 'static' || t.unitFileState === 'masked'}
                       title={t.unitFileState === 'static' ? m.timers_list_static() : undefined}
@@ -233,7 +234,14 @@ export function TimersView() {
                   <td>
                     <div className="flex justify-end gap-1.5">
                       {!readonly && t.service && (
-                        <BusyButton className="btn sm" busy={busy === t.name && busyAction === 'run'} busyLabel={m.common_starting()} disabled={busy === t.name} onClick={() => void act(t, 'run')} aria-label={m.timers_list_runNowAria({ name: t.name })}>
+                        <BusyButton
+                          className="btn sm"
+                          busy={busy === t.name && busyAction === 'run'}
+                          busyLabel={m.common_starting()}
+                          disabled={busy === t.name}
+                          onClick={() => void act(t, 'run')}
+                          aria-label={m.timers_list_runNowAria({ name: t.name })}
+                        >
                           {m.timers_list_runNow()}
                         </BusyButton>
                       )}
@@ -258,7 +266,17 @@ export function TimersView() {
           </tbody>
         </table>
       </div>
-      {editing && <TimerEditor key={editing.previous ?? 'new'} initial={editing.spec} previous={editing.previous} enabled={editing.enabled} existing={timers} onClose={() => setEditing(null)} onSaved={setState} />}
+      {editing && (
+        <TimerEditor
+          key={editing.previous ?? 'new'}
+          initial={editing.spec}
+          previous={editing.previous}
+          enabled={editing.enabled}
+          existing={timers}
+          onClose={() => setEditing(null)}
+          onSaved={setState}
+        />
+      )}
       {scheduling && <ScheduleDialog timer={scheduling} onClose={() => setScheduling(null)} onSaved={setState} />}
       <Modal open={files !== null} onClose={() => setFiles(null)} title={m.timers_list_filesTitle()} wide>
         <pre className="m-0 max-h-[60vh] overflow-auto rounded-lg bg-sunken p-3 font-mono text-[12px] whitespace-pre-wrap">{files?.text}</pre>
@@ -345,7 +363,14 @@ export function ScheduleField({ value, onChange, readonly }: { value: string; on
         {KINDS.map((k) => (
           <button key={k} type="button" className={`seg ${sched.kind === k ? 'on' : ''}`} aria-pressed={sched.kind === k} onClick={() => set(defaults(k, sched))}>
             {pickMsg(
-              { minutes: m.timers_field_kinds_minutes, hours: m.timers_field_kinds_hours, daily: m.timers_field_kinds_daily, weekly: m.timers_field_kinds_weekly, monthly: m.timers_field_kinds_monthly, custom: m.timers_field_kinds_custom },
+              {
+                minutes: m.timers_field_kinds_minutes,
+                hours: m.timers_field_kinds_hours,
+                daily: m.timers_field_kinds_daily,
+                weekly: m.timers_field_kinds_weekly,
+                monthly: m.timers_field_kinds_monthly,
+                custom: m.timers_field_kinds_custom,
+              },
               k,
             )}
           </button>
@@ -549,7 +574,21 @@ const templates = (): { label: string; spec: Partial<TimerSpec> }[] => [
   },
 ]
 
-function TimerEditor({ initial, previous, enabled: initialEnabled, existing, onClose, onSaved }: { initial: TimerSpec; previous?: string; enabled: boolean; existing: TimerEntry[]; onClose: () => void; onSaved: (s: TimersState) => void }) {
+function TimerEditor({
+  initial,
+  previous,
+  enabled: initialEnabled,
+  existing,
+  onClose,
+  onSaved,
+}: {
+  initial: TimerSpec
+  previous?: string
+  enabled: boolean
+  existing: TimerEntry[]
+  onClose: () => void
+  onSaved: (s: TimersState) => void
+}) {
   const [spec, setSpec] = useState(initial)
   const [enabled, setEnabled] = useState(initialEnabled)
   const [tab, setTab] = useState<'form' | 'files'>('form')
@@ -645,7 +684,13 @@ function TimerEditor({ initial, previous, enabled: initialEnabled, existing, onC
           </div>
           <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
             {m.timers_editor_command()}
-            <textarea className="field h-[90px] font-mono text-[12px]" spellCheck={false} value={spec.command} onChange={(e) => set('command', e.target.value)} placeholder="/usr/local/bin/backup.sh" />
+            <textarea
+              className="field h-[90px] font-mono text-[12px]"
+              spellCheck={false}
+              value={spec.command}
+              onChange={(e) => set('command', e.target.value)}
+              placeholder="/usr/local/bin/backup.sh"
+            />
           </label>
           <ScheduleField key={scheduleKey} value={spec.calendar} onChange={(v) => set('calendar', v)} />
           <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
@@ -766,7 +811,13 @@ function ScheduleDialog({ timer, onClose, onSaved }: { timer: TimerEntry; onClos
         <button type="button" className="btn" disabled={busy} onClick={onClose}>
           {m.common_cancel()}
         </button>
-        <BusyButton className="btn primary" busy={work.is('apply')} busyLabel={m.common_applying()} disabled={busy || !calendar.trim()} onClick={() => void work.run('apply', () => apply(calendar.trim()))}>
+        <BusyButton
+          className="btn primary"
+          busy={work.is('apply')}
+          busyLabel={m.common_applying()}
+          disabled={busy || !calendar.trim()}
+          onClick={() => void work.run('apply', () => apply(calendar.trim()))}
+        >
           {m.common_apply()}
         </BusyButton>
       </div>

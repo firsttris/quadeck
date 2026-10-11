@@ -5,7 +5,7 @@ import { pruneHistory, querySmartHistory, smartBaselines } from '~/server/metric
 import { parseJobSpec } from '~/server/packages/job'
 import { parseSmartctl, physicalDisks, statusFromExit } from '~/server/smart/parse'
 import { installCommand } from '~/shared/packages'
-import { assessSmart, attributeLevel, describeNote, describeReason, smartHints, type SmartDisk } from '~/shared/smart'
+import { assessSmart, attributeLevel, describeNote, describeReason, type SmartDisk, smartHints } from '~/shared/smart'
 import { smartSamples } from '~/shared/smart-metrics'
 
 const fx = (n: string) => parseSmartctl(n, readFileSync(`fixtures/demo/smart/${n}.json`, 'utf8'))
@@ -13,7 +13,16 @@ const fx = (n: string) => parseSmartctl(n, readFileSync(`fixtures/demo/smart/${n
 describe('smartctl --json', () => {
   it('reads a healthy HDD', () => {
     const d = fx('sda')
-    expect(d).toMatchObject({ name: 'sda', status: 'OK', supported: true, model: 'ST12000VN0008-2YS101', rotationRate: 7200, temperature: 34, powerOnHours: 21890, id: 'ST12000VN0008-2YS101-ZRT0A1B2' })
+    expect(d).toMatchObject({
+      name: 'sda',
+      status: 'OK',
+      supported: true,
+      model: 'ST12000VN0008-2YS101',
+      rotationRate: 7200,
+      temperature: 34,
+      powerOnHours: 21890,
+      id: 'ST12000VN0008-2YS101-ZRT0A1B2',
+    })
     expect(d.attributes.find((a) => a.id === 5)).toMatchObject({ name: 'Reallocated_Sector_Ct', raw: '0', prefailure: true })
     expect(assessSmart(d)).toEqual({ level: 'ok', reasons: [], notes: [] })
   })
@@ -105,7 +114,19 @@ describe('smartctl --json', () => {
 
   it('finds physical disks (captured lsblk from a VM: zram skipped)', () => {
     expect(physicalDisks(readFileSync('tests/fixtures/lsblk-disks.json', 'utf8'))).not.toContain('zram0')
-    expect(physicalDisks(JSON.stringify({ blockdevices: [{ name: 'sda', type: 'disk' }, { name: 'loop0', type: 'loop' }, { name: 'sr0', type: 'rom' }, { name: 'nvme0n1', type: 'disk' }, { name: 'md0', type: 'raid1' }] }))).toEqual(['sda', 'nvme0n1'])
+    expect(
+      physicalDisks(
+        JSON.stringify({
+          blockdevices: [
+            { name: 'sda', type: 'disk' },
+            { name: 'loop0', type: 'loop' },
+            { name: 'sr0', type: 'rom' },
+            { name: 'nvme0n1', type: 'disk' },
+            { name: 'md0', type: 'raid1' },
+          ],
+        }),
+      ),
+    ).toEqual(['sda', 'nvme0n1'])
   })
 })
 
@@ -122,7 +143,9 @@ describe('SMART history', () => {
       { key: 'crc', value: 0 },
       { key: 'startstop', value: 2210 }, // spin-ups, for the energy-saving view
     ])
-    const rows = [now - 100 * 24 * 3600_000, now - 3600_000].flatMap((ts, i) => smartSamples(disk).map((s) => ({ ts, metric: `smart:${disk.id}:${s.key}`, value: i === 0 && s.key === 'realloc' ? 0 : s.value })))
+    const rows = [now - 100 * 24 * 3600_000, now - 3600_000].flatMap((ts, i) =>
+      smartSamples(disk).map((s) => ({ ts, metric: `smart:${disk.id}:${s.key}`, value: i === 0 && s.key === 'realloc' ? 0 : s.value })),
+    )
     rows.push({ ts: now - 30 * 24 * 3600_000, metric: 'cpu', value: 0.5 }, { ts: now - 380 * 24 * 3600_000, metric: `smart:${disk.id}:temp`, value: 30 })
     db.insert(schema.metricSamples).values(rows).run()
     const h = querySmartHistory(db, disk.id, 365, now)

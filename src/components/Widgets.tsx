@@ -1,10 +1,26 @@
 // Widgets added from the catalog: the catalog dialog and the widgets themselves (note, …).
 
 import { useEffect, useMemo, useState } from 'react'
-import { api } from '~/lib/api'
-import { isWebUrl, linkify, LINKS_MAX, NOTE_MAX, TITLE_MAX, WIDGETS, type BuiltinCard, type ContainersConfig, type DiskConfig, type InstanceKind, type LinksConfig, type NoteConfig, type ServiceConfig, type WidgetCategory, type WidgetInstance } from '~/shared/widgets'
-import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
+import { api } from '~/lib/api'
+import { m } from '~/paraglide/messages'
+import {
+  type BuiltinCard,
+  type ContainersConfig,
+  type DiskConfig,
+  type InstanceKind,
+  isWebUrl,
+  LINKS_MAX,
+  type LinksConfig,
+  linkify,
+  NOTE_MAX,
+  type NoteConfig,
+  type ServiceConfig,
+  TITLE_MAX,
+  WIDGETS,
+  type WidgetCategory,
+  type WidgetInstance,
+} from '~/shared/widgets'
 import { BusyButton } from './Busy'
 import { Glyph } from './Glyph'
 import { Modal } from './Modal'
@@ -103,7 +119,14 @@ export function WidgetCatalog({ open, entries, onClose, onAdd }: { open: boolean
             </button>
           ))}
         </div>
-        <input className="field ml-auto w-full sm:w-[220px]" type="search" placeholder={m.widgets_catalog_search()} aria-label={m.widgets_catalog_search()} value={query} onChange={(e) => setQuery(e.target.value)} />
+        <input
+          className="field ml-auto w-full sm:w-[220px]"
+          type="search"
+          placeholder={m.widgets_catalog_search()}
+          aria-label={m.widgets_catalog_search()}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
       </div>
       <ul className="m-0 grid list-none grid-cols-1 gap-2.5 p-0 sm:grid-cols-2 lg:grid-cols-3" aria-label={m.widgets_catalog_title()}>
         {shown.map((e) => {
@@ -117,7 +140,9 @@ export function WidgetCatalog({ open, entries, onClose, onAdd }: { open: boolean
               </div>
               <p className="m-0 grow text-[12.5px] text-[#aab3bf]">{widgetDesc(e.kind)}</p>
               <div className="flex items-center justify-between gap-2 text-[11.5px] text-muted">
-                <span className={e.count ? 'text-accent' : undefined}>{e.unavailable ?? (taken ? m.widgets_catalog_onDashboard() : e.count ? m.widgets_catalog_onDashboardN({ n: e.count }) : '')}</span>
+                <span className={e.count ? 'text-accent' : undefined}>
+                  {e.unavailable ?? (taken ? m.widgets_catalog_onDashboard() : e.count ? m.widgets_catalog_onDashboardN({ n: e.count }) : '')}
+                </span>
                 <BusyButton
                   className={taken || e.unavailable ? 'btn sm' : 'btn sm primary'}
                   disabled={taken || !!e.unavailable || !!adding}
@@ -159,10 +184,12 @@ function Linked({ text }: { text: string }) {
     <>
       {parts.map((p, i) =>
         p.href ? (
+          // biome-ignore lint/suspicious/noArrayIndexKey: parts of one text, in order
           <a key={i} href={p.href} target="_blank" rel="noreferrer noopener" className="no-drag text-accent underline">
             {p.text}
           </a>
         ) : (
+          // biome-ignore lint/suspicious/noArrayIndexKey: parts of one text, in order
           <span key={i}>{p.text}</span>
         ),
       )}
@@ -243,13 +270,26 @@ export function NoteDialog({ widget, onClose, onSaved }: { widget: (WidgetInstan
 export type Configurable = WidgetInstance & { kind: 'disk' | 'containers' | 'service' | 'links' }
 
 /** ⚙ of a disk (mount point), the busiest containers (CPU or memory), a service (which unit) or a link group. */
-export function WidgetSettingsDialog({ widget, mounts, units, onClose, onSaved }: { widget: Configurable | null; mounts: { mount: string; label: string }[]; units: { name: string; label: string }[]; onClose: () => void; onSaved: (w: WidgetInstance) => void }) {
+export function WidgetSettingsDialog({
+  widget,
+  mounts,
+  units,
+  onClose,
+  onSaved,
+}: {
+  widget: Configurable | null
+  mounts: { mount: string; label: string }[]
+  units: { name: string; label: string }[]
+  onClose: () => void
+  onSaved: (w: WidgetInstance) => void
+}) {
   const [disk, setDisk] = useState<DiskConfig>({ mount: '' })
   const [top, setTop] = useState<ContainersConfig>({ metric: 'ram' })
   const [service, setService] = useState<ServiceConfig>({ unit: '' })
   const [links, setLinks] = useState<LinksConfig>({ title: '', links: [] })
   const [busy, setBusy] = useState(false)
   const say = useToast()
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only when another widget opens: live updates bring new mount and unit lists and must not throw away what is being typed
   useEffect(() => {
     if (widget?.kind === 'disk') setDisk({ mount: widget.config.mount || mounts[0]?.mount || '' })
     if (widget?.kind === 'containers') setTop(widget.config)
@@ -257,7 +297,6 @@ export function WidgetSettingsDialog({ widget, mounts, units, onClose, onSaved }
     if (widget?.kind === 'links') setLinks(widget.config.links.length ? widget.config : { ...widget.config, links: [{ name: '', url: '' }] })
     // only when another widget opens: live updates bring new mount and unit lists every few
     // seconds and must not throw away what is being typed
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [widget?.id])
   const badLink = links.links.findIndex((l) => (l.name.trim() || l.url.trim()) && (!l.name.trim() || !isWebUrl(l.url.trim())))
   const save = async () => {
@@ -275,10 +314,10 @@ export function WidgetSettingsDialog({ widget, mounts, units, onClose, onSaved }
   }
   return (
     <Modal open={!!widget} onClose={onClose} title={widget ? m.widgets_settings_title({ name: widgetName(widget.kind) }) : ''} busy={busy}>
-      {widget?.kind === 'disk' && (
-        <label className="flex flex-col gap-1 text-[13px]">
-          {m.widgets_disk_mount()}
-          {mounts.length ? (
+      {widget?.kind === 'disk' &&
+        (mounts.length ? (
+          <label className="flex flex-col gap-1 text-[13px]">
+            {m.widgets_disk_mount()}
             <select className="field" value={disk.mount} onChange={(e) => setDisk({ mount: e.target.value })}>
               {mounts.map((x) => (
                 <option key={x.mount} value={x.mount}>
@@ -286,11 +325,13 @@ export function WidgetSettingsDialog({ widget, mounts, units, onClose, onSaved }
                 </option>
               ))}
             </select>
-          ) : (
+          </label>
+        ) : (
+          <div className="flex flex-col gap-1 text-[13px]">
+            {m.widgets_disk_mount()}
             <span className="text-muted">{m.widgets_disk_noMounts()}</span>
-          )}
-        </label>
-      )}
+          </div>
+        ))}
       {widget?.kind === 'containers' && (
         <div role="radiogroup" aria-label={m.widgets_containers_by()} className="flex flex-col gap-1.5 text-[13px]">
           <span>{m.widgets_containers_by()}</span>
@@ -302,10 +343,10 @@ export function WidgetSettingsDialog({ widget, mounts, units, onClose, onSaved }
           ))}
         </div>
       )}
-      {widget?.kind === 'service' && (
-        <label className="flex flex-col gap-1 text-[13px]">
-          {m.widgets_service_unit()}
-          {units.length ? (
+      {widget?.kind === 'service' &&
+        (units.length ? (
+          <label className="flex flex-col gap-1 text-[13px]">
+            {m.widgets_service_unit()}
             <select className="field" value={service.unit} onChange={(e) => setService({ unit: e.target.value })}>
               {units.map((u) => (
                 <option key={u.name} value={u.name}>
@@ -313,11 +354,13 @@ export function WidgetSettingsDialog({ widget, mounts, units, onClose, onSaved }
                 </option>
               ))}
             </select>
-          ) : (
+          </label>
+        ) : (
+          <div className="flex flex-col gap-1 text-[13px]">
+            {m.widgets_service_unit()}
             <span className="text-muted">{m.widgets_service_noUnits()}</span>
-          )}
-        </label>
-      )}
+          </div>
+        ))}
       {widget?.kind === 'links' && (
         <div className="flex flex-col gap-2.5 text-[13px]">
           <label className="flex flex-col gap-1">
@@ -326,9 +369,24 @@ export function WidgetSettingsDialog({ widget, mounts, units, onClose, onSaved }
           </label>
           <span>{m.widgets_links_list()}</span>
           {links.links.map((l, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: controlled inputs, the position is the identity
             <div key={i} className="flex flex-wrap gap-1.5">
-              <input className="field w-[150px]" maxLength={TITLE_MAX} value={l.name} placeholder={m.widgets_links_namePlaceholder()} aria-label={m.widgets_links_nameN({ n: i + 1 })} onChange={(e) => setLinks({ ...links, links: links.links.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })} />
-              <input className="field min-w-0 grow font-mono" value={l.url} placeholder="http://192.168.178.1" aria-label={m.widgets_links_urlN({ n: i + 1 })} aria-invalid={badLink === i || undefined} onChange={(e) => setLinks({ ...links, links: links.links.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) })} />
+              <input
+                className="field w-[150px]"
+                maxLength={TITLE_MAX}
+                value={l.name}
+                placeholder={m.widgets_links_namePlaceholder()}
+                aria-label={m.widgets_links_nameN({ n: i + 1 })}
+                onChange={(e) => setLinks({ ...links, links: links.links.map((x, j) => (j === i ? { ...x, name: e.target.value } : x)) })}
+              />
+              <input
+                className="field min-w-0 grow font-mono"
+                value={l.url}
+                placeholder="http://192.168.178.1"
+                aria-label={m.widgets_links_urlN({ n: i + 1 })}
+                aria-invalid={badLink === i || undefined}
+                onChange={(e) => setLinks({ ...links, links: links.links.map((x, j) => (j === i ? { ...x, url: e.target.value } : x)) })}
+              />
               <button type="button" className="btn sm" aria-label={m.widgets_links_removeN({ n: i + 1 })} onClick={() => setLinks({ ...links, links: links.links.filter((_, j) => j !== i) })}>
                 <Glyph name="close" size={13} />
               </button>
@@ -346,7 +404,13 @@ export function WidgetSettingsDialog({ widget, mounts, units, onClose, onSaved }
         <button type="button" className="btn" disabled={busy} onClick={onClose}>
           {m.common_cancel()}
         </button>
-        <BusyButton className="btn primary" busy={busy} busyLabel={m.common_saving()} disabled={(widget?.kind === 'disk' && !disk.mount) || (widget?.kind === 'service' && !service.unit) || (widget?.kind === 'links' && badLink >= 0)} onClick={() => void save()}>
+        <BusyButton
+          className="btn primary"
+          busy={busy}
+          busyLabel={m.common_saving()}
+          disabled={(widget?.kind === 'disk' && !disk.mount) || (widget?.kind === 'service' && !service.unit) || (widget?.kind === 'links' && badLink >= 0)}
+          onClick={() => void save()}
+        >
           {m.common_save()}
         </BusyButton>
       </div>

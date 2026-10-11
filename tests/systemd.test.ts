@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { buildUnit, calendarOf, parseListUnits, parseShow, parseTimestamp, quadletOf, UnitCollector, type ListedUnit } from '~/server/collectors/systemd'
+import { buildUnit, calendarOf, type ListedUnit, parseListUnits, parseShow, parseTimestamp, quadletOf, UnitCollector } from '~/server/collectors/systemd'
 import { failureReason } from '~/shared/units'
 
 describe('systemd', () => {
@@ -35,7 +35,16 @@ describe('systemd', () => {
   it('builds a failed Quadlet unit with OOM reason', () => {
     const u = buildUnit(
       { name: 'immich-ml.service', description: 'Immich ML', load: 'loaded', active: 'failed', sub: 'failed' },
-      { Id: 'immich-ml.service', SourcePath: '/etc/containers/systemd/immich-ml.container', Result: 'oom-kill', ExecMainStatus: '137', MemoryMax: String(2 * 1024 ** 3), MemoryCurrent: '[not set]', StateChangeTimestamp: '@1700000000', UnitFileState: 'generated' },
+      {
+        Id: 'immich-ml.service',
+        SourcePath: '/etc/containers/systemd/immich-ml.container',
+        Result: 'oom-kill',
+        ExecMainStatus: '137',
+        MemoryMax: String(2 * 1024 ** 3),
+        MemoryCurrent: '[not set]',
+        StateChangeTimestamp: '@1700000000',
+        UnitFileState: 'generated',
+      },
     )
     expect(u).toMatchObject({ kind: 'quadlet', quadlet: { type: 'container' }, result: 'oom-kill', exitStatus: 137, memory: undefined, since: 1_700_000_000_000 })
     expect(failureReason(u)).toBe('OOM-Kill: Speicherlimit MemoryMax=2G erreicht')

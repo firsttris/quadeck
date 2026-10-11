@@ -1,21 +1,21 @@
 import { useCallback, useEffect, useState } from 'react'
+import { pickMsg } from '~/i18n'
 import { api } from '~/lib/api'
+import { retentionPresetLabel } from '~/lib/backup-labels'
 import { bytes, relative } from '~/lib/format'
 import { useLiveState } from '~/lib/live'
-import { CLIENT_PRESETS, clientCalendar, defaultClientPlan, parseClientPlan, ruleKind, ruleProblem, type ClientPlan, type ClientPreset } from '~/shared/backup-client'
-import { pickMsg } from '~/i18n'
+import { m } from '~/paraglide/messages'
+import { type BackupClient, CLIENT_NAME, clientRepo, retentionPreset, staleClients, TARGET_UNIT, type TargetConfig, type TargetState } from '~/shared/backup'
+import { CLIENT_PRESETS, type ClientPlan, type ClientPreset, clientCalendar, defaultClientPlan, parseClientPlan, ruleKind, ruleProblem } from '~/shared/backup-client'
 import { localeOf } from '~/shared/i18n'
-import { retentionPresetLabel } from '~/lib/backup-labels'
-import { RetentionPicker } from './Retention'
-import { CLIENT_NAME, TARGET_UNIT, clientRepo, retentionPreset, staleClients, type BackupClient, type TargetConfig, type TargetState } from '~/shared/backup'
 import { useActions } from './Actions'
 import { BusyButton, Spinner, useBusy } from './Busy'
 import { ConfirmDialog, Modal } from './Modal'
+import { RetentionPicker } from './Retention'
 import { RowMenu } from './RowMenu'
 import { Dot, Pill, unitState, unitTone } from './Status'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
-import { m } from '~/paraglide/messages'
 
 /** Clients tab: a restic rest-server as the backup target for the other computers at home. */
 export function BackupClients() {
@@ -211,7 +211,10 @@ export function BackupClients() {
                                     disabled: rows.busy !== null,
                                     onSelect: () =>
                                       void rows.run(c.name, async () => {
-                                        const s = await call<TargetState>({ client: { update: { name: c.name, change: { disabled: !c.disabled } } } }, c.disabled ? m.backup_clients_enabled({ name: c.name }) : m.backup_clients_disabledNow({ name: c.name }))
+                                        const s = await call<TargetState>(
+                                          { client: { update: { name: c.name, change: { disabled: !c.disabled } } } },
+                                          c.disabled ? m.backup_clients_enabled({ name: c.name }) : m.backup_clients_disabledNow({ name: c.name }),
+                                        )
                                         if (s) setState(s)
                                       }),
                                   },
@@ -369,7 +372,16 @@ function WarnInput({ warn, days, onChange }: { warn: boolean; days: number; onCh
     <label className="flex flex-wrap items-center gap-2 text-[13px]">
       <input type="checkbox" checked={warn} onChange={(e) => onChange(e.target.checked, days)} />
       {m.backup_clients_warnBefore()}
-      <input className="field !w-[64px] !py-1" type="number" min={1} max={60} aria-label={m.backup_clients_warn()} disabled={!warn} value={days} onChange={(e) => onChange(warn, Math.min(60, Math.max(1, Math.round(Number(e.target.value) || 1))))} />
+      <input
+        className="field !w-[64px] !py-1"
+        type="number"
+        min={1}
+        max={60}
+        aria-label={m.backup_clients_warn()}
+        disabled={!warn}
+        value={days}
+        onChange={(e) => onChange(warn, Math.min(60, Math.max(1, Math.round(Number(e.target.value) || 1))))}
+      />
       {m.backup_clients_warnAfter()}
     </label>
   )
@@ -415,7 +427,13 @@ function RemoveClient({ client, dataDir, onClose, onRemove }: { client: BackupCl
 
 /** The access, shown once: what the client needs to back up here. */
 function AccessDialog({ config, name, password, onClose }: { config: TargetConfig; name: string; password: string; onClose: () => void }) {
-  const lines = [`export RESTIC_REPOSITORY=${clientRepo(config, name)}`, `export RESTIC_REST_USERNAME=${name}`, `export RESTIC_REST_PASSWORD=${password}`, 'restic init        # once, asks for a new repository password', 'restic backup ~/Dokumente ~/Bilder']
+  const lines = [
+    `export RESTIC_REPOSITORY=${clientRepo(config, name)}`,
+    `export RESTIC_REST_USERNAME=${name}`,
+    `export RESTIC_REST_PASSWORD=${password}`,
+    'restic init        # once, asks for a new repository password',
+    'restic backup ~/Dokumente ~/Bilder',
+  ]
   return (
     <Modal open wide title={m.backup_access_title({ name })} onClose={onClose}>
       <p className="m-0 text-[13px] text-[#e3b341]">{m.backup_access_once()}</p>
@@ -512,7 +530,9 @@ function ClientWizard({
   const [created, setCreated] = useState(!!client)
   const [step, setStep] = useState<ClientStep>(client ? 'setup' : 'what')
   // A new device starts with the standard folders named in the UI's language (the script finds either).
-  const [plan, setPlan] = useState<ClientPlan>(() => (client?.plan ? structuredClone(client.plan) : { ...defaultClientPlan(), folders: localeOf().startsWith('de') ? ['~/Dokumente', '~/Bilder'] : ['~/Documents', '~/Pictures'] }))
+  const [plan, setPlan] = useState<ClientPlan>(() =>
+    client?.plan ? structuredClone(client.plan) : { ...defaultClientPlan(), folders: localeOf().startsWith('de') ? ['~/Dokumente', '~/Bilder'] : ['~/Documents', '~/Pictures'] },
+  )
   const [folder, setFolder] = useState('')
   const [rule, setRule] = useState('')
   const [ruleError, setRuleError] = useState(false)
@@ -602,8 +622,16 @@ function ClientWizard({
           const at = CLIENT_STEPS.indexOf(step)
           return (
             <li key={s} className="flex min-w-0 flex-1 items-center gap-1.5 last:flex-none">
-              <button type="button" aria-current={s === step ? 'step' : undefined} disabled={busy} className={`flex shrink-0 items-center gap-1.5 rounded-full border py-1 pr-2.5 pl-1 ${s === step ? 'border-accent bg-accent/12 text-fg' : 'border-rim text-muted hover:text-fg'}`} onClick={() => void go(s)}>
-                <span className={`grid size-5 place-items-center rounded-full text-[11px] ${s === step ? 'bg-accent text-bg' : i < at ? 'bg-accent/25 text-accent-soft' : 'bg-raised text-subtle'}`}>{i < at ? '✓' : i + 1}</span>
+              <button
+                type="button"
+                aria-current={s === step ? 'step' : undefined}
+                disabled={busy}
+                className={`flex shrink-0 items-center gap-1.5 rounded-full border py-1 pr-2.5 pl-1 ${s === step ? 'border-accent bg-accent/12 text-fg' : 'border-rim text-muted hover:text-fg'}`}
+                onClick={() => void go(s)}
+              >
+                <span className={`grid size-5 place-items-center rounded-full text-[11px] ${s === step ? 'bg-accent text-bg' : i < at ? 'bg-accent/25 text-accent-soft' : 'bg-raised text-subtle'}`}>
+                  {i < at ? '✓' : i + 1}
+                </span>
                 <span className="hidden sm:inline">{clientStepLabel(s)}</span>
               </button>
               {i < CLIENT_STEPS.length - 1 && <span className="h-px min-w-2 flex-1 bg-rim" aria-hidden="true" />}
@@ -635,7 +663,13 @@ function ClientWizard({
                   )
                 })}
                 {OTHER_FOLDERS.map((f) => (
-                  <button key={f} type="button" aria-pressed={plan.folders.includes(f)} className={`${chip(plan.folders.includes(f))} font-mono`} onClick={() => toggleFolder(f, !plan.folders.includes(f))}>
+                  <button
+                    key={f}
+                    type="button"
+                    aria-pressed={plan.folders.includes(f)}
+                    className={`${chip(plan.folders.includes(f))} font-mono`}
+                    onClick={() => toggleFolder(f, !plan.folders.includes(f))}
+                  >
                     {plan.folders.includes(f) && '✓ '}
                     {f}
                   </button>
@@ -650,7 +684,12 @@ function ClientWizard({
                 {plan.folders.map((f) => (
                   <li key={f} className="flex items-center gap-2 rounded-lg border border-edge bg-sunken px-2.5 py-1.5 text-[13px]">
                     <span className="grow font-mono">{f}</span>
-                    <button type="button" className="text-muted hover:text-fg" aria-label={m.backup_client_removeFolder({ folder: f })} onClick={() => set({ folders: plan.folders.filter((x) => x !== f) })}>
+                    <button
+                      type="button"
+                      className="text-muted hover:text-fg"
+                      aria-label={m.backup_client_removeFolder({ folder: f })}
+                      onClick={() => set({ folders: plan.folders.filter((x) => x !== f) })}
+                    >
                       ✕
                     </button>
                   </li>
@@ -665,7 +704,13 @@ function ClientWizard({
                   setFolder('')
                 }}
               >
-                <input className="field font-mono" value={folder} placeholder={m.backup_clients_folderPlaceholder()} aria-label={m.backup_setup_addFolder()} onChange={(e) => setFolder(e.target.value)} />
+                <input
+                  className="field font-mono"
+                  value={folder}
+                  placeholder={m.backup_clients_folderPlaceholder()}
+                  aria-label={m.backup_setup_addFolder()}
+                  onChange={(e) => setFolder(e.target.value)}
+                />
                 <button type="submit" className="btn" disabled={!folder.trim()}>
                   {m.backup_setup_add()}
                 </button>
@@ -678,7 +723,13 @@ function ClientWizard({
                 {CLIENT_PRESETS.map((p) => {
                   const on = plan.exclude.presets.includes(p)
                   return (
-                    <button key={p} type="button" aria-pressed={on} className={chip(on)} onClick={() => set({ exclude: { ...plan.exclude, presets: on ? plan.exclude.presets.filter((x) => x !== p) : [...plan.exclude.presets, p] } })}>
+                    <button
+                      key={p}
+                      type="button"
+                      aria-pressed={on}
+                      className={chip(on)}
+                      onClick={() => set({ exclude: { ...plan.exclude, presets: on ? plan.exclude.presets.filter((x) => x !== p) : [...plan.exclude.presets, p] } })}
+                    >
                       {on && '✓ '}
                       {presetLabel(p)}
                     </button>
@@ -693,7 +744,12 @@ function ClientWizard({
                       <span className="font-mono">{r}</span>
                       <span className="chip">{ruleKindLabel(ruleKind(r))}</span>
                       <span className="grow" />
-                      <button type="button" className="text-muted hover:text-fg" aria-label={m.backup_cwiz_removeRule({ rule: r })} onClick={() => set({ exclude: { ...plan.exclude, patterns: plan.exclude.patterns.filter((x) => x !== r) } })}>
+                      <button
+                        type="button"
+                        className="text-muted hover:text-fg"
+                        aria-label={m.backup_cwiz_removeRule({ rule: r })}
+                        onClick={() => set({ exclude: { ...plan.exclude, patterns: plan.exclude.patterns.filter((x) => x !== r) } })}
+                      >
                         ✕
                       </button>
                     </li>
@@ -707,7 +763,17 @@ function ClientWizard({
                   addRule(rule)
                 }}
               >
-                <input className={`field font-mono ${ruleError ? 'border-[#f85149]!' : ''}`} value={rule} placeholder={m.backup_cwiz_rulePlaceholder()} aria-label={m.backup_cwiz_addRule()} aria-invalid={ruleError || undefined} onChange={(e) => (setRule(e.target.value), setRuleError(false))} />
+                <input
+                  className={`field font-mono ${ruleError ? 'border-[#f85149]!' : ''}`}
+                  value={rule}
+                  placeholder={m.backup_cwiz_rulePlaceholder()}
+                  aria-label={m.backup_cwiz_addRule()}
+                  aria-invalid={ruleError || undefined}
+                  onChange={(e) => {
+                    setRule(e.target.value)
+                    setRuleError(false)
+                  }}
+                />
                 <button type="submit" className="btn" disabled={!rule.trim()}>
                   {m.backup_setup_add()}
                 </button>
@@ -716,7 +782,13 @@ function ClientWizard({
               <div className="flex flex-wrap items-center gap-1.5 text-[12px] text-muted">
                 {m.backup_cwiz_examples()}
                 {RULE_EXAMPLES.filter((x) => !plan.exclude.patterns.includes(x)).map((x) => (
-                  <button key={x} type="button" className="rounded-[5px] bg-raised px-1.5 py-0.5 font-mono text-subtle hover:text-fg" aria-label={m.backup_cwiz_addExample({ rule: x })} onClick={() => addRule(x)}>
+                  <button
+                    key={x}
+                    type="button"
+                    className="rounded-[5px] bg-raised px-1.5 py-0.5 font-mono text-subtle hover:text-fg"
+                    aria-label={m.backup_cwiz_addExample({ rule: x })}
+                    onClick={() => addRule(x)}
+                  >
                     + {x}
                   </button>
                 ))}
@@ -725,7 +797,15 @@ function ClientWizard({
               <label className="flex flex-wrap items-center gap-2 text-[13px]">
                 <input type="checkbox" checked={!!plan.exclude.maxSizeGB} onChange={(e) => set({ exclude: { ...plan.exclude, maxSizeGB: e.target.checked ? 2 : undefined } })} />
                 {m.backup_setup_maxSizeBefore()}
-                <input className="field !w-[64px] !py-1" type="number" min={1} aria-label={m.backup_setup_maxSizeLabel()} disabled={!plan.exclude.maxSizeGB} value={plan.exclude.maxSizeGB ?? 2} onChange={(e) => set({ exclude: { ...plan.exclude, maxSizeGB: Math.max(1, Number(e.target.value) || 1) } })} />
+                <input
+                  className="field !w-[64px] !py-1"
+                  type="number"
+                  min={1}
+                  aria-label={m.backup_setup_maxSizeLabel()}
+                  disabled={!plan.exclude.maxSizeGB}
+                  value={plan.exclude.maxSizeGB ?? 2}
+                  onChange={(e) => set({ exclude: { ...plan.exclude, maxSizeGB: Math.max(1, Number(e.target.value) || 1) } })}
+                />
                 {m.backup_setup_maxSizeAfter()}
               </label>
               <p className="m-0 text-[12px] text-muted">
@@ -742,7 +822,14 @@ function ClientWizard({
               <div className="flex flex-wrap items-end gap-3">
                 <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={m.backup_wizard_every()}>
                   {(['hourly', '6h', 'daily', 'weekly'] as const).map((e) => (
-                    <button key={e} type="button" role="radio" aria-checked={plan.schedule.every === e} className={`btn ${plan.schedule.every === e ? 'border-accent! bg-accent/14! text-accent-soft' : ''}`} onClick={() => set({ schedule: { ...plan.schedule, every: e } })}>
+                    <button
+                      key={e}
+                      type="button"
+                      role="radio"
+                      aria-checked={plan.schedule.every === e}
+                      className={`btn ${plan.schedule.every === e ? 'border-accent! bg-accent/14! text-accent-soft' : ''}`}
+                      onClick={() => set({ schedule: { ...plan.schedule, every: e } })}
+                    >
                       {pickMsg({ hourly: m.backup_client_hourly, '6h': m.backup_setup_6h, daily: m.backup_setup_daily, weekly: m.backup_setup_weekly }, e)}
                     </button>
                   ))}
@@ -760,7 +847,14 @@ function ClientWizard({
             </section>
             <section className="flex flex-col gap-2.5 rounded-[10px] border border-rim p-3.5" aria-label={m.backup_cwiz_missing()}>
               <h3 className="m-0 text-[14px] font-semibold">{m.backup_cwiz_missing()}</h3>
-              <WarnInput warn={warn} days={days} onChange={(w, d) => (setWarn(w), setDays(d))} />
+              <WarnInput
+                warn={warn}
+                days={days}
+                onChange={(w, d) => {
+                  setWarn(w)
+                  setDays(d)
+                }}
+              />
               <label className="flex items-center gap-2.5 text-[13px]">
                 <input type="checkbox" checked={plan.active} onChange={(e) => set({ active: e.target.checked })} />
                 {m.backup_client_active()}
@@ -782,17 +876,28 @@ function ClientWizard({
                 {m.backup_wizard_whatSummary({ count: plan.folders.length })} · {m.backup_wizard_excludeSummary({ count: exclusions })}
               </dd>
               <div className="border-b border-line px-3 py-2.5 text-right">
-                <button type="button" className="text-[12.5px] text-accent hover:text-accent-soft" aria-label={m.backup_wizard_changeStep({ step: m.backup_setup_what() })} onClick={() => void go('what')}>
+                <button
+                  type="button"
+                  className="text-[12.5px] text-accent hover:text-accent-soft"
+                  aria-label={m.backup_wizard_changeStep({ step: m.backup_setup_what() })}
+                  onClick={() => void go('what')}
+                >
                   {m.backup_wizard_change()}
                 </button>
               </div>
               <dt className="px-3 py-2.5 text-muted">{m.backup_wizard_stepWhen()}</dt>
               <dd className="m-0 px-3 py-2.5">
-                {pickMsg({ hourly: m.backup_client_hourly, '6h': m.backup_setup_6h, daily: m.backup_setup_daily, weekly: m.backup_setup_weekly }, plan.schedule.every)} · {retentionPresetLabel(retentionPreset(plan.keep))}
+                {pickMsg({ hourly: m.backup_client_hourly, '6h': m.backup_setup_6h, daily: m.backup_setup_daily, weekly: m.backup_setup_weekly }, plan.schedule.every)} ·{' '}
+                {retentionPresetLabel(retentionPreset(plan.keep))}
                 {plan.active ? '' : ` · ${m.backup_clients_disabled()}`}
               </dd>
               <div className="px-3 py-2.5 text-right">
-                <button type="button" className="text-[12.5px] text-accent hover:text-accent-soft" aria-label={m.backup_wizard_changeStep({ step: m.backup_wizard_stepWhen() })} onClick={() => void go('when')}>
+                <button
+                  type="button"
+                  className="text-[12.5px] text-accent hover:text-accent-soft"
+                  aria-label={m.backup_wizard_changeStep({ step: m.backup_wizard_stepWhen() })}
+                  onClick={() => void go('when')}
+                >
                   {m.backup_wizard_change()}
                 </button>
               </div>
@@ -842,7 +947,14 @@ function ClientWizard({
               <details className="text-[13px]">
                 <summary className="cursor-pointer text-subtle">{m.backup_client_after()}</summary>
                 <pre className="mt-2 mb-0 overflow-x-auto rounded-lg border border-edge bg-[#070a0e] px-3 py-2 font-mono text-[12.5px] leading-relaxed">
-                  {['quadeck-backup check      # how big, with the exclusions (dry run)', 'quadeck-backup now        # back up right now', 'quadeck-backup status     # last backups, next run', 'quadeck-backup mount      # backups as folders under ~/Backup', 'quadeck-backup restore ~/Dokumente/x', 'quadeck-backup uninstall  # remove the timer'].join('\n')}
+                  {[
+                    'quadeck-backup check      # how big, with the exclusions (dry run)',
+                    'quadeck-backup now        # back up right now',
+                    'quadeck-backup status     # last backups, next run',
+                    'quadeck-backup mount      # backups as folders under ~/Backup',
+                    'quadeck-backup restore ~/Dokumente/x',
+                    'quadeck-backup uninstall  # remove the timer',
+                  ].join('\n')}
                 </pre>
               </details>
             </section>

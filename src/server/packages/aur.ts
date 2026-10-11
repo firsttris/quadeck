@@ -5,9 +5,9 @@
 // stop at a password prompt.
 
 import { chmodSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import type { AurInfo, PackageUpdate } from '~/shared/packages'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
+import type { AurInfo, PackageUpdate } from '~/shared/packages'
 import { run } from '../exec'
 import { readAuthFiles, suggestedUser } from '../privileged/crypt'
 import { parseNameVersion } from './parse'
@@ -67,7 +67,7 @@ export async function aurUpdates(fetcher: typeof fetch = fetch): Promise<Package
 export function passwdEntry(user: string) {
   const line = readFileSync('/etc/passwd', 'utf8')
     .split('\n')
-    .find((l) => l.startsWith(user + ':'))
+    .find((l) => l.startsWith(`${user}:`))
   if (!line) throw new Error(msg(m.packages_error_userMissing, { user }))
   const f = line.split(':')
   return { uid: Number(f[2]), home: f[5] || `/home/${user}` }
@@ -91,7 +91,10 @@ export async function runAurUpgrade(helper: 'yay' | 'paru', user: string, exec: 
       if (check.code !== 0) throw new Error(msg(m.packages_error_sudoersCheck, { reason: check.stderr.trim() }))
     }
     log(msg(m.packages_note_aurUpdateAs, { helper, user }))
-    const flags = helper === 'yay' ? ['--answerdiff', 'None', '--answerclean', 'None', '--answeredit', 'None', '--answerupgrade', 'None', '--removemake', '--cleanafter'] : ['--skipreview', '--removemake', '--cleanafter']
+    const flags =
+      helper === 'yay'
+        ? ['--answerdiff', 'None', '--answerclean', 'None', '--answeredit', 'None', '--answerupgrade', 'None', '--removemake', '--cleanafter']
+        : ['--skipreview', '--removemake', '--cleanafter']
     return await exec(['runuser', '-u', user, '--', helper, '-Sua', '--noconfirm', ...flags], {
       HOME: home,
       USER: user,

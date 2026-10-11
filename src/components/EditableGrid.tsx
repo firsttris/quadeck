@@ -1,5 +1,5 @@
-import { useCallback, useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { Responsive, useContainerWidth, type Layout, type LayoutItem } from 'react-grid-layout'
+import { type CSSProperties, type ReactNode, useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { type Layout, type LayoutItem, Responsive, useContainerWidth } from 'react-grid-layout'
 import type { GridItem } from '~/shared/layout'
 
 /** Default position for one item; h undefined = automatic height (measured from the content). */
@@ -35,7 +35,12 @@ const rowsFor = (px: number, rowHeight: number, gap: number) => Math.max(1, Math
  * automatic height); items without a saved position keep their default slot
  * but go below the saved ones, where vertical compaction pulls them up.
  */
-export function mergeLayout(defaults: DefaultItem[], saved: GridItem[] | undefined, measured: Record<string, number>, spec: Pick<GridSpec, 'rowHeight' | 'margin'>): (LayoutItem & { auto: boolean })[] {
+export function mergeLayout(
+  defaults: DefaultItem[],
+  saved: GridItem[] | undefined,
+  measured: Record<string, number>,
+  spec: Pick<GridSpec, 'rowHeight' | 'margin'>,
+): (LayoutItem & { auto: boolean })[] {
   const byId = new Map((saved ?? []).map((s) => [s.i, s]))
   const offset = saved?.length ? 1000 : 0
   return defaults.map((d) => {
@@ -110,11 +115,11 @@ export function EditableGrid({ spec, items, saved, editing, onSave, handle, clas
   )
 
   const ids = items.map((it) => it.i).join('\n')
+  // biome-ignore lint/correctness/useExhaustiveDependencies: ids stand for the item list, which is a new array on every render
   const layouts = useMemo(() => {
     const out: Record<string, (LayoutItem & { auto: boolean })[]> = {}
     for (const [bp, cols] of Object.entries(spec.cols)) out[bp] = mergeLayout(spec.defaults(bp, cols), saved[bp], measured, spec)
     return out
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ids, saved, measured, spec])
 
   const bp = mounted ? currentBreakpoint(spec.breakpoints, width) : ssrBreakpoint

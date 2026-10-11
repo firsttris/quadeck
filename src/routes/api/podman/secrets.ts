@@ -1,11 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { m } from '~/paraglide/messages'
 import { HttpError } from '~/server/auth'
 import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
 import { privileged } from '~/server/privileged'
 import { unlockToken } from '~/server/unlock-sessions'
 import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 
 // GET: Podman secrets (names, dates, which Quadlet uses them – never values) and passwords in
 // plain text in Quadlet files. POST (unlock): { action: 'create' | 'replace', name, value } |

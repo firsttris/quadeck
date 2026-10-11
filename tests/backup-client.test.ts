@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { run } from '~/server/exec'
-import { clientCalendar, clientCommand, clientExcludes, clientForgetArgs, clientScript, defaultClientPlan, parseClientPlan, ruleKind, ruleProblem, sq, type ClientPlan } from '~/shared/backup-client'
+import { type ClientPlan, clientCalendar, clientCommand, clientExcludes, clientForgetArgs, clientScript, defaultClientPlan, parseClientPlan, ruleKind, ruleProblem, sq } from '~/shared/backup-client'
 
 const plan = (over: Partial<ClientPlan> = {}): ClientPlan => ({ ...defaultClientPlan(), ...over })
 
@@ -13,7 +13,16 @@ describe('client plan', () => {
     expect(error).toBeUndefined()
     expect(p!.folders).toEqual(['~/Dokumente', '~', '/etc/nginx'])
   })
-  it.each([['relative', ['Dokumente']], ['root', ['/']], ['dot-dot', ['~/../etc']], ['trailing slash', ['~/a/']], ['double slash', ['~//a']], ['newline', ['~/a\nb']], ['none', []], ['~user', ['~bob/x']]])('refuses %s folders', (_n, folders) => {
+  it.each([
+    ['relative', ['Dokumente']],
+    ['root', ['/']],
+    ['dot-dot', ['~/../etc']],
+    ['trailing slash', ['~/a/']],
+    ['double slash', ['~//a']],
+    ['newline', ['~/a\nb']],
+    ['none', []],
+    ['~user', ['~bob/x']],
+  ])('refuses %s folders', (_n, folders) => {
     expect(parseClientPlan({ ...plan(), folders }).error).toBeTruthy()
   })
   it('refuses bad schedules, retention and patterns', () => {
@@ -63,7 +72,10 @@ const input = (over: Partial<Parameters<typeof clientScript>[0]> = {}) => ({
 describe('client script', () => {
   it('is valid sh, both the setup and the installed command', async () => {
     const dir = mkdtempSync(join(tmpdir(), 'qd-sh-'))
-    writeFileSync(join(dir, 'setup.sh'), clientScript(input({ plan: plan({ folders: ["~/Bob's files", '~/a b'], exclude: { presets: ['caches', 'nobackup'], patterns: ['*.$weird'], maxSizeGB: 2 } }) })))
+    writeFileSync(
+      join(dir, 'setup.sh'),
+      clientScript(input({ plan: plan({ folders: ["~/Bob's files", '~/a b'], exclude: { presets: ['caches', 'nobackup'], patterns: ['*.$weird'], maxSizeGB: 2 } }) })),
+    )
     writeFileSync(join(dir, 'cmd.sh'), clientCommand())
     for (const f of ['setup.sh', 'cmd.sh']) expect((await run(['sh', '-n', join(dir, f)])).code).toBe(0)
     const text = clientScript(input())
@@ -100,7 +112,8 @@ describe.skipIf(!hasRestic)('client script on a (sandboxed) computer', () => {
       writeFileSync(join(root, 'setup.sh'), clientScript(input({ repo: join(root, 'repo'), plan: p, version })))
       return run(['sh', join(root, 'setup.sh')], { env, timeoutMs: 60_000 })
     }
-    const restic = (...args: string[]) => run(['restic', ...args], { env: { ...env, RESTIC_REPOSITORY: join(root, 'repo'), RESTIC_PASSWORD_FILE: join(home, '.config/quadeck-backup/password') }, timeoutMs: 60_000 })
+    const restic = (...args: string[]) =>
+      run(['restic', ...args], { env: { ...env, RESTIC_REPOSITORY: join(root, 'repo'), RESTIC_PASSWORD_FILE: join(home, '.config/quadeck-backup/password') }, timeoutMs: 60_000 })
     return { root, home, env, script, restic, calls: () => (existsSync(join(root, 'calls')) ? readFileSync(join(root, 'calls'), 'utf8') : '') }
   }
 

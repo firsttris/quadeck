@@ -2,14 +2,15 @@
 
 import { AsyncLocalStorage } from 'node:async_hooks'
 import { m as messages } from '~/paraglide/messages'
-import { currentLang, langOfRequest, localize, localizeDeep, registerMessages, setLangResolver, type Lang, type Message } from '~/shared/i18n'
+import { currentLang, type Lang, langOfRequest, localize, localizeDeep, type Message, registerMessages, setLangResolver } from '~/shared/i18n'
 
 // The full message table, server-side only: marks carry the key and are rendered by it later.
 registerMessages(messages as unknown as Record<string, Message>)
 
 // One store per process: main.ts and the bundled server routes each load their own copy of this module.
 const g = globalThis as unknown as { __quadeckLangStore?: AsyncLocalStorage<Lang> }
-const store = (g.__quadeckLangStore ??= new AsyncLocalStorage<Lang>())
+g.__quadeckLangStore ??= new AsyncLocalStorage<Lang>()
+const store = g.__quadeckLangStore
 
 /** Web process: msg() answers in the language of the current request; outside of one it keeps key and inputs. */
 export function installRequestLang() {

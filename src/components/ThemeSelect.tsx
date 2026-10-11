@@ -1,5 +1,5 @@
-import { THEMES, THEME_SWATCH, setTheme, useTheme, type Theme } from '~/lib/theme'
 import { pickMsg } from '~/i18n'
+import { setTheme, THEME_SWATCH, THEMES, type Theme, useTheme } from '~/lib/theme'
 import { m } from '~/paraglide/messages'
 
 export const themeLabel = (theme: Theme) => pickMsg({ quadeck: m.theme_quadeck, nord: m.theme_nord, ocean: m.theme_ocean, amethyst: m.theme_amethyst, copper: m.theme_copper }, theme)

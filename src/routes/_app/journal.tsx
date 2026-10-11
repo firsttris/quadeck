@@ -1,11 +1,11 @@
 import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { memo, useEffect, useRef, useState } from 'react'
 import { PageHeader } from '~/components/PageHeader'
+import { pickMsg } from '~/i18n'
 import { clock } from '~/lib/format'
 import { useLiveState } from '~/lib/live'
-import type { JournalEntry } from '~/shared/types'
 import { m } from '~/paraglide/messages'
-import { pickMsg } from '~/i18n'
+import type { JournalEntry } from '~/shared/types'
 
 // Labels come from t.journal.prio.
 const PRIOS = [
@@ -50,6 +50,7 @@ function Journal() {
   const seen = useRef(new Set<string>())
   const delay = useRef(RETRY_MIN_MS)
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: connect again only when the filter or the follow switch changes
   useEffect(() => {
     if (!live) {
       setStatus('paused')
@@ -114,6 +115,7 @@ function Journal() {
     }
   }, [unit, prio, live, attempt])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scroll down when new lines arrive
   useEffect(() => {
     const el = box.current
     if (el && stick.current) el.scrollTop = el.scrollHeight
@@ -126,7 +128,7 @@ function Journal() {
 
   return (
     <>
-      <PageHeader title="Journal" subtitle={m.journal_subtitle({ unit: unit ?? "", hasUnit: String(!!unit) })} />
+      <PageHeader title="Journal" subtitle={m.journal_subtitle({ unit: unit ?? '', hasUnit: String(!!unit) })} />
       <div className="flex flex-wrap items-center gap-[10px]">
         <div role="group" aria-label={m.journal_unitGroup()} className="flex flex-wrap gap-1.5">
           <button type="button" className={`seg ${!unit ? 'on' : ''}`} onClick={() => navigate({ search: (s) => ({ ...s, unit: undefined }) })}>
@@ -142,7 +144,7 @@ function Journal() {
         <div role="group" aria-label={m.journal_prioGroup()} className="flex gap-1.5">
           {PRIOS.map(([k]) => (
             <button key={k} type="button" className={`seg ${prio === k ? 'on' : ''}`} onClick={() => navigate({ search: (s) => ({ ...s, prio: k === 'all' ? undefined : k }) })}>
-              {pickMsg({ "all": m.journal_prio_all, "err": m.journal_prio_err, "warning": m.journal_prio_warning }, k)}
+              {pickMsg({ all: m.journal_prio_all, err: m.journal_prio_err, warning: m.journal_prio_warning }, k)}
             </button>
           ))}
         </div>
@@ -151,7 +153,9 @@ function Journal() {
           {m.journal_fullText()}
         </label>
         <input id="jsearch" className="field !w-48 !py-1.5 text-[13px]" placeholder={m.journal_search()} value={query} onChange={(e) => setQuery(e.target.value)} />
-        <span className={`live ${status === 'live' ? '' : 'off'}`}>{pickMsg({ "live": m.journal_status_live, "paused": m.journal_status_paused, "error": m.journal_status_error, "connecting": m.journal_status_connecting }, status)}</span>
+        <span className={`live ${status === 'live' ? '' : 'off'}`}>
+          {pickMsg({ live: m.journal_status_live, paused: m.journal_status_paused, error: m.journal_status_error, connecting: m.journal_status_connecting }, status)}
+        </span>
         <button type="button" className="btn sm" onClick={() => setLive(!live)}>
           {live ? m.journal_pause() : m.journal_follow()}
         </button>

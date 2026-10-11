@@ -4,10 +4,10 @@
 // neither the API nor the binary is available on the host).
 
 import { existsSync, readFileSync } from 'node:fs'
+import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import { run } from '../exec'
 import type { DiscoveryProvider, ServiceCandidate } from './types'
-import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 
 interface CaddyRoute {
   match?: { host?: string[]; path?: string[] }[]
@@ -150,7 +150,7 @@ export function candidatesFromCaddyfile(src: string): ServiceCandidate[] {
     const targets = override ? override.map((h) => ({ host: h, scheme: site!.addrs[0]?.scheme ?? 'https', port: site!.addrs[0]?.port })) : site.addrs
     for (const a of targets) {
       if (isWildcardOrIp(a.host)) continue
-      out.push({ host: a.host, url: `${a.scheme}://${a.host}${a.port ? ':' + a.port : ''}${path}`, upstreams, provider: 'caddy' })
+      out.push({ host: a.host, url: `${a.scheme}://${a.host}${a.port ? `:${a.port}` : ''}${path}`, upstreams, provider: 'caddy' })
     }
   }
 

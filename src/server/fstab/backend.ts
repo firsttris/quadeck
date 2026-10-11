@@ -9,29 +9,29 @@
 // atomic write with backup and history → daemon-reload → start/remount the
 // mount unit. Any failure after writing restores the old file.
 
-import { existsSync, mkdtempSync, readdirSync, readFileSync, rmdirSync, rmSync, statSync, writeFileSync, mkdirSync } from 'node:fs'
-import { writeFileAtomic } from '../atomic'
+import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmdirSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { statfs } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { HttpError } from '../auth'
-import { run } from '../exec'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
-import { UnitHistory } from '../systemd/editor'
-import type { Diagnostic, Revision } from '~/shared/quadlets'
 import {
-  FSTAB_PATH,
-  FS_PACKAGE,
-  FstabConflict,
-  USERSPACE_OPTION,
   applyChange,
+  type BlockDevice,
   checkFile,
   checkInput,
+  type EntryInput,
+  FS_PACKAGE,
+  FSTAB_PATH,
+  type FstabChange,
+  type FstabCheck,
+  FstabConflict,
+  type FstabEntry,
+  type FstabState,
   isBlockSpec,
   isBootCritical,
   isNetworkSpec,
   knownOption,
+  type MountView,
   mountUnit,
   newlyCritical,
   parseFstab,
@@ -39,14 +39,14 @@ import {
   specMatches,
   systemReason,
   targetProblem,
-  type BlockDevice,
-  type EntryInput,
-  type FstabChange,
-  type FstabCheck,
-  type FstabEntry,
-  type FstabState,
-  type MountView,
+  USERSPACE_OPTION,
 } from '~/shared/fstab'
+import { msg } from '~/shared/i18n'
+import type { Diagnostic, Revision } from '~/shared/quadlets'
+import { writeFileAtomic } from '../atomic'
+import { HttpError } from '../auth'
+import { run } from '../exec'
+import { UnitHistory } from '../systemd/editor'
 
 export interface FstabAdmin {
   fstabState(): Promise<FstabState>
@@ -167,7 +167,7 @@ export class FstabManager implements FstabBackend {
     // The entry being changed, and the one it replaces.
     const old = change.kind === 'update' || change.kind === 'remove' ? parseFstab(before).entries.find((e) => e.line === change.line) : undefined
     if (old && systemReason(old, ctx.rootSpecs)) {
-      out.push({ severity: 'error', message: `${old.file}: ${systemReason(old, ctx.rootSpecs)}` + msg(m.fstab_error_systemNotChanged) })
+      out.push({ severity: 'error', message: `${old.file}: ${systemReason(old, ctx.rootSpecs)}${msg(m.fstab_error_systemNotChanged)}` })
       return result()
     }
     if (change.kind === 'add' || change.kind === 'update') out.push(...checkInput(change.entry))
@@ -199,7 +199,8 @@ export class FstabManager implements FstabBackend {
       }
       const dev = ctx.devices.find((d) => specMatches(e.spec, d))
       if (!dev) out.push({ line: e.line, severity: isBootCritical(e) || change.kind === 'add' ? 'error' : 'warning', message: label(e) + msg(m.fstab_error_deviceMissing, { spec: e.spec }) })
-      else if (!fsCompatible(e.vfstype, dev.fstype)) out.push({ line: e.line, severity: 'error', message: label(e) + msg(m.fstab_error_wrongFsType, { path: dev.path, fstype: dev.fstype || msg(m.fstab_label_noFileSystem), vfstype: e.vfstype }) })
+      else if (!fsCompatible(e.vfstype, dev.fstype))
+        out.push({ line: e.line, severity: 'error', message: label(e) + msg(m.fstab_error_wrongFsType, { path: dev.path, fstype: dev.fstype || msg(m.fstab_label_noFileSystem), vfstype: e.vfstype }) })
       const type = e.vfstype === 'auto' ? dev?.fstype : e.vfstype
       if (type && !(await this.host.driver(type)))
         out.push({
@@ -322,7 +323,7 @@ export class FstabManager implements FstabBackend {
     const { rootSpecs, text } = await this.context()
     const e = parseFstab(text).entries.find((x) => x.file === target)
     if (!e) throw new HttpError(404, msg(m.fstab_error_notInFstab, { target }))
-    if (systemReason(e, rootSpecs)) throw new HttpError(403, `${target}: ${systemReason(e, rootSpecs)}` + msg(m.fstab_error_systemNoMount))
+    if (systemReason(e, rootSpecs)) throw new HttpError(403, `${target}: ${systemReason(e, rootSpecs)}${msg(m.fstab_error_systemNoMount)}`)
     if (action === 'mount') {
       if (this.host.dirState(target) === 'missing') this.host.mkdir(target)
       const r = await this.host.systemctl(['start', '--', mountUnit(target)])
@@ -434,7 +435,7 @@ export function pathsInUse(files: { smb?: string; exports?: string[]; quadlets?:
   return out
 }
 
-export const usedUnder = (all: { path: string; what: string }[], target: string) => [...new Set(all.filter((u) => u.path === target || u.path.startsWith(target + '/')).map((u) => u.what))]
+export const usedUnder = (all: { path: string; what: string }[], target: string) => [...new Set(all.filter((u) => u.path === target || u.path.startsWith(`${target}/`)).map((u) => u.what))]
 
 export class SystemFstabHost implements FstabHost {
   readonly path: string

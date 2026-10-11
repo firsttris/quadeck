@@ -1,6 +1,9 @@
 import { useCallback, useEffect, useId, useMemo, useState } from 'react'
-import { applyCaddyChange, NO_OPTIONS, type CaddyBlock, type CaddyChange, type CaddyResult, type CaddyState, type SiteOptions } from '~/shared/caddy'
+import { pickMsg } from '~/i18n'
+import { dateTime } from '~/lib/format'
 import { useLiveState } from '~/lib/live'
+import { m } from '~/paraglide/messages'
+import { applyCaddyChange, type CaddyBlock, type CaddyChange, type CaddyResult, type CaddyState, NO_OPTIONS, type SiteOptions } from '~/shared/caddy'
 import { useActions } from './Actions'
 import { BusyButton, useBusy } from './Busy'
 import { Modal } from './Modal'
@@ -8,9 +11,6 @@ import { DiffView, TextView } from './QuadletEditor'
 import { Pill } from './Status'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
-import { m } from '~/paraglide/messages'
-import { pickMsg } from '~/i18n'
-import { dateTime } from '~/lib/format'
 
 type Pending = { change: CaddyChange; after: string; title: string }
 
@@ -62,8 +62,8 @@ export function ReverseProxy() {
   const others = state?.blocks.filter((b) => b.kind !== 'proxy' && b.kind !== 'site') ?? []
   const also = [
     others.some((b) => b.kind === 'global') && m.proxy_table_global(),
-    others.filter((b) => b.kind === 'snippet').length > 0 && m.proxy_table_snippets({ n: (others.filter((b) => b.kind === 'snippet').length) }),
-    others.filter((b) => b.kind === 'import').length > 0 && m.proxy_table_imports({ n: (others.filter((b) => b.kind === 'import').length) }),
+    others.filter((b) => b.kind === 'snippet').length > 0 && m.proxy_table_snippets({ n: others.filter((b) => b.kind === 'snippet').length }),
+    others.filter((b) => b.kind === 'import').length > 0 && m.proxy_table_imports({ n: others.filter((b) => b.kind === 'import').length }),
   ]
     .filter(Boolean)
     .join(', ')
@@ -79,7 +79,13 @@ export function ReverseProxy() {
           <div className="flex flex-wrap items-center gap-2">
             <h2 className="h2 grow">{m.proxy_title()}</h2>
             <Pill tone={state.running ? 'ok' : 'warn'}>
-              {state.reload === 'api' ? m.proxy_status_api() : state.reload === 'container' ? m.proxy_status_container({ c: (src?.container ?? 'caddy') }) : state.reload === 'service' ? m.proxy_status_service() : m.proxy_status_none()}
+              {state.reload === 'api'
+                ? m.proxy_status_api()
+                : state.reload === 'container'
+                  ? m.proxy_status_container({ c: src?.container ?? 'caddy' })
+                  : state.reload === 'service'
+                    ? m.proxy_status_service()
+                    : m.proxy_status_none()}
             </Pill>
           </div>
           <p className="m-0 text-[13px] text-muted">{m.proxy_intro()}</p>
@@ -88,7 +94,15 @@ export function ReverseProxy() {
               <span className="font-mono">{src.path}</span>
               <span className="text-muted">
                 –{' '}
-                {src.how === 'quadlet' ? m.proxy_source_quadlet({ quadlet: (src.quadlet ?? ''), containerPath: (src.containerPath ?? '') }) : src.how === 'service' ? m.proxy_source_service() : src.how === 'env' ? m.proxy_source_env() : src.how === 'manual' ? m.proxy_source_manual() : m.proxy_source_default()}
+                {src.how === 'quadlet'
+                  ? m.proxy_source_quadlet({ quadlet: src.quadlet ?? '', containerPath: src.containerPath ?? '' })
+                  : src.how === 'service'
+                    ? m.proxy_source_service()
+                    : src.how === 'env'
+                      ? m.proxy_source_env()
+                      : src.how === 'manual'
+                        ? m.proxy_source_manual()
+                        : m.proxy_source_default()}
               </span>
               {!readonly && src.how !== 'env' && (
                 <button type="button" className="border-0 bg-transparent p-0 text-[12px] text-accent hover:underline" onClick={() => setPick(src.how === 'manual' ? src.path : '')}>
@@ -193,7 +207,13 @@ export function ReverseProxy() {
         </section>
       )}
 
-      {site && <SiteDialog init={site} onClose={() => setSite(null)} onNext={(change) => propose(change, change.kind === 'site' && change.previous ? m.proxy_site_editTitle({ address: change.previous }) : m.proxy_site_newTitle())} />}
+      {site && (
+        <SiteDialog
+          init={site}
+          onClose={() => setSite(null)}
+          onNext={(change) => propose(change, change.kind === 'site' && change.previous ? m.proxy_site_editTitle({ address: change.previous }) : m.proxy_site_newTitle())}
+        />
+      )}
       {text && (
         <Modal open wide title={m.proxy_text_title()} onClose={() => setText(null)}>
           {text.note && <p className="m-0 text-[13px] text-[#e3b341]">{text.note}</p>}
@@ -221,7 +241,11 @@ export function ReverseProxy() {
             <button type="button" className="btn" onClick={() => setBlock(null)}>
               {m.common_cancel()}
             </button>
-            <button type="button" className="btn primary" onClick={() => setBlock({ ...block, error: propose({ kind: 'block', address: block.address, text: block.text }, m.proxy_block_title({ address: block.address })) })}>
+            <button
+              type="button"
+              className="btn primary"
+              onClick={() => setBlock({ ...block, error: propose({ kind: 'block', address: block.address, text: block.text }, m.proxy_block_title({ address: block.address })) })}
+            >
               {m.proxy_text_next()}
             </button>
           </div>
@@ -239,7 +263,14 @@ export function ReverseProxy() {
             setText(null)
             setBlock(null)
             setState(r.state)
-            say(r.warning ?? pickMsg({ "api": m.proxy_done_api, "container": m.proxy_done_container, "service": m.proxy_done_service, "none": m.proxy_done_none, "path": m.proxy_done_path, "automatic": m.proxy_done_automatic }, r.reloaded), r.warning ? 'bad' : undefined)
+            say(
+              r.warning ??
+                pickMsg(
+                  { api: m.proxy_done_api, container: m.proxy_done_container, service: m.proxy_done_service, none: m.proxy_done_none, path: m.proxy_done_path, automatic: m.proxy_done_automatic },
+                  r.reloaded,
+                ),
+              r.warning ? 'bad' : undefined,
+            )
           }}
           apply={(change) => guarded<CaddyResult>('/api/caddy', { body: { apply: change, expected: state.hash } })}
         />
@@ -279,7 +310,14 @@ function SiteRow({ b, readonly, onEdit, onText, onDelete }: { b: CaddyBlock; rea
       <td>
         <div className="flex flex-col">
           {b.addresses.map((a) => (
-            <a key={a} href={/^https?:\/\//.test(a) ? a : a.startsWith(':') ? undefined : `https://${a}`} target="_blank" rel="noreferrer" className="font-mono text-[13px] font-medium text-fg hover:text-accent" title={m.proxy_actions_open({ address: a })}>
+            <a
+              key={a}
+              href={/^https?:\/\//.test(a) ? a : a.startsWith(':') ? undefined : `https://${a}`}
+              target="_blank"
+              rel="noreferrer"
+              className="font-mono text-[13px] font-medium text-fg hover:text-accent"
+              title={m.proxy_actions_open({ address: a })}
+            >
               {a}
             </a>
           ))}
@@ -416,7 +454,14 @@ function SiteDialog({ init, onClose, onNext }: { init: SiteInit; onClose: () => 
               </label>
               <label className={field}>
                 {m.proxy_site_authPassword()}
-                <input className="field" type="password" value={password} onChange={(e) => setPassword(e.target.value)} autoComplete="new-password" placeholder={hadAuth ? m.proxy_site_authKeep() : ''} />
+                <input
+                  className="field"
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  autoComplete="new-password"
+                  placeholder={hadAuth ? m.proxy_site_authKeep() : ''}
+                />
               </label>
             </div>
           </Option>
@@ -489,13 +534,25 @@ function PickDialog({ init, busy, onClose, onPick }: { init: string; busy: boole
   )
 }
 
-function ConfirmChange({ pending, state, onClose, onDone, apply }: { pending: Pending; state: CaddyState; onClose: () => void; onDone: (r: CaddyResult) => void; apply: (change: CaddyChange) => Promise<CaddyResult | undefined> }) {
+function ConfirmChange({
+  pending,
+  state,
+  onClose,
+  onDone,
+  apply,
+}: {
+  pending: Pending
+  state: CaddyState
+  onClose: () => void
+  onDone: (r: CaddyResult) => void
+  apply: (change: CaddyChange) => Promise<CaddyResult | undefined>
+}) {
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   return (
     <Modal open wide title={pending.title} onClose={onClose}>
       <DiffView before={state.content ?? ''} after={pending.after} />
-      <p className="m-0 text-[13px] text-muted">{m.proxy_confirm_steps({ path: (state.source?.path ?? '') })}</p>
+      <p className="m-0 text-[13px] text-muted">{m.proxy_confirm_steps({ path: state.source?.path ?? '' })}</p>
       {!state.running && <p className="m-0 text-[13px] text-[#e3b341]">{m.proxy_confirm_stopped()}</p>}
       {error && (
         <p role="alert" className="m-0 whitespace-pre-wrap text-[13px] text-[#ff8a80]">

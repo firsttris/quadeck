@@ -3,11 +3,11 @@
 
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import type { NewsItem } from '~/shared/packages'
 import { config } from './config'
 import { parseRss } from './packages/parse'
-import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 
 const FEED = 'https://archlinux.org/feeds/news/'
 const TTL = 3 * 60 * 60_000

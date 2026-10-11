@@ -7,7 +7,10 @@ export const GLYPHS: Record<string, string[]> = {
   journal: ['M5 3h14v18H5z', 'M9 7h6', 'M9 11h6', 'M9 15h4'],
   logout: ['M9 21H5V3h4', 'M16 17l5-5-5-5', 'M21 12H9'],
   plus: ['M12 5v14M5 12h14'],
-  settings: ['M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6', 'M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z'],
+  settings: [
+    'M12 15a3 3 0 1 0 0-6 3 3 0 0 0 0 6',
+    'M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z',
+  ],
   trash: ['M4 7h16', 'M9 7V4h6v3', 'M6 7l1 13h10l1-13'],
   restart: ['M3 12a9 9 0 1 0 3-6.7', 'M3 4v5h5'],
   stop: ['M6 6h12v12H6z'],
@@ -61,8 +64,26 @@ export function Glyph({ name, size = 17, strokeWidth = 1.8 }: { name: string; si
 
 export function Logo({ size = 34 }: { size?: number }) {
   return (
-    <div className="brand flex shrink-0 items-center justify-center rounded-[10px]" style={{ width: size, height: size, background: 'linear-gradient(135deg,var(--color-accent),var(--color-accent-deep))', boxShadow: '0 0 20px color-mix(in srgb, var(--color-accent) 35%, transparent)' }}>
-      <svg width={Math.round(size * 0.59)} height={Math.round(size * 0.59)} viewBox="0 0 24 24" fill="none" stroke="var(--color-bg)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <div
+      className="brand flex shrink-0 items-center justify-center rounded-[10px]"
+      style={{
+        width: size,
+        height: size,
+        background: 'linear-gradient(135deg,var(--color-accent),var(--color-accent-deep))',
+        boxShadow: '0 0 20px color-mix(in srgb, var(--color-accent) 35%, transparent)',
+      }}
+    >
+      <svg
+        width={Math.round(size * 0.59)}
+        height={Math.round(size * 0.59)}
+        viewBox="0 0 24 24"
+        fill="none"
+        stroke="var(--color-bg)"
+        strokeWidth="2.2"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        aria-hidden="true"
+      >
         <path d="M3 14h18l-2.5 5h-13z" />
         <path d="M6 14V9h4v5" />
         <path d="M12 14V6h5v8" />

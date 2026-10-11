@@ -3,31 +3,31 @@
 // every other timer via drop-in. SystemTimers runs where root is,
 // FixtureTimers keeps demo data in memory.
 
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
-import { HttpError } from '../auth'
-import { run, runOk } from '../exec'
-import { writeFileAtomic } from '../atomic'
-import { parseShow, parseTimestamp } from '../collectors/systemd'
+import { msg } from '~/shared/i18n'
 import {
   CALENDAR,
-  TIMER_ACTIONS,
-  TIMER_BASE,
-  TIMER_UNIT,
+  type CalendarPreview,
   overrideDropIn,
   parseSpec,
   renderService,
   renderTimer,
   specFromService,
-  type CalendarPreview,
+  TIMER_ACTIONS,
+  TIMER_BASE,
+  TIMER_UNIT,
   type TimerAction,
   type TimerEntry,
   type TimerSpec,
   type TimersState,
 } from '~/shared/timers'
+import { writeFileAtomic } from '../atomic'
+import { HttpError } from '../auth'
+import { parseShow, parseTimestamp } from '../collectors/systemd'
+import { run, runOk } from '../exec'
 
 export interface TimersAdmin {
   timersState(): Promise<TimersState>
@@ -195,7 +195,7 @@ export class SystemTimers implements TimersBackend {
       }
     for (const l of `${files.stdout}\n${loaded.stdout}`.split('\n')) {
       const n = l.trim().split(/\s+/)[0]
-      if (n && n.endsWith('.timer') && !n.includes('@.') && TIMER_UNIT.test(n)) names.add(n)
+      if (n?.endsWith('.timer') && !n.includes('@.') && TIMER_UNIT.test(n)) names.add(n)
     }
     const managed = this.managed()
     for (const base of managed.keys()) names.add(`${base}.timer`)
@@ -467,7 +467,9 @@ export class FixtureTimers implements TimersBackend {
     if (spec) return `# ${e.path}\n${renderTimer(spec)}\n# /etc/systemd/system/${e.service}\n${renderService(spec)}`
     const timer = `# ${e.path}\n[Unit]\nDescription=${e.description ?? e.name}\n\n[Timer]\nOnCalendar=${this.originals.get(name) ?? e.calendars[0] ?? 'daily'}\nPersistent=true\n\n[Install]\nWantedBy=timers.target\n`
     const drop = e.override ? `\n# /etc/systemd/system/${name}.d/${OVERRIDE_FILE}\n${overrideDropIn(e.override)}` : ''
-    const svc = e.service ? `\n# ${dirname(e.path ?? '/etc/systemd/system/x')}/${e.service}\n[Unit]\nDescription=${e.description ?? e.service}\n\n[Service]\nType=oneshot\nExecStart=${e.command ?? '/bin/true'}\n` : ''
+    const svc = e.service
+      ? `\n# ${dirname(e.path ?? '/etc/systemd/system/x')}/${e.service}\n[Unit]\nDescription=${e.description ?? e.service}\n\n[Service]\nType=oneshot\nExecStart=${e.command ?? '/bin/true'}\n`
+      : ''
     return timer + drop + svc
   }
 

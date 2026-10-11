@@ -25,6 +25,7 @@ export function PasskeysDialog({ open, onClose }: { open: boolean; onClose: () =
       .then((r) => setList(r.passkeys))
       .catch((e) => setError((e as Error).message))
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset and load each time the dialog opens
   useEffect(() => {
     if (!open) return
     setError('')

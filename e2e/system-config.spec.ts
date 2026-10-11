@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
 
 // fixtures/demo/packages.json: .pacnew/.pacsave files with contents in configContents.
 const PASSWORD = 'e2e-password-123'

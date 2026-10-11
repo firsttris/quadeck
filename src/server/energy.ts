@@ -3,9 +3,29 @@
 // kept two years. The current hour is rewritten on every tick, so a restart loses nothing.
 
 import { and, eq, gte, inArray, lt, sql } from 'drizzle-orm'
-import { COMPONENTS, DEFAULT_ENERGY, withSettings, dailyAverage, dayStart, group, monthProjection, parseEnergySettings, powerNow, raplWatts, standbySavings, sumSplit, kwh, type DiskKind, type EnergySettings, type HourEnergy, type PowerNow, type PowerSample, type Split } from '~/shared/energy'
+import {
+  COMPONENTS,
+  DEFAULT_ENERGY,
+  type DiskKind,
+  dailyAverage,
+  dayStart,
+  type EnergySettings,
+  group,
+  type HourEnergy,
+  kwh,
+  monthProjection,
+  type PowerNow,
+  type PowerSample,
+  parseEnergySettings,
+  powerNow,
+  raplWatts,
+  type Split,
+  standbySavings,
+  sumSplit,
+  withSettings,
+} from '~/shared/energy'
 import type { GpuMetrics } from '~/shared/types'
-import { db, metricPrefix, schema, type DB } from './db'
+import { type DB, db, metricPrefix, schema } from './db'
 import { getSetting, setSetting } from './settings'
 
 const SETTINGS = 'energy.settings'
@@ -84,7 +104,10 @@ export class EnergyMeter {
   private save() {
     const h = this.hour!
     const t = schema.metricSamples
-    const rows = [...COMPONENTS.map((c) => ({ ts: h.ts, metric: `energy:${c}`, value: h.wh[c] })), ...Object.entries(h.standby).map(([disk, s]) => ({ ts: h.ts, metric: `energy:standby:${disk}`, value: s }))]
+    const rows = [
+      ...COMPONENTS.map((c) => ({ ts: h.ts, metric: `energy:${c}`, value: h.wh[c] })),
+      ...Object.entries(h.standby).map(([disk, s]) => ({ ts: h.ts, metric: `energy:standby:${disk}`, value: s })),
+    ]
     const d = this.d()
     d.transaction((tx) => {
       tx.delete(t)
@@ -113,7 +136,16 @@ export function energyHours(d: DB, from: number, now = Date.now()): HourEnergy[]
   const rows = d
     .select()
     .from(t)
-    .where(and(gte(t.ts, from), lt(t.ts, now + 3_600_000), inArray(t.metric, COMPONENTS.map((c) => `energy:${c}`))))
+    .where(
+      and(
+        gte(t.ts, from),
+        lt(t.ts, now + 3_600_000),
+        inArray(
+          t.metric,
+          COMPONENTS.map((c) => `energy:${c}`),
+        ),
+      ),
+    )
     .all()
   const by = new Map<number, HourEnergy>()
   for (const r of rows) {
@@ -189,16 +221,12 @@ export function energyReport(d: DB, now: PowerNow | undefined, kindOf: (disk: st
 /** Demo: a year of plausible hours (fixtures only, when there are none). */
 export function seedEnergyHistory(d: DB, now = Date.now()) {
   const t = schema.metricSamples
-  if (
-    d
-      .select({ n: sql<number>`count(*)` })
-      .from(t)
-      .where(metricPrefix('energy:'))
-      .get()!.n > 0
-  )
-    return
+  if (d.select({ n: sql<number>`count(*)` }).from(t).where(metricPrefix('energy:')).get()!.n > 0) return
   let seed = 11
-  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+  const rnd = () => {
+    seed = (seed * 16807) % 2147483647
+    return seed / 2147483647
+  }
   const rows: { ts: number; metric: string; value: number }[] = []
   const end = hourStart(now)
   for (let ts = end - 365 * 86_400_000; ts < end; ts += 3_600_000) {
@@ -214,5 +242,8 @@ export function seedEnergyHistory(d: DB, now = Date.now()) {
     rows.push({ ts, metric: 'energy:standby:sdd', value: 3600 })
     if (standby === 2) rows.push({ ts, metric: 'energy:standby:sdc', value: 3600 })
   }
-  for (let i = 0; i < rows.length; i += 500) d.insert(t).values(rows.slice(i, i + 500)).run()
+  for (let i = 0; i < rows.length; i += 500)
+    d.insert(t)
+      .values(rows.slice(i, i + 500))
+      .run()
 }

@@ -29,10 +29,12 @@ export function RowMenu({ label, items }: { label: string; items: MenuItem[] }) 
     setPos({ top: up ? r.top - 4 : r.bottom + 4, right: window.innerWidth - r.right, up })
   }
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: place is a new function on every render and reads the current position
   useLayoutEffect(() => {
     if (open) place()
   }, [open])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: place is a new function on every render and reads the current position
   useEffect(() => {
     if (!open) return
     const close = (e: Event) => {
@@ -51,6 +53,7 @@ export function RowMenu({ label, items }: { label: string; items: MenuItem[] }) 
     }
   }, [open])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: focus the first item once the menu has its position
   useEffect(() => {
     if (open) menu.current?.querySelector<HTMLElement>('[role^="menuitem"]:not([disabled])')?.focus({ preventScroll: true })
   }, [open, pos === null])
@@ -96,8 +99,7 @@ export function RowMenu({ label, items }: { label: string; items: MenuItem[] }) 
               <div key={it.label} className={it.separator ? 'mt-1 border-t border-line pt-1' : ''}>
                 <button
                   type="button"
-                  role={it.checked === undefined ? 'menuitem' : 'menuitemcheckbox'}
-                  aria-checked={it.checked}
+                  {...(it.checked === undefined ? { role: 'menuitem' } : { role: 'menuitemcheckbox', 'aria-checked': it.checked })}
                   disabled={it.disabled}
                   className={`flex w-full items-center gap-2 px-3 py-[7px] text-left text-[13px] outline-none hover:bg-[rgba(255,255,255,.05)] focus-visible:bg-accent/12 disabled:opacity-40 ${it.danger ? 'text-[#ff8a80]' : 'text-fg'}`}
                   onClick={() => {

@@ -1,12 +1,25 @@
 import { useEffect, useId, useState } from 'react'
 import { api } from '~/lib/api'
-import { ENTRY_FILE, applyEntryForm, bootFileKinds, entryForm, explainParam, knownParams, parseEntryConf, splitOptions, type BootEntryFile, type BootState, type EntryForm, type EntryProblem } from '~/shared/boot'
+import { dateTime } from '~/lib/format'
+import { m } from '~/paraglide/messages'
+import {
+  applyEntryForm,
+  type BootEntryFile,
+  type BootState,
+  bootFileKinds,
+  ENTRY_FILE,
+  type EntryForm,
+  type EntryProblem,
+  entryForm,
+  explainParam,
+  knownParams,
+  parseEntryConf,
+  splitOptions,
+} from '~/shared/boot'
 import { BusyButton } from './Busy'
 import { Modal } from './Modal'
 import { DiffView, TextView } from './QuadletEditor'
 import { useGuardedApi } from './Unlock'
-import { m } from '~/paraglide/messages'
-import { dateTime } from '~/lib/format'
 
 export interface EntryEditorInit {
   /** create: a new file (also a copy); edit: the file in place. */
@@ -32,6 +45,10 @@ export function BootEntryEditor({ init, onClose, onSaved }: { init: EntryEditorI
   const [name, setName] = useState(init.name)
   const [content, setContent] = useState(init.content)
   const [jump, setJump] = useState<number | null>(null)
+  const edit = (v: string) => {
+    setContent(v)
+    setJump(null)
+  }
   const [problems, setProblems] = useState<EntryProblem[] | null>(null)
   const [checkError, setCheckError] = useState('')
   const [note, setNote] = useState(init.note ?? '')
@@ -135,12 +152,8 @@ export function BootEntryEditor({ init, onClose, onSaved }: { init: EntryEditorI
           {m.quadlets_editor_text()}
         </button>
       </div>
-      {mode === 'form' ? (
-        <EntryFormView text={content} files={files} onChange={(v) => (setContent(v), setJump(null))} />
-      ) : (
-        <TextView text={content} onChange={(v) => (setContent(v), setJump(null))} jump={jump} label={m.boot_editor_content()} height={240} />
-      )}
-      <div className="flex flex-col gap-1 text-[13px]" aria-label={m.boot_editor_problems()} aria-live="polite">
+      {mode === 'form' ? <EntryFormView text={content} files={files} onChange={edit} /> : <TextView text={content} onChange={edit} jump={jump} label={m.boot_editor_content()} height={240} />}
+      <div className="flex flex-col gap-1 text-[13px]" role="status" aria-label={m.boot_editor_problems()}>
         {checkError ? (
           <p className="m-0 text-[#ff8a80]">{checkError}</p>
         ) : problems === null ? (
@@ -149,9 +162,17 @@ export function BootEntryEditor({ init, onClose, onSaved }: { init: EntryEditorI
           <p className="m-0 text-[#7ee2a8]">{m.boot_editor_noProblems()}</p>
         ) : (
           problems.map((p, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: derived from the text on every render, in order
             <p key={i} className={`m-0 ${p.level === 'error' ? 'text-[#ff8a80]' : 'text-[#e3b341]'}`} data-testid="entry-problem">
               {p.line ? (
-                <button type="button" className="mr-1.5 border-0 bg-transparent p-0 font-mono text-inherit underline" onClick={() => (setMode('text'), setJump(p.line!))}>
+                <button
+                  type="button"
+                  className="mr-1.5 border-0 bg-transparent p-0 font-mono text-inherit underline"
+                  onClick={() => {
+                    setMode('text')
+                    setJump(p.line!)
+                  }}
+                >
                   {m.boot_check_line({ line: p.line })}
                 </button>
               ) : null}
@@ -185,7 +206,15 @@ export function BootEntryEditor({ init, onClose, onSaved }: { init: EntryEditorI
         <button type="button" className="btn" onClick={onClose}>
           {m.common_cancel()}
         </button>
-        <button type="button" className="btn primary" disabled={!nameOk || problems === null || errors.length > 0 || (init.kind === 'edit' && content === init.file!.content)} onClick={() => (setError(''), setConfirm(true))}>
+        <button
+          type="button"
+          className="btn primary"
+          disabled={!nameOk || problems === null || errors.length > 0 || (init.kind === 'edit' && content === init.file!.content)}
+          onClick={() => {
+            setError('')
+            setConfirm(true)
+          }}
+        >
           {m.boot_editor_next()}
         </button>
       </div>
@@ -247,10 +276,20 @@ export function RenameEntry({ id, onClose, onDone }: { id: string; onClose: () =
 /** Input that keeps what is typed (trailing spaces too) while the text it feeds is normalised. */
 function DraftInput({ value, onChange, ...rest }: { value: string; onChange: (v: string) => void } & Omit<React.InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>) {
   const [draft, setDraft] = useState(value)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only a new value from outside resets the draft, not every keystroke
   useEffect(() => {
     if (value.trim() !== draft.trim()) setDraft(value)
-  }, [value]) // eslint-disable-line react-hooks/exhaustive-deps
-  return <input {...rest} value={draft} onChange={(e) => (setDraft(e.target.value), onChange(e.target.value))} />
+  }, [value])
+  return (
+    <input
+      {...rest}
+      value={draft}
+      onChange={(e) => {
+        setDraft(e.target.value)
+        onChange(e.target.value)
+      }}
+    />
+  )
 }
 
 const fieldLabel = 'flex flex-col gap-1 text-[12px] font-medium text-muted'
@@ -339,6 +378,7 @@ function EntryFormView({ text, files, onChange }: { text: string; files: string[
           const name = paramName(o)
           const text = explainParam(name, paramValue(o))
           return (
+            // biome-ignore lint/suspicious/noArrayIndexKey: options of one line, a name may repeat; the position is the identity
             <div key={`${i}-${name}`} className="flex items-start gap-2 border-t border-line pt-2 first-of-type:border-0" data-testid="entry-param">
               <div className="flex grow flex-col gap-1">
                 <DraftInput

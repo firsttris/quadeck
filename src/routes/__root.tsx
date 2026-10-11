@@ -1,11 +1,11 @@
+import { createRootRoute, HeadContent, Outlet, Scripts, useRouteContext } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
-import { HeadContent, Outlet, Scripts, createRootRoute, useRouteContext } from '@tanstack/react-router'
 import { I18nProvider } from '~/i18n'
-import { getAuthState } from '~/lib/server-fns'
-import css from '~/styles.css?url'
-import { m } from '~/paraglide/messages'
 import { MOTION_INIT_SCRIPT } from '~/lib/motion'
+import { getAuthState } from '~/lib/server-fns'
 import { THEME_INIT_SCRIPT } from '~/lib/theme'
+import { m } from '~/paraglide/messages'
+import css from '~/styles.css?url'
 
 export const Route = createRootRoute({
   beforeLoad: async () => ({ auth: await getAuthState() }),
@@ -40,6 +40,7 @@ function Document({ children }: { children: ReactNode }) {
     // data-motion and data-theme are set by the init scripts before React hydrates
     <html lang={lang} suppressHydrationWarning>
       <head>
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: our own constant init scripts, they must run before the first paint */}
         <script dangerouslySetInnerHTML={{ __html: `${MOTION_INIT_SCRIPT};${THEME_INIT_SCRIPT}` }} />
         <HeadContent />
       </head>

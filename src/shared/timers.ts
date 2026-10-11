@@ -2,8 +2,8 @@
 // for its own timers, a schedule builder for OnCalendar= and a cron converter.
 // Shared by the page, the web app and the root helper.
 
-import { msg } from './i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from './i18n'
 
 /** A timer Quadeck manages: `<name>.service` + `<name>.timer` in /etc/systemd/system. */
 export interface TimerSpec {
@@ -79,7 +79,6 @@ export const TIMER_BASE = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$/
 export const TIMER_UNIT = /^[A-Za-z0-9:_.\\@-]{1,240}\.timer$/
 export const CALENDAR = /^[A-Za-z0-9 *:,./~-]{1,120}$/
 const USER = /^[a-z_][a-z0-9_.-]{0,31}\$?$/
-// eslint-disable-next-line no-control-regex
 const CONTROL = /[\x00-\x08\x0b-\x1f\x7f]/
 const MAX_COMMAND = 8000
 
@@ -104,7 +103,8 @@ export function specErrors(s: TimerSpec): string[] {
   if (!s.command.trim()) out.push(msg(m.timers_check_commandMissing))
   else if (s.command.length > MAX_COMMAND || /[\x00\r]/.test(s.command) || CONTROL.test(s.command.replace(/\t/g, ''))) out.push(msg(m.timers_check_invalidCommand))
   if (s.user && !USER.test(s.user)) out.push(msg(m.timers_check_invalidUser))
-  if (s.workingDirectory && (!s.workingDirectory.startsWith('/') || /[\n\r\\]/.test(s.workingDirectory) || CONTROL.test(s.workingDirectory) || s.workingDirectory.length > 400)) out.push(msg(m.timers_check_workDirAbsolute))
+  if (s.workingDirectory && (!s.workingDirectory.startsWith('/') || /[\n\r\\]/.test(s.workingDirectory) || CONTROL.test(s.workingDirectory) || s.workingDirectory.length > 400))
+    out.push(msg(m.timers_check_workDirAbsolute))
   if (!CALENDAR.test(s.calendar.trim())) out.push(msg(m.quadlets_check_invalidSchedule))
   if (!Number.isInteger(s.randomDelay) || s.randomDelay < 0 || s.randomDelay > 24 * 60) out.push(msg(m.timers_check_randomDelay))
   return out
@@ -169,15 +169,22 @@ export function renderService(s: TimerSpec, legacy = false): string {
   if (s.workingDirectory) lines.push(`WorkingDirectory=${pct(s.workingDirectory)}`)
   if (s.lowPriority) lines.push('Nice=10', 'IOSchedulingClass=idle')
   lines.push(`ExecStart=/bin/sh -c ${execQuote(s.command)}`)
-  return lines.join('\n') + '\n'
+  return `${lines.join('\n')}\n`
 }
 
 export function renderTimer(s: TimerSpec, legacy = false): string {
-  const lines = [legacy ? LEGACY_MANAGED_HEADER : MANAGED_HEADER, '[Unit]', `Description=${legacy ? 'Zeitplan' : 'Schedule'}: ${pct(s.description || s.name)}`, '', '[Timer]', `OnCalendar=${s.calendar}`]
+  const lines = [
+    legacy ? LEGACY_MANAGED_HEADER : MANAGED_HEADER,
+    '[Unit]',
+    `Description=${legacy ? 'Zeitplan' : 'Schedule'}: ${pct(s.description || s.name)}`,
+    '',
+    '[Timer]',
+    `OnCalendar=${s.calendar}`,
+  ]
   if (s.persistent) lines.push('Persistent=true')
   if (s.randomDelay) lines.push(`RandomizedDelaySec=${s.randomDelay}min`)
   lines.push('', '[Install]', 'WantedBy=timers.target')
-  return lines.join('\n') + '\n'
+  return `${lines.join('\n')}\n`
 }
 
 /** Spec from a service file Quadeck wrote (undefined for foreign files). */
@@ -223,7 +230,7 @@ function clock(t: string) {
 function dayList(days: Day[]) {
   const idx = [...new Set(days)].map((d) => DAYS.indexOf(d)).sort((a, b) => a - b)
   const parts: string[] = []
-  for (let i = 0; i < idx.length;) {
+  for (let i = 0; i < idx.length; ) {
     let j = i
     while (j + 1 < idx.length && idx[j + 1] === idx[j]! + 1) j++
     parts.push(
@@ -324,11 +331,20 @@ export function describeCalendar(expr: string | undefined): string {
     case 'minutes':
       return s.every === 1 ? msg(m.timers_describe_everyMinute) : msg(m.timers_describe_everyMinutes, { every: s.every })
     case 'hours':
-      return s.every === 1 ? (s.minute ? msg(m.timers_describe_hourlyAt, { minute: two(s.minute) }) : msg(m.timers_describe_hourly)) : msg(m.timers_describe_everyHours, { every: s.every, minute: s.minute ? two(s.minute) : '', hasMinute: String(!!s.minute) })
+      return s.every === 1
+        ? s.minute
+          ? msg(m.timers_describe_hourlyAt, { minute: two(s.minute) })
+          : msg(m.timers_describe_hourly)
+        : msg(m.timers_describe_everyHours, { every: s.every, minute: s.minute ? two(s.minute) : '', hasMinute: String(!!s.minute) })
     case 'daily':
       return msg(m.timers_describe_dailyAt, { time: s.time })
     case 'weekly': {
-      const days = s.days.length === 5 && !s.days.includes('Sat') && !s.days.includes('Sun') ? msg(m.timers_describe_weekdays) : s.days.length === 7 ? msg(m.timers_describe_everyDay) : s.days.map(dayLabel).join(', ')
+      const days =
+        s.days.length === 5 && !s.days.includes('Sat') && !s.days.includes('Sun')
+          ? msg(m.timers_describe_weekdays)
+          : s.days.length === 7
+            ? msg(m.timers_describe_everyDay)
+            : s.days.map(dayLabel).join(', ')
       return `${days} ${s.time}`
     }
     case 'monthly':
@@ -435,7 +451,7 @@ export function cronToCalendar(line: string): CronResult {
   const command = l.match(/^(?:\S+\s+){4}\S+\s+([\s\S]+)$/)?.[1]?.trim() || undefined
   try {
     const days = dow === '*' || dow === '?' ? '' : cronDays(dow)
-    const calendar = `${days ? days + ' ' : ''}*-${cronField(mon, 1, 12, MONTHS)}-${dom === '?' ? '*' : cronField(dom, 1, 31)} ${cronField(h, 0, 23)}:${cronField(mi, 0, 59)}:00`
+    const calendar = `${days ? `${days} ` : ''}*-${cronField(mon, 1, 12, MONTHS)}-${dom === '?' ? '*' : cronField(dom, 1, 31)} ${cronField(h, 0, 23)}:${cronField(mi, 0, 59)}:00`
     const warning = days && dom !== '*' && dom !== '?' ? msg(m.timers_cron_dayOrWeekday) : undefined
     return { calendar, command, warning }
   } catch (e) {

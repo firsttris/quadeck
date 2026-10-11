@@ -1,5 +1,7 @@
 import { useState } from 'react'
-import { describeConfigAction, parseConfigPath, type ConfigAction, type ConfigFileInfo } from '~/shared/configfiles'
+import { rich } from '~/i18n'
+import { m } from '~/paraglide/messages'
+import { type ConfigAction, type ConfigFileInfo, describeConfigAction, parseConfigPath } from '~/shared/configfiles'
 import { useActions } from './Actions'
 import { useJobs } from './Jobs'
 import { Modal } from './Modal'
@@ -7,8 +9,6 @@ import { DiffView } from './QuadletEditor'
 import { Pill } from './Status'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
-import { m } from '~/paraglide/messages'
-import { rich } from '~/i18n'
 
 /**
  * .pacnew & co. from the last updates: per file the difference to the live
@@ -38,14 +38,20 @@ export function ConfigFilesPanel({ files, hint, onChanged }: { files: string[]; 
       {files.map((f) => {
         const p = parseConfigPath(f)
         return (
-          <button key={f} type="button" data-testid="config-file" onClick={() => void show(f)} className="flex items-center gap-3 border-t border-line px-[18px] py-[7px] text-left hover:bg-[rgba(255,255,255,.03)]">
+          <button
+            key={f}
+            type="button"
+            data-testid="config-file"
+            onClick={() => void show(f)}
+            className="flex items-center gap-3 border-t border-line px-[18px] py-[7px] text-left hover:bg-[rgba(255,255,255,.03)]"
+          >
             <span className="grow truncate font-mono text-[12px]">{f}</span>
             <span className="chip shrink-0">{p?.kind === 'save' ? m.system_config_backup() : m.system_config_newVersion()}</span>
             <span className="shrink-0 text-[12px] text-accent">{m.system_config_view()}</span>
           </button>
         )
       })}
-      {hint && <p className="m-0 border-t border-line px-[18px] py-2 text-[12px] text-muted">{m.system_config_hint({ cmd: (hint.match(/„[^“]+“|“[^”]+”/)?.[0] ?? 'diff') })}</p>}
+      {hint && <p className="m-0 border-t border-line px-[18px] py-2 text-[12px] text-muted">{m.system_config_hint({ cmd: hint.match(/„[^“]+“|“[^”]+”/)?.[0] ?? 'diff' })}</p>}
       {open && (
         <ConfigDialog
           f={open}
@@ -74,7 +80,9 @@ function ConfigDialog({ f, onClose, onDone }: { f: ConfigFileInfo; onClose: () =
     setBusy(true)
     setError('')
     try {
-      const r = await guarded<{ done: string; after?: ConfigFileInfo['after']; warning?: string }>('/api/system/config', { body: { path: f.path, action, content: action === 'merge' ? merge : undefined } })
+      const r = await guarded<{ done: string; after?: ConfigFileInfo['after']; warning?: string }>('/api/system/config', {
+        body: { path: f.path, action, content: action === 'merge' ? merge : undefined },
+      })
       if (!r) return
       say(r.warning ?? r.done, r.warning ? 'bad' : undefined)
       if (r.after === 'mkinitcpio' && action !== 'keep') void jobs.start({ kind: 'mkinitcpio' })
@@ -104,12 +112,16 @@ function ConfigDialog({ f, onClose, onDone }: { f: ConfigFileInfo; onClose: () =
       {f.binary && <p className="m-0 text-[13px] text-muted">{m.system_config_binary()}</p>}
       {!f.binary && f.kind === 'new' && merge === null && (
         <>
-          <p className="m-0 text-[12px] text-muted">{f.liveExists ? rich(m.system_config_diffIntro, { minus: (<span className="text-[#ff8a80]">−</span>), plus: (<span className="text-[#7ee2a8]">+</span>) }) : m.system_config_noLive({ live: f.live })}</p>
+          <p className="m-0 text-[12px] text-muted">
+            {f.liveExists
+              ? rich(m.system_config_diffIntro, { minus: <span className="text-[#ff8a80]">−</span>, plus: <span className="text-[#7ee2a8]">+</span> })
+              : m.system_config_noLive({ live: f.live })}
+          </p>
           <DiffView before={f.liveContent ?? ''} after={f.content ?? ''} />
         </>
       )}
       {!f.binary && f.kind === 'save' && (
-        <pre className="joblog !min-h-0 max-h-[320px] whitespace-pre-wrap" aria-label={m.system_config_content()}>
+        <pre className="joblog !min-h-0 max-h-[320px] whitespace-pre-wrap" role="group" aria-label={m.system_config_content()}>
           {f.content}
         </pre>
       )}

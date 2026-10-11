@@ -38,13 +38,16 @@ describe('finding passwords in plain text', () => {
     expect(plainValue('[Container]\nEnvironment=DB_PASSWORD="p w"\n', 'DB_PASSWORD')).toBe('p w')
   })
   it('keeps every other word of the line when moving one out', () => {
-    expect(moveToSecret('[Container]\nEnvironment=DB_PASSWORD=x FOO="hello world" LONELY\n', 'DB_PASSWORD', 's')).toBe('[Container]\nEnvironment=FOO="hello world" LONELY\nSecret=s,type=env,target=DB_PASSWORD\n')
+    expect(moveToSecret('[Container]\nEnvironment=DB_PASSWORD=x FOO="hello world" LONELY\n', 'DB_PASSWORD', 's')).toBe(
+      '[Container]\nEnvironment=FOO="hello world" LONELY\nSecret=s,type=env,target=DB_PASSWORD\n',
+    )
     expect(moveToSecret('[Container]\nEnvironment=A=1 DB_PASSWORD="two words" B=2\n', 'DB_PASSWORD', 's')).toBe('[Container]\nEnvironment=A=1 B=2\nSecret=s,type=env,target=DB_PASSWORD\n')
   })
   it('knows which keys hold credentials', () => {
     for (const k of ['DB_PASSWORD', 'POSTGRES_PASSWORD', 'MYSQL_ROOT_PASSWD', 'APP_SECRET', 'API_TOKEN', 'OPENAI_API_KEY', 'SMTP_PASS', 'PRIVATE_KEY']) expect(isSensitive(k)).toBe(true)
     for (const k of ['DB_PASSWORD_FILE', 'TZ', 'PASSWORD_MIN_LENGTH', 'TOKEN_TTL']) expect(isSensitive(k)).toBe(false)
   })
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: names the ${VAR} syntax of a unit file
   it('lists them per file, not comments, not *_FILE, not ${VAR}, not [Service]', () => {
     const found = findPlain('app.container', FILE, new Set(['app-postgres-password']))
     expect(found.map((f) => [f.key, f.line, f.suggested])).toEqual([

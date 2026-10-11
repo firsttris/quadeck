@@ -4,31 +4,30 @@
 import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { contentHash } from '~/shared/caddy'
+import { msg } from '~/shared/i18n'
 import { lineOf, lintQuadlet, parseIni } from '~/shared/ini'
-import { QUADLET_SECTION } from '~/shared/quadlet-keys'
 import {
-  EDITABLE_CONFIGS,
-  QUADLET_NAME,
   assertQuadletName,
-  quadletType,
-  quadletUnit,
   type Diagnostic,
+  EDITABLE_CONFIGS,
   type PodmanConfigFile,
   type PodmanConfigName,
   type PodmanSettings,
-  removalPlan,
+  QUADLET_NAME,
   type QuadletFile,
+  quadletType,
+  quadletUnit,
   type RemovalPlan,
   type Revision,
+  removalPlan,
   type ValidateResult,
 } from '~/shared/quadlets'
+import { writeFileAtomic } from '../atomic'
 import { HttpError } from '../auth'
-import { contentHash } from '~/shared/caddy'
 import { calendarOf } from '../collectors/systemd'
 import { run, runOk } from '../exec'
-import { writeFileAtomic } from '../atomic'
 
 export interface PodmanAdmin {
   quadlets(): Promise<QuadletFile[]>
@@ -78,7 +77,6 @@ export function validName(name: string) {
 export function validContent(content: string) {
   if (typeof content !== 'string') throw new HttpError(400, msg(m.quadlets_error_contentMissing))
   if (content.length > MAX_FILE) throw new HttpError(413, msg(m.quadlets_error_fileTooLarge))
-  // eslint-disable-next-line no-control-regex
   if (/[\x00-\x08\x0e-\x1f]/.test(content)) throw new HttpError(400, msg(m.quadlets_error_controlChars))
 }
 
@@ -89,11 +87,10 @@ export function validCalendar(cal: string) {
 /** Lint + generator messages mapped to lines. */
 export function generatorDiagnostics(stderr: string, file: string, content: string): Diagnostic[] {
   const base = file.split('/').pop()!
-  const section = QUADLET_SECTION[quadletType(file)]
   const out: Diagnostic[] = []
   for (const raw of stderr.split('\n')) {
     const l = raw.trim()
-    if (!l || !l.includes(base)) continue
+    if (!l?.includes(base)) continue
     const msg = l.replace(/^quadlet-generator\[\d+\]:\s*/, '').replace(/ in \/\S+/g, '')
     if (/^Loading source unit file/i.test(msg)) continue // progress output
     const key = l.match(/unsupported key '([^']+)' in group '([^']+)'/)
@@ -137,7 +134,11 @@ export function commitLabel(message: string): string {
   const hit = message.match(/^(.+) (created|changed|deleted|angelegt|geändert|gelöscht)$/)
   if (hit) {
     const kind = ({ angelegt: 'created', geändert: 'changed', gelöscht: 'deleted' } as Record<string, string>)[hit[2]!] ?? hit[2]!
-    return kind === 'created' ? msg(m.quadlets_history_created, { name: hit[1]! }) : kind === 'changed' ? msg(m.quadlets_history_changed, { name: hit[1]! }) : msg(m.quadlets_history_deleted, { name: hit[1]! })
+    return kind === 'created'
+      ? msg(m.quadlets_history_created, { name: hit[1]! })
+      : kind === 'changed'
+        ? msg(m.quadlets_history_changed, { name: hit[1]! })
+        : msg(m.quadlets_history_deleted, { name: hit[1]! })
   }
   return message
 }
@@ -236,7 +237,8 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
         const r = await run([gen, '-dryrun'], { timeoutMs: 30_000, env: { QUADLET_UNIT_DIRS: tmp } })
         diagnostics.push(...generatorDiagnostics(r.stderr, name, content))
         generated = generatedUnit(r.stdout, quadletUnit(name))
-        if (!generated && !diagnostics.some((d) => d.severity === 'error')) diagnostics.push({ severity: 'error', message: msg(m.quadlets_lint_noGeneratedUnit) + (r.stderr.trim() ? `: ${r.stderr.trim().split('\n').pop()}` : '') })
+        if (!generated && !diagnostics.some((d) => d.severity === 'error'))
+          diagnostics.push({ severity: 'error', message: msg(m.quadlets_lint_noGeneratedUnit) + (r.stderr.trim() ? `: ${r.stderr.trim().split('\n').pop()}` : '') })
       } finally {
         rmSync(tmp, { recursive: true, force: true })
       }
@@ -247,7 +249,9 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
   // ---------- git history (separate git dir, the Quadlet directory stays clean) ----------
 
   private git(...args: string[]) {
-    return run(['git', `--git-dir=${this.gitDir}`, `--work-tree=${this.dir}`, '-c', 'user.name=Quadeck', '-c', 'user.email=quadeck@localhost', '-c', 'commit.gpgsign=false', ...args], { timeoutMs: 30_000 })
+    return run(['git', `--git-dir=${this.gitDir}`, `--work-tree=${this.dir}`, '-c', 'user.name=Quadeck', '-c', 'user.email=quadeck@localhost', '-c', 'commit.gpgsign=false', ...args], {
+      timeoutMs: 30_000,
+    })
   }
 
   private async ensureRepo() {
@@ -291,13 +295,14 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
   async writeQuadlet(name: string, content: string, restart: boolean, expected?: string): Promise<WriteResult> {
     validName(name)
     // The editor sends the hash of what it loaded: someone else's save in between is not overwritten.
-    if (expected !== undefined && contentHash(existsSync(join(this.dir, name)) ? readFileSync(join(this.dir, name), 'utf8') : '') !== expected) throw new HttpError(409, msg(m.files_error_changedMeanwhile))
+    if (expected !== undefined && contentHash(existsSync(join(this.dir, name)) ? readFileSync(join(this.dir, name), 'utf8') : '') !== expected)
+      throw new HttpError(409, msg(m.files_error_changedMeanwhile))
     const v = await this.validateQuadlet(name, content)
     const err = v.diagnostics.find((d) => d.severity === 'error')
     if (err) throw new HttpError(422, `${err.line ? msg(m.fstab_label_linePrefix, { line: err.line }) : ''}${err.message}`)
     const history = await this.ensureRepo()
     const isNew = !existsSync(join(this.dir, name))
-    atomicWrite(join(this.dir, name), content.endsWith('\n') ? content : content + '\n')
+    atomicWrite(join(this.dir, name), content.endsWith('\n') ? content : `${content}\n`)
     if (history) await this.commit(`${name} ${isNew ? 'created' : 'changed'}`)
     await this.manager('Reload')
     const unit = quadletUnit(name)
@@ -306,7 +311,7 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
       await this.manager('RestartUnit', 'ss', unit, 'replace')
       return { unit, restarted: true }
     } catch (e) {
-      return { unit, restarted: false, warning: msg(m.quadlets_warn_savedNotStarted, { unit }) + `: ${(e as Error).message}` }
+      return { unit, restarted: false, warning: `${msg(m.quadlets_warn_savedNotStarted, { unit })}: ${(e as Error).message}` }
     }
   }
 
@@ -332,7 +337,8 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
       // file: the container would keep running without a unit and its volumes stay in use.
       if (stop.code !== 0) {
         const state = (await this.exec(['systemctl', 'is-active', unit])).stdout.trim()
-        if (['active', 'activating', 'deactivating', 'reloading', 'refreshing'].includes(state)) throw new HttpError(409, msg(m.quadlets_error_stillRunning, { unit, error: (stop.stderr || stop.stdout).trim() || state }))
+        if (['active', 'activating', 'deactivating', 'reloading', 'refreshing'].includes(state))
+          throw new HttpError(409, msg(m.quadlets_error_stillRunning, { unit, error: (stop.stderr || stop.stdout).trim() || state }))
       }
     } else await this.manager('StopUnit', 'ss', unit, 'replace').catch(() => {})
     rmSync(path)
@@ -347,11 +353,11 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
     const warnings: string[] = []
     for (const v of volumes) {
       const r = await this.exec(['podman', 'volume', 'rm', '--', v.name], { timeoutMs: 60_000 })
-      if (r.code !== 0 && !/no such volume/i.test(r.stderr)) warnings.push(msg(m.quadlets_warn_volumeKept, { name: v.name }) + `: ${r.stderr.trim()}`)
+      if (r.code !== 0 && !/no such volume/i.test(r.stderr)) warnings.push(`${msg(m.quadlets_warn_volumeKept, { name: v.name })}: ${r.stderr.trim()}`)
     }
     if (also.image && plan?.image && !plan.image.shared) {
       const r = await this.exec(['podman', 'rmi', '--', plan.image.name], { timeoutMs: 60_000 })
-      if (r.code !== 0 && !/image not known|no such image/i.test(r.stderr)) warnings.push(msg(m.quadlets_warn_imageKept, { name: plan.image.name }) + `: ${r.stderr.trim()}`)
+      if (r.code !== 0 && !/image not known|no such image/i.test(r.stderr)) warnings.push(`${msg(m.quadlets_warn_imageKept, { name: plan.image.name })}: ${r.stderr.trim()}`)
     }
     return { warnings }
   }
@@ -409,7 +415,7 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
     validCalendar(calendar)
     if (calendar) {
       const check = await run(['systemd-analyze', 'calendar', '--', calendar])
-      if (check.code !== 0) throw new HttpError(422, msg(m.quadlets_check_invalidSchedule) + `: ${(check.stderr || check.stdout).trim().split('\n')[0]}`)
+      if (check.code !== 0) throw new HttpError(422, `${msg(m.quadlets_check_invalidSchedule)}: ${(check.stderr || check.stdout).trim().split('\n')[0]}`)
       atomicWrite(this.timerDropIn, `# Quadeck: schedule for podman auto-update\n[Timer]\nOnCalendar=\nOnCalendar=${calendar}\n`)
     } else rmSync(this.timerDropIn, { force: true })
     await this.manager('Reload')
@@ -432,7 +438,7 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
     try {
       Bun.TOML.parse(content)
     } catch (e) {
-      throw new HttpError(422, msg(m.quadlets_error_toml) + `: ${(e as Error).message}`)
+      throw new HttpError(422, `${msg(m.quadlets_error_toml)}: ${(e as Error).message}`)
     }
     const path = join(this.confDir, name)
     if (existsSync(path)) writeFileSync(`${path}.quadeck-bak`, readFileSync(path), { mode: 0o644 })
@@ -457,9 +463,27 @@ export class FixturePodmanAdmin implements PodmanAdminBackend {
       timer: { exists: true, enabled: true, active: true, calendar: 'daily', custom: false, next: Date.now() + 6 * 3600_000 },
       autoUpdateDefault: { supported: true, enabled: false, path: '/etc/containers/systemd/container.d/50-quadeck-autoupdate.conf' },
       files: [
-        { name: 'containers.conf', path: '/etc/containers/containers.conf', exists: true, content: '[containers]\nlog_driver = "journald"\ntz = "local"\n\n[engine]\nevents_logger = "journald"\n', editable: true },
-        { name: 'registries.conf', path: '/etc/containers/registries.conf', exists: true, content: '# Short names\nunqualified-search-registries = ["docker.io"]\nshort-name-mode = "enforcing"\n', editable: true },
-        { name: 'storage.conf', path: '/etc/containers/storage.conf', exists: true, content: '[storage]\ndriver = "overlay"\nrunroot = "/run/containers/storage"\ngraphroot = "/var/lib/containers/storage"\n', editable: false },
+        {
+          name: 'containers.conf',
+          path: '/etc/containers/containers.conf',
+          exists: true,
+          content: '[containers]\nlog_driver = "journald"\ntz = "local"\n\n[engine]\nevents_logger = "journald"\n',
+          editable: true,
+        },
+        {
+          name: 'registries.conf',
+          path: '/etc/containers/registries.conf',
+          exists: true,
+          content: '# Short names\nunqualified-search-registries = ["docker.io"]\nshort-name-mode = "enforcing"\n',
+          editable: true,
+        },
+        {
+          name: 'storage.conf',
+          path: '/etc/containers/storage.conf',
+          exists: true,
+          content: '[storage]\ndriver = "overlay"\nrunroot = "/run/containers/storage"\ngraphroot = "/var/lib/containers/storage"\n',
+          editable: false,
+        },
       ],
     }
   }
@@ -504,12 +528,15 @@ export class FixturePodmanAdmin implements PodmanAdminBackend {
     const v = await this.validateQuadlet(name, content)
     const err = v.diagnostics.find((d) => d.severity === 'error')
     if (err) throw new HttpError(422, `${err.line ? msg(m.fstab_label_linePrefix, { line: err.line }) : ''}${err.message}`)
-    this.put(name, content.endsWith('\n') ? content : content + '\n', `${name} ${this.files.has(name) ? 'changed' : 'created'}`)
+    this.put(name, content.endsWith('\n') ? content : `${content}\n`, `${name} ${this.files.has(name) ? 'changed' : 'created'}`)
     return { unit: quadletUnit(name), restarted: restart }
   }
   async removalPlan(name: string) {
     validName(name)
-    return removalPlan(name, [...this.files].map(([n, f]) => ({ name: n, content: f.content })))
+    return removalPlan(
+      name,
+      [...this.files].map(([n, f]) => ({ name: n, content: f.content })),
+    )
   }
   async deleteQuadlet(name: string, also: RemoveAlso = {}) {
     validName(name)
@@ -535,7 +562,7 @@ export class FixturePodmanAdmin implements PodmanAdminBackend {
     try {
       Bun.TOML.parse(content)
     } catch (e) {
-      throw new HttpError(422, msg(m.quadlets_error_toml) + `: ${(e as Error).message}`)
+      throw new HttpError(422, `${msg(m.quadlets_error_toml)}: ${(e as Error).message}`)
     }
     const f = this.settings.files.find((x) => x.name === name)!
     f.content = content

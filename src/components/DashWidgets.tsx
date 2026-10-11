@@ -3,22 +3,22 @@
 
 import { Link } from '@tanstack/react-router'
 import { useEffect, useState } from 'react'
+import { api } from '~/lib/api'
 import { bytes, diskSize, pct, relative } from '~/lib/format'
-import type { ImageUpdatesReport, PackageOverview, UpdatesReport } from '~/shared/packages'
-import type { NotifyState } from '~/shared/notify'
-import type { Snapshot } from '~/shared/types'
-import { topContainers, type ContainersConfig, type DiskConfig, type LinksConfig, type ServiceConfig } from '~/shared/widgets'
+import { m } from '~/paraglide/messages'
 import type { DeviceView } from '~/shared/devices'
+import type { NotifyState } from '~/shared/notify'
+import type { ImageUpdatesReport, PackageOverview, UpdatesReport } from '~/shared/packages'
 import type { SpeedResult } from '~/shared/speedtest'
 import type { SshState } from '~/shared/ssh'
-import { api } from '~/lib/api'
+import type { Snapshot } from '~/shared/types'
+import { type ContainersConfig, type DiskConfig, type LinksConfig, type ServiceConfig, topContainers } from '~/shared/widgets'
 import { actionBusyLabel, useActions } from './Actions'
 import { BusyButton } from './Busy'
-import { useToast } from './Toast'
-import { m } from '~/paraglide/messages'
 import { TrendLine } from './DiskUsage'
 import { useJobs } from './Jobs'
 import { Dot, Pill } from './Status'
+import { useToast } from './Toast'
 
 function Head({ title, children }: { title: string; children?: React.ReactNode }) {
   return (
@@ -34,6 +34,7 @@ function useJson<T>(url: string, everyMs?: number) {
   const { finished } = useJobs()
   const [data, setData] = useState<T | null>(null)
   const [error, setError] = useState('')
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reload when a job finishes
   useEffect(() => {
     let stop = false
     const load = () =>
@@ -41,7 +42,10 @@ function useJson<T>(url: string, everyMs?: number) {
         .then(async (r) => {
           const d = (await r.json()) as T & { error?: string }
           if (!r.ok) throw new Error(d.error ?? m.common_http({ status: r.status }))
-          if (!stop) (setData(d), setError(''))
+          if (!stop) {
+            setData(d)
+            setError('')
+          }
         })
         .catch((e: Error) => !stop && setError(e.message))
     void load()
@@ -78,14 +82,20 @@ export function UpdatesWidget() {
             <span className="text-[13px] text-muted">{repo === 0 ? m.widgets_updates_upToDate() : m.widgets_updates_packages()}</span>
           </div>
           <div className="flex flex-wrap justify-between gap-x-3 text-[12.5px]">
-            <span>
-              {[o?.aur?.helper ? m.widgets_updates_aur({ n: u.aur.length }) : '', m.widgets_updates_images({ n: pendingImages })].filter(Boolean).join(' · ')}
-            </span>
+            <span>{[o?.aur?.helper ? m.widgets_updates_aur({ n: u.aur.length }) : '', m.widgets_updates_images({ n: pendingImages })].filter(Boolean).join(' · ')}</span>
             <span className="text-muted" suppressHydrationWarning>
               {m.widgets_updates_checked({ when: relative(u.checkedAt) })}
             </span>
           </div>
-          {repo > 0 && <div className="truncate text-[12px] text-muted">{u.repo.slice(0, 6).map((p) => p.name).join(', ')}{repo > 6 ? ' …' : ''}</div>}
+          {repo > 0 && (
+            <div className="truncate text-[12px] text-muted">
+              {u.repo
+                .slice(0, 6)
+                .map((p) => p.name)
+                .join(', ')}
+              {repo > 6 ? ' …' : ''}
+            </div>
+          )}
         </>
       )}
       <Link to="/system" className="btn sm no-drag self-start">
@@ -159,7 +169,9 @@ export function DiskWidget({ config, snapshot }: { config: DiskConfig; snapshot:
       <Head title={title} />
       <div className="flex flex-wrap items-center justify-between gap-x-3 text-[12.5px]">
         <span className="flex items-center gap-1.5 text-subtle">
-          {smart && <Dot tone={SMART_TONE[smart.level]} label={{ ok: m.overview_storage_smartOk(), warning: m.overview_storage_smartWarning(), critical: m.overview_storage_smartCritical() }[smart.level]} />}
+          {smart && (
+            <Dot tone={SMART_TONE[smart.level]} label={{ ok: m.overview_storage_smartOk(), warning: m.overview_storage_smartWarning(), critical: m.overview_storage_smartCritical() }[smart.level]} />
+          )}
           <span className="font-mono">{d.dev}</span> · {d.fstype}
           {d.tempC !== undefined ? ` · ${Math.round(d.tempC)} °C` : ''}
         </span>
@@ -204,7 +216,10 @@ export function ContainersWidget({ config, containers }: { config: ContainersCon
 export function AlertsWidget() {
   const state = useJson<NotifyState>('/api/notifications', 60_000)
   const s = state.data
-  const recent = (s?.log ?? []).filter((n) => !n.test).slice(-5).reverse()
+  const recent = (s?.log ?? [])
+    .filter((n) => !n.test)
+    .slice(-5)
+    .reverse()
   return (
     <section className="flex flex-col gap-2 p-[18px]" aria-label={m.widgets_alerts_name()} data-testid="alerts-widget">
       <Head title={m.widgets_alerts_name()}>{!!s?.active.length && <Pill tone="bad">{m.widgets_alerts_open({ n: s.active.length })}</Pill>}</Head>
@@ -338,7 +353,14 @@ export function DevicesWidget({ fresh }: { fresh: NonNullable<Snapshot['devices'
             <div key={d.key} className="flex items-center gap-2 text-[12.5px]">
               <Dot tone="idle" />
               <span className="grow truncate">{d.label}</span>
-              <BusyButton className="btn sm no-drag" busy={waking === d.key} busyLabel={m.common_working()} disabled={!!waking} onClick={() => void wake(d)} aria-label={m.widgets_devices_wakeNamed({ name: d.label! })}>
+              <BusyButton
+                className="btn sm no-drag"
+                busy={waking === d.key}
+                busyLabel={m.common_working()}
+                disabled={!!waking}
+                onClick={() => void wake(d)}
+                aria-label={m.widgets_devices_wakeNamed({ name: d.label! })}
+              >
                 {m.widgets_devices_wake()}
               </BusyButton>
             </div>
@@ -385,6 +407,7 @@ export function SpeedWidget() {
           {recent.length > 1 && (
             <div className="flex h-8 items-end gap-[3px]" aria-hidden="true">
               {recent.map((v, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: one bar per time slot
                 <div key={i} className="grow rounded-t-[2px] bg-accent opacity-70" style={{ height: `${Math.max(8, (v / max) * 100)}%` }} />
               ))}
             </div>
@@ -451,6 +474,7 @@ export function LinksWidget({ config }: { config: LinksConfig }) {
       ) : (
         <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[13px]">
           {config.links.map((l, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: a group may hold the same link twice; the order is the identity
             <li key={i} className="min-w-0">
               <a href={l.url} target="_blank" rel="noreferrer noopener" className="no-drag flex items-baseline gap-2 rounded-[6px] px-1 py-0.5 hover:bg-surface">
                 <span className="truncate">{l.name}</span>

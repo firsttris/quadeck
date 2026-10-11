@@ -1,10 +1,10 @@
 // systemd unit editor: types, name/path rules and checks shared by the page,
 // the web app and the root helper.
 
-import { msg } from './i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from './i18n'
 import { parseIni } from './ini'
-import { k, type KeyDoc } from './quadlet-keys'
+import { type KeyDoc, k } from './quadlet-keys'
 import type { Diagnostic, Revision } from './quadlets'
 
 export type UnitOrigin = 'etc' | 'vendor' | 'runtime' | 'generated' | 'transient'
@@ -191,7 +191,8 @@ export const UNIT_TEMPLATES: { id: string; readonly label: string; suffix: strin
       return msg(m.unitFiles_template_service)
     },
     suffix: 'service',
-    content: (n) => `[Unit]\nDescription=${n}\nAfter=network-online.target\nWants=network-online.target\n\n[Service]\nType=simple\nExecStart=/usr/local/bin/${n}\nRestart=on-failure\nRestartSec=5s\n\n[Install]\nWantedBy=multi-user.target\n`,
+    content: (n) =>
+      `[Unit]\nDescription=${n}\nAfter=network-online.target\nWants=network-online.target\n\n[Service]\nType=simple\nExecStart=/usr/local/bin/${n}\nRestart=on-failure\nRestartSec=5s\n\n[Install]\nWantedBy=multi-user.target\n`,
   },
   {
     id: 'oneshot',
