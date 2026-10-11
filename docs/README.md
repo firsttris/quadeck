@@ -49,6 +49,14 @@ The navigation is grouped into *Services*, *Storage* and *Server*. On a
 phone it folds into a menu behind the button at the top left; the bar keeps search, a running job
 and the unlock countdown in reach.
 
+**On the home screen.** Quadeck can be added to a phone's or tablet's home screen and then opens
+like an app, with its own icon and without the browser's bars: on Android in Chrome's menu
+*Install app* (or *Add to home screen*), on an iPhone or iPad in Safari's share menu *Add to Home
+Screen*, on a computer with the install icon in the address bar. Chrome offers the install only
+over HTTPS, so reach Quadeck through a reverse proxy with a domain ([Installation](installation.md#behind-a-reverse-proxy));
+over plain `http://` it becomes a shortcut that opens in the browser. Quadeck still needs the
+server: without a connection the app shows the browser's error page.
+
 | Page | Group | Content |
 |---|---|---|
 | **Hardware** | host card in the sidebar | CPU, memory, GPUs, USB, sensors, PCIe/SATA links |

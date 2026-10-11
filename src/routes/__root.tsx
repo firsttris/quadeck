@@ -10,10 +10,22 @@ import css from '~/styles.css?url'
 export const Route = createRootRoute({
   beforeLoad: async () => ({ auth: await getAuthState() }),
   head: () => ({
-    meta: [{ charSet: 'utf-8' }, { name: 'viewport', content: 'width=device-width, initial-scale=1' }, { name: 'color-scheme', content: 'dark' }, { title: 'Quadeck' }],
+    meta: [
+      { charSet: 'utf-8' },
+      { name: 'viewport', content: 'width=device-width, initial-scale=1' },
+      { name: 'color-scheme', content: 'dark' },
+      // Installable from the browser ("add to home screen"); it opens without the browser's bars
+      { name: 'theme-color', content: '#0b0f14' },
+      { name: 'mobile-web-app-capable', content: 'yes' },
+      { name: 'apple-mobile-web-app-title', content: 'Quadeck' },
+      { name: 'apple-mobile-web-app-status-bar-style', content: 'black' },
+      { title: 'Quadeck' },
+    ],
     links: [
       { rel: 'stylesheet', href: css },
       { rel: 'icon', href: '/favicon.svg', type: 'image/svg+xml' },
+      { rel: 'manifest', href: '/manifest.webmanifest' },
+      { rel: 'apple-touch-icon', href: '/icons/apple-touch-icon.png' },
     ],
   }),
   component: () => (
