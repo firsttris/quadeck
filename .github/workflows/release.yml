@@ -1,7 +1,7 @@
 name: Release
 
 # A tag vX.Y.Z (the button in bump.yml or bun run release:patch|minor|major) publishes that
-# version: typecheck and tests, the four binaries with SHA256SUMS, then the shared GitHub release
+# version: the whole CI (ci.yml: Biome, typecheck, tests, E2E, distributions), the four binaries with SHA256SUMS, then the shared GitHub release
 # from firsttris/workflows, which checks the tag against package.json and attaches the binaries and
 # install.sh. Run by hand on main: only the build, nothing is released.
 on:
@@ -13,13 +13,17 @@ permissions:
   contents: read
 
 jobs:
+  checks:
+    uses: ./.github/workflows/ci.yml
+
   build:
+    needs: checks
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
-      - run: bun run typecheck && bun run test
       - run: bun scripts/compile.ts bun-linux-x64-baseline bun-linux-arm64 bun-linux-x64-musl bun-linux-arm64-musl
       - name: Checksums
         run: cd release && sha256sum quadeck-linux-* > SHA256SUMS && cat SHA256SUMS
