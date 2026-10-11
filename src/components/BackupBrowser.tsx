@@ -123,7 +123,7 @@ export function BackupBrowser({ state, snapshot, dir, onNavigate }: { state: Bac
           {!entries && !error && <p className="m-0 px-4 py-3 text-[13px] text-muted">{m.backup_loading()}</p>}
           {entries?.length === 0 && <p className="m-0 px-4 py-3 text-[13px] text-muted">{m.backup_browse_empty()}</p>}
           {!!entries?.length && (
-            <div className="overflow-x-auto">
+            <div className="relative overflow-x-auto">
               <table className="tbl">
                 <thead>
                   <tr>

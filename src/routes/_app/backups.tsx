@@ -288,7 +288,7 @@ function Overview({ state, onState, onEdit, onRefresh }: { state: BackupState; o
         {state.snapshots.length === 0 ? (
           <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{m.backup_noSnapshots()}</p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="tbl">
               <thead>
                 <tr>

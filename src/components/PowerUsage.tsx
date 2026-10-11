@@ -205,7 +205,7 @@ export function PowerUsage() {
             <h2 className="h2">{m.energy_disksTitle()}</h2>
             <span className="text-[12px] text-muted">{m.energy_disksNote()}</span>
           </div>
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="tbl">
               <thead>
                 <tr>

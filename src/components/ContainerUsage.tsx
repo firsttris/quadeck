@@ -60,7 +60,7 @@ export function ContainerUsageView({ open }: { open?: string }) {
         </div>
       </div>
       {error && <p className="m-0 text-[13px] text-[#e3b341]">{error}</p>}
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         <table className="tbl">
           <thead>
             <tr>

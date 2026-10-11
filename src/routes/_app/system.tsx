@@ -234,7 +234,7 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
             {m.system_updates_noAutoUpdateBefore()} <span className="font-mono">AutoUpdate=registry</span> {m.system_updates_noAutoUpdateAfter()}
           </p>
         ) : (
-          <div className="overflow-x-auto">
+          <div className="relative overflow-x-auto">
             <table className="tbl">
               <thead>
                 <tr>
@@ -445,7 +445,7 @@ function UpdateTable({ title, items, error, empty, note, action }: { title: stri
       ) : items.length === 0 ? (
         <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{empty}</p>
       ) : (
-        <div className="max-h-[420px] overflow-auto">
+        <div className="relative max-h-[420px] overflow-auto">
           <table className="tbl">
             <thead>
               <tr>

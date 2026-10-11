@@ -661,7 +661,7 @@ function PaneTable(props: {
   const { entries, selected, cur } = pane
   const send = !props.readonly && props.canSend
   return (
-    <div className="overflow-x-auto">
+    <div className="relative overflow-x-auto">
       <table className="tbl" aria-label={m.files_explorer_files()}>
         <thead>
           <tr>
