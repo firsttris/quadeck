@@ -14,7 +14,13 @@ on:
       - "**.md"
       - "docs/**"
       - "LICENSE"
+  workflow_call: # release.yml runs the same checks before publishing
+  workflow_dispatch:
 
+permissions:
+  contents: read
+
+# Same header as every project, see https://github.com/firsttris/workflows#ci-in-every-project
 # A new push to a pull request cancels its outdated run; runs on main finish
 concurrency:
   group: ci-${{ github.ref }}
@@ -25,6 +31,7 @@ jobs:
     # Draft pull requests do not build; "Ready for review" starts the run
     if: ${{ !github.event.pull_request.draft }}
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
@@ -46,23 +53,40 @@ jobs:
             release/quadeck-linux-x64-musl
           retention-days: 3
 
+  # The official Playwright image of the @playwright/test version in bun.lock: browser, system
+  # libraries and fonts come with it, no playwright install.
+  playwright-image:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      image: ${{ steps.playwright.outputs.image }}
+    steps:
+      - id: playwright
+        uses: firsttris/workflows/actions/playwright-image@v1
+        with:
+          lockfile: bun.lock
+
   # The E2E tests share one server and its data directory, so they run one after the other. Split
   # by file across three runners, each building and starting its own server, they finish in about a
   # third of the time, alongside the checks above. e2e/zz-i18n.spec.ts switches to English and has
   # to come last: shards take the files in name order, so it stays at the end of the last one.
   e2e:
     name: E2E ${{ matrix.shard }}/3
-    if: ${{ !github.event.pull_request.draft }}
+    needs: playwright-image
     runs-on: ubuntu-latest
+    timeout-minutes: 20
+    container:
+      image: ${{ needs.playwright-image.outputs.image }}
+      options: --ipc=host
     strategy:
       fail-fast: false
       matrix:
         shard: [1, 2, 3]
     steps:
       - uses: actions/checkout@v4
-      - uses: oven-sh/setup-bun@v2
+      - run: npm install --global bun
       - run: bun install --frozen-lockfile
-      - run: bunx playwright install --with-deps chromium
       - name: E2E (production build against fixtures)
         run: bunx playwright test --shard=${{ matrix.shard }}/3
       - uses: actions/upload-artifact@v4
@@ -76,6 +100,7 @@ jobs:
   distros:
     needs: check
     runs-on: ubuntu-latest
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
