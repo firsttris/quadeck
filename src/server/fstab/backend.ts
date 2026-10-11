@@ -167,7 +167,7 @@ export class FstabManager implements FstabBackend {
     // The entry being changed, and the one it replaces.
     const old = change.kind === 'update' || change.kind === 'remove' ? parseFstab(before).entries.find((e) => e.line === change.line) : undefined
     if (old && systemReason(old, ctx.rootSpecs)) {
-      out.push({ severity: 'error', message: `${old.file}: ${systemReason(old, ctx.rootSpecs)}` + msg(m.fstab_error_systemNotChanged) })
+      out.push({ severity: 'error', message: `${old.file}: ${systemReason(old, ctx.rootSpecs)}${msg(m.fstab_error_systemNotChanged)}` })
       return result()
     }
     if (change.kind === 'add' || change.kind === 'update') out.push(...checkInput(change.entry))
@@ -323,7 +323,7 @@ export class FstabManager implements FstabBackend {
     const { rootSpecs, text } = await this.context()
     const e = parseFstab(text).entries.find((x) => x.file === target)
     if (!e) throw new HttpError(404, msg(m.fstab_error_notInFstab, { target }))
-    if (systemReason(e, rootSpecs)) throw new HttpError(403, `${target}: ${systemReason(e, rootSpecs)}` + msg(m.fstab_error_systemNoMount))
+    if (systemReason(e, rootSpecs)) throw new HttpError(403, `${target}: ${systemReason(e, rootSpecs)}${msg(m.fstab_error_systemNoMount)}`)
     if (action === 'mount') {
       if (this.host.dirState(target) === 'missing') this.host.mkdir(target)
       const r = await this.host.systemctl(['start', '--', mountUnit(target)])
@@ -435,7 +435,7 @@ export function pathsInUse(files: { smb?: string; exports?: string[]; quadlets?:
   return out
 }
 
-export const usedUnder = (all: { path: string; what: string }[], target: string) => [...new Set(all.filter((u) => u.path === target || u.path.startsWith(target + '/')).map((u) => u.what))]
+export const usedUnder = (all: { path: string; what: string }[], target: string) => [...new Set(all.filter((u) => u.path === target || u.path.startsWith(`${target}/`)).map((u) => u.what))]
 
 export class SystemFstabHost implements FstabHost {
   readonly path: string

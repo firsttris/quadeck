@@ -4,7 +4,7 @@
 // buildHardware() is pure: the root helper reads sysfs into HardwareRaw.
 
 import { m } from '~/paraglide/messages'
-import { localize, msg } from './i18n'
+import { msg } from './i18n'
 
 export interface PciRaw {
   address: string

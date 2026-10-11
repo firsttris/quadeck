@@ -47,7 +47,7 @@ export const Route = createFileRoute('/api/speedtest/')({
             start(ctrl) {
               const send = (o: unknown) => {
                 try {
-                  ctrl.enqueue(enc.encode(JSON.stringify(o) + '\n'))
+                  ctrl.enqueue(enc.encode(`${JSON.stringify(o)}\n`))
                 } catch {
                   // page closed
                 }

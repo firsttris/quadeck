@@ -1,0 +1,64 @@
+{
+  "$schema": "https://biomejs.dev/schemas/2.5.14/schema.json",
+  // Lint and format: `bun run check` (CI runs `biome ci`), fix with `bun run check:fix`.
+  "vcs": {
+    "enabled": true,
+    "clientKind": "git",
+    "useIgnoreFile": true
+  },
+  "files": {
+    "ignoreUnknown": true,
+    "includes": [
+      "**",
+      // generated
+      "!**/src/routeTree.gen.ts",
+      "!**/src/paraglide",
+      "!**/drizzle",
+      // data, not code
+      "!**/fixtures",
+      "!**/messages",
+      "!**/project.inlang",
+      // Tailwind v4 syntax (@theme, @apply) that Biome's CSS parser does not know
+      "!**/*.css",
+      "!**/*.md"
+    ]
+  },
+  // Same settings as SnapRAID UI; wider lines, as the code was written with them
+  "formatter": {
+    "enabled": true,
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 200
+  },
+  "javascript": {
+    "formatter": {
+      "quoteStyle": "single",
+      "jsxQuoteStyle": "double",
+      "semicolons": "asNeeded"
+    }
+  },
+  "assist": { "actions": { "source": { "organizeImports": "on" } } },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended",
+      "style": {
+        // `x!` states what the code already checked (a regex group, a looked-up key);
+        // noUncheckedIndexedAccess is off, so TypeScript asks for no proof either
+        "noNonNullAssertion": "off"
+      },
+      "suspicious": {
+        // control characters in regexes are on purpose: input validation rejects them
+        "noControlCharactersInRegex": "off"
+      },
+      "a11y": {
+        // the first field of a dialog or form gets the focus when it opens
+        "noAutofocus": "off",
+        // ARIA widgets on purpose: role="group"/"radio"/"meter"/"button" styled as the design wants;
+        // <fieldset>, <input type=radio> or <meter> would not look or behave like them
+        "useSemanticElements": "off",
+        "noLabelWithoutControl": { "level": "error", "options": { "inputComponents": ["DraftInput"] } }
+      }
+    }
+  }
+}

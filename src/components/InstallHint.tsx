@@ -25,6 +25,7 @@ export function InstallHint({ feature, what, onInstalled }: { feature: Feature; 
   }, [])
 
   // Reload once our install job has ended.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: check again when a job finishes
   useEffect(() => {
     if (jobId && jobs.running?.id !== jobId) {
       setJobId(null)

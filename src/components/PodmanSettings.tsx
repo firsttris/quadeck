@@ -88,6 +88,7 @@ function ConfigCard({ file, readonly, onSaved }: { file: PodmanConfigFile; reado
       {file.editable && !readonly && form.length > 0 && (
         <div className="grid grid-cols-1 gap-3 md:grid-cols-2">
           {form.map((f) => (
+            // biome-ignore lint/a11y/noLabelWithoutControl: every branch below renders a select or an input
             <label key={f.key} className="flex flex-col gap-1 text-[12px]">
               <span className="font-medium text-fg">
                 {pickMsg(
@@ -244,6 +245,7 @@ export function PodmanSettingsView() {
                 type="checkbox"
                 role="switch"
                 aria-label={m.podman_updates_timerActive()}
+                aria-checked={t.enabled}
                 checked={t.enabled}
                 disabled={readonly || busy}
                 onChange={(e) => void apply('timer', { timer: { enabled: e.target.checked, calendar } }, e.target.checked ? m.podman_updates_timerOn() : m.podman_updates_timerOff())}
@@ -293,6 +295,7 @@ export function PodmanSettingsView() {
                 type="checkbox"
                 role="switch"
                 aria-label={m.podman_all_aria()}
+                aria-checked={s.autoUpdateDefault.enabled}
                 checked={s.autoUpdateDefault.enabled}
                 disabled={readonly || busy}
                 onChange={(e) => void apply('default', { autoUpdateDefault: e.target.checked }, e.target.checked ? m.podman_all_on() : m.podman_all_off())}

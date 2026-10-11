@@ -28,7 +28,7 @@ export const Route = createFileRoute('/api/fstab/')({
         if (b.validate) return Response.json(await p.validateFstab(parseFstabChange(b.validate)))
         assertWritable()
         const token = unlockToken(session.id)
-        let state
+        let state: Awaited<ReturnType<typeof p.applyFstab>>
         if (b.apply) state = await p.applyFstab(token, parseFstabChange(b.apply), b.confirm === true)
         else if (b.mount && typeof b.mount.target === 'string') state = await p.mountAction(token, b.mount.target, b.mount.action === 'unmount' ? 'unmount' : 'mount')
         else throw new HttpError(400, msg(m.common_errors_unknownRequest))

@@ -296,7 +296,10 @@ export function seedSpeedHistory(now = Date.now()) {
   if (db().select({ n: sql<number>`count(*)` }).from(t).where(metricPrefix('speed:')).get()!.n > 0) return
   const rows: { ts: number; metric: string; value: number }[] = []
   let seed = 11
-  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+  const rnd = () => {
+    seed = (seed * 16807) % 2147483647
+    return seed / 2147483647
+  }
   for (let d = 60; d >= 1; d--) {
     const ts = now - d * 86_400_000
     const dip = d === 23 || d === 22 ? 0.35 : 1 // a bad evening at the provider

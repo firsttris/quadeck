@@ -41,7 +41,7 @@ export const defaultClientPlan = (): ClientPlan => ({
   active: true,
 })
 
-const CTRL = /[\x00-\x1f\x7f]/ // eslint-disable-line no-control-regex
+const CTRL = /[\x00-\x1f\x7f]/
 
 /** `~`, `~/a/b` or `/a/b`: no empty, `.` or `..` segments, no trailing slash, not `/` itself. */
 function folderProblem(f: unknown): string | undefined {

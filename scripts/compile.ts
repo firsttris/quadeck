@@ -26,7 +26,7 @@ const lines = [
   `const assets = new Map<string, string>([${files.map((f, i) => `['/${relative('dist/client', f)}', f${i}]`).join(', ')}])`,
   `await main(process.argv.slice(2), { server, assets, version: ${JSON.stringify(pkg.version)} })`,
 ]
-writeFileSync('build/entry.ts', lines.join('\n') + '\n')
+writeFileSync('build/entry.ts', `${lines.join('\n')}\n`)
 
 mkdirSync('release', { recursive: true })
 for (const target of targets) {

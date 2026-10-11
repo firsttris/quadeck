@@ -35,7 +35,8 @@ export function getLayout(): DashboardLayout {
   for (const r of db().select().from(schema.layouts).all()) {
     const [scope, bp] = r.breakpoint.split('|') as [LayoutScope, string]
     if (!SCOPES.includes(scope) || !bp) continue
-    ;(out.layouts[scope][bp] ??= []).push({ i: r.widgetId, x: r.x, y: r.y, w: r.w, h: r.h })
+    out.layouts[scope][bp] ??= []
+    out.layouts[scope][bp].push({ i: r.widgetId, x: r.x, y: r.y, w: r.w, h: r.h })
   }
   const rows = db().select().from(schema.widgets).all()
   out.hidden = rows.filter((w) => w.type === 'card' && (w.config as { hidden?: boolean }).hidden).map((w) => w.id)

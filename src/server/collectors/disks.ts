@@ -84,7 +84,7 @@ function readDriveTemps(): Map<string, number> {
         for (const b of readdirSync(`${base}/device/block`)) temps.set(b, t)
       } else if (name === 'nvme') {
         const ctrl = basename(readlinkSync(`${base}/device`)) // nvme0
-        for (const b of readdirSync('/sys/block').filter((x) => x.startsWith(ctrl + 'n'))) temps.set(b, t)
+        for (const b of readdirSync('/sys/block').filter((x) => x.startsWith(`${ctrl}n`))) temps.set(b, t)
       }
     } catch {
       // sensor without block mapping

@@ -53,6 +53,7 @@ export const localeOf = (lang: Lang = currentLang()) => (lang === 'en' ? 'en-GB'
 export const plural = (n: number, one: string, many: string) => `${n} ${n === 1 ? one : many}`
 
 /** A compiled Paraglide message, e.g. m.units_title. */
+// biome-ignore lint/suspicious/noExplicitAny: any message, whatever its inputs; the callers type them per message (Inputs<F>)
 export type Message = (inputs: any, options?: { locale?: Lang }) => string
 type Inputs<F extends Message> = Parameters<F>[0]
 
@@ -61,7 +62,8 @@ const table = globalThis as unknown as { __quadeckMessages?: { byKey: Map<string
 
 /** Server: every message by key, so msg() can mark messages and localize() render the marks. */
 export function registerMessages(all: Record<string, Message>) {
-  const t = (table.__quadeckMessages ??= { byKey: new Map(), keyOf: new Map() })
+  table.__quadeckMessages ??= { byKey: new Map(), keyOf: new Map() }
+  const t = table.__quadeckMessages
   for (const [key, fn] of Object.entries(all)) {
     t.byKey.set(key, fn)
     t.keyOf.set(fn, key)

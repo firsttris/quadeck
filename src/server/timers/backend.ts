@@ -3,7 +3,7 @@
 // every other timer via drop-in. SystemTimers runs where root is,
 // FixtureTimers keeps demo data in memory.
 
-import { existsSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdtempSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { m } from '~/paraglide/messages'
@@ -195,7 +195,7 @@ export class SystemTimers implements TimersBackend {
       }
     for (const l of `${files.stdout}\n${loaded.stdout}`.split('\n')) {
       const n = l.trim().split(/\s+/)[0]
-      if (n && n.endsWith('.timer') && !n.includes('@.') && TIMER_UNIT.test(n)) names.add(n)
+      if (n?.endsWith('.timer') && !n.includes('@.') && TIMER_UNIT.test(n)) names.add(n)
     }
     const managed = this.managed()
     for (const base of managed.keys()) names.add(`${base}.timer`)

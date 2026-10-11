@@ -46,7 +46,7 @@ export const demoSpawner: Spawner = (spec, onData) => {
               return
             }
             const answer = cmd === 'whoami' ? spec.user : cmd ? (ANSWERS[cmd] ?? `${cmd.split(' ')[0]}: demo only – try help`) : ''
-            out(`\r\n${answer ? answer.replace(/\n/g, '\r\n') + '\r\n' : ''}${prompt}`)
+            out(`\r\n${answer ? `${answer.replace(/\n/g, '\r\n')}\r\n` : ''}${prompt}`)
           } else if (ch === '\x7f') {
             if (line) {
               line = line.slice(0, -1)

@@ -184,10 +184,12 @@ function Linked({ text }: { text: string }) {
     <>
       {parts.map((p, i) =>
         p.href ? (
+          // biome-ignore lint/suspicious/noArrayIndexKey: parts of one text, in order
           <a key={i} href={p.href} target="_blank" rel="noreferrer noopener" className="no-drag text-accent underline">
             {p.text}
           </a>
         ) : (
+          // biome-ignore lint/suspicious/noArrayIndexKey: parts of one text, in order
           <span key={i}>{p.text}</span>
         ),
       )}
@@ -287,6 +289,7 @@ export function WidgetSettingsDialog({
   const [links, setLinks] = useState<LinksConfig>({ title: '', links: [] })
   const [busy, setBusy] = useState(false)
   const say = useToast()
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only when another widget opens: live updates bring new mount and unit lists and must not throw away what is being typed
   useEffect(() => {
     if (widget?.kind === 'disk') setDisk({ mount: widget.config.mount || mounts[0]?.mount || '' })
     if (widget?.kind === 'containers') setTop(widget.config)
@@ -294,7 +297,6 @@ export function WidgetSettingsDialog({
     if (widget?.kind === 'links') setLinks(widget.config.links.length ? widget.config : { ...widget.config, links: [{ name: '', url: '' }] })
     // only when another widget opens: live updates bring new mount and unit lists every few
     // seconds and must not throw away what is being typed
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [widget?.id])
   const badLink = links.links.findIndex((l) => (l.name.trim() || l.url.trim()) && (!l.name.trim() || !isWebUrl(l.url.trim())))
   const save = async () => {
@@ -312,10 +314,10 @@ export function WidgetSettingsDialog({
   }
   return (
     <Modal open={!!widget} onClose={onClose} title={widget ? m.widgets_settings_title({ name: widgetName(widget.kind) }) : ''} busy={busy}>
-      {widget?.kind === 'disk' && (
-        <label className="flex flex-col gap-1 text-[13px]">
-          {m.widgets_disk_mount()}
-          {mounts.length ? (
+      {widget?.kind === 'disk' &&
+        (mounts.length ? (
+          <label className="flex flex-col gap-1 text-[13px]">
+            {m.widgets_disk_mount()}
             <select className="field" value={disk.mount} onChange={(e) => setDisk({ mount: e.target.value })}>
               {mounts.map((x) => (
                 <option key={x.mount} value={x.mount}>
@@ -323,11 +325,13 @@ export function WidgetSettingsDialog({
                 </option>
               ))}
             </select>
-          ) : (
+          </label>
+        ) : (
+          <div className="flex flex-col gap-1 text-[13px]">
+            {m.widgets_disk_mount()}
             <span className="text-muted">{m.widgets_disk_noMounts()}</span>
-          )}
-        </label>
-      )}
+          </div>
+        ))}
       {widget?.kind === 'containers' && (
         <div role="radiogroup" aria-label={m.widgets_containers_by()} className="flex flex-col gap-1.5 text-[13px]">
           <span>{m.widgets_containers_by()}</span>
@@ -339,10 +343,10 @@ export function WidgetSettingsDialog({
           ))}
         </div>
       )}
-      {widget?.kind === 'service' && (
-        <label className="flex flex-col gap-1 text-[13px]">
-          {m.widgets_service_unit()}
-          {units.length ? (
+      {widget?.kind === 'service' &&
+        (units.length ? (
+          <label className="flex flex-col gap-1 text-[13px]">
+            {m.widgets_service_unit()}
             <select className="field" value={service.unit} onChange={(e) => setService({ unit: e.target.value })}>
               {units.map((u) => (
                 <option key={u.name} value={u.name}>
@@ -350,11 +354,13 @@ export function WidgetSettingsDialog({
                 </option>
               ))}
             </select>
-          ) : (
+          </label>
+        ) : (
+          <div className="flex flex-col gap-1 text-[13px]">
+            {m.widgets_service_unit()}
             <span className="text-muted">{m.widgets_service_noUnits()}</span>
-          )}
-        </label>
-      )}
+          </div>
+        ))}
       {widget?.kind === 'links' && (
         <div className="flex flex-col gap-2.5 text-[13px]">
           <label className="flex flex-col gap-1">
@@ -363,6 +369,7 @@ export function WidgetSettingsDialog({
           </label>
           <span>{m.widgets_links_list()}</span>
           {links.links.map((l, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: controlled inputs, the position is the identity
             <div key={i} className="flex flex-wrap gap-1.5">
               <input
                 className="field w-[150px]"

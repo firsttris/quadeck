@@ -121,7 +121,7 @@ function MobileBar({ onMenu, onSearch }: { onMenu: () => void; onSearch: () => v
     <header className="sticky top-0 z-30 flex items-center gap-1 border-b border-line bg-bg/92 px-2 py-2 backdrop-blur md:hidden">
       <button type="button" className="relative grid h-10 w-10 place-items-center rounded-lg text-fg hover:bg-surface" onClick={onMenu} aria-label={m.shell_bar_openMenu()}>
         <Glyph name="menu" size={20} strokeWidth={2} />
-        {problems > 0 && <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-[#f85149]" aria-label={m.shell_bar_problems({ n: problems })} />}
+        {problems > 0 && <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-[#f85149]" role="img" aria-label={m.shell_bar_problems({ n: problems })} />}
       </button>
       <Link to="/" className="flex min-w-0 grow items-center gap-2 text-fg no-underline">
         <Logo size={26} />
@@ -150,7 +150,8 @@ function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => vo
   const [passkeys, setPasskeys] = useState(false)
 
   // The drawer closes when a page is chosen, on Escape, and doesn't let the page behind scroll.
-  useEffect(() => onClose(), [path]) // eslint-disable-line react-hooks/exhaustive-deps
+  // biome-ignore lint/correctness/useExhaustiveDependencies: close the drawer on navigation
+  useEffect(() => onClose(), [path])
   const closeButton = useRef<HTMLButtonElement>(null)
   useEffect(() => {
     if (!open) return

@@ -325,6 +325,7 @@ function AccountDetail({
         <h2 className="h2 px-[18px] pt-4 pb-2">{m.users_history_title()}</h2>
         {history.length === 0 && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{m.users_history_none()}</p>}
         {history.slice(0, 15).map((h, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: login records have no id, the log order is their identity
           <div key={i} className="flex flex-wrap items-center gap-x-3 border-t border-line px-[18px] py-[7px] text-[13px]" data-testid="login-record">
             <Dot tone={h.active ? 'ok' : 'idle'} label={h.active ? m.users_history_loggedIn() : m.users_history_ended()} />
             <span className="font-mono text-[12px]" suppressHydrationWarning>

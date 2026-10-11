@@ -272,7 +272,7 @@ describe('jobs', () => {
     const got: string[] = []
     const s = lineSplitter((l) => got.push(l))
     // pacman -Syu without a terminal: one line of erase codes per download step
-    s.push(':: Retrieving packages...\n' + '\x1b[K\r\x1b[1A\n'.repeat(40) + '\r \r\n')
+    s.push(`:: Retrieving packages...\n${'\x1b[K\r\x1b[1A\n'.repeat(40)}\r \r\n`)
     s.push('\n\n\n(31/31) checking keys in keyring\n\nend\n')
     s.flush()
     expect(got).toEqual([':: Retrieving packages...', '', '(31/31) checking keys in keyring', '', 'end'])
@@ -280,7 +280,11 @@ describe('jobs', () => {
 
   it('runs one job at a time and stops at the exit marker', async () => {
     let sink: JobSink | undefined
-    const m = new JobManager({ start: async (_id, _spec, s) => void (sink = s) })
+    const m = new JobManager({
+      start: async (_id, _spec, s) => {
+        sink = s
+      },
+    })
     const j = await m.start({ kind: 'upgrade' })
     expect(j.title).toBe('Systemupdate')
     await expect(m.start({ kind: 'upgrade' })).rejects.toMatchObject({ status: 409 })
@@ -296,7 +300,11 @@ describe('jobs', () => {
 
   it('drops the update list the moment the upgrade ends, also against a check that was still running', async () => {
     let sink: JobSink | undefined
-    const m = new SystemMaintenance({ start: async (_id, _spec, s) => void (sink = s) })
+    const m = new SystemMaintenance({
+      start: async (_id, _spec, s) => {
+        sink = s
+      },
+    })
     let pending = [{ name: 'linux', from: '6.1', to: '6.2' }]
     let release: (() => void) | undefined
     let slow = false
@@ -333,9 +341,16 @@ describe('jobs', () => {
 
   it('ends a job and frees the slot even when the after-job hook throws', async () => {
     let sink: JobSink | undefined
-    const m = new JobManager({ start: async (_id, _spec, s) => void (sink = s) }, () => {
-      throw new Error('hook broke')
-    })
+    const m = new JobManager(
+      {
+        start: async (_id, _spec, s) => {
+          sink = s
+        },
+      },
+      () => {
+        throw new Error('hook broke')
+      },
+    )
     const j = await m.start({ kind: 'upgrade' })
     expect(() => sink!.line('::quadeck-exit 0')).not.toThrow()
     expect(m.get(j.id, 0)!.status).toBe('ok')

@@ -60,7 +60,7 @@ export function BackupBrowser({ state, snapshot, dir, onNavigate }: { state: Bac
     ...new Set([
       ...(state.plan?.stop ?? []),
       ...(suggestion?.paths ?? [])
-        .filter((p) => p.path.startsWith('/') && selected.some((s) => s === p.path || s.startsWith(p.path + '/') || p.path.startsWith(s + '/')))
+        .filter((p) => p.path.startsWith('/') && selected.some((s) => s === p.path || s.startsWith(`${p.path}/`) || p.path.startsWith(`${s}/`)))
         .map((p) => suggestion!.stop.find((x) => x.from === p.from)?.unit)
         .filter((u): u is string => !!u),
     ]),
@@ -102,12 +102,13 @@ export function BackupBrowser({ state, snapshot, dir, onNavigate }: { state: Bac
               /
             </button>
             {crumbs.map((c, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: breadcrumbs, the position is the path
               <span key={i} className="flex items-center gap-1.5">
                 {i > 0 && <span aria-hidden="true">/</span>}
                 {i === crumbs.length - 1 ? (
                   <span className="text-fg">{c}</span>
                 ) : (
-                  <button type="button" className="text-accent hover:text-accent-soft" onClick={() => onNavigate(snapshot, '/' + crumbs.slice(0, i + 1).join('/'))}>
+                  <button type="button" className="text-accent hover:text-accent-soft" onClick={() => onNavigate(snapshot, `/${crumbs.slice(0, i + 1).join('/')}`)}>
                     {c}
                   </button>
                 )}
@@ -257,5 +258,5 @@ export function commonDir(paths: string[]): string {
     out.push(seg)
   }
   // A single path is itself the folder to show.
-  return '/' + out.join('/')
+  return `/${out.join('/')}`
 }

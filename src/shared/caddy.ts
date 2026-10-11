@@ -144,15 +144,6 @@ function matchBrace(text: string, open: number): number {
   return -1
 }
 
-/** Inner lines of a block without comments and blank lines. */
-function bodyLines(block: string): string[] {
-  const inner = block.slice(block.indexOf('{') + 1, block.lastIndexOf('}'))
-  return inner
-    .split('\n')
-    .map((l) => l.replace(/(^|\s)#.*$/, '').trim())
-    .filter(Boolean)
-}
-
 const UPSTREAM_TOKEN = /^(?:(?:https?|h2c):\/\/)?(?:\[[0-9a-f:]+\]|[A-Za-z0-9_.-]+)(?::\d{1,5})?$|^unix\/\/\S+$/
 
 /** Top-level directives of a block body: a line, or a line ending in "{" with everything up to its "}". Indentation removed. */
@@ -353,7 +344,7 @@ const tidy = (text: string) =>
 
 /** The file after a form change. Throws with a message the UI can show. */
 export function applyCaddyChange(text: string, change: CaddyChange): string {
-  if (change.kind === 'text') return change.content.endsWith('\n') ? change.content : change.content + '\n'
+  if (change.kind === 'text') return change.content.endsWith('\n') ? change.content : `${change.content}\n`
   const { blocks } = parseCaddyfile(text)
   const sites = blocks.filter((b) => b.kind === 'proxy' || b.kind === 'site')
   const find = (address: string) => sites.find((b) => b.addresses.includes(address))

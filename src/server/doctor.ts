@@ -70,7 +70,7 @@ export async function doctorReport(): Promise<DoctorReport> {
 
 /** Human-readable lines, with what each finding means. */
 export function formatReport(r: DoctorReport): string {
-  const row = (k: string, v: string, note?: string) => `${(k + ':').padEnd(17)}${v}${note ? `  – ${note}` : ''}`
+  const row = (k: string, v: string, note?: string) => `${(`${k}:`).padEnd(17)}${v}${note ? `  – ${note}` : ''}`
   return [
     row('System', r.os),
     row('Architecture', `${r.arch} (${r.libc})`),

@@ -96,8 +96,12 @@ function NetworkPage() {
               <dd className="m-0 font-mono">{s.hostname}</dd>
               {s.routes
                 .filter((r) => r.dst === 'default')
-                .map((r, i) => (
-                  <Pair key={i} k={r.family === 'inet' ? m.network_routes_gateway() : m.network_routes_gateway6()} v={`${r.gateway ?? '–'}${r.dev ? m.network_routes_via({ dev: r.dev }) : ''}`} />
+                .map((r) => (
+                  <Pair
+                    key={`${r.family}-${r.gateway}-${r.dev}`}
+                    k={r.family === 'inet' ? m.network_routes_gateway() : m.network_routes_gateway6()}
+                    v={`${r.gateway ?? '–'}${r.dev ? m.network_routes_via({ dev: r.dev }) : ''}`}
+                  />
                 ))}
               <Pair k={m.network_routes_dns()} v={s.dns.servers.join(', ') || '–'} />
               {s.dns.resolver && <Pair k={m.network_routes_resolver()} v={s.dns.resolver} />}
@@ -106,8 +110,8 @@ function NetworkPage() {
             <details className="text-[12px] text-muted">
               <summary className="cursor-pointer">{m.network_routes_all({ n: s.routes.length })}</summary>
               <ul className="m-0 mt-1.5 flex list-none flex-col gap-0.5 p-0 font-mono">
-                {s.routes.map((r, i) => (
-                  <li key={i}>
+                {s.routes.map((r) => (
+                  <li key={`${r.family}-${r.dst}-${r.gateway}-${r.dev}`}>
                     {r.dst}
                     {r.gateway ? ` via ${r.gateway}` : ''}
                     {r.dev ? ` dev ${r.dev}` : ''}

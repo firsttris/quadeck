@@ -34,6 +34,7 @@ function useJson<T>(url: string, everyMs?: number) {
   const { finished } = useJobs()
   const [data, setData] = useState<T | null>(null)
   const [error, setError] = useState('')
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reload when a job finishes
   useEffect(() => {
     let stop = false
     const load = () =>
@@ -41,7 +42,10 @@ function useJson<T>(url: string, everyMs?: number) {
         .then(async (r) => {
           const d = (await r.json()) as T & { error?: string }
           if (!r.ok) throw new Error(d.error ?? m.common_http({ status: r.status }))
-          if (!stop) setData(d), setError('')
+          if (!stop) {
+            setData(d)
+            setError('')
+          }
         })
         .catch((e: Error) => !stop && setError(e.message))
     void load()
@@ -403,6 +407,7 @@ export function SpeedWidget() {
           {recent.length > 1 && (
             <div className="flex h-8 items-end gap-[3px]" aria-hidden="true">
               {recent.map((v, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: one bar per time slot
                 <div key={i} className="grow rounded-t-[2px] bg-accent opacity-70" style={{ height: `${Math.max(8, (v / max) * 100)}%` }} />
               ))}
             </div>
@@ -469,6 +474,7 @@ export function LinksWidget({ config }: { config: LinksConfig }) {
       ) : (
         <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[13px]">
           {config.links.map((l, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: a group may hold the same link twice; the order is the identity
             <li key={i} className="min-w-0">
               <a href={l.url} target="_blank" rel="noreferrer noopener" className="no-drag flex items-baseline gap-2 rounded-[6px] px-1 py-0.5 hover:bg-surface">
                 <span className="truncate">{l.name}</span>

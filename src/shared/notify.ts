@@ -3,7 +3,7 @@
 // Pure functions, shared by the server and the settings page.
 
 import { m } from '~/paraglide/messages'
-import { localize, msg } from './i18n'
+import { msg } from './i18n'
 import type { Snapshot } from './types'
 
 export type ChannelKind = 'ntfy' | 'gotify' | 'telegram' | 'webhook' | 'email'
@@ -190,7 +190,6 @@ export const DELAY_MS: Record<RuleKey, number> = {
 
 // ---------- validation ----------
 
-// eslint-disable-next-line no-control-regex
 const CONTROL = /[\x00-\x1f\x7f]/
 const HTTP_URL = /^https?:\/\/[^\s/?#]+(?::\d+)?(\/[^\s]*)?$/
 

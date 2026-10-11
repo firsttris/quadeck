@@ -216,6 +216,7 @@ export function TimersView() {
                       type="checkbox"
                       role="switch"
                       aria-label={m.timers_list_activeAria({ name: t.name })}
+                      aria-checked={t.enabled}
                       checked={t.enabled}
                       disabled={readonly || busy === t.name || t.unitFileState === 'static' || t.unitFileState === 'masked'}
                       title={t.unitFileState === 'static' ? m.timers_list_static() : undefined}

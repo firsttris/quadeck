@@ -42,7 +42,7 @@ export function parseIni(text: string): IniEntry[] {
     // "Key=a \" + next line continues the value.
     while (value.endsWith('\\') && i + 1 < lines.length) {
       i++
-      value = value.slice(0, -1) + ' ' + lines[i]!.trim()
+      value = `${value.slice(0, -1)} ${lines[i]!.trim()}`
     }
     out.push({ kind: 'kv', section, key: kv[1]!, value: value.trim(), start, end: i })
   }

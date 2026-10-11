@@ -115,11 +115,11 @@ export function EditableGrid({ spec, items, saved, editing, onSave, handle, clas
   )
 
   const ids = items.map((it) => it.i).join('\n')
+  // biome-ignore lint/correctness/useExhaustiveDependencies: ids stand for the item list, which is a new array on every render
   const layouts = useMemo(() => {
     const out: Record<string, (LayoutItem & { auto: boolean })[]> = {}
     for (const [bp, cols] of Object.entries(spec.cols)) out[bp] = mergeLayout(spec.defaults(bp, cols), saved[bp], measured, spec)
     return out
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ids, saved, measured, spec])
 
   const bp = mounted ? currentBreakpoint(spec.breakpoints, width) : ssrBreakpoint

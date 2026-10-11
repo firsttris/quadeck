@@ -42,7 +42,7 @@ export const Route = createFileRoute('/api/disks/smart')({
       POST: authed(async ({ request }, session) => {
         const b = await readJson<{ selftest?: { disk?: unknown; type?: unknown } }>(request)
         const p = privileged()
-        let report
+        let report: Awaited<ReturnType<typeof p.smartReport>>
         if (b.selftest) {
           assertWritable()
           const { disk, type } = b.selftest

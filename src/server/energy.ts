@@ -223,7 +223,10 @@ export function seedEnergyHistory(d: DB, now = Date.now()) {
   const t = schema.metricSamples
   if (d.select({ n: sql<number>`count(*)` }).from(t).where(metricPrefix('energy:')).get()!.n > 0) return
   let seed = 11
-  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+  const rnd = () => {
+    seed = (seed * 16807) % 2147483647
+    return seed / 2147483647
+  }
   const rows: { ts: number; metric: string; value: number }[] = []
   const end = hourStart(now)
   for (let ts = end - 365 * 86_400_000; ts < end; ts += 3_600_000) {

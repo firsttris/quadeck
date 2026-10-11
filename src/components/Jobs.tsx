@@ -180,6 +180,7 @@ export function JobDialog({ id, onClose, onEnd }: { id: string | null; onClose: 
     }
   }, [id, onEnd])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scroll down when new lines arrive
   useEffect(() => {
     if (stick.current && pre.current) pre.current.scrollTop = pre.current.scrollHeight
   }, [lines])
@@ -198,14 +199,15 @@ export function JobDialog({ id, onClose, onEnd }: { id: string | null; onClose: 
       <pre
         ref={pre}
         className="joblog"
+        role="log"
         aria-label={m.shell_jobs_output()}
-        aria-live="polite"
         onScroll={(e) => {
           const el = e.currentTarget
           stick.current = el.scrollHeight - el.scrollTop - el.clientHeight < 24
         }}
       >
         {lines.map((l, i) => (
+          // biome-ignore lint/suspicious/noArrayIndexKey: lines of a log that only grows
           <div key={i} className={marked.has(i) ? 'hl' : lineClass(l)}>
             {l || ' '}
           </div>
@@ -278,43 +280,46 @@ function JobHint({ job, lines, diagnosis: d, onClose }: { job: JobState; lines: 
       <div className="flex flex-wrap gap-2">
         {d.actions.map((a, i) => {
           const primary = i === 0 ? 'btn sm primary' : 'btn sm'
+          const key = JSON.stringify(a)
           switch (a.type) {
             case 'terminal':
               return (
-                <Link key={i} to="/terminal" search={a.command ? { type: a.command } : {}} className={primary} onClick={onClose}>
+                <Link key={key} to="/terminal" search={a.command ? { type: a.command } : {}} className={primary} onClick={onClose}>
                   {a.command ? m.shell_jobs_hint_terminalCmd({ cmd: TERMINAL_COMMANDS[a.command].argv }) : m.shell_jobs_hint_terminal()}
                 </Link>
               )
             case 'link':
               return (
-                <a key={i} href={a.href} target="_blank" rel="noreferrer" className={primary}>
+                <a key={key} href={a.href} target="_blank" rel="noreferrer" className={primary}>
                   {a.label === 'aurPage' ? m.shell_jobs_hint_aurPage({ name: d.a ?? '' }) : m.shell_jobs_hint_archNews()}
                 </a>
               )
             case 'job':
               return (
-                <button key={i} type="button" className={primary} disabled={starting || !!running} onClick={() => void start(a.spec)}>
+                <button key={key} type="button" className={primary} disabled={starting || !!running} onClick={() => void start(a.spec)}>
                   {a.label === 'keyringRetry' ? m.shell_jobs_hint_keyringRetry() : a.spec.kind === 'pacman-unlock' && a.spec.retry ? m.shell_jobs_hint_unlockRetry() : m.shell_jobs_hint_unlock()}
                 </button>
               )
             case 'retry':
               return (
-                <button key={i} type="button" className={primary} disabled={starting || !!running} onClick={() => void start(job.spec)}>
+                <button key={key} type="button" className={primary} disabled={starting || !!running} onClick={() => void start(job.spec)}>
                   {m.shell_jobs_hint_retry()}
                 </button>
               )
             case 'cache':
               return (
-                <Link key={i} to="/system" className={primary} onClick={onClose}>
+                <Link key={key} to="/system" className={primary} onClick={onClose}>
                   {m.shell_jobs_hint_cache()}
                 </Link>
               )
             case 'disks':
               return (
-                <Link key={i} to="/disks" className={primary} onClick={onClose}>
+                <Link key={key} to="/disks" className={primary} onClick={onClose}>
                   {m.shell_jobs_hint_disks()}
                 </Link>
               )
+            default:
+              return null
           }
         })}
         {errLines.length > 0 && (
@@ -342,7 +347,7 @@ export function JobChip({ compact = false }: { compact?: boolean }) {
   if (!running) {
     if (!starting) return null
     return compact ? (
-      <span className="grid h-10 w-10 place-items-center text-accent" aria-live="polite" aria-label={m.shell_jobs_starting()}>
+      <span className="grid h-10 w-10 place-items-center text-accent" role="status" aria-label={m.shell_jobs_starting()}>
         <Spinner />
       </span>
     ) : (

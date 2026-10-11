@@ -39,16 +39,7 @@ export function Modal({ open, onClose, title, children, wide, busy }: { open: bo
  * Asks before an action. When `onConfirm` returns a promise, the dialog stays open with a spinner
  * on the button until it settles, then closes.
  */
-export function ConfirmDialog(props: {
-  open: boolean
-  title: string
-  body: ReactNode
-  confirm: string
-  busyLabel?: string
-  danger?: boolean
-  onConfirm: () => void | Promise<unknown>
-  onClose: () => void
-}) {
+export function ConfirmDialog(props: { open: boolean; title: string; body: ReactNode; confirm: string; busyLabel?: string; danger?: boolean; onConfirm: () => unknown; onClose: () => void }) {
   const [busy, setBusy] = useState(false)
   return (
     <Modal open={props.open} onClose={props.onClose} title={props.title} busy={busy}>

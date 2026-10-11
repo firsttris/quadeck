@@ -311,14 +311,18 @@ describe('e-mail', () => {
             if (line === '.') {
               inData = false
               sock.write('250 queued\r\n')
-            } else data += line + '\n'
+            } else data += `${line}\n`
             continue
           }
           if (/^(EHLO|HELO)/i.test(line)) sock.write('250-test\r\n250 8BITMIME\r\n')
           else if (/^MAIL FROM/i.test(line)) sock.write('250 ok\r\n')
-          else if (/^RCPT TO:<(.*)>/i.test(line)) rcpt.push(line.match(/<(.*)>/)![1]!), sock.write('250 ok\r\n')
-          else if (/^DATA/i.test(line)) (inData = true), sock.write('354 go\r\n')
-          else if (/^QUIT/i.test(line)) sock.end('221 bye\r\n')
+          else if (/^RCPT TO:<(.*)>/i.test(line)) {
+            rcpt.push(line.match(/<(.*)>/)![1]!)
+            sock.write('250 ok\r\n')
+          } else if (/^DATA/i.test(line)) {
+            inData = true
+            sock.write('354 go\r\n')
+          } else if (/^QUIT/i.test(line)) sock.end('221 bye\r\n')
         }
       })
     })

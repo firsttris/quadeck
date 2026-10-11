@@ -225,15 +225,14 @@ export class FixtureUsers implements UsersBackend {
   }
 
   private edit(file: 'passwd' | 'group' | 'shadow', fn: (fields: string[][]) => string[][]) {
-    this.f[file] =
-      fn(
-        this.f[file]
-          .trim()
-          .split('\n')
-          .map((l) => l.split(':')),
-      )
-        .map((x) => x.join(':'))
-        .join('\n') + '\n'
+    this.f[file] = `${fn(
+      this.f[file]
+        .trim()
+        .split('\n')
+        .map((l) => l.split(':')),
+    )
+      .map((x) => x.join(':'))
+      .join('\n')}\n`
   }
 
   async applyUser(c: UserChange) {

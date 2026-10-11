@@ -243,8 +243,8 @@ function SmbPanel({
       {smb.connections.length > 0 && (
         <div className="border-t border-line px-[18px] py-2 text-[12px] text-muted">
           {m.shares_smb_connectedLabel()}{' '}
-          {smb.connections.map((c, i) => (
-            <span key={i} className="mr-3 font-mono" suppressHydrationWarning>
+          {smb.connections.map((c) => (
+            <span key={`${c.client}-${c.share}-${c.since}`} className="mr-3 font-mono" suppressHydrationWarning>
               {c.client} → {c.share}
               {c.since ? m.shares_smb_since({ when: age(c.since) }) : ''}
             </span>
@@ -483,6 +483,7 @@ function NfsDialog({ open, original, onClose, onNext }: { open: boolean; origina
         <div className="flex flex-col gap-2">
           <span className="text-[12px] font-medium text-muted">Clients</span>
           {clients.map((c, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: controlled inputs, the position is the identity
             <div key={i} className="flex flex-wrap items-end gap-2 rounded-[10px] border border-edge p-3" data-testid="nfs-client">
               <label className={`${label} min-w-[180px] grow`}>
                 {m.shares_nfsDialog_host()}
@@ -521,7 +522,7 @@ function NfsDialog({ open, original, onClose, onNext }: { open: boolean; origina
             <Glyph name="plus" size={13} /> {m.shares_nfsDialog_addClient()}
           </button>
         </div>
-        <p className="m-0 font-mono text-[12px] text-muted" aria-label={m.shares_nfsDialog_exportsLine()}>
+        <p className="m-0 font-mono text-[12px] text-muted" role="group" aria-label={m.shares_nfsDialog_exportsLine()}>
           {spec.path} {spec.clients.map((c) => `${c.host}(${c.options.join(',')})`).join(' ')}
         </p>
         {errors.length > 0 && (

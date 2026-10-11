@@ -34,7 +34,7 @@ export function parsePacmanInfo(out: string): Record<string, string>[] {
         key = m[1]!
         rec[key] = m[2]!
       } else if (key && /^\s+\S/.test(line)) {
-        rec[key] += '\n' + line.trim()
+        rec[key] += `\n${line.trim()}`
       }
     }
     if (rec.Name) records.push(rec)
@@ -157,7 +157,7 @@ export function parseControl(out: string): Record<string, string> {
     if (m) {
       key = m[1]!
       rec[key] = m[2]!
-    } else if (key && line.startsWith(' ')) rec[key] += '\n' + line.slice(1)
+    } else if (key && line.startsWith(' ')) rec[key] += `\n${line.slice(1)}`
   }
   return rec
 }
@@ -262,7 +262,7 @@ export function parseRpmInfo(out: string): Record<string, string> {
   let inDesc = false
   for (const line of out.split('\n')) {
     if (inDesc) {
-      rec.Description = (rec.Description ? rec.Description + '\n' : '') + line
+      rec.Description = (rec.Description ? `${rec.Description}\n` : '') + line
       continue
     }
     const m = line.match(/^([A-Za-z][A-Za-z ]*?)\s*: (.*)$/)

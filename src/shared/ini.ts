@@ -54,7 +54,7 @@ export function setValues(text: string, section: string, key: string, values: st
   }
   const body = text.replace(/\s*$/, '')
   const nl = `${cr}\n`
-  return (body ? `${body}${nl}${nl}` : '') + block.join('\n') + '\n'
+  return `${(body ? `${body}${nl}${nl}` : '') + block.join('\n')}\n`
 }
 
 const SYSTEMD_SECTIONS = new Set(['Unit', 'Service', 'Install', 'Timer', 'Socket', 'Path', 'Quadlet'])

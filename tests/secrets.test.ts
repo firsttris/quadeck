@@ -47,6 +47,7 @@ describe('finding passwords in plain text', () => {
     for (const k of ['DB_PASSWORD', 'POSTGRES_PASSWORD', 'MYSQL_ROOT_PASSWD', 'APP_SECRET', 'API_TOKEN', 'OPENAI_API_KEY', 'SMTP_PASS', 'PRIVATE_KEY']) expect(isSensitive(k)).toBe(true)
     for (const k of ['DB_PASSWORD_FILE', 'TZ', 'PASSWORD_MIN_LENGTH', 'TOKEN_TTL']) expect(isSensitive(k)).toBe(false)
   })
+  // biome-ignore lint/suspicious/noTemplateCurlyInString: names the ${VAR} syntax of a unit file
   it('lists them per file, not comments, not *_FILE, not ${VAR}, not [Service]', () => {
     const found = findPlain('app.container', FILE, new Set(['app-postgres-password']))
     expect(found.map((f) => [f.key, f.line, f.suggested])).toEqual([

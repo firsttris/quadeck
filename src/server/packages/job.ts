@@ -12,7 +12,7 @@ import { PACK_FORMATS, type PackFormat } from '~/shared/archives'
 import { absPathProblem, SNAPSHOT_ID, STOP_UNIT } from '~/shared/backup'
 import { isFlavor, kernelInfos, kernelRemoveProblem, parseBootctlList, parsePacmanQ } from '~/shared/boot'
 import { baseName, validatePath } from '~/shared/files'
-import { localize, msg } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import { FEATURES, type Feature, type JobSpec, PACKAGE_NAME, PROTECTED_PACKAGES } from '~/shared/packages'
 import { HttpError } from '../auth'
 import { SystemBackup } from '../backup/backend'
@@ -176,7 +176,7 @@ export function jobTitle(spec: JobSpec): string {
   }
 }
 
-const out = (s: string) => process.stdout.write(s.endsWith('\n') ? s : s + '\n')
+const out = (s: string) => process.stdout.write(s.endsWith('\n') ? s : `${s}\n`)
 
 /** How long output may still arrive after the command exited (a daemon it started may hold the pipe). */
 export const DRAIN_MS = 2000

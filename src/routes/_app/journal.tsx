@@ -50,6 +50,7 @@ function Journal() {
   const seen = useRef(new Set<string>())
   const delay = useRef(RETRY_MIN_MS)
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: connect again only when the filter or the follow switch changes
   useEffect(() => {
     if (!live) {
       setStatus('paused')
@@ -114,6 +115,7 @@ function Journal() {
     }
   }, [unit, prio, live, attempt])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: scroll down when new lines arrive
   useEffect(() => {
     const el = box.current
     if (el && stick.current) el.scrollTop = el.scrollHeight

@@ -25,7 +25,11 @@ export function FolderPicker({ value, onChange, compare, target }: { value: stri
     let stale = false
     const t = setTimeout(() => {
       api<FolderListing>('/api/backup', { body: { dirs: { path, compare: compareKey ? compareKey.split('\n') : [] } } })
-        .then((l) => !stale && (setListing(l), setError('')))
+        .then((l) => {
+          if (stale) return
+          setListing(l)
+          setError('')
+        })
         .catch((e: Error) => !stale && setError(e.message))
     }, 150) // typing in the field next to it: not one request per key
     return () => {
@@ -47,6 +51,7 @@ export function FolderPicker({ value, onChange, compare, target }: { value: stri
             /
           </button>
           {crumbs.map((c, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: breadcrumbs, the position is the path
             <span key={i} className="flex items-center gap-0.5">
               {i > 0 && <span className="text-faint">/</span>}
               <button

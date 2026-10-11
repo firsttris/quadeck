@@ -143,12 +143,12 @@ export interface BackupSizes {
   excludes: { path: string; bytes?: number }[]
 }
 
-const CTRL = /[\x00-\x1f\x7f]/ // eslint-disable-line no-control-regex
+const CTRL = /[\x00-\x1f\x7f]/
 export const VOLUME_PATH = /^volume:[A-Za-z0-9][A-Za-z0-9_.-]{0,200}$/
 export const SNAPSHOT_ID = /^([0-9a-f]{8,64}|latest)$/
 export const STOP_UNIT = /^[A-Za-z0-9:_.\\@-]{1,200}\.service$/
 const TIME = /^([01]\d|2[0-3]):[0-5]\d$/
-const SECRET_VALUE = /^[^\x00-\x1f\x7f]{0,500}$/ // eslint-disable-line no-control-regex
+const SECRET_VALUE = /^[^\x00-\x1f\x7f]{0,500}$/
 
 /** An absolute, normalized path without control characters; `/` itself is not allowed. */
 export function absPathProblem(p: unknown): string | undefined {
@@ -157,7 +157,7 @@ export function absPathProblem(p: unknown): string | undefined {
   return undefined
 }
 
-const inside = (child: string, parent: string) => child === parent || child.startsWith(parent + '/')
+const inside = (child: string, parent: string) => child === parent || child.startsWith(`${parent}/`)
 
 export function repoProblem(kind: RepoKind, location: string): string | undefined {
   if (!location || location.length > 500 || CTRL.test(location) || /\s/.test(location)) return msg(m.backup_error_repo)
@@ -263,7 +263,7 @@ export function repoString(r: BackupPlan['repo']): string {
 /** Lines of the exclude file restic reads with --exclude-file. */
 export function excludeFile(plan: BackupPlan): string {
   const lines = ['# Written by Quadeck – changes are overwritten', ...plan.exclude.presets.flatMap((p) => PRESET_PATTERNS[p]), ...plan.exclude.dirs, ...plan.exclude.patterns]
-  return lines.join('\n') + '\n'
+  return `${lines.join('\n')}\n`
 }
 
 /** `restic backup` arguments after the command (paths already resolved). */
@@ -405,7 +405,7 @@ const MEDIA_DIR = /^(movies|films?|filme|tv|tvshows|tv-shows|series|serien|shows
 function broadReason(path: string, from: string, all: { path: string; from: string }[]): 'broad' | 'contains' | 'media' | undefined {
   if (path.split('/').length <= 2 || /^\/home\/[^/]+$/.test(path)) return 'broad' // /mnt, /srv, /home/tristan
   // Holds folders of other containers (an app's own sub-folder, like its cache, is fine).
-  if (all.some((q) => q.from !== from && q.path.startsWith(path + '/'))) return 'contains'
+  if (all.some((q) => q.from !== from && q.path.startsWith(`${path}/`))) return 'contains'
   if (path.split('/').some((seg) => MEDIA_DIR.test(seg))) return 'media'
   return undefined
 }

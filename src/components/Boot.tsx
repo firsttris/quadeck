@@ -82,6 +82,7 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
       setError((e as Error).message)
     }
   }, [])
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reload when a job finishes
   useEffect(() => {
     void load()
   }, [load, jobs.finished])
@@ -458,6 +459,7 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
               </p>
             </div>
             {params.map((p, i) => (
+              // biome-ignore lint/suspicious/noArrayIndexKey: a parameter may appear twice, its position is its identity
               <div key={`${p.name}${i}`} className="flex flex-wrap items-baseline gap-x-3 border-t border-line px-[18px] py-[7px] text-[13px]" data-testid="kernel-param">
                 <span className="font-mono">
                   {p.name}
@@ -476,7 +478,7 @@ export function BootView({ rebootReason }: { rebootReason?: string }) {
             {m.boot_newFile()} <span className="font-mono">{entryPreview.path}</span>
             {m.boot_newFileText()}
           </p>
-          <pre className="joblog !min-h-0 whitespace-pre-wrap" aria-label={m.boot_newEntry()}>
+          <pre className="joblog !min-h-0 whitespace-pre-wrap" role="group" aria-label={m.boot_newEntry()}>
             {entryPreview.content}
           </pre>
           <div className="flex justify-end gap-2">

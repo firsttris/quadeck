@@ -125,7 +125,10 @@ export function seedUsageHistory(d: DB, containers: Pick<Container, 'name' | 'st
   const t = schema.metricSamples
   if (d.select({ n: sql<number>`count(*)` }).from(t).where(metricPrefix('ct:')).get()!.n > 0) return
   let seed = 23
-  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+  const rnd = () => {
+    seed = (seed * 16807) % 2147483647
+    return seed / 2147483647
+  }
   const rows: { ts: number; metric: string; value: number }[] = []
   const end = Math.floor(now / USAGE_BUCKET_MS) * USAGE_BUCKET_MS
   for (const c of containers) {

@@ -39,7 +39,7 @@ export function ActionsProvider({ readonly, children }: { readonly: boolean; chi
       setBusyAction(action)
       const call = () => api<{ via: string }>(target.kind === 'unit' ? '/api/units' : '/api/containers', { body: { action, name: target.name } })
       try {
-        let r
+        let r: Awaited<ReturnType<typeof call>>
         try {
           r = await call()
         } catch (e) {

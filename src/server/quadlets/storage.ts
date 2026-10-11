@@ -230,13 +230,15 @@ export async function cleanStorage(api: PodmanApi, refs: QuadletRefs, requested:
  */
 export function fixtureApi(dir: string): PodmanApi {
   const g = globalThis as unknown as { __qdPodmanFixture?: Record<string, unknown[]> & { df: DfReport } }
-  const state = (g.__qdPodmanFixture ??= JSON.parse(readFileSync(join(dir, 'podman-storage.json'), 'utf8')))
+  g.__qdPodmanFixture ??= JSON.parse(readFileSync(join(dir, 'podman-storage.json'), 'utf8'))
+  const state = g.__qdPodmanFixture!
   const json = (v: unknown, status = 200) => new Response(JSON.stringify(v), { status, headers: { 'content-type': 'application/json' } })
   return async (path, init) => {
     const p = path.replace(/^\/v[\d.]+\/libpod/, '').split('?')[0]!
     const containers = state.containers as (ListContainer & { Mounts: ContainerInspect['Mounts'] })[]
     // secrets: names and dates only, the value is dropped (like Podman, it is never shown again)
-    const secrets = (state.secrets ??= []) as { ID: string; Spec: { Name: string }; CreatedAt: string; UpdatedAt: string }[]
+    state.secrets ??= []
+    const secrets = state.secrets as { ID: string; Spec: { Name: string }; CreatedAt: string; UpdatedAt: string }[]
     if (p === '/secrets/json') return json(secrets)
     if (p === '/secrets/create' && init?.method === 'POST') {
       const q = new URLSearchParams(path.split('?')[1] ?? '')

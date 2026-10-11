@@ -388,7 +388,7 @@ function toInput(f: Form, note?: string): EntryInput {
     .filter(Boolean)
   if (extra.includes('defaults')) o.push('defaults')
   if (f.nofail) o.push('nofail')
-  if (f.nofail && f.timeout) o.push(`x-systemd.device-timeout=${/^\d+$/.test(f.timeout) ? f.timeout + 's' : f.timeout}`)
+  if (f.nofail && f.timeout) o.push(`x-systemd.device-timeout=${/^\d+$/.test(f.timeout) ? `${f.timeout}s` : f.timeout}`)
   if (f.automount) o.push('x-systemd.automount')
   if (f.noatime) o.push('noatime')
   if (f.ro) o.push('ro')
@@ -453,6 +453,7 @@ function EntryDialog({
   const key = JSON.stringify(change)
 
   // Checks on the server while typing (no unlock needed, nothing is written).
+  // biome-ignore lint/correctness/useExhaustiveDependencies: key stands for the change, which is a new object on every render
   useEffect(() => {
     setChecking(true)
     const timer = setTimeout(() => {
@@ -462,7 +463,7 @@ function EntryDialog({
         .finally(() => setChecking(false))
     }, 350)
     return () => clearTimeout(timer)
-  }, [key]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [key])
 
   const fat = FAT_LIKE.includes(f.vfstype)
   const specs = device ? (['uuid', 'label', 'partuuid'] as const).filter((b) => b === 'uuid' || (b === 'label' ? device.label : device.partuuid)).map((b) => specFor(device, b)) : []
@@ -486,6 +487,7 @@ function EntryDialog({
             <input className="field font-mono" value={f.vfstype} onChange={(e) => set('vfstype', e.target.value)} required />
           </label>
         </div>
+        {/* biome-ignore lint/a11y/noLabelWithoutControl: both branches render the control */}
         <label className={label}>
           {m.disks_mounts_source()}
           {specs.length > 1 ? (
@@ -564,7 +566,7 @@ function EntryDialog({
 
         <div className="flex flex-col gap-2">
           <span className="text-[12px] font-medium text-muted">{m.disks_mounts_lineInFstab()}</span>
-          <pre className="joblog !min-h-0 whitespace-pre-wrap" aria-label={m.disks_mounts_fstabLine()}>
+          <pre className="joblog !min-h-0 whitespace-pre-wrap" role="group" aria-label={m.disks_mounts_fstabLine()}>
             {formatEntry(input).replace(/\t/g, '  ')}
           </pre>
           {check && <Diagnostics items={check.diagnostics} />}

@@ -97,7 +97,7 @@ export function treeDirFs(paths: string[], mounts: Record<string, { size: number
   for (const p of paths) for (let x = p; x !== '/'; x = parent(x)) all.add(x)
   for (const mp of Object.keys(mounts)) for (let x = mp; x !== '/'; x = parent(x)) all.add(x)
   const ids = Object.keys(mounts)
-  const mountOf = (p: string) => ids.filter((mp) => mp === '/' || p === mp || p.startsWith(mp + '/')).sort((a, b) => b.length - a.length)[0] ?? '/'
+  const mountOf = (p: string) => ids.filter((mp) => mp === '/' || p === mp || p.startsWith(`${mp}/`)).sort((a, b) => b.length - a.length)[0] ?? '/'
   return {
     dev: (p) => (all.has(p) ? ids.indexOf(mountOf(p)) + 1 : undefined),
     dirs: (p) => [...all].filter((x) => x !== '/' && parent(x) === p).map((x) => x.slice(p === '/' ? 1 : p.length + 1)),

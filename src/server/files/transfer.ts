@@ -53,12 +53,12 @@ export function prepareFsJob(spec: FsJob, ops: FsOps): { sources: string[]; toDi
   const toDir = ops.dir(spec.toDir)
   const conflicts: string[] = []
   for (const s of sources) {
-    if (toDir === s || toDir.startsWith(s + '/'))
+    if (toDir === s || toDir.startsWith(`${s}/`))
       throw new HttpError(400, spec.kind === 'fs-copy' ? msg(m.files_error_copyIntoItself, { name: baseName(s) }) : msg(m.files_error_moveIntoItself, { name: baseName(s) }))
     if (spec.kind === 'fs-move' && parentOf(s) === toDir) throw new HttpError(400, msg(m.files_error_alreadyInFolder, { name: baseName(s) }))
     if (ops.exists(joinPath(toDir, baseName(s)))) conflicts.push(baseName(s))
   }
-  if (conflicts.length && !spec.overwrite) throw new HttpError(409, msg(m.files_error_existsInTarget) + `${conflicts.slice(0, 5).join(', ')}${conflicts.length > 5 ? ` +${conflicts.length - 5}` : ''}`)
+  if (conflicts.length && !spec.overwrite) throw new HttpError(409, `${msg(m.files_error_existsInTarget)}${conflicts.slice(0, 5).join(', ')}${conflicts.length > 5 ? ` +${conflicts.length - 5}` : ''}`)
   return { sources, toDir }
 }
 
@@ -83,7 +83,7 @@ export function mountsInside(sources: string[], mounts: string): string[] {
     .map((l) => l.split(' ')[1])
     .filter((m): m is string => !!m)
     .map((m) => m.replace(/\\([0-7]{3})/g, (_, o: string) => String.fromCharCode(parseInt(o, 8))))
-  return [...new Set(points.filter((m) => sources.some((s) => m.startsWith(s.endsWith('/') ? s : s + '/'))))]
+  return [...new Set(points.filter((m) => sources.some((s) => m.startsWith(s.endsWith('/') ? s : `${s}/`))))]
 }
 
 /** argv for the job (verbose, so the output shows progress per file). */

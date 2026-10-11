@@ -46,7 +46,7 @@ export async function configFileInfo(fs: ConfigFs, path: string): Promise<Config
     liveContent: binary ? undefined : liveContent,
     binary: binary || undefined,
     replaceRisk: binary || parsed.kind === 'save' ? undefined : replaceRisk(parsed.live, liveContent, content),
-    ...describeConfigFile(path, parsed.kind, parsed.live),
+    ...describeConfigFile(parsed.kind, parsed.live),
   }
 }
 
@@ -66,7 +66,7 @@ export async function applyConfigAction(fs: ConfigFs, path: string, action: Conf
     const err = await fs.check(f.check, text)
     if (err) throw new HttpError(422, msg(m.configfiles_error_checkRejected, { check: f.check, reason: err }))
   }
-  fs.write(f.live, text.endsWith('\n') ? text : text + '\n')
+  fs.write(f.live, text.endsWith('\n') ? text : `${text}\n`)
   fs.remove(path)
   // Fast follow-ups right away; mkinitcpio takes a while and runs as a job from the page.
   let warning: string | undefined

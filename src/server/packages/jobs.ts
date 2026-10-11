@@ -22,7 +22,6 @@ export interface Launcher {
 
 const MAX_LINES = 20_000
 const KEEP_JOBS = 20
-// eslint-disable-next-line no-control-regex
 const ANSI = /\x1b\[[0-9;?]*[A-Za-z]|\x1b\][^\x07]*\x07/g
 
 /**
@@ -37,7 +36,6 @@ export function lineSplitter(emit: (l: string) => void) {
   const out = (raw: string) => {
     const l = clean(raw)
     if (!l.trim()) {
-      // eslint-disable-next-line no-control-regex
       if (/[\r\x1b]/.test(raw)) return // only control codes and spaces
       if (blank) return
       blank = true
@@ -240,7 +238,7 @@ export function journalPoll(stdout: string): { cursor?: string; text: string } {
   if (lines.at(-1) === '') lines.pop()
   const cur = lines.findLast((l) => l.startsWith('-- cursor: '))
   const body = lines.filter((l) => !l.startsWith('-- cursor: ') && l !== '-- No entries --')
-  return { ...(cur ? { cursor: cur.slice('-- cursor: '.length) } : {}), text: body.length ? body.join('\n') + '\n' : '' }
+  return { ...(cur ? { cursor: cur.slice('-- cursor: '.length) } : {}), text: body.length ? `${body.join('\n')}\n` : '' }
 }
 
 export function defaultLauncher(): Launcher {

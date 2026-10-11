@@ -7,6 +7,7 @@ git clone https://github.com/firsttris/quadeck
 cd quadeck
 bun install
 QUADECK_DATA_DIR=.data QUADECK_FIXTURES=fixtures/demo bun run dev   # http://localhost:3000
+bun run check         # Biome: lint and format (bun run check:fix repairs what it can)
 bun run typecheck
 bun run test          # Vitest, under the Bun runtime because of bun:sqlite
 bun run test:e2e      # Playwright against the production build with the demo fixtures
@@ -158,6 +159,9 @@ mkdocs build --strict # what CI runs: broken links fail the build
   checks the contrast of every theme; a new theme needs a block in `styles.css` and a swatch.
 - UI texts exist in German and English ([Paraglide JS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs));
   code comments and documentation are English.
+- Lint and format with [Biome](https://biomejs.dev) (`biome.jsonc`, the same settings as SnapRAID UI);
+  CI runs `biome ci`. A rule switched off there says why; a single exception is a
+  `// biome-ignore <rule>: <reason>` comment at the spot.
   - All texts live in `messages/de.json` and `messages/en.json` (inlang message format).
     `bun run i18n` compiles them to typed functions in `src/paraglide` (git-ignored; the Vite
     plugin, `typecheck` and `test` do it too). Keys are `area_group_name` in lowerCamelCase

@@ -69,7 +69,10 @@ describe('nvidia-smi is not polled every tick', () => {
   it('reuses its values for NVIDIA_EVERY_MS', async () => {
     let calls = 0
     let t = 0
-    const smi = async () => (calls++, { code: 0, stdout: '0, NVIDIA GeForce RTX 3060, 12, 512, 12288, 40, 15.2, 210\n', stderr: '' })
+    const smi = async () => {
+      calls++
+      return { code: 0, stdout: '0, NVIDIA GeForce RTX 3060, 12, 512, 12288, 40, 15.2, 210\n', stderr: '' }
+    }
     const c = new GpuCollector('/nonexistent', true, smi, () => t)
     expect((await c.collect())[0]).toMatchObject({ vendor: 'nvidia' })
     t = 5_000

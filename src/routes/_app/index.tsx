@@ -245,12 +245,12 @@ function Overview() {
   const history = useMetricHistory('1h')
   const [detail, setDetail] = useState<MetricCardId | null>(null)
   const metric = (id: MetricCardId) => <MetricCard id={id} snapshot={snapshot} history={history.series} now={history.now} onOpen={editing ? () => {} : setDetail} />
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only rebuilt when the set of cards changes, not on every layout save
   const pageSpec: GridSpec = useMemo(
     () => ({
       ...PAGE_GRID_BASE,
       defaults: (bp) => [...visible.map((id) => ({ i: id, ...CARD_DEFAULTS[bp]![id] })), ...layout.widgets.map((w) => ({ i: w.id, ...INSTANCE_DEFAULTS[w.kind][bp]! }))],
     }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [shownIds.join()],
   )
 
@@ -587,12 +587,10 @@ function TileGroup({
   onEdit: (s: Service) => void
 }) {
   const keys = group.items.map((s) => s.key).join('\n')
-  const spec: GridSpec = useMemo(
-    () => ({ ...TILE_GRID_BASE, rowHeight: TILE_ROW[iconSize], defaults: (_bp, cols) => flowTiles(group.items, cols) }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-    [keys, iconSize],
-  )
+  // biome-ignore lint/correctness/useExhaustiveDependencies: only rebuilt when the tiles or the icon size change
+  const spec: GridSpec = useMemo(() => ({ ...TILE_GRID_BASE, rowHeight: TILE_ROW[iconSize], defaults: (_bp, cols) => flowTiles(group.items, cols) }), [keys, iconSize])
   // Only this group's tiles are relevant for its grid.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: keys stand for the group's items, which are new on every update
   const own = useMemo(() => {
     const ids = new Set(group.items.map((s) => s.key))
     return Object.fromEntries(Object.entries(saved).map(([bp, items]) => [bp, items.filter((it) => ids.has(it.i))]))

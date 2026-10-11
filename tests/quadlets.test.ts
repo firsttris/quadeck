@@ -297,7 +297,15 @@ describe('SystemPodmanAdmin on a temp directory', () => {
     const root = mkdtempSync(join(tmpdir(), 'qd-quadlets-'))
     const dir = join(root, 'systemd')
     const calls: string[] = []
-    const admin = new SystemPodmanAdmin({ dir, gitDir: join(root, 'git'), confDir: root, manager: async (m: string, _s?: string, ...a: string[]) => (calls.push([m, ...a].join(' ')), '') })
+    const admin = new SystemPodmanAdmin({
+      dir,
+      gitDir: join(root, 'git'),
+      confDir: root,
+      manager: async (m: string, _s?: string, ...a: string[]) => {
+        calls.push([m, ...a].join(' '))
+        return ''
+      },
+    })
     await expect(admin.writeQuadlet('web.container', '[Container]\n', false)).rejects.toMatchObject({ status: 422 })
     expect(existsSync(join(dir, 'web.container'))).toBe(false)
 
@@ -327,8 +335,20 @@ describe('SystemPodmanAdmin on a temp directory', () => {
     writeFileSync(join(dir, 'app-data.volume'), '[Volume]\n')
     writeFileSync(join(dir, 'other.container'), '[Container]\nImage=docker.io/library/other\nVolume=shared:/s\n')
     const calls: string[] = []
-    const exec = async (argv: string[]) => (calls.push(argv.join(' ')), { code: argv[1] === 'rmi' ? 2 : 0, stdout: '', stderr: argv[1] === 'rmi' ? 'image is in use by a container' : '' })
-    const admin = new SystemPodmanAdmin({ dir, gitDir: join(root, 'git'), confDir: root, manager: async (m: string, _s?: string, ...a: string[]) => (calls.push([m, ...a].join(' ')), ''), exec })
+    const exec = async (argv: string[]) => {
+      calls.push(argv.join(' '))
+      return { code: argv[1] === 'rmi' ? 2 : 0, stdout: '', stderr: argv[1] === 'rmi' ? 'image is in use by a container' : '' }
+    }
+    const admin = new SystemPodmanAdmin({
+      dir,
+      gitDir: join(root, 'git'),
+      confDir: root,
+      manager: async (m: string, _s?: string, ...a: string[]) => {
+        calls.push([m, ...a].join(' '))
+        return ''
+      },
+      exec,
+    })
     const r = await admin.deleteQuadlet('app.container', { image: true, volumes: true })
     expect(calls).toEqual([
       'systemctl stop app.service',

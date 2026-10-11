@@ -121,7 +121,7 @@ function ConfigDialog({ f, onClose, onDone }: { f: ConfigFileInfo; onClose: () =
         </>
       )}
       {!f.binary && f.kind === 'save' && (
-        <pre className="joblog !min-h-0 max-h-[320px] whitespace-pre-wrap" aria-label={m.system_config_content()}>
+        <pre className="joblog !min-h-0 max-h-[320px] whitespace-pre-wrap" role="group" aria-label={m.system_config_content()}>
           {f.content}
         </pre>
       )}

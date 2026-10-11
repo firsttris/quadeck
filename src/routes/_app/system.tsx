@@ -60,6 +60,7 @@ function useData<T>(url: string) {
       setLoading(false)
     }
   }, [url])
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reload when a job finishes
   useEffect(() => {
     void load()
   }, [load, finished])
@@ -509,6 +510,7 @@ function Packages({ overview: o }: { overview: Overview | null }) {
   const counts = useMemo(() => Object.fromEntries(PKG_FILTERS.map((k) => [k, (pkgs ?? []).filter((p) => pkgMatches(p, k)).length])), [pkgs])
   const totalSize = shown.reduce((s, p) => s + (p.size ?? 0), 0)
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: back to the first page when the list view changes
   useEffect(() => setLimit(PAGE), [query, filter, sort])
   // Drop selections that disappeared (removed packages).
   useEffect(() => setSelected((s) => new Set([...s].filter((n) => pkgs?.some((p) => p.name === n)))), [pkgs])
@@ -604,7 +606,7 @@ function Packages({ overview: o }: { overview: Overview | null }) {
             {shown.slice(0, limit).map((p) => (
               <tr key={p.name} data-testid="package-row" className="cursor-pointer" onClick={() => setDetail(p.name)}>
                 {canRemove && (
-                  <td onClick={(e) => e.stopPropagation()}>
+                  <td onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
                     <input type="checkbox" aria-label={m.system_packages_select({ name: p.name })} checked={selected.has(p.name)} disabled={prot.has(p.name)} onChange={() => toggle(p.name)} />
                   </td>
                 )}

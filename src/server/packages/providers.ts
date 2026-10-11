@@ -177,6 +177,7 @@ export class Apt implements Provider {
 
   async installed() {
     const [list, auto, orphans, local] = await Promise.all([
+      // biome-ignore lint/suspicious/noTemplateCurlyInString: dpkg-query's own ${field} format, not a template
       runOk(['dpkg-query', '-W', '-f=${Package}\t${Version}\t${Installed-Size}\t${db:Status-Abbrev}\t${binary:Summary}\n'], { timeoutMs: 60_000 }),
       run(['apt-mark', 'showauto']),
       run(['apt-get', '-s', '-o', 'Debug::NoLocking=1', 'autoremove']),

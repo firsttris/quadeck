@@ -21,7 +21,7 @@ export const Route = createFileRoute('/api/notifications/')({
         const n = notifier()
         const current = n.settings()
         if (b.test !== undefined) {
-          let s
+          let s: ReturnType<typeof parseSettings>
           try {
             s = parseSettings({ ...current, channels: [b.test] }, current)
           } catch (e) {

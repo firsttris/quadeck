@@ -72,7 +72,7 @@ export function powerRules(settings: Record<string, PowerSetting>, hdparm: strin
     .filter(([serial]) => SERIAL.test(serial))
     .sort(([a], [b]) => a.localeCompare(b))
     .map(([serial, s]) => `ACTION=="add|change", SUBSYSTEM=="block", ENV{DEVTYPE}=="disk", ENV{ID_SERIAL_SHORT}=="${serial}", RUN+="${hdparm} ${hdparmArgs(s).join(' ')} /dev/%k"`)
-  return [HEADER, ...lines].join('\n') + '\n'
+  return `${[HEADER, ...lines].join('\n')}\n`
 }
 
 /** Quadeck's own rules file back into settings (lines it did not write are ignored). */

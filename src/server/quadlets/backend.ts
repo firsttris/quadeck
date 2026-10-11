@@ -8,7 +8,6 @@ import { m } from '~/paraglide/messages'
 import { contentHash } from '~/shared/caddy'
 import { msg } from '~/shared/i18n'
 import { lineOf, lintQuadlet, parseIni } from '~/shared/ini'
-import { QUADLET_SECTION } from '~/shared/quadlet-keys'
 import {
   assertQuadletName,
   type Diagnostic,
@@ -78,7 +77,6 @@ export function validName(name: string) {
 export function validContent(content: string) {
   if (typeof content !== 'string') throw new HttpError(400, msg(m.quadlets_error_contentMissing))
   if (content.length > MAX_FILE) throw new HttpError(413, msg(m.quadlets_error_fileTooLarge))
-  // eslint-disable-next-line no-control-regex
   if (/[\x00-\x08\x0e-\x1f]/.test(content)) throw new HttpError(400, msg(m.quadlets_error_controlChars))
 }
 
@@ -89,11 +87,10 @@ export function validCalendar(cal: string) {
 /** Lint + generator messages mapped to lines. */
 export function generatorDiagnostics(stderr: string, file: string, content: string): Diagnostic[] {
   const base = file.split('/').pop()!
-  const section = QUADLET_SECTION[quadletType(file)]
   const out: Diagnostic[] = []
   for (const raw of stderr.split('\n')) {
     const l = raw.trim()
-    if (!l || !l.includes(base)) continue
+    if (!l?.includes(base)) continue
     const msg = l.replace(/^quadlet-generator\[\d+\]:\s*/, '').replace(/ in \/\S+/g, '')
     if (/^Loading source unit file/i.test(msg)) continue // progress output
     const key = l.match(/unsupported key '([^']+)' in group '([^']+)'/)
@@ -305,7 +302,7 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
     if (err) throw new HttpError(422, `${err.line ? msg(m.fstab_label_linePrefix, { line: err.line }) : ''}${err.message}`)
     const history = await this.ensureRepo()
     const isNew = !existsSync(join(this.dir, name))
-    atomicWrite(join(this.dir, name), content.endsWith('\n') ? content : content + '\n')
+    atomicWrite(join(this.dir, name), content.endsWith('\n') ? content : `${content}\n`)
     if (history) await this.commit(`${name} ${isNew ? 'created' : 'changed'}`)
     await this.manager('Reload')
     const unit = quadletUnit(name)
@@ -314,7 +311,7 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
       await this.manager('RestartUnit', 'ss', unit, 'replace')
       return { unit, restarted: true }
     } catch (e) {
-      return { unit, restarted: false, warning: msg(m.quadlets_warn_savedNotStarted, { unit }) + `: ${(e as Error).message}` }
+      return { unit, restarted: false, warning: `${msg(m.quadlets_warn_savedNotStarted, { unit })}: ${(e as Error).message}` }
     }
   }
 
@@ -356,11 +353,11 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
     const warnings: string[] = []
     for (const v of volumes) {
       const r = await this.exec(['podman', 'volume', 'rm', '--', v.name], { timeoutMs: 60_000 })
-      if (r.code !== 0 && !/no such volume/i.test(r.stderr)) warnings.push(msg(m.quadlets_warn_volumeKept, { name: v.name }) + `: ${r.stderr.trim()}`)
+      if (r.code !== 0 && !/no such volume/i.test(r.stderr)) warnings.push(`${msg(m.quadlets_warn_volumeKept, { name: v.name })}: ${r.stderr.trim()}`)
     }
     if (also.image && plan?.image && !plan.image.shared) {
       const r = await this.exec(['podman', 'rmi', '--', plan.image.name], { timeoutMs: 60_000 })
-      if (r.code !== 0 && !/image not known|no such image/i.test(r.stderr)) warnings.push(msg(m.quadlets_warn_imageKept, { name: plan.image.name }) + `: ${r.stderr.trim()}`)
+      if (r.code !== 0 && !/image not known|no such image/i.test(r.stderr)) warnings.push(`${msg(m.quadlets_warn_imageKept, { name: plan.image.name })}: ${r.stderr.trim()}`)
     }
     return { warnings }
   }
@@ -418,7 +415,7 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
     validCalendar(calendar)
     if (calendar) {
       const check = await run(['systemd-analyze', 'calendar', '--', calendar])
-      if (check.code !== 0) throw new HttpError(422, msg(m.quadlets_check_invalidSchedule) + `: ${(check.stderr || check.stdout).trim().split('\n')[0]}`)
+      if (check.code !== 0) throw new HttpError(422, `${msg(m.quadlets_check_invalidSchedule)}: ${(check.stderr || check.stdout).trim().split('\n')[0]}`)
       atomicWrite(this.timerDropIn, `# Quadeck: schedule for podman auto-update\n[Timer]\nOnCalendar=\nOnCalendar=${calendar}\n`)
     } else rmSync(this.timerDropIn, { force: true })
     await this.manager('Reload')
@@ -441,7 +438,7 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
     try {
       Bun.TOML.parse(content)
     } catch (e) {
-      throw new HttpError(422, msg(m.quadlets_error_toml) + `: ${(e as Error).message}`)
+      throw new HttpError(422, `${msg(m.quadlets_error_toml)}: ${(e as Error).message}`)
     }
     const path = join(this.confDir, name)
     if (existsSync(path)) writeFileSync(`${path}.quadeck-bak`, readFileSync(path), { mode: 0o644 })
@@ -531,7 +528,7 @@ export class FixturePodmanAdmin implements PodmanAdminBackend {
     const v = await this.validateQuadlet(name, content)
     const err = v.diagnostics.find((d) => d.severity === 'error')
     if (err) throw new HttpError(422, `${err.line ? msg(m.fstab_label_linePrefix, { line: err.line }) : ''}${err.message}`)
-    this.put(name, content.endsWith('\n') ? content : content + '\n', `${name} ${this.files.has(name) ? 'changed' : 'created'}`)
+    this.put(name, content.endsWith('\n') ? content : `${content}\n`, `${name} ${this.files.has(name) ? 'changed' : 'created'}`)
     return { unit: quadletUnit(name), restarted: restart }
   }
   async removalPlan(name: string) {
@@ -565,7 +562,7 @@ export class FixturePodmanAdmin implements PodmanAdminBackend {
     try {
       Bun.TOML.parse(content)
     } catch (e) {
-      throw new HttpError(422, msg(m.quadlets_error_toml) + `: ${(e as Error).message}`)
+      throw new HttpError(422, `${msg(m.quadlets_error_toml)}: ${(e as Error).message}`)
     }
     const f = this.settings.files.find((x) => x.name === name)!
     f.content = content

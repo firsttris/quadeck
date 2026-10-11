@@ -79,7 +79,7 @@ export function parseLsblkDisks(json: string): Omit<DiskPower, 'state' | 'apmNow
 
 /** Processes with files (or their working directory) below one of the mounts. */
 export function processesOn(mounts: string[], proc = '/proc'): DiskUser[] {
-  const under = (p: string) => mounts.some((m) => m !== '/' && (p === m || p.startsWith(m + '/')))
+  const under = (p: string) => mounts.some((m) => m !== '/' && (p === m || p.startsWith(`${m}/`)))
   const byKey = new Map<string, DiskUser>()
   let pids: string[] = []
   try {

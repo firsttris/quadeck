@@ -74,7 +74,7 @@ function usePane(path: string | undefined, roots: FileRoot[] | null, hidden: boo
   }, [listing, hidden, sort])
 
   const cur = listing?.path ?? path ?? ''
-  const rootInfo = roots?.find((r) => r.path === listing?.root) ?? roots?.find((r) => cur === r.path || cur.startsWith(r.path + '/'))
+  const rootInfo = roots?.find((r) => r.path === listing?.root) ?? roots?.find((r) => cur === r.path || cur.startsWith(`${r.path}/`))
   const root = listing?.root ?? rootInfo?.path ?? ''
   const toggle = (name: string) =>
     setSelected((s) => {
@@ -153,6 +153,7 @@ export function FileExplorer({ path, right, onNavigate, onTwoPanes }: { path?: s
     null | { kind: 'mkdir' } | { kind: 'rename'; entry: FileEntry } | { kind: 'delete' } | { kind: 'overwrite'; names: string[]; toDir: string; run: () => Promise<unknown> }
   >(null)
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: once on mount: open the first root when no path was given
   useEffect(() => {
     fetch('/api/files')
       .then((r) => r.json())
@@ -162,7 +163,6 @@ export function FileExplorer({ path, right, onNavigate, onTwoPanes }: { path?: s
         if (!path && d.roots[0]) onNavigate(d.roots[0].path)
       })
       .catch((e: Error) => setRootsError(e.message))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   // Two panes stay open across visits when they were open last time.
@@ -387,7 +387,7 @@ export function FileExplorer({ path, right, onNavigate, onTwoPanes }: { path?: s
           </select>
           {onTwoPanes && (
             <label className="flex items-center gap-1.5 text-[12px] text-muted">
-              <input type="checkbox" role="switch" checked={two} onChange={(e) => setTwo(e.target.checked)} /> {m.files_two_toggle()}
+              <input type="checkbox" role="switch" aria-checked={two} checked={two} onChange={(e) => setTwo(e.target.checked)} /> {m.files_two_toggle()}
             </label>
           )}
         </div>
@@ -554,6 +554,7 @@ function Crumbs({ pane, onNavigate, className = '' }: { pane: Pane; onNavigate: 
         {pane.root || '…'}
       </button>
       {pane.crumbs.map((c, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: breadcrumbs, the position is the path
         <span key={i} className="flex items-center gap-1">
           <span className="text-subtle">/</span>
           <button type="button" className="hover:underline" onClick={() => onNavigate(joinPath(pane.root, pane.crumbs.slice(0, i + 1).join('/')))}>
@@ -790,6 +791,7 @@ function NameDialog({
   const [name, setName] = useState(initial)
   const work = useBusy()
   const busy = work.busy !== null
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset the name each time the dialog opens
   useEffect(() => setName(initial), [initial, open])
   const err = name && name !== initial ? (validateName(name) ?? (taken.has(name) ? m.files_explorer_exists({ name }) : undefined)) : undefined
   return (

@@ -174,7 +174,7 @@ describe('opening files', () => {
     const f = new FixtureFiles()
     const t = await f.readTextFile('/srv/scripts/backup.sh', false)
     expect(t.content).toMatch(/^#!\/bin\/sh\n/)
-    await f.writeTextFile('/srv/scripts/backup.sh', t.content + 'sync\n', t.hash)
+    await f.writeTextFile('/srv/scripts/backup.sh', `${t.content}sync\n`, t.hash)
     expect((await f.readTextFile('/srv/scripts/backup.sh', false)).content).toMatch(/sync\n$/)
     await expect(f.readTextFile('/srv/scripts/.env', false)).rejects.toMatchObject({ status: 423 })
     expect((await f.readTextFile('/srv/scripts/firmware', false)).refused).toBe('binary')

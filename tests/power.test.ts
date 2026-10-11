@@ -124,9 +124,9 @@ describe('disks and what holds them', () => {
     const proc = mkdtempSync(join(tmpdir(), 'qd-proc-'))
     const pid = (n: number, comm: string, cgroup: string, links: string[], cwd = '/') => {
       mkdirSync(join(proc, String(n), 'fd'), { recursive: true })
-      writeFileSync(join(proc, String(n), 'comm'), comm + '\n')
+      writeFileSync(join(proc, String(n), 'comm'), `${comm}\n`)
       writeFileSync(join(proc, String(n), 'cgroup'), cgroup)
-      links.forEach((l, i) => symlinkSync(l, join(proc, String(n), 'fd', String(i))))
+      for (const [i, l] of links.entries()) symlinkSync(l, join(proc, String(n), 'fd', String(i)))
       symlinkSync(cwd, join(proc, String(n), 'cwd'))
     }
     pid(10, 'jellyfin', '0::/system.slice/jellyfin.service/libpod-payload-abc\n', ['/mnt/disk1/movies/a.mkv', '/mnt/disk1/movies/b.mkv', '/dev/null'])

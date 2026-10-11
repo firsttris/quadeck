@@ -376,7 +376,7 @@ export class SystemBackup implements BackupBackend {
   async saveBackupPlan(plan: BackupPlan, secrets: Record<string, string>): Promise<BackupState> {
     if (!this.installed()) throw new HttpError(409, msg(m.backup_error_notInstalled))
     this.ensureDir()
-    if (!existsSync(this.file('password'))) writePrivate(this.file('password'), randomBytes(32).toString('base64url') + '\n')
+    if (!existsSync(this.file('password'))) writePrivate(this.file('password'), `${randomBytes(32).toString('base64url')}\n`)
     const merged = { ...this.secrets(), ...secrets }
     const needed = REPO_SECRETS[plan.repo.kind]
     const missing = needed.filter((k) => !merged[k])
@@ -394,9 +394,9 @@ export class SystemBackup implements BackupBackend {
     }
     writePrivate(
       this.file('env'),
-      Object.entries(merged)
+      `${Object.entries(merged)
         .map(([k, v]) => `${k}=${v}`)
-        .join('\n') + '\n',
+        .join('\n')}\n`,
     )
 
     writePrivate(this.file('plan.json'), JSON.stringify(plan, null, 2))
@@ -550,7 +550,7 @@ export class SystemBackup implements BackupBackend {
   async saveTarget(config: TargetConfig): Promise<string> {
     if (!existsSync(dirname(config.dataDir))) throw new HttpError(422, msg(m.backup_error_parentMissing, { path: dirname(config.dataDir) }))
     const plan = this.plan()
-    if (plan?.repo.kind === 'local' && (config.dataDir === plan.repo.location || config.dataDir.startsWith(plan.repo.location + '/'))) throw new HttpError(422, msg(m.backup_error_targetInRepo))
+    if (plan?.repo.kind === 'local' && (config.dataDir === plan.repo.location || config.dataDir.startsWith(`${plan.repo.location}/`))) throw new HttpError(422, msg(m.backup_error_targetInRepo))
     mkdirSync(config.dataDir, { recursive: true, mode: 0o700 })
     const t = this.target()
     this.writeTarget({ ...t, config })

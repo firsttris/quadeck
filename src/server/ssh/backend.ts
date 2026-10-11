@@ -481,7 +481,7 @@ export class FixtureSsh implements SshBackend {
     const u = this.data.users.find((x) => x.name === change.user)
     if (!u) throw new HttpError(404, msg(m.ssh_error_noLoginAccount, { user: change.user }))
     const file = `${u.home}/.ssh/authorized_keys`
-    const before = u.keys.length ? u.keys.join('\n') + '\n' : ''
+    const before = u.keys.length ? `${u.keys.join('\n')}\n` : ''
     if (change.kind === 'add-key') {
       try {
         const after = addKey(before, change.key)

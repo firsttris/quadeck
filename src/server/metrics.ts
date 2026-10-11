@@ -36,7 +36,9 @@ export function queryHistory(d: DB, range: HistoryRange, now = Date.now()): Metr
   const out: MetricHistory = {}
   for (const r of rows) {
     if (!(METRICS as readonly string[]).includes(r.metric)) continue
-    ;(out[r.metric as MetricName] ??= []).push([r.b + bucket / 2, r.v])
+    const k = r.metric as MetricName
+    out[k] ??= []
+    out[k].push([r.b + bucket / 2, r.v])
   }
   return out
 }
@@ -91,7 +93,9 @@ export function querySmartHistory(d: DB, diskId: string, days: number, now = Dat
   const out: Partial<Record<SmartMetric, [number, number][]>> = {}
   for (const r of rows) {
     const m = r.metric.slice(`smart:${diskId}:`.length) as SmartMetric
-    if (SMART_METRICS.includes(m)) (out[m] ??= []).push([r.b + bucket / 2, r.v])
+    if (!SMART_METRICS.includes(m)) continue
+    out[m] ??= []
+    out[m].push([r.b + bucket / 2, r.v])
   }
   return out
 }
@@ -110,7 +114,10 @@ export function seedFixtureHistory(d: DB, now = Date.now()) {
   const rows: { ts: number; metric: string; value: number }[] = []
   const step = 2 * 60_000
   let seed = 7
-  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647
+  const rnd = () => {
+    seed = (seed * 16807) % 2147483647
+    return seed / 2147483647
+  }
   for (let ts = now - KEEP_MS; ts < now; ts += step) {
     const hour = new Date(ts).getHours() + new Date(ts).getMinutes() / 60
     const day = Math.max(0, Math.sin(((hour - 6) / 24) * 2 * Math.PI)) // busy in the evening

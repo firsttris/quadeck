@@ -271,6 +271,7 @@ function DiskCard({
       {a.reasons.length > 0 && (
         <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[13px]" aria-label={m.disks_card_findings()}>
           {a.reasons.map((r, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: derived findings in a fixed order
             <li key={i} className={a.level === 'critical' ? 'text-[#ff8a80]' : 'text-[#e3b341]'}>
               {describeReason(r)}
             </li>
@@ -280,6 +281,7 @@ function DiskCard({
       {a.notes.length > 0 && (
         <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[12px] text-muted" aria-label={m.disks_card_notes()}>
           {a.notes.map((n, i) => (
+            // biome-ignore lint/suspicious/noArrayIndexKey: derived notes in a fixed order
             <li key={i} suppressHydrationWarning>
               {describeNote(n)}
             </li>
@@ -476,6 +478,7 @@ function DetailDialog({ disk: d, baseline, onClose }: { disk: SmartDisk | null; 
             <div>
               <h3 className="m-0 mb-1 text-[13px] font-semibold">{m.disks_detail_selfTests()}</h3>
               {d.selfTests.slice(0, 5).map((st, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: the drive's self-test log, newest first, without ids
                 <div key={i} className="flex gap-3 text-[12px]">
                   <span className={st.passed ? 'text-[#7ee2a8]' : 'text-[#ff8a80]'}>{st.passed ? '✓' : '✗'}</span>
                   <span className="w-[120px]">{st.type}</span>

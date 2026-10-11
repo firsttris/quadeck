@@ -26,6 +26,8 @@ import {
   smtpPresets,
 } from '~/shared/notify'
 
+const HOURS = Array.from({ length: 24 }, (_, h) => h)
+
 export const Route = createFileRoute('/_app/notifications')({
   head: () => ({ meta: [{ title: msg(m.page_title_notifications) }] }),
   component: NotificationsPage,
@@ -109,6 +111,7 @@ function NotificationsPage() {
                     type="checkbox"
                     role="switch"
                     aria-label={m.notifications_channels_enabledLabel({ name: c.name })}
+                    aria-checked={c.enabled}
                     checked={c.enabled}
                     disabled={toggling !== null}
                     onChange={(e) => {
@@ -172,6 +175,7 @@ function NotificationsPage() {
               <h2 className="h2">{m.notifications_log_title()}</h2>
               {state.log.length === 0 && <p className="m-0 text-[13px] text-muted">{m.notifications_log_none()}</p>}
               {state.log.slice(0, 15).map((n, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: the send log, newest first, without ids
                 <div key={i} data-testid="sent" className="flex flex-col gap-1 border-t border-line pt-2 text-[13px] first-of-type:border-0">
                   <div className="flex items-center gap-2">
                     <Pill tone={TONE[n.severity]}>
@@ -195,8 +199,8 @@ function NotificationsPage() {
                   </div>
                   {n.body && <div className="text-[12px] whitespace-pre-line text-muted">{n.body}</div>}
                   <div className="flex flex-wrap gap-1.5 text-[11px]">
-                    {n.results.map((r, j) => (
-                      <span key={j} className={r.ok ? 'text-[#7ee2a8]' : 'text-[#ff8a80]'} title={r.error}>
+                    {n.results.map((r) => (
+                      <span key={r.channel} className={r.ok ? 'text-[#7ee2a8]' : 'text-[#ff8a80]'} title={r.error}>
                         {r.ok ? '✓' : '✗'} {r.channel}
                         {r.error ? `: ${r.error}` : ''}
                       </span>
@@ -335,7 +339,7 @@ function Rules({ settings, onSave }: { settings: NotifySettings; onSave: (s: Not
               <span className="mt-1 flex items-center gap-2 text-[12px] text-muted">
                 {m.notifications_rules_from()}
                 <select className="field w-[90px]" aria-label={m.notifications_rules_hour()} value={draft.updatesHour} onChange={(e) => setDraft({ ...draft, updatesHour: Number(e.target.value) })}>
-                  {Array.from({ length: 24 }, (_, h) => (
+                  {HOURS.map((h) => (
                     <option key={h} value={h}>
                       {String(h).padStart(2, '0')}:00
                     </option>

@@ -43,7 +43,7 @@ export function smoothPath(pts: [number, number][]): string {
   const n = pts.length
   if (n === 0) return ''
   const f = (v: number) => v.toFixed(1)
-  if (n < 3) return 'M' + pts.map(([a, b]) => `${f(a)},${f(b)}`).join('L')
+  if (n < 3) return `M${pts.map(([a, b]) => `${f(a)},${f(b)}`).join('L')}`
   const dx: number[] = []
   const slopes: number[] = []
   for (let i = 0; i < n - 1; i++) {
@@ -119,6 +119,7 @@ export function HistoryChart({ series, span, now, format, yMin, yMax, height = 4
     return Math.max(90_000, (span / 300) * 3, median * 3)
   }, [visible, span])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: x, y and gap derive from width, lo, hi and h, which are listed
   const paths = useMemo(
     () =>
       visible.map((s) => {
@@ -134,10 +135,9 @@ export function HistoryChart({ series, span, now, format, yMin, yMax, height = 4
         }
         if (cur.length) segs.push(cur)
         const line = segs.map(smoothPath).join('')
-        const area = segs.map((seg) => smoothPath(seg).replace(/^M/, `M${seg[0]![0].toFixed(1)},${h}L`) + `L${seg[seg.length - 1]![0].toFixed(1)},${h}Z`).join('')
+        const area = segs.map((seg) => `${smoothPath(seg).replace(/^M/, `M${seg[0]![0].toFixed(1)},${h}L`)}L${seg[seg.length - 1]![0].toFixed(1)},${h}Z`).join('')
         return { ...s, line, area, last: segs.at(-1)?.at(-1) }
       }),
-    // eslint-disable-next-line react-hooks/exhaustive-deps
     [visible, width, lo, hi, h],
   )
 
@@ -173,6 +173,7 @@ export function HistoryChart({ series, span, now, format, yMin, yMax, height = 4
             width={width}
             height={h}
             className="block overflow-visible"
+            aria-hidden
             onPointerMove={detailed ? (e) => setHover(e.clientX - e.currentTarget.getBoundingClientRect().left) : undefined}
             onPointerLeave={detailed ? () => setHover(null) : undefined}
           >
@@ -219,13 +220,11 @@ export function HistoryChart({ series, span, now, format, yMin, yMax, height = 4
           </svg>
         )}
         {detailed && width > 0 && (
-          <>
-            <div className="pointer-events-none absolute -bottom-5 left-0 flex w-full justify-between font-mono text-[10px] text-subtle">
-              <span>{timeLabel(start, span)}</span>
-              <span>{timeLabel(start + span / 2, span)}</span>
-              <span>{m.overview_chart_now()}</span>
-            </div>
-          </>
+          <div className="pointer-events-none absolute -bottom-5 left-0 flex w-full justify-between font-mono text-[10px] text-subtle">
+            <span>{timeLabel(start, span)}</span>
+            <span>{timeLabel(start + span / 2, span)}</span>
+            <span>{m.overview_chart_now()}</span>
+          </div>
         )}
         {detailed && hoverTs !== null && hoverRows.length > 0 && (
           <div

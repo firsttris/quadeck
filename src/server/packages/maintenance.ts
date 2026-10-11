@@ -6,7 +6,7 @@ import { type Dirent, readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { m } from '~/paraglide/messages'
 import type { ConfigAction, ConfigFileInfo } from '~/shared/configfiles'
-import { localize, msg } from '~/shared/i18n'
+import { msg } from '~/shared/i18n'
 import {
   type CacheEntry,
   FEATURES,
@@ -97,7 +97,12 @@ export function single<T>(fn: () => Promise<T>, generation: () => number = () =>
   return () => {
     const gen = generation()
     if (inflight?.gen === gen) return inflight.p
-    const run: { gen: number; p: Promise<T> } = { gen, p: fn().finally(() => inflight === run && (inflight = undefined)) }
+    const run: { gen: number; p: Promise<T> } = {
+      gen,
+      p: fn().finally(() => {
+        if (inflight === run) inflight = undefined
+      }),
+    }
     inflight = run
     return run.p
   }

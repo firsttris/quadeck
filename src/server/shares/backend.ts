@@ -273,7 +273,7 @@ export class FixtureShares implements SharesBackend {
   private files = new Map<string, string>()
   private svc = { smb: { active: true, enabled: true }, nfs: { active: true, enabled: true } }
 
-  constructor(private dir: string) {
+  constructor(dir: string) {
     this.files.set('/etc/samba/smb.conf', read(join(dir, 'smb.conf')) ?? '')
     this.files.set('/etc/exports', read(join(dir, 'exports')) ?? '')
   }

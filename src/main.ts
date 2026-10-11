@@ -297,12 +297,12 @@ export async function main(argv: string[], opts: MainOptions) {
       }
       const b = new SystemBackup({ self: selfArgv() })
       const r = argv[1] === 'run' ? await b.runBackup() : await b.runCheck()
-      process.exit(r.status === 'failed' ? 1 : 0)
+      return process.exit(r.status === 'failed' ? 1 : 0)
     }
     case 'job':
       // Started by the helper only (systemd-run or child process), as root.
       installNoLang()
-      process.exit(await runJobCommand(argv[1]))
+      return process.exit(await runJobCommand(argv[1]))
     case 'doctor': {
       // --json for scripts, --expect key=value (repeatable) for CI
       installNoLang()
@@ -313,7 +313,7 @@ export async function main(argv: string[], opts: MainOptions) {
         argv.flatMap((a, i) => (a === '--expect' && argv[i + 1] ? [argv[i + 1]!] : a.startsWith('--expect=') ? [a.slice(9)] : [])),
       )
       for (const f of failed) console.error(`doctor: ${f}`)
-      process.exit(failed.length ? 1 : 0)
+      return process.exit(failed.length ? 1 : 0)
     }
     case 'update':
       await selfUpdate(opts.version, argv.includes('--force'))

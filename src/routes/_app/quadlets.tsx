@@ -203,6 +203,7 @@ function NewDialog({ open, existing, onClose, onCreate }: { open: boolean; exist
   const [template, setTemplate] = useState(TEMPLATES[0]!.id)
   const t = TEMPLATES.find((x) => x.id === template)!
   const [type, setType] = useState<QuadletType>(t.type)
+  // biome-ignore lint/correctness/useExhaustiveDependencies: reset the type when another template is picked
   useEffect(() => setType(t.type), [template, t.type])
   const name = `${base.trim()}.${type}`
   const valid = QUADLET_NAME.test(name)
@@ -330,6 +331,7 @@ function ComposeDialog({ open, existing, onClose, onDone }: { open: boolean; exi
           {result.warnings.length > 0 && (
             <ul className="m-0 flex list-none flex-col gap-1 p-0 text-[13px] text-[#e3b341]" aria-label={m.quadlets_compose_warnings()}>
               {result.warnings.map((w, i) => (
+                // biome-ignore lint/suspicious/noArrayIndexKey: derived warnings in order, the same text may repeat
                 <li key={i}>{w}</li>
               ))}
             </ul>

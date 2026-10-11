@@ -96,23 +96,24 @@ export const FSTAB_PATH = '/etc/fstab'
 
 /** fstab escapes: \040 space, \011 tab, \012 newline, \134 backslash. */
 export const unescapeField = (s: string) => s.replace(/\\([0-7]{3})/g, (_, o: string) => String.fromCharCode(parseInt(o, 8)))
-export const escapeField = (s: string) => s.replace(/[\\ \t\n]/g, (c) => '\\' + c.charCodeAt(0).toString(8).padStart(3, '0'))
+export const escapeField = (s: string) => s.replace(/[\\ \t\n]/g, (c) => `\\${c.charCodeAt(0).toString(8).padStart(3, '0')}`)
 
 export function parseFstab(text: string): { entries: FstabEntry[]; diagnostics: Diagnostic[] } {
   const entries: FstabEntry[] = []
   const diagnostics: Diagnostic[] = []
-  text.split('\n').forEach((raw, i) => {
+  for (const [i, raw] of text.split('\n').entries()) {
     const t = raw.trim()
-    if (!t || t.startsWith('#')) return
+    if (!t || t.startsWith('#')) continue
     const f = t.split(/\s+/)
     const line = i + 1
-    if (f.length < 2) return void diagnostics.push({ line, severity: 'error', message: msg(m.fstab_check_tooFewFields) })
-    if (f.length > 6)
-      return void diagnostics.push({
-        line,
-        severity: 'error',
-        message: msg(m.fstab_check_tooManyFields, { count: f.length }),
-      })
+    if (f.length < 2) {
+      diagnostics.push({ line, severity: 'error', message: msg(m.fstab_check_tooFewFields) })
+      continue
+    }
+    if (f.length > 6) {
+      diagnostics.push({ line, severity: 'error', message: msg(m.fstab_check_tooManyFields, { count: f.length }) })
+      continue
+    }
     const num = (v: string | undefined, name: string) => {
       if (v === undefined) return 0
       if (!/^\d+$/.test(v)) diagnostics.push({ line, severity: 'error', message: name + msg(m.fstab_check_notNumber, { value: v }) })
@@ -128,7 +129,7 @@ export function parseFstab(text: string): { entries: FstabEntry[]; diagnostics: 
       freq: num(f[4], msg(m.fstab_label_dumpField)),
       passno: num(f[5], msg(m.fstab_label_passnoField)),
     })
-  })
+  }
   return { entries, diagnostics }
 }
 
@@ -141,7 +142,7 @@ const NOTE = '# quadeck: '
 
 /** The new file text. Comments and lines Quadeck does not touch stay as they are. */
 export function applyChange(text: string, change: FstabChange): string {
-  if (change.kind === 'restore') return change.content.endsWith('\n') ? change.content : change.content + '\n'
+  if (change.kind === 'restore') return change.content.endsWith('\n') ? change.content : `${change.content}\n`
   const lines = text.replace(/\n$/, '').split('\n')
   if (text === '') lines.length = 0
   const note = (e: EntryInput) => (e.note?.trim() ? `${NOTE}${e.note.trim().replace(/[\r\n]+/g, ' ')}` : undefined)
@@ -150,7 +151,7 @@ export function applyChange(text: string, change: FstabChange): string {
     if (lines.length && lines[lines.length - 1]!.trim() !== '') lines.push('')
     if (n) lines.push(n)
     lines.push(formatEntry(change.entry))
-    return lines.join('\n') + '\n'
+    return `${lines.join('\n')}\n`
   }
   const idx = change.line - 1
   if (lines[idx] !== change.original) throw new FstabConflict()
@@ -163,12 +164,10 @@ export function applyChange(text: string, change: FstabChange): string {
     // Our own note above the line goes with it, and so does a blank line left alone.
     if (lines[idx - 1]?.startsWith(NOTE)) lines.splice(idx - 1, 1)
   }
-  return (
-    lines
-      .join('\n')
-      .replace(/\n{3,}/g, '\n\n')
-      .replace(/\n+$/, '') + '\n'
-  )
+  return `${lines
+    .join('\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/\n+$/, '')}\n`
 }
 
 export class FstabConflict extends Error {

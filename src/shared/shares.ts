@@ -110,7 +110,6 @@ const NFS_VALUE_OPTION =
 /** Paths that must never be shared (or anything below them). */
 const FORBIDDEN = ['/etc', '/root', '/boot', '/proc', '/sys', '/dev', '/run', '/var/lib/quadeck', '/var/lib/quadeck-helper', '/var/lib/containers']
 
-// eslint-disable-next-line no-control-regex
 const CONTROL = /[\x00-\x1f\x7f]/
 
 export function validateSharePath(path: string): string | undefined {
@@ -119,7 +118,7 @@ export function validateSharePath(path: string): string | undefined {
   if (path.split('/').includes('..')) return msg(m.files_check_pathDotDot)
   const clean = path.replace(/\/+$/, '') || '/'
   if (clean === '/') return msg(m.shares_check_rootDir)
-  const bad = FORBIDDEN.find((f) => clean === f || clean.startsWith(f + '/'))
+  const bad = FORBIDDEN.find((f) => clean === f || clean.startsWith(`${f}/`))
   if (bad) return msg(m.shares_check_pathForbidden, { path: bad })
   return undefined
 }

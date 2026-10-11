@@ -769,7 +769,10 @@ function ClientWizard({
                   placeholder={m.backup_cwiz_rulePlaceholder()}
                   aria-label={m.backup_cwiz_addRule()}
                   aria-invalid={ruleError || undefined}
-                  onChange={(e) => (setRule(e.target.value), setRuleError(false))}
+                  onChange={(e) => {
+                    setRule(e.target.value)
+                    setRuleError(false)
+                  }}
                 />
                 <button type="submit" className="btn" disabled={!rule.trim()}>
                   {m.backup_setup_add()}
@@ -844,7 +847,14 @@ function ClientWizard({
             </section>
             <section className="flex flex-col gap-2.5 rounded-[10px] border border-rim p-3.5" aria-label={m.backup_cwiz_missing()}>
               <h3 className="m-0 text-[14px] font-semibold">{m.backup_cwiz_missing()}</h3>
-              <WarnInput warn={warn} days={days} onChange={(w, d) => (setWarn(w), setDays(d))} />
+              <WarnInput
+                warn={warn}
+                days={days}
+                onChange={(w, d) => {
+                  setWarn(w)
+                  setDays(d)
+                }}
+              />
               <label className="flex items-center gap-2.5 text-[13px]">
                 <input type="checkbox" checked={plan.active} onChange={(e) => set({ active: e.target.checked })} />
                 {m.backup_client_active()}

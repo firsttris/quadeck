@@ -168,15 +168,16 @@ export function parsePingTime(out: string): number | undefined {
 export function parseOui(text: string, wanted: Set<string>): Map<string, string> {
   const out = new Map<string, string>()
   for (const line of text.split('\n')) {
-    let m = /^([0-9A-F]{2})-([0-9A-F]{2})-([0-9A-F]{2})\s+\(hex\)\s+(.+)$/i.exec(line)
+    const hex = /^([0-9A-F]{2})-([0-9A-F]{2})-([0-9A-F]{2})\s+\(hex\)\s+(.+)$/i.exec(line)
+    const base16 = hex ? null : /^([0-9A-F]{6})\s+(.+)$/i.exec(line)
     let prefix: string | undefined
     let name: string | undefined
-    if (m) {
-      prefix = `${m[1]}${m[2]}${m[3]}`.toUpperCase()
-      name = m[4]
-    } else if ((m = /^([0-9A-F]{6})\s+(.+)$/i.exec(line))) {
-      prefix = m[1]!.toUpperCase()
-      name = m[2]
+    if (hex) {
+      prefix = `${hex[1]}${hex[2]}${hex[3]}`.toUpperCase()
+      name = hex[4]
+    } else if (base16) {
+      prefix = base16[1]!.toUpperCase()
+      name = base16[2]
     }
     if (prefix && name && wanted.has(prefix) && !out.has(prefix)) out.set(prefix, name.trim())
   }

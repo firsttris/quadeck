@@ -27,7 +27,7 @@ export const Route = createFileRoute('/api/caddy/')({
         const p = privileged()
         const token = unlockToken(session.id)
         if (b.apply) {
-          let change
+          let change: ReturnType<typeof parseCaddyChange>
           try {
             change = parseCaddyChange(b.apply)
           } catch (e) {

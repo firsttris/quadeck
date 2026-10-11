@@ -35,7 +35,6 @@ export interface DirListing {
 
 export const MAX_ENTRIES = 5000
 
-// eslint-disable-next-line no-control-regex
 const CONTROL = /[\x00-\x1f\x7f]/
 
 /** A single new file or folder name (rename, mkdir). */

@@ -40,6 +40,7 @@ function Document({ children }: { children: ReactNode }) {
     // data-motion and data-theme are set by the init scripts before React hydrates
     <html lang={lang} suppressHydrationWarning>
       <head>
+        {/* biome-ignore lint/security/noDangerouslySetInnerHtml: our own constant init scripts, they must run before the first paint */}
         <script dangerouslySetInnerHTML={{ __html: `${MOTION_INIT_SCRIPT};${THEME_INIT_SCRIPT}` }} />
         <HeadContent />
       </head>

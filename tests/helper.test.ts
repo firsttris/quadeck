@@ -27,7 +27,7 @@ import { FixtureUsers } from '../src/server/users/backend'
 // sha512-crypt of "geheim-123"
 const HASH = '$6$quadeckt$pgIhFnbK6xs46yd0LWpDYqO6iRlF44QJuqBQ7i2j0gU.Rxvby3N1AG9aVgJxVbQQawFROmuIr9MJ9V3/.cG9w.'
 const files = {
-  shadow: ['root:' + HASH + ':19000:0:99999:7:::', 'tristan:' + HASH + ':19000::::::', 'locked:!:19000::::::', 'guest:' + HASH + ':19000::::::'].join('\n'),
+  shadow: [`root:${HASH}:19000:0:99999:7:::`, `tristan:${HASH}:19000::::::`, 'locked:!:19000::::::', `guest:${HASH}:19000::::::`].join('\n'),
   group: ['root:x:0:', 'wheel:x:998:tristan', 'quadeck:x:961:'].join('\n'),
 }
 
@@ -43,7 +43,7 @@ describe('system password check (crypt + /etc/shadow)', () => {
     expect(verifySystemPassword(files, 'tristan', 'nope')).toBe('wrong')
     expect(verifySystemPassword(files, 'guest', 'geheim-123')).toBe('not-admin')
     expect(verifySystemPassword(files, 'locked', 'x')).toBe('not-admin')
-    expect(verifySystemPassword({ ...files, group: files.group + '\nsudo:x:27:locked' }, 'locked', 'x')).toBe('no-password')
+    expect(verifySystemPassword({ ...files, group: `${files.group}\nsudo:x:27:locked` }, 'locked', 'x')).toBe('no-password')
     expect(verifySystemPassword(files, '../etc', 'x')).toBe('wrong')
     expect(isAdmin(files, 'tristan')).toBe(true)
     expect(suggestedUser(files)).toBe('tristan')

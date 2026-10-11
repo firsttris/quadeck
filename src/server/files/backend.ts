@@ -96,7 +96,7 @@ export function fileRootPaths(env = process.env.QUADECK_FILE_ROOTS, mounts = '/p
       const [dev, mp, fs] = line.split(' ')
       if (!dev || !mp || !fs || VIRTUAL_FS.test(fs) || !dev.startsWith('/dev/')) continue
       const path = mp.replace(/\\040/g, ' ')
-      if (path === '/' || SYSTEM.test(path) || candidates.some((c) => path === c || path.startsWith(c + '/'))) continue
+      if (path === '/' || SYSTEM.test(path) || candidates.some((c) => path === c || path.startsWith(`${c}/`))) continue
       candidates.push(path)
     }
   }
@@ -127,7 +127,7 @@ export function resolveInRoots(path: string, roots: string[], opts: { parentOnly
   } catch {
     throw new HttpError(404, msg(m.files_error_notFound, { path }))
   }
-  const root = roots.find((r) => real === r || real.startsWith(r + '/'))
+  const root = roots.find((r) => real === r || real.startsWith(`${r}/`))
   if (!root) throw new HttpError(403, msg(m.files_error_outsideRoots, { path }))
   if (real === root && !opts.allowRoot) throw new HttpError(403, msg(m.files_error_rootReadonly, { root }))
   return { real, root }
@@ -374,7 +374,7 @@ export class FixtureFiles implements FilesBackend {
   }
 
   private node(path: string): Node | undefined {
-    const root = [...this.tree.keys()].find((r) => path === r || path.startsWith(r + '/'))
+    const root = [...this.tree.keys()].find((r) => path === r || path.startsWith(`${r}/`))
     if (!root) return undefined
     let n = this.tree.get(root)!
     for (const part of path.slice(root.length).split('/').filter(Boolean)) {
@@ -388,7 +388,7 @@ export class FixtureFiles implements FilesBackend {
   private rootOf(path: string) {
     const bad = validatePath(path)
     if (bad) throw new HttpError(400, bad)
-    const root = [...this.tree.keys()].find((r) => path === r || path.startsWith(r + '/'))
+    const root = [...this.tree.keys()].find((r) => path === r || path.startsWith(`${r}/`))
     if (!root) throw new HttpError(403, msg(m.files_error_outsideRoots, { path }))
     return root
   }

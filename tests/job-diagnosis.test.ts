@@ -152,7 +152,10 @@ done`)
 
   it('running package managers from /proc', () => {
     const proc = mkdtempSync(join(tmpdir(), 'qd-proc-'))
-    const add = (pid: string, comm: string) => (mkdirSync(join(proc, pid)), writeFileSync(join(proc, pid, 'comm'), `${comm}\n`))
+    const add = (pid: string, comm: string) => {
+      mkdirSync(join(proc, pid))
+      writeFileSync(join(proc, pid, 'comm'), `${comm}\n`)
+    }
     add('1', 'systemd')
     add('200', 'bash')
     expect(runningPackageManagers(proc)).toEqual([])

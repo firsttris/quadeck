@@ -98,7 +98,7 @@ describe('Caddyfile changes', () => {
 })
 
 describe('site options', () => {
-  const HASH = '$2b$12$' + 'a'.repeat(53)
+  const HASH = `$2b$12$${'a'.repeat(53)}`
 
   it('reads the options the dialog knows and keeps the rest', () => {
     const ha = parseCaddyfile(FILE).blocks.find((b) => b.addresses[0] === 'ha.home.example')!
@@ -231,12 +231,20 @@ function scripted(over: Partial<CaddyHost> = {}): CaddyHost & { files: Map<strin
     service: async () => undefined,
     volumePath: async () => undefined,
     api: async () => true,
-    apiAdapt: async () => (calls.push('adapt'), undefined),
-    apiLoad: async () => (calls.push('load'), undefined),
+    apiAdapt: async () => {
+      calls.push('adapt')
+    },
+    apiLoad: async () => {
+      calls.push('load')
+    },
     containerRunning: async () => true,
-    validateInImage: async () => (calls.push('image'), undefined),
+    validateInImage: async () => {
+      calls.push('image')
+    },
     validateOnHost: async () => 'unavailable',
-    execReload: async () => (calls.push('exec'), undefined),
+    execReload: async () => {
+      calls.push('exec')
+    },
     serviceReload: async () => undefined,
     history: { list: () => revs.map((_, i) => ({ id: `${i}`, date: i, message: 'x' })), read: (_p, id) => revs[Number(id)]!, saved: (_p, b, a) => void revs.push(b ?? '', a) },
     ...over,
@@ -298,7 +306,7 @@ describe('CaddyManager', () => {
     const s = await m.caddyState()
     expect(s.source).toMatchObject({ how: 'quadlet', path: '/etc/caddy/Caddyfile' })
     expect(s.blocks.filter((b) => b.kind === 'proxy')).toHaveLength(7)
-    await expect(m.applyCaddy({ kind: 'text', content: s.content + '\nbroken.example.com {\n' }, s.hash)).rejects.toThrow(/lehnt die Datei ab/)
+    await expect(m.applyCaddy({ kind: 'text', content: `${s.content}\nbroken.example.com {\n` }, s.hash)).rejects.toThrow(/lehnt die Datei ab/)
     const r = await m.applyCaddy({ kind: 'site', addresses: ['new.home.example'], upstreams: ['localhost:9000'] }, s.hash)
     expect(r.state.history).toHaveLength(2)
     // A password from the dialog is stored as a bcrypt hash only.

@@ -112,7 +112,7 @@ function HardwarePage() {
             </section>
           )}
 
-          <div className="grid grid-cols-2 gap-[18px] md:grid-cols-4" aria-label={m.hardware_glance()}>
+          <div className="grid grid-cols-2 gap-[18px] md:grid-cols-4" role="group" aria-label={m.hardware_glance()}>
             {[
               [
                 m.hardware_cpu(),
@@ -151,7 +151,7 @@ function HardwarePage() {
 
             <Card title={m.hardware_memory()}>
               {hw.memory.slots.length > 0 ? (
-                <div className="grid grid-cols-2 gap-2 md:grid-cols-4" aria-label={m.hardware_slots()}>
+                <div className="grid grid-cols-2 gap-2 md:grid-cols-4" role="group" aria-label={m.hardware_slots()}>
                   {hw.memory.slots.map((slot) => (
                     <div
                       key={slot.locator}

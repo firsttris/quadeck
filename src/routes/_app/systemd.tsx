@@ -130,6 +130,7 @@ function UnitView({ unit }: { unit: string }) {
                   type="checkbox"
                   role="switch"
                   aria-label={m.systemd_unit_startAtBoot()}
+                  aria-checked={d.unitFileState === 'enabled'}
                   checked={d.unitFileState === 'enabled'}
                   disabled={readonly || !!boot.busy}
                   onChange={(e) => void toggleEnabled(e.target.checked)}
@@ -531,6 +532,7 @@ function NewUnit() {
     setServer(null)
   }
   // The template follows the name until the text is edited.
+  // biome-ignore lint/correctness/useExhaustiveDependencies: refill the template text when the language changes, too
   useEffect(() => {
     if (!touched) setText(UNIT_TEMPLATES.find((x) => x.id === template)!.content(unit.replace(/\.\w+$/, '') || m.systemd_create_defaultName()))
   }, [unit, template, touched, m.systemd_create_defaultName()])

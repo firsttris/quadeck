@@ -10,10 +10,10 @@ const encoder = new TextEncoder()
 // Every subscriber gets the same event object: encode it once per language, not once per tab.
 const encoded = new WeakMap<object, Map<Lang, Uint8Array>>()
 function encode(e: HubEvent, lang: Lang): Uint8Array {
-  let byLang = encoded.get(e)
-  if (!byLang) encoded.set(e, (byLang = new Map()))
-  let bytes = byLang.get(lang)
-  if (!bytes) byLang.set(lang, (bytes = encoder.encode(`event: ${e.type}\ndata: ${JSON.stringify(localizeDeep(e.data, lang))}\n\n`)))
+  const byLang = encoded.get(e) ?? new Map<Lang, Uint8Array>()
+  encoded.set(e, byLang)
+  const bytes = byLang.get(lang) ?? encoder.encode(`event: ${e.type}\ndata: ${JSON.stringify(localizeDeep(e.data, lang))}\n\n`)
+  byLang.set(lang, bytes)
   return bytes
 }
 

@@ -103,8 +103,7 @@ export function journalStream(opts: { unit?: string; priority?: number }, signal
           let buf = ''
           for await (const chunk of proc.stdout) {
             buf += decoder.decode(chunk, { stream: true })
-            let nl
-            while ((nl = buf.indexOf('\n')) >= 0) {
+            for (let nl = buf.indexOf('\n'); nl >= 0; nl = buf.indexOf('\n')) {
               const e = parseJournalLine(buf.slice(0, nl))
               buf = buf.slice(nl + 1)
               if (e) send(e)

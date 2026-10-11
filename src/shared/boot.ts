@@ -417,7 +417,7 @@ export function kernelEntry(template: string, pkg: KernelFlavor): string {
   const initrd = lines.filter((l) => /^\s*initrd\s/.test(l))
   const ucode = initrd.filter((l) => /ucode/.test(l))
   const rest = lines.filter((l) => !/^\s*initrd\s/.test(l) && l.trim())
-  return ['# Created by Quadeck', `title   Arch Linux (${pkg})`, `linux   /vmlinuz-${pkg}`, ...ucode, `initrd  /initramfs-${pkg}.img`, ...rest].join('\n') + '\n'
+  return `${['# Created by Quadeck', `title   Arch Linux (${pkg})`, `linux   /vmlinuz-${pkg}`, ...ucode, `initrd  /initramfs-${pkg}.img`, ...rest].join('\n')}\n`
 }
 
 /** File name of the new entry. */
@@ -528,7 +528,7 @@ export function newEntryContent(def: BootEntry | undefined): string {
     lines.push(`linux   ${def.linux}`, ...def.initrd.map((i) => `initrd  ${i}`))
     if (def.options) lines.push(`options ${def.options}`)
   } else lines.push('linux   /vmlinuz-linux', 'initrd  /initramfs-linux.img', 'options root=')
-  return lines.join('\n') + '\n'
+  return `${lines.join('\n')}\n`
 }
 
 /** An entry Quadeck can edit: a .conf file directly in loader/entries. */
@@ -612,7 +612,7 @@ export function applyEntryForm(text: string, f: EntryForm): string {
       const after = Math.max(...['title', 'linux', 'initrd', 'options'].map((x) => out.map(keyOf).lastIndexOf(x)))
       out.splice(after + 1, 0, ...want[k]!.map((v) => confLine(k, v)))
     }
-  return out.filter((l, i) => l.trim() || i < out.length - 1).join('\n') + '\n'
+  return `${out.filter((l, i) => l.trim() || i < out.length - 1).join('\n')}\n`
 }
 
 /** Files on the boot partition by what they are for. */

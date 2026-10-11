@@ -24,7 +24,7 @@ function loadCrypt(): CryptFn | null {
   return null
 }
 
-const cstr = (s: string) => Buffer.from(s + '\0', 'utf8')
+const cstr = (s: string) => Buffer.from(`${s}\0`, 'utf8')
 
 /** crypt(3) wrapper; undefined if no crypt library or the hash type is unsupported. */
 export function crypt(password: string, setting: string): string | undefined {
@@ -107,7 +107,7 @@ export function verifySystemPassword(files: SystemAuthFiles, user: string, passw
   if (!/^[a-z_][a-z0-9_.-]{0,31}\$?$/i.test(user)) return 'wrong'
   if (!isAdmin(files, user)) return 'not-admin'
   const hash = shadowHash(files.shadow, user)
-  if (!hash || !hash.startsWith('$')) return 'no-password' // "!", "*", "!!" = locked/no password
+  if (!hash?.startsWith('$')) return 'no-password' // "!", "*", "!!" = locked/no password
   const out = crypt(password, hash)
   if (out === undefined) return 'unsupported'
   if (out.length !== hash.length) return 'wrong'

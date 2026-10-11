@@ -16,7 +16,7 @@ export const Route = createFileRoute('/api/quadlets/compose')({
         try {
           doc = Bun.YAML.parse(b.yaml)
         } catch (e) {
-          throw new HttpError(422, msg(m.api_quadlets_yamlError) + `: ${(e as Error).message}`)
+          throw new HttpError(422, `${msg(m.api_quadlets_yamlError)}: ${(e as Error).message}`)
         }
         return Response.json(composeToQuadlets(doc, typeof b.project === 'string' && b.project.trim() ? b.project : 'app'))
       }),

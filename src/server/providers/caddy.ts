@@ -150,7 +150,7 @@ export function candidatesFromCaddyfile(src: string): ServiceCandidate[] {
     const targets = override ? override.map((h) => ({ host: h, scheme: site!.addrs[0]?.scheme ?? 'https', port: site!.addrs[0]?.port })) : site.addrs
     for (const a of targets) {
       if (isWildcardOrIp(a.host)) continue
-      out.push({ host: a.host, url: `${a.scheme}://${a.host}${a.port ? ':' + a.port : ''}${path}`, upstreams, provider: 'caddy' })
+      out.push({ host: a.host, url: `${a.scheme}://${a.host}${a.port ? `:${a.port}` : ''}${path}`, upstreams, provider: 'caddy' })
     }
   }
 

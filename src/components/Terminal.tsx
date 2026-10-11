@@ -164,7 +164,16 @@ export function TerminalPage({ container, type }: { container?: string; type?: T
           <p className="m-0 mt-2 text-[12px] text-muted">{m.terminal_footer({ minutes: state.settings.idleMinutes })}</p>
         </section>
       )}
-      {editing && <SettingsDialog settings={state.settings} onClose={() => setEditing(false)} onSaved={(s) => (setState(s), setEditing(false))} />}
+      {editing && (
+        <SettingsDialog
+          settings={state.settings}
+          onClose={() => setEditing(false)}
+          onSaved={(s) => {
+            setState(s)
+            setEditing(false)
+          }}
+        />
+      )}
     </>
   )
 }
@@ -218,8 +227,7 @@ function TerminalView({ info, visible, font, full, type }: { info: TerminalInfo;
         const { value, done } = await reader.read()
         if (done) break
         buf += dec.decode(value, { stream: true })
-        let i: number
-        while ((i = buf.indexOf('\n\n')) >= 0) {
+        for (let i = buf.indexOf('\n\n'); i >= 0; i = buf.indexOf('\n\n')) {
           const block = buf.slice(0, i)
           buf = buf.slice(i + 2)
           const ev = EVENT.exec(block)?.[1]
@@ -245,6 +253,7 @@ function TerminalView({ info, visible, font, full, type }: { info: TerminalInfo;
     }
   }, [info.id, send])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: one terminal per session; font changes go through the effect below
   useEffect(() => {
     let disposed = false
     let ro: ResizeObserver | undefined
@@ -290,9 +299,9 @@ function TerminalView({ info, visible, font, full, type }: { info: TerminalInfo;
       term.current?.dispose()
       term.current = null
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [info.id])
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: fit again when the font or full screen changes
   useEffect(() => {
     if (!term.current) return
     term.current.options.fontSize = font
@@ -313,7 +322,7 @@ function TerminalView({ info, visible, font, full, type }: { info: TerminalInfo;
   return (
     <div className={visible ? 'flex min-h-0 flex-col' : 'hidden'} data-testid="terminal-view">
       <div className="relative rounded-b-[10px] border border-t-0 border-edge bg-[#0d1117] p-2">
-        <div ref={box} className={full ? 'h-[calc(100vh-150px)]' : 'h-[60vh] min-h-[320px]'} aria-label={m.terminal_screen({ label: info.label })} />
+        <div ref={box} className={full ? 'h-[calc(100vh-150px)]' : 'h-[60vh] min-h-[320px]'} role="group" aria-label={m.terminal_screen({ label: info.label })} />
         {status === 'lost' && (
           <div className="absolute inset-x-0 bottom-3 flex justify-center">
             <button type="button" className="btn sm primary" onClick={() => void connect()}>

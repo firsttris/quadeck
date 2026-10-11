@@ -38,7 +38,7 @@ export interface ArchiveEntry {
 }
 
 /** GNU tar's escape quoting (\\, \n, \t, octal \ooo) back to the name. */
-function unescape(s: string): string {
+function tarUnescape(s: string): string {
   return s.replace(/\\(\\|[0-7]{3}|[abfnrtv])/g, (_, c: string) => {
     if (c === '\\') return '\\'
     if (/^[0-7]{3}$/.test(c)) return String.fromCharCode(parseInt(c, 8))
@@ -59,8 +59,8 @@ export function parseTarList(out: string): ArchiveEntry[] {
     let name = mm[4]!
     let target: string | undefined
     const sep = type === 'link' ? ' -> ' : type === 'hardlink' ? ' link to ' : undefined
-    if (sep && name.includes(sep)) [name, target] = [name.slice(0, name.indexOf(sep)), unescape(name.slice(name.indexOf(sep) + sep.length))]
-    entries.push({ path: unescape(name), type, size: type === 'file' ? Number(mm[3]) : 0, ...(target !== undefined ? { target } : {}), ...(/[sStT]/.test(mm[2]!) ? { special: true } : {}) })
+    if (sep && name.includes(sep)) [name, target] = [name.slice(0, name.indexOf(sep)), tarUnescape(name.slice(name.indexOf(sep) + sep.length))]
+    entries.push({ path: tarUnescape(name), type, size: type === 'file' ? Number(mm[3]) : 0, ...(target !== undefined ? { target } : {}), ...(/[sStT]/.test(mm[2]!) ? { special: true } : {}) })
   }
   return entries
 }

@@ -131,7 +131,7 @@ export function parseExportsFile(text: string): ExportLine[] {
   for (let i = 0; i < lines.length; i++) {
     let line = lines[i]!.replace(/\r$/, '')
     const start = i
-    while (line.endsWith('\\') && i + 1 < lines.length) line = line.slice(0, -1) + ' ' + lines[++i]!
+    while (line.endsWith('\\') && i + 1 < lines.length) line = `${line.slice(0, -1)} ${lines[++i]!}`
     const t = line.trim()
     if (!t || t.startsWith('#')) continue
     const m = t.match(/^("([^"]+)"|(\S+))\s*(.*)$/)

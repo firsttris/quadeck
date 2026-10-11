@@ -79,7 +79,6 @@ export const TIMER_BASE = /^[A-Za-z0-9][A-Za-z0-9_.-]{0,62}$/
 export const TIMER_UNIT = /^[A-Za-z0-9:_.\\@-]{1,240}\.timer$/
 export const CALENDAR = /^[A-Za-z0-9 *:,./~-]{1,120}$/
 const USER = /^[a-z_][a-z0-9_.-]{0,31}\$?$/
-// eslint-disable-next-line no-control-regex
 const CONTROL = /[\x00-\x08\x0b-\x1f\x7f]/
 const MAX_COMMAND = 8000
 
@@ -170,7 +169,7 @@ export function renderService(s: TimerSpec, legacy = false): string {
   if (s.workingDirectory) lines.push(`WorkingDirectory=${pct(s.workingDirectory)}`)
   if (s.lowPriority) lines.push('Nice=10', 'IOSchedulingClass=idle')
   lines.push(`ExecStart=/bin/sh -c ${execQuote(s.command)}`)
-  return lines.join('\n') + '\n'
+  return `${lines.join('\n')}\n`
 }
 
 export function renderTimer(s: TimerSpec, legacy = false): string {
@@ -185,7 +184,7 @@ export function renderTimer(s: TimerSpec, legacy = false): string {
   if (s.persistent) lines.push('Persistent=true')
   if (s.randomDelay) lines.push(`RandomizedDelaySec=${s.randomDelay}min`)
   lines.push('', '[Install]', 'WantedBy=timers.target')
-  return lines.join('\n') + '\n'
+  return `${lines.join('\n')}\n`
 }
 
 /** Spec from a service file Quadeck wrote (undefined for foreign files). */
@@ -452,7 +451,7 @@ export function cronToCalendar(line: string): CronResult {
   const command = l.match(/^(?:\S+\s+){4}\S+\s+([\s\S]+)$/)?.[1]?.trim() || undefined
   try {
     const days = dow === '*' || dow === '?' ? '' : cronDays(dow)
-    const calendar = `${days ? days + ' ' : ''}*-${cronField(mon, 1, 12, MONTHS)}-${dom === '?' ? '*' : cronField(dom, 1, 31)} ${cronField(h, 0, 23)}:${cronField(mi, 0, 59)}:00`
+    const calendar = `${days ? `${days} ` : ''}*-${cronField(mon, 1, 12, MONTHS)}-${dom === '?' ? '*' : cronField(dom, 1, 31)} ${cronField(h, 0, 23)}:${cronField(mi, 0, 59)}:00`
     const warning = days && dom !== '*' && dom !== '?' ? msg(m.timers_cron_dayOrWeekday) : undefined
     return { calendar, command, warning }
   } catch (e) {

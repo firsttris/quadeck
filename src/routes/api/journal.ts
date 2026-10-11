@@ -10,7 +10,7 @@ export const Route = createFileRoute('/api/journal')({
         const q = new URL(request.url).searchParams
         const unit = q.get('unit') || undefined
         const prio = q.get('priority')
-        let stream
+        let stream: ReturnType<typeof journalStream>
         try {
           stream = journalStream({ unit, priority: prio ? Number(prio) : undefined }, request.signal, () => !!getSession(request))
         } catch (e) {

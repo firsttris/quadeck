@@ -286,7 +286,7 @@ function groupId(name: string): number | undefined {
   try {
     const line = readFileSync('/etc/group', 'utf8')
       .split('\n')
-      .find((l) => l.startsWith(name + ':'))
+      .find((l) => l.startsWith(`${name}:`))
     return line ? Number(line.split(':')[2]) : undefined
   } catch {
     return undefined

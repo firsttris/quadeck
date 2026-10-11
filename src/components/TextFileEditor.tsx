@@ -28,6 +28,7 @@ export function TextFileEditor({ path, onClose, onSaved }: { path: string; onClo
   const name = baseName(path)
   const url = `/api/files?read=${encodeURIComponent(path)}`
 
+  // biome-ignore lint/correctness/useExhaustiveDependencies: load once per file; onClose and guarded are new functions on every render
   useEffect(() => {
     let gone = false
     const show = (f: TextFile | undefined) => {
@@ -47,7 +48,6 @@ export function TextFileEditor({ path, onClose, onSaved }: { path: string; onClo
     return () => {
       gone = true
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [url])
 
   const dirty = !!file && text !== file.content
@@ -119,7 +119,15 @@ export function TextFileEditor({ path, onClose, onSaved }: { path: string; onClo
             {canEdit ? m.common_cancel() : m.common_close()}
           </button>
           {canEdit && (
-            <button type="button" className="btn primary" disabled={!dirty} onClick={() => (setError(''), setConfirm(true))}>
+            <button
+              type="button"
+              className="btn primary"
+              disabled={!dirty}
+              onClick={() => {
+                setError('')
+                setConfirm(true)
+              }}
+            >
               {m.files_editor_next()}
             </button>
           )}

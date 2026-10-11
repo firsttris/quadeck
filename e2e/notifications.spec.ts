@@ -32,11 +32,13 @@ test.beforeAll(async () => {
             mails.push(data)
             data = null
             sock.write('250 queued\r\n')
-          } else data += line + '\n'
+          } else data += `${line}\n`
         } else if (/^(EHLO|HELO)/i.test(line)) sock.write('250 test\r\n')
         else if (/^(MAIL|RCPT)/i.test(line)) sock.write('250 ok\r\n')
-        else if (/^DATA/i.test(line)) (data = ''), sock.write('354 go\r\n')
-        else if (/^QUIT/i.test(line)) sock.end('221 bye\r\n')
+        else if (/^DATA/i.test(line)) {
+          data = ''
+          sock.write('354 go\r\n')
+        } else if (/^QUIT/i.test(line)) sock.end('221 bye\r\n')
       }
     })
   })

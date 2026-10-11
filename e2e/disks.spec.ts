@@ -166,7 +166,7 @@ test.describe
       const text = editor.getByLabel('Inhalt von backup.sh')
       await expect(text).toHaveValue(/^#!\/bin\/sh\n# Nightly backup/)
       await expect(editor.getByRole('button', { name: 'Weiter' })).toBeDisabled()
-      await text.fill((await text.inputValue()) + 'sync\n')
+      await text.fill(`${await text.inputValue()}sync\n`)
       await editor.getByRole('button', { name: 'Weiter' }).click()
       const confirm = page.getByRole('dialog', { name: 'Änderungen an backup.sh speichern?' })
       await expect(confirm.getByLabel('Änderungen')).toContainText('+ sync')

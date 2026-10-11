@@ -81,7 +81,7 @@ export function ensureSetupToken(): string | undefined {
   const t = randomToken(18)
   try {
     // 'wx': if the service and the CLI race, exactly one token wins.
-    writeFileSync(p, t + '\n', { mode: 0o600, flag: 'wx' })
+    writeFileSync(p, `${t}\n`, { mode: 0o600, flag: 'wx' })
   } catch (e) {
     if ((e as NodeJS.ErrnoException).code === 'EEXIST') return readFileSync(p, 'utf8').trim() || undefined
     throw e

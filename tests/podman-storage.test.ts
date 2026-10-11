@@ -81,7 +81,7 @@ describe('reading storage', () => {
     expect(old.map((i) => i.previously)).toEqual(['ghcr.io/immich-app/immich-server:release', 'docker.io/jellyfin/jellyfin:latest', 'ghcr.io/immich-app/immich-machine-learning:release', undefined])
     expect(old.every((i) => i.quadlets.length === 0)).toBe(true) // the old version is not what the Quadlet names
     const vol = (n: string) => s.volumes.find((v) => v.name === n)!
-    expect(vol('caddy-data').usedBy).toEqual(['caddy' + '0'.repeat(59)])
+    expect(vol('caddy-data').usedBy).toEqual([`caddy${'0'.repeat(59)}`])
     expect(vol('nextcloud-data').usedBy).toEqual([])
     expect(vol('nextcloud-data').size).toBe(2_100_000_000)
     expect(s.volumes.filter((v) => v.anonymous)).toHaveLength(2)
@@ -90,7 +90,7 @@ describe('reading storage', () => {
     expect(s.root).toBe('/var/lib/containers/storage')
     expect(s.disk).toEqual({ size: 100, used: 40 })
     const c = s.containers.find((x) => x.name === 'old-nginx')!
-    expect(c).toMatchObject({ state: 'exited', exitCode: 137, volumes: ['3f9c0a' + 'e'.repeat(58)] })
+    expect(c).toMatchObject({ state: 'exited', exitCode: 137, volumes: [`3f9c0a${'e'.repeat(58)}`] })
     expect(c.exitedAt).toBeGreaterThan(0)
   })
 
@@ -128,7 +128,7 @@ describe('reading storage', () => {
     expect(labels(s, { networks: true })).toEqual(['network:nextcloud_default'])
     expect(labels(s, { unusedImages: true })).toEqual(['image:docker.io/library/nextcloud:29'])
     expect(labels(s, { containers: true, unusedImages: true }).filter((l) => l.startsWith('image'))).toEqual(['image:docker.io/library/nginx:1.25', 'image:docker.io/library/nextcloud:29'])
-    const anon = '3f9c0a' + 'e'.repeat(58)
+    const anon = `3f9c0a${'e'.repeat(58)}`
     expect(labels(s, { volumes: [anon, 'nextcloud-data', 'caddy-data'] })).toEqual(['volume:nextcloud-data']) // anon still used by the stopped old-nginx
     expect(labels(s, { containers: true, volumes: [anon, 'nextcloud-data', 'caddy-data'] }).filter((l) => l.startsWith('volume'))).toEqual(['volume:nextcloud-data', 'volume:3f9c0aeeeeee…'])
   })
@@ -199,7 +199,7 @@ describe('cleaning up', () => {
         { kind: 'volume', id: 'nextcloud-data' },
         { kind: 'network', id: 'nextcloud_default' },
         { kind: 'volume', id: 'caddy-data' },
-        { kind: 'container', id: 'jellyfin' + '0'.repeat(56) }, // running, owned by a Quadlet
+        { kind: 'container', id: `jellyfin${'0'.repeat(56)}` }, // running, owned by a Quadlet
       ],
     )
     expect(r.results).toEqual([])

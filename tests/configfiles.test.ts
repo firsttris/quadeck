@@ -17,11 +17,11 @@ describe('rules', () => {
   })
 
   it('protects account files and explains the tricky ones', () => {
-    expect(describeConfigFile('/etc/passwd.pacnew', 'new', '/etc/passwd').noReplace).toMatch(/kennt deine Benutzer nicht/)
-    expect(describeConfigFile('/etc/shells.pacnew', 'new', '/etc/shells').noReplace).toMatch(/zsh, fish/)
-    expect(describeConfigFile('/etc/ssh/sshd_config.pacnew', 'new', '/etc/ssh/sshd_config')).toMatchObject({ check: 'sshd -t', after: 'sshd-reload' })
-    expect(describeConfigFile('/etc/mkinitcpio.conf.pacnew', 'new', '/etc/mkinitcpio.conf')).toMatchObject({ after: 'mkinitcpio', note: expect.stringMatching(/HOOKS/) })
-    expect(describeConfigFile('/etc/pam.d/kde.pacsave', 'save', '/etc/pam.d/kde').note).toMatch(/^Gesicherte Fassung/)
+    expect(describeConfigFile('new', '/etc/passwd').noReplace).toMatch(/kennt deine Benutzer nicht/)
+    expect(describeConfigFile('new', '/etc/shells').noReplace).toMatch(/zsh, fish/)
+    expect(describeConfigFile('new', '/etc/ssh/sshd_config')).toMatchObject({ check: 'sshd -t', after: 'sshd-reload' })
+    expect(describeConfigFile('new', '/etc/mkinitcpio.conf')).toMatchObject({ after: 'mkinitcpio', note: expect.stringMatching(/HOOKS/) })
+    expect(describeConfigFile('save', '/etc/pam.d/kde').note).toMatch(/^Gesicherte Fassung/)
   })
 })
 

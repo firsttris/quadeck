@@ -203,6 +203,7 @@ function Hardening({ state, onPreview }: { state: SshState; onPreview: (p: SshPe
             <input
               type="checkbox"
               role="switch"
+              aria-checked={form.passwordAuthentication}
               checked={form.passwordAuthentication}
               onChange={(ev) => setForm((f) => ({ ...f, passwordAuthentication: ev.target.checked }))}
               aria-label={m.ssh_hardening_allowPassword()}
@@ -255,6 +256,7 @@ function Logins({ state }: { state: SshState }) {
       </div>
       {state.logins.length === 0 && <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{m.ssh_logins_none()}</p>}
       {state.logins.slice(0, 8).map((l, i) => (
+        // biome-ignore lint/suspicious/noArrayIndexKey: login records have no id, the log order is their identity
         <div key={i} className="flex flex-wrap items-center gap-x-3 border-t border-line px-[18px] py-[7px] text-[13px]" data-testid="ssh-login">
           {l.active ? <Dot tone="ok" label={m.ssh_logins_connected()} /> : <Dot tone="idle" label={m.ssh_logins_loggedOut()} />}
           <span className="font-medium">{l.user}</span>
@@ -315,7 +317,7 @@ function NewDevice({ state }: { state: SshState }) {
               </pre>
             </>
           ) : (
-            <>{m.ssh_newDevice_step2Key()}</>
+            m.ssh_newDevice_step2Key()
           )}
         </li>
         <li>
