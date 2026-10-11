@@ -56,7 +56,9 @@ describe('verify', () => {
     expect(good).toMatchObject({ ok: true, diagnostics: [] })
     const bad = await verifyUnitFile('qd-test.service', '/etc/systemd/system/qd-test.service', 'fragment', '[Service]\nExecStart=/bin/true\nRestart=sometimes\nFooBar=1\n', undefined)
     expect(bad.ok).toBe(false)
-    expect(bad.diagnostics).toEqual(expect.arrayContaining([expect.objectContaining({ line: 3, severity: 'error' }), expect.objectContaining({ line: 4, severity: 'warning', message: expect.stringContaining('FooBar') })]))
+    expect(bad.diagnostics).toEqual(
+      expect.arrayContaining([expect.objectContaining({ line: 3, severity: 'error' }), expect.objectContaining({ line: 4, severity: 'warning', message: expect.stringContaining('FooBar') })]),
+    )
     const drop = await verifyUnitFile('qd-test.service', '/etc/systemd/system/qd-test.service.d/override.conf', 'dropin', '[Service]\nMemoryMax=1Q\n', '[Service]\nExecStart=/bin/true\n')
     expect(drop.diagnostics[0]).toMatchObject({ line: 2, severity: 'error' })
     const twice = await verifyUnitFile('qd-test.service', '/etc/systemd/system/qd-test.service.d/override.conf', 'dropin', '[Service]\nExecStart=/bin/false\n', '[Service]\nExecStart=/bin/true\n')

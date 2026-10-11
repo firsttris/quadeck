@@ -1,12 +1,12 @@
 import { randomBytes } from 'node:crypto'
 import { and, eq, like } from 'drizzle-orm'
-import { isIconSize, type DashboardLayout, type GridItem, type IconSize, type LayoutScope } from '~/shared/layout'
-import { FRESH_DEFAULTS, INSTANCE_ID, isInstanceKind, parseWidgetConfig, WIDGETS, type InstanceKind, type WidgetInstance } from '~/shared/widgets'
+import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
+import { type DashboardLayout, type GridItem, type IconSize, isIconSize, type LayoutScope } from '~/shared/layout'
+import { FRESH_DEFAULTS, INSTANCE_ID, type InstanceKind, isInstanceKind, parseWidgetConfig, WIDGETS, type WidgetInstance } from '~/shared/widgets'
 import { HttpError } from './auth'
 import { db, schema } from './db'
 import { deleteSetting, getSetting, setSetting } from './settings'
-import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 
 const SCOPES: LayoutScope[] = ['page', 'tiles']
 const BREAKPOINT = /^[a-z]{1,8}$/
@@ -20,7 +20,10 @@ function seedFresh() {
   const seed = db().select().from(schema.settings).where(eq(schema.settings.key, 'dashboard.seed')).get()
   if (!seed) return
   db().transaction((tx) => {
-    for (const kind of FRESH_DEFAULTS) tx.insert(schema.widgets).values({ id: `${kind}-${randomBytes(6).toString('hex')}`, type: 'widget', config: { kind } }).run()
+    for (const kind of FRESH_DEFAULTS)
+      tx.insert(schema.widgets)
+        .values({ id: `${kind}-${randomBytes(6).toString('hex')}`, type: 'widget', config: { kind } })
+        .run()
     tx.delete(schema.settings).where(eq(schema.settings.key, 'dashboard.seed')).run()
   })
 }

@@ -38,7 +38,9 @@ describe('finding passwords in plain text', () => {
     expect(plainValue('[Container]\nEnvironment=DB_PASSWORD="p w"\n', 'DB_PASSWORD')).toBe('p w')
   })
   it('keeps every other word of the line when moving one out', () => {
-    expect(moveToSecret('[Container]\nEnvironment=DB_PASSWORD=x FOO="hello world" LONELY\n', 'DB_PASSWORD', 's')).toBe('[Container]\nEnvironment=FOO="hello world" LONELY\nSecret=s,type=env,target=DB_PASSWORD\n')
+    expect(moveToSecret('[Container]\nEnvironment=DB_PASSWORD=x FOO="hello world" LONELY\n', 'DB_PASSWORD', 's')).toBe(
+      '[Container]\nEnvironment=FOO="hello world" LONELY\nSecret=s,type=env,target=DB_PASSWORD\n',
+    )
     expect(moveToSecret('[Container]\nEnvironment=A=1 DB_PASSWORD="two words" B=2\n', 'DB_PASSWORD', 's')).toBe('[Container]\nEnvironment=A=1 B=2\nSecret=s,type=env,target=DB_PASSWORD\n')
   })
   it('knows which keys hold credentials', () => {

@@ -14,7 +14,13 @@ const post = (origin?: string) => new Request('https://nas.example.org/api/auth/
 
 /** A client response that signed `challenge`; enough to reach the challenge check. */
 const signed = (challenge: string, id = 'cred-1') =>
-  ({ id, rawId: id, type: 'public-key', clientExtensionResults: {}, response: { clientDataJSON: Buffer.from(JSON.stringify({ type: 'webauthn.get', challenge, origin: 'https://nas.example.org' })).toString('base64url') } }) as never
+  ({
+    id,
+    rawId: id,
+    type: 'public-key',
+    clientExtensionResults: {},
+    response: { clientDataJSON: Buffer.from(JSON.stringify({ type: 'webauthn.get', challenge, origin: 'https://nas.example.org' })).toString('base64url') },
+  }) as never
 
 const store = (id: string, rpId = 'nas.example.org') =>
   db()

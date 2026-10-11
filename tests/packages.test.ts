@@ -1,10 +1,10 @@
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { decodeSpec, encodeSpec, parseJobSpec, spawnForward } from '~/server/packages/job'
-import { JobManager, journalPoll, lineSplitter, type JobSink } from '~/server/packages/jobs'
-import { FixtureMaintenance, SystemMaintenance, findConfigFiles } from '~/server/packages/maintenance'
+import { JobManager, type JobSink, journalPoll, lineSplitter } from '~/server/packages/jobs'
+import { FixtureMaintenance, findConfigFiles, SystemMaintenance } from '~/server/packages/maintenance'
 import * as p from '~/server/packages/parse'
 import { kernelReplaced } from '~/server/packages/providers'
 
@@ -171,7 +171,9 @@ v | repo-oss   | podman | 5.1.0-1.1       | 5.2.0-1.1         | x86_64`
 
 describe('podman auto-update and news', () => {
   it('parses podman auto-update --dry-run --format json', () => {
-    const out = JSON.stringify([{ Unit: 'jellyfin.service', Container: '3fe1 (jellyfin)', ContainerName: 'jellyfin', Image: 'docker.io/jellyfin/jellyfin:latest', Policy: 'registry', Updated: 'pending' }])
+    const out = JSON.stringify([
+      { Unit: 'jellyfin.service', Container: '3fe1 (jellyfin)', ContainerName: 'jellyfin', Image: 'docker.io/jellyfin/jellyfin:latest', Policy: 'registry', Updated: 'pending' },
+    ])
     expect(p.parseAutoUpdate(out)).toEqual([{ unit: 'jellyfin.service', container: 'jellyfin', image: 'docker.io/jellyfin/jellyfin:latest', policy: 'registry', updated: 'pending' }])
     expect(p.parseAutoUpdate('null')).toEqual([])
   })

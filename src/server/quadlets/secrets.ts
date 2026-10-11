@@ -1,9 +1,9 @@
 // Podman secrets through the libpod API (root helper). Values go in the request body only –
 // never in argv, never logged, never read back (the API is never asked to show them).
 
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
-import { MAX_SECRET_BYTES, SECRET_NAME, findPlain, secretRefs, type SecretsState } from '~/shared/secrets'
+import { msg } from '~/shared/i18n'
+import { findPlain, MAX_SECRET_BYTES, SECRET_NAME, type SecretsState, secretRefs } from '~/shared/secrets'
 import { HttpError } from '../auth'
 import type { PodmanApi } from './storage'
 
@@ -39,7 +39,13 @@ export async function secretsState(api: PodmanApi, quadlets: { name: string; con
       const name = s.Spec?.Name ?? s.ID
       const created = time(s.CreatedAt)
       const updated = time(s.UpdatedAt)
-      return { id: s.ID, name, ...(created ? { created } : {}), ...(updated && updated !== created ? { updated } : {}), usedBy: containers.filter((q) => secretRefs(q.content).includes(name)).map((q) => q.name) }
+      return {
+        id: s.ID,
+        name,
+        ...(created ? { created } : {}),
+        ...(updated && updated !== created ? { updated } : {}),
+        usedBy: containers.filter((q) => secretRefs(q.content).includes(name)).map((q) => q.name),
+      }
     })
     .sort((a, b) => a.name.localeCompare(b.name))
   const taken = new Set(secrets.map((s) => s.name))

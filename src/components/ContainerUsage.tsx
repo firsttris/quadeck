@@ -2,12 +2,12 @@ import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useState } from 'react'
 import { api } from '~/lib/api'
 import { bytes, num, pct } from '~/lib/format'
-import { USAGE_RANGES, type ContainerUsage, type UsageRange } from '~/shared/container-usage'
+import { usePolling } from '~/lib/polling'
+import { m } from '~/paraglide/messages'
+import { type ContainerUsage, USAGE_RANGES, type UsageRange } from '~/shared/container-usage'
 import { HistoryChart } from './HistoryChart'
 import { Modal } from './Modal'
 import { Sparkline } from './Sparkline'
-import { m } from '~/paraglide/messages'
-import { usePolling } from '~/lib/polling'
 
 type Sort = 'cpu' | 'mem'
 const cpuText = (v: number) => `${num(v, v < 10 ? 1 : 0)} %`
@@ -102,7 +102,12 @@ export function ContainerUsageView({ open }: { open?: string }) {
                   <Sparkline values={r.cpu.map(([, v]) => v)} />
                 </td>
                 <td className="text-right">
-                  <button type="button" className="btn sm" onClick={() => void navigate({ to: '/units', search: { view: 'usage', container: r.name } })} aria-label={m.usage_detailsFor({ name: r.name })}>
+                  <button
+                    type="button"
+                    className="btn sm"
+                    onClick={() => void navigate({ to: '/units', search: { view: 'usage', container: r.name } })}
+                    aria-label={m.usage_detailsFor({ name: r.name })}
+                  >
                     {m.usage_details()}
                   </button>
                 </td>
@@ -148,7 +153,16 @@ export function ContainerUsageView({ open }: { open?: string }) {
                   RAM <span className="font-normal text-muted">{m.usage_stats({ avg: bytes(current.memAvg), max: bytes(current.memMax) })}</span>
                 </h3>
                 <div className="pb-5">
-                  <HistoryChart detailed label={m.usage_chartRam({ name: current.name })} series={[{ label: 'RAM', color: 'var(--color-accent-2)', points: current.mem }]} span={USAGE_RANGES[range]} now={data.now} format={(v) => bytes(v)} yMin={0} height={150} />
+                  <HistoryChart
+                    detailed
+                    label={m.usage_chartRam({ name: current.name })}
+                    series={[{ label: 'RAM', color: 'var(--color-accent-2)', points: current.mem }]}
+                    span={USAGE_RANGES[range]}
+                    now={data.now}
+                    format={(v) => bytes(v)}
+                    yMin={0}
+                    height={150}
+                  />
                 </div>
               </section>
             </>

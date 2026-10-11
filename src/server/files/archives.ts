@@ -4,12 +4,24 @@
 // owner may.
 
 import { chownSync, lstatSync, mkdirSync, statfsSync, statSync } from 'node:fs'
-import { HttpError } from '../auth'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
-import { archiveFormat, checkEntries, extractBlocked, normEntry, packName, parseTarList, parseZipInfo, type ArchiveEntry, type ArchiveFormat, type ArchivePreview, type PackFormat } from '~/shared/archives'
+import {
+  type ArchiveEntry,
+  type ArchiveFormat,
+  type ArchivePreview,
+  archiveFormat,
+  checkEntries,
+  extractBlocked,
+  normEntry,
+  type PackFormat,
+  packName,
+  parseTarList,
+  parseZipInfo,
+} from '~/shared/archives'
 import { baseName, joinPath, parentOf, validateName } from '~/shared/files'
+import { msg } from '~/shared/i18n'
 import type { JobSpec } from '~/shared/packages'
+import { HttpError } from '../auth'
 import { resolveInRoots } from './backend'
 
 export type ExtractJob = Extract<JobSpec, { kind: 'fs-extract' }>
@@ -60,13 +72,31 @@ export async function previewExtract(archive: string, toDir: string, host: Archi
       }
     }
   }
-  return { ...base, files: check.files, dirs: check.dirs, size: check.size, problems: check.problems.slice(0, 20), conflicts: conflicts.slice(0, 50), ...(linkInTarget ? { linkInTarget } : {}), sample: listed.map((e) => normEntry(e.path)).filter(Boolean).slice(0, SAMPLE) }
+  return {
+    ...base,
+    files: check.files,
+    dirs: check.dirs,
+    size: check.size,
+    problems: check.problems.slice(0, 20),
+    conflicts: conflicts.slice(0, 50),
+    ...(linkInTarget ? { linkInTarget } : {}),
+    sample: listed
+      .map((e) => normEntry(e.path))
+      .filter(Boolean)
+      .slice(0, SAMPLE),
+  }
 }
 
 /** Why the preview can't be unpacked (for the job and API errors). */
 export function blockedReason(p: ArchivePreview): string {
   if (p.missing) return msg(m.files_archive_needsUnzip)
-  if (p.problems.length) return msg(m.files_archive_unsafe, { paths: p.problems.slice(0, 3).map((x) => x.path).join(', ') })
+  if (p.problems.length)
+    return msg(m.files_archive_unsafe, {
+      paths: p.problems
+        .slice(0, 3)
+        .map((x) => x.path)
+        .join(', '),
+    })
   if (p.linkInTarget) return msg(m.files_archive_linkInTarget, { path: p.linkInTarget })
   if (p.free !== undefined && p.size > p.free) return msg(m.files_archive_noSpace)
   return msg(m.files_archive_conflicts, { names: p.conflicts.slice(0, 5).join(', ') })

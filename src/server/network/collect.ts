@@ -5,12 +5,12 @@
 import { existsSync, readFileSync } from 'node:fs'
 import { hostname, networkInterfaces } from 'node:os'
 import { join } from 'node:path'
-import { run } from '../exec'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
 import type { ScanResult, SeenDevice } from '~/shared/devices'
+import { msg } from '~/shared/i18n'
+import { type FirewallInfo, firewallVerdict, type IfaceKind, type ListeningPort, type NetInterface, type NetRoute, type NetworkState, scopeOf } from '~/shared/network'
+import { run } from '../exec'
 import { scanLan } from './devices'
-import { firewallVerdict, scopeOf, type FirewallInfo, type IfaceKind, type ListeningPort, type NetInterface, type NetRoute, type NetworkState } from '~/shared/network'
 
 export interface NetworkAdmin {
   networkState(): Promise<NetworkState>
@@ -68,7 +68,9 @@ export function parseIpAddr(json: string, sys = '/sys/class/net'): NetInterface[
       // tun/tap and other virtual devices report a made-up 10 Gbit/s
       speedMbps: speed > 0 && speed < 1_000_000 && !['vpn', 'thread', 'virtual', 'loopback'].includes(ifaceKind(l, sys)) ? speed : undefined,
       master: l.master,
-      addresses: (l.addr_info ?? []).filter((a) => a.family === 'inet' || a.family === 'inet6').map((a) => ({ family: a.family as 'inet' | 'inet6', address: a.local, prefix: a.prefixlen, scope: a.scope, dynamic: a.dynamic || undefined })),
+      addresses: (l.addr_info ?? [])
+        .filter((a) => a.family === 'inet' || a.family === 'inet6')
+        .map((a) => ({ family: a.family as 'inet' | 'inet6', address: a.local, prefix: a.prefixlen, scope: a.scope, dynamic: a.dynamic || undefined })),
       rxBytes: Number.isFinite(rx) ? rx : undefined,
       txBytes: Number.isFinite(tx) ? tx : undefined,
     }

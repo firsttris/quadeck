@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
 
 // fixtures/demo/hardware.json: i5-12500, 2 of 4 slots, UHD 770 + Arc A380, Zigbee stick, sdc on 3 Gbps.
 const PASSWORD = 'e2e-password-123'

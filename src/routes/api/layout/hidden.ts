@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { m } from '~/paraglide/messages'
 import { HttpError } from '~/server/auth'
 import { authed, readJson } from '~/server/http'
 import { setCardHidden } from '~/server/layout'
 import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 
 export const Route = createFileRoute('/api/layout/hidden')({
   server: {

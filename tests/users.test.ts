@@ -1,4 +1,4 @@
-import { mkdtempSync, mkdirSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -41,7 +41,10 @@ describe('account files', () => {
     const home = join(etc, 'home-tristan')
     mkdirSync(join(home, '.ssh'), { recursive: true })
     writeFileSync(join(home, '.ssh', 'authorized_keys'), 'ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIA2vBQ/IMGRDjntTzCHjHPXPhxVt7vzJsuwXt32ebPIO tristan@laptop\n')
-    writeFileSync(join(etc, 'passwd'), `root:x:0:0::/root:/bin/bash\nhttp:x:33:33::/srv/http:/usr/bin/nologin\ntristan:x:1000:1000:Tristan T,,,:${home}:/bin/bash\nnobody:x:65534:65534::/:/usr/bin/nologin\n`)
+    writeFileSync(
+      join(etc, 'passwd'),
+      `root:x:0:0::/root:/bin/bash\nhttp:x:33:33::/srv/http:/usr/bin/nologin\ntristan:x:1000:1000:Tristan T,,,:${home}:/bin/bash\nnobody:x:65534:65534::/:/usr/bin/nologin\n`,
+    )
     writeFileSync(join(etc, 'group'), 'root:x:0:root\nsudo:x:27:tristan\nvideo:x:44:tristan\nhttp:x:33:\ntristan:x:1000:\nmedia:x:1100:tristan\n')
     writeFileSync(join(etc, 'shadow'), 'root:$6$a$b:1::::::\ntristan:$y$j9T$a$b:1::::::\n')
     writeFileSync(join(etc, 'shells'), '# shells\n/bin/sh\n/bin/bash\n/bin/bash\n')
@@ -88,7 +91,15 @@ describe('checks', () => {
   })
 
   it('parses requests strictly', () => {
-    expect(parseUserChange({ kind: 'create', name: 'max', fullName: 'Max', admin: true, password: '', shell: '/bin/bash', groups: ['video', 'video'] })).toEqual({ kind: 'create', name: 'max', fullName: 'Max', admin: true, password: undefined, shell: '/bin/bash', groups: ['video'] })
+    expect(parseUserChange({ kind: 'create', name: 'max', fullName: 'Max', admin: true, password: '', shell: '/bin/bash', groups: ['video', 'video'] })).toEqual({
+      kind: 'create',
+      name: 'max',
+      fullName: 'Max',
+      admin: true,
+      password: undefined,
+      shell: '/bin/bash',
+      groups: ['video'],
+    })
     expect(() => parseUserChange({ kind: 'create', name: 'max', shell: '/bin/bash', groups: 'video' })).toThrow(/Gruppen/)
     expect(() => parseUserChange({ kind: 'drop-table', name: 'x' })).toThrow(/Unbekannte/)
     expect(shadowError('userdel', 'userdel: user tristan is currently used by process 812')).toMatch(/gerade angemeldet/)

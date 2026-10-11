@@ -2,12 +2,14 @@ import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { FixtureFstabHost, FstabManager, SystemFstabHost, parseBlockDevices, pathsInUse, usedUnder, verifyDiagnostics } from '~/server/fstab/backend'
+import { FixtureFstabHost, FstabManager, parseBlockDevices, pathsInUse, SystemFstabHost, usedUnder, verifyDiagnostics } from '~/server/fstab/backend'
 import {
   applyChange,
+  type BlockDevice,
   checkFile,
   checkInput,
   defaultOptions,
+  type EntryInput,
   escapeField,
   formatEntry,
   isBootCritical,
@@ -21,13 +23,20 @@ import {
   systemReason,
   targetProblem,
   unescapeField,
-  type BlockDevice,
-  type EntryInput,
 } from '~/shared/fstab'
 
 const SAMPLE = readFileSync('fixtures/demo/fstab', 'utf8')
 const backup: BlockDevice = { path: '/dev/sde1', name: 'sde1', disk: 'sde', fstype: 'ext4', uuid: 'd3e4f5a6-b7c8-4d9e-8f01-2a3b4c5d6e7f', label: 'Backup', size: 4e12, mountpoints: [] }
-const newEntry = (over: Partial<EntryInput> = {}): EntryInput => ({ spec: specFor(backup), file: '/mnt/backup', vfstype: 'ext4', options: defaultOptions('ext4'), freq: 0, passno: 2, note: 'Backup (WD40EFRX)', ...over })
+const newEntry = (over: Partial<EntryInput> = {}): EntryInput => ({
+  spec: specFor(backup),
+  file: '/mnt/backup',
+  vfstype: 'ext4',
+  options: defaultOptions('ext4'),
+  freq: 0,
+  passno: 2,
+  note: 'Backup (WD40EFRX)',
+  ...over,
+})
 
 describe('parse and write', () => {
   it('parses entries, keeps escapes and reports broken lines', () => {
@@ -127,8 +136,22 @@ describe('host helpers', () => {
   it('reads lsblk with nested partitions and skips what cannot be mounted', () => {
     const json = JSON.stringify({
       blockdevices: [
-        { name: 'sda', path: '/dev/sda', type: 'disk', size: 100, model: 'WDC X', children: [{ name: 'sda1', path: '/dev/sda1', type: 'part', size: 90, fstype: 'xfs', uuid: 'u1', mountpoints: ['/mnt/a'] }] },
-        { name: 'sdb', path: '/dev/sdb', type: 'disk', size: 100, fstype: 'linux_raid_member', children: [{ name: 'md0', path: '/dev/md0', type: 'raid1', size: 99, fstype: 'ext4', uuid: 'u2', mountpoints: [null] }] },
+        {
+          name: 'sda',
+          path: '/dev/sda',
+          type: 'disk',
+          size: 100,
+          model: 'WDC X',
+          children: [{ name: 'sda1', path: '/dev/sda1', type: 'part', size: 90, fstype: 'xfs', uuid: 'u1', mountpoints: ['/mnt/a'] }],
+        },
+        {
+          name: 'sdb',
+          path: '/dev/sdb',
+          type: 'disk',
+          size: 100,
+          fstype: 'linux_raid_member',
+          children: [{ name: 'md0', path: '/dev/md0', type: 'raid1', size: 99, fstype: 'ext4', uuid: 'u2', mountpoints: [null] }],
+        },
         { name: 'sdc', path: '/dev/sdc', type: 'disk', size: 100, children: [{ name: 'sdc1', path: '/dev/sdc1', type: 'part', size: 50, fstype: 'swap', uuid: 'u3', mountpoints: ['[SWAP]'] }] },
         { name: 'loop0', path: '/dev/loop0', type: 'loop', size: 10, fstype: 'squashfs' },
       ],

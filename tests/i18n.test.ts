@@ -1,8 +1,8 @@
-import { readFileSync, readdirSync } from 'node:fs'
+import { readdirSync, readFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
-import { currentLang, langOfRequest, localize, localizeDeep, msg, setLangResolver } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { currentLang, langOfRequest, localize, localizeDeep, msg, setLangResolver } from '~/shared/i18n'
 import '~/server/lang' // the message table for the marks
 
 const g = globalThis as unknown as { __quadeckLang?: unknown }
@@ -92,7 +92,8 @@ describe('messages/*.json', () => {
   })
 
   it('every message is used, every used key exists', () => {
-    const files = (dir: string): string[] => readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? (e.name === 'paraglide' ? [] : files(join(dir, e.name))) : /\.tsx?$/.test(e.name) ? [join(dir, e.name)] : []))
+    const files = (dir: string): string[] =>
+      readdirSync(dir, { withFileTypes: true }).flatMap((e) => (e.isDirectory() ? (e.name === 'paraglide' ? [] : files(join(dir, e.name))) : /\.tsx?$/.test(e.name) ? [join(dir, e.name)] : []))
     const sources = files('src').map((f) => readFileSync(f, 'utf8'))
     const code = sources.join('\n')
     // m.key and m.key() only count in files that import the Paraglide messages as m (elsewhere m is often a regex match)

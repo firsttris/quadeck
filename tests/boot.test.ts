@@ -1,28 +1,28 @@
 import { describe, expect, it } from 'vitest'
-import { FixtureBoot, assertTimeout } from '~/server/boot/backend'
+import { assertTimeout, FixtureBoot } from '~/server/boot/backend'
 import {
-  hiddenAutoEntry,
-  ENTRY_FILE,
   applyEntryForm,
+  type BootEntry,
+  type BootState,
   bootFileKinds,
-  entryForm,
   bootWarnings,
   checkEntryConf,
   copyEntryContent,
   copyEntryName,
-  entryFromConf,
-  parseBootEntryChange,
   decodeEfiString,
   describeTimeout,
+  ENTRY_FILE,
+  entryForm,
+  entryFromConf,
+  hiddenAutoEntry,
   loaderConfValue,
   parseBootctlList,
   parseBootctlStatus,
+  parseBootEntryChange,
   parseCmdline,
   parseSystemdVersion,
   parseTimeout,
   versionOlder,
-  type BootEntry,
-  type BootState,
 } from '~/shared/boot'
 
 // Shapes as printed by systemd 256/257 (bootctl list --json=short, bootctl status).
@@ -78,14 +78,27 @@ describe('bootctl', () => {
       ['arch-linux.efi', 'type2', false, false, false],
       ['auto-reboot-to-firmware-setup', 'auto', false, false, false],
     ])
-    expect(e[0]).toMatchObject({ title: 'Arch Linux', version: '6.16.8-arch1-1', linux: '/vmlinuz-linux', initrd: ['/intel-ucode.img', '/initramfs-linux.img'], options: 'root=UUID=0a1b rw quiet', root: '/boot' })
+    expect(e[0]).toMatchObject({
+      title: 'Arch Linux',
+      version: '6.16.8-arch1-1',
+      linux: '/vmlinuz-linux',
+      initrd: ['/intel-ucode.img', '/initramfs-linux.img'],
+      options: 'root=UUID=0a1b rw quiet',
+      root: '/boot',
+    })
     expect(e[1]!.initrd).toEqual(['/initramfs-linux-lts.img'])
     expect(e[2]!.title).toBe('Arch Linux (UKI)')
     expect(parseBootctlList('not json')).toEqual([])
   })
 
   it('reads bootctl status and versions', () => {
-    expect(parseBootctlStatus(STATUS)).toEqual({ firmware: 'UEFI 2.80 (American Megatrends 5.27)', secureBoot: 'disabled (setup)', runningVersion: '256.4-1-arch', espVersion: '257.9-1-arch', firmwareSetup: true })
+    expect(parseBootctlStatus(STATUS)).toEqual({
+      firmware: 'UEFI 2.80 (American Megatrends 5.27)',
+      secureBoot: 'disabled (setup)',
+      runningVersion: '256.4-1-arch',
+      espVersion: '257.9-1-arch',
+      firmwareSetup: true,
+    })
     expect(parseBootctlStatus('System:\n   Secure Boot: enabled (user)\n  Boot into FW: not supported\n').firmwareSetup).toBe(false)
     expect(parseSystemdVersion('systemd 257 (257.9-1-arch)\n+PAM +AUDIT')).toBe('257.9-1-arch')
     expect(versionOlder('256.4-1-arch', '257.9-1-arch')).toBe(true)
@@ -115,7 +128,19 @@ describe('bootctl', () => {
 })
 
 describe('warnings', () => {
-  const entry = (o: Partial<BootEntry>): BootEntry => ({ id: 'a.conf', title: 'Arch Linux', type: 'type1', initrd: [], isDefault: false, isSelected: false, isOneshot: false, missing: [], linux: '/vmlinuz-linux', size: 90e6, ...o })
+  const entry = (o: Partial<BootEntry>): BootEntry => ({
+    id: 'a.conf',
+    title: 'Arch Linux',
+    type: 'type1',
+    initrd: [],
+    isDefault: false,
+    isSelected: false,
+    isOneshot: false,
+    missing: [],
+    linux: '/vmlinuz-linux',
+    size: 90e6,
+    ...o,
+  })
   const state = (o: Partial<BootState>): Omit<BootState, 'warnings'> => ({
     loader: 'systemd-boot',
     entries: [entry({ isDefault: true }), entry({ id: 'lts.conf', linux: '/vmlinuz-linux-lts' })],
@@ -131,7 +156,10 @@ describe('warnings', () => {
   })
 
   it('warns about a full boot partition before the next kernel update fails', () => {
-    expect(bootWarnings(state({ boot: { path: '/boot', size: 3e8, free: 6e7 } }))[0]).toMatchObject({ level: 'critical', text: expect.stringMatching(/nur noch 57 MiB frei – ein Kernel mit initramfs braucht 86 MiB/) })
+    expect(bootWarnings(state({ boot: { path: '/boot', size: 3e8, free: 6e7 } }))[0]).toMatchObject({
+      level: 'critical',
+      text: expect.stringMatching(/nur noch 57 MiB frei – ein Kernel mit initramfs braucht 86 MiB/),
+    })
     expect(bootWarnings(state({ boot: { path: '/boot', size: 1e9, free: 1e8 } }))[0]).toMatchObject({ level: 'warning', text: expect.stringMatching(/zu 90 % voll/) })
   })
 
@@ -215,12 +243,7 @@ describe('kernel flavours', () => {
     expect(kernelRemoveProblem(by('linux'), ks)).toMatch(/Läuft gerade/)
     expect(kernelRemoveProblem(by('linux-lts'), ks)).toBeUndefined()
     const only = kernelInfos(new Map([['linux-lts', '6.12.48']]), '6.16.8-arch1-1', [])
-    expect(
-      kernelRemoveProblem(
-        only.find((k) => k.pkg === 'linux-lts')!,
-        only,
-      ),
-    ).toMatch(/letzte/)
+    expect(kernelRemoveProblem(only.find((k) => k.pkg === 'linux-lts')!, only)).toMatch(/letzte/)
     const lts = kernelInfos(
       new Map([
         ['linux', '1'],
@@ -229,12 +252,7 @@ describe('kernel flavours', () => {
       '6.12.48-1-lts',
       entries.map((e) => ({ ...e, isDefault: e.id === 'arch.conf' })),
     )
-    expect(
-      kernelRemoveProblem(
-        lts.find((k) => k.pkg === 'linux')!,
-        lts,
-      ),
-    ).toMatch(/Standard-Eintrag/)
+    expect(kernelRemoveProblem(lts.find((k) => k.pkg === 'linux')!, lts)).toMatch(/Standard-Eintrag/)
   })
 
   it('demo: install linux-lts, add its entry, remove it again', async () => {
@@ -250,7 +268,9 @@ describe('kernel flavours', () => {
     const preview = await b.kernelEntryPreview('linux-lts')
     expect(preview).toEqual({
       path: '/boot/loader/entries/arch-lts.conf',
-      content: expect.stringMatching(/^# Created by Quadeck\ntitle   Arch Linux \(linux-lts\)\nlinux   \/vmlinuz-linux-lts\ninitrd  \/intel-ucode.img\ninitrd  \/initramfs-linux-lts.img\noptions root=UUID=/),
+      content: expect.stringMatching(
+        /^# Created by Quadeck\ntitle {3}Arch Linux \(linux-lts\)\nlinux {3}\/vmlinuz-linux-lts\ninitrd {2}\/intel-ucode.img\ninitrd {2}\/initramfs-linux-lts.img\noptions root=UUID=/,
+      ),
     })
     s = await b.createKernelEntry('linux-lts')
     expect(s.kernels!.find((k) => k.pkg === 'linux-lts')!.entries).toEqual(['arch-lts.conf'])
@@ -290,7 +310,7 @@ describe('editing entries', () => {
   it('names and fills copies', () => {
     expect(copyEntryName('arch.conf', ['arch.conf'])).toBe('arch-copy.conf')
     expect(copyEntryName('arch-copy.conf', ['arch.conf', 'arch-copy.conf'])).toBe('arch-copy-2.conf')
-    expect(copyEntryContent(ARCH, 'arch.conf')).toMatch(/^title   Arch Linux \(copy\)\nlinux/)
+    expect(copyEntryContent(ARCH, 'arch.conf')).toMatch(/^title {3}Arch Linux \(copy\)\nlinux/)
     expect(copyEntryContent('linux /x\n', 'arch.conf')).toBe('title   arch (copy)\nlinux /x\n')
     expect(entryFromConf(ARCH)).toEqual({ title: 'Arch Linux', version: undefined, linux: '/vmlinuz-linux', initrd: ['/intel-ucode.img', '/initramfs-linux.img'], options: 'root=UUID=0a1b rw quiet' })
     expect(ENTRY_FILE.test('arch-test.conf')).toBe(true)
@@ -361,7 +381,9 @@ describe('entry form', () => {
 
   it('writes the values back where they were and leaves the rest alone', () => {
     const f = entryForm(ARCH)
-    expect(applyEntryForm(ARCH, f)).toBe('# keep me\ntitle   Arch Linux\nlinux   /vmlinuz-linux\ninitrd  /intel-ucode.img\ninitrd  /initramfs-linux.img\noptions root=UUID=0a1b rw quiet\nsort-key arch\n')
+    expect(applyEntryForm(ARCH, f)).toBe(
+      '# keep me\ntitle   Arch Linux\nlinux   /vmlinuz-linux\ninitrd  /intel-ucode.img\ninitrd  /initramfs-linux.img\noptions root=UUID=0a1b rw quiet\nsort-key arch\n',
+    )
     const lts = applyEntryForm(ARCH, { ...f, title: 'Arch LTS', linux: '/vmlinuz-linux-lts', initrd: ['/initramfs-linux-lts.img'], options: [...f.options, 'loglevel=3'] })
     expect(lts).toBe('# keep me\ntitle   Arch LTS\nlinux   /vmlinuz-linux-lts\ninitrd  /initramfs-linux-lts.img\noptions root=UUID=0a1b rw quiet loglevel=3\nsort-key arch\n')
     // missing keys are added in the usual order, title first

@@ -1,11 +1,11 @@
-import { chownSync, existsSync, lstatSync, statSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, symlinkSync, linkSync, writeFileSync } from 'node:fs'
+import { chownSync, existsSync, linkSync, lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { archiveFormat, archiveStem, checkEntries, extractBlocked, packName, parseTarList, parseZipInfo } from '~/shared/archives'
 import { asOwnerOf, extractArgv, gnuTar, packArgv, preparePack, previewExtract, systemArchiveHost } from '~/server/files/archives'
 import { FixtureFiles } from '~/server/files/backend'
 import { jobTitle, parseJobSpec } from '~/server/packages/job'
+import { archiveFormat, archiveStem, checkEntries, extractBlocked, packName, parseTarList, parseZipInfo } from '~/shared/archives'
 
 const sh = (argv: string[], cwd?: string, stdin?: string) => {
   const r = Bun.spawnSync(argv, { cwd, stdin: stdin ? Bun.file(stdin) : 'ignore', stdout: 'pipe', stderr: 'pipe', env: { ...process.env, LC_ALL: 'C' } })
@@ -77,7 +77,11 @@ describe('listings', () => {
   })
 
   it('reads BusyBox tar -tv lines too', () => {
-    const out = ['-rw-r--r-- 1000/1000      1234 2024-01-01 12:00:00 docs/a.txt', 'lrwxrwxrwx 0/0         0 2024-01-01 12:00:00 docs/b -> a.txt', 'crw-r--r-- 0/0      1,3 2024-01-01 12:00:00 null'].join('\n')
+    const out = [
+      '-rw-r--r-- 1000/1000      1234 2024-01-01 12:00:00 docs/a.txt',
+      'lrwxrwxrwx 0/0         0 2024-01-01 12:00:00 docs/b -> a.txt',
+      'crw-r--r-- 0/0      1,3 2024-01-01 12:00:00 null',
+    ].join('\n')
     const entries = parseTarList(out)
     expect(entries).toEqual([
       { path: 'docs/a.txt', type: 'file', size: 1234 },

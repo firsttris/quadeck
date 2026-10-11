@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { isWebUrl, defaultConfig, FRESH_DEFAULTS, INSTANCE_ID, linkify, parseWidgetConfig, topContainers, WIDGETS, BUILTIN_CARDS, INSTANCE_KINDS } from '~/shared/widgets'
+import { BUILTIN_CARDS, defaultConfig, FRESH_DEFAULTS, INSTANCE_ID, INSTANCE_KINDS, isWebUrl, linkify, parseWidgetConfig, topContainers, WIDGETS } from '~/shared/widgets'
 
 describe('widget definitions', () => {
   it('every widget has its metadata; built-ins are single, notes can be added several times', () => {
@@ -18,7 +18,13 @@ describe('widget definitions', () => {
   })
 
   it('only http(s) URLs become links, trailing punctuation stays text', () => {
-    expect(linkify('see https://vault.home/x, or http://192.168.178.1.')).toEqual([{ text: 'see ' }, { text: 'https://vault.home/x', href: 'https://vault.home/x' }, { text: ', or ' }, { text: 'http://192.168.178.1', href: 'http://192.168.178.1' }, { text: '.' }])
+    expect(linkify('see https://vault.home/x, or http://192.168.178.1.')).toEqual([
+      { text: 'see ' },
+      { text: 'https://vault.home/x', href: 'https://vault.home/x' },
+      { text: ', or ' },
+      { text: 'http://192.168.178.1', href: 'http://192.168.178.1' },
+      { text: '.' },
+    ])
     expect(linkify('javascript:alert(1) and file:///etc/passwd')).toEqual([{ text: 'javascript:alert(1) and file:///etc/passwd' }])
     expect(linkify('')).toEqual([])
   })
@@ -48,8 +54,21 @@ describe('widget definitions', () => {
     expect(parseWidgetConfig('service', {})).toEqual({ unit: '' })
     expect(() => parseWidgetConfig('service', { unit: '../../etc/passwd' })).toThrow()
     expect(() => parseWidgetConfig('service', { unit: 'x; rm -rf /' })).toThrow()
-    const links = parseWidgetConfig('links', { title: ' Netz ', links: [{ name: ' Router ', url: ' http://192.168.178.1 ' }, { name: '', url: '' }, { name: 'Drucker', url: 'https://printer.home/' }] })
-    expect(links).toEqual({ title: 'Netz', links: [{ name: 'Router', url: 'http://192.168.178.1' }, { name: 'Drucker', url: 'https://printer.home/' }] })
+    const links = parseWidgetConfig('links', {
+      title: ' Netz ',
+      links: [
+        { name: ' Router ', url: ' http://192.168.178.1 ' },
+        { name: '', url: '' },
+        { name: 'Drucker', url: 'https://printer.home/' },
+      ],
+    })
+    expect(links).toEqual({
+      title: 'Netz',
+      links: [
+        { name: 'Router', url: 'http://192.168.178.1' },
+        { name: 'Drucker', url: 'https://printer.home/' },
+      ],
+    })
     expect(() => parseWidgetConfig('links', { links: [{ name: 'x', url: 'javascript:alert(1)' }] })).toThrow()
     expect(() => parseWidgetConfig('links', { links: [{ name: '', url: 'http://a' }] })).toThrow()
     expect(() => parseWidgetConfig('links', { links: Array(21).fill({ name: 'a', url: 'http://a' }) })).toThrow()

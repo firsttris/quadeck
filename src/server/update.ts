@@ -2,7 +2,7 @@
 // from GitHub Releases, verifies its SHA-256 against SHA256SUMS, swaps it in
 // atomically and restarts the systemd unit.
 
-import { existsSync, readdirSync, renameSync, chmodSync, writeFileSync, rmSync } from 'node:fs'
+import { chmodSync, existsSync, readdirSync, renameSync, rmSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { run } from './exec'
 
@@ -27,7 +27,11 @@ export function assetName(arch: string = process.arch, musl = isMusl()): string 
 
 /** Compares "1.2.3" style versions (a leading "v" is ignored). */
 export function newer(latest: string, current: string): boolean {
-  const p = (v: string) => v.replace(/^v/, '').split(/[.-]/).map((x) => Number(x) || 0)
+  const p = (v: string) =>
+    v
+      .replace(/^v/, '')
+      .split(/[.-]/)
+      .map((x) => Number(x) || 0)
   const a = p(latest)
   const b = p(current)
   for (let i = 0; i < Math.max(a.length, b.length); i++) {
@@ -50,7 +54,10 @@ export async function selfUpdate(current: string, force = false) {
   if (!bin || !sums) throw new Error(`Release ${rel.tag_name} has no ${name} or SHA256SUMS`)
   console.log(`Downloading ${rel.tag_name} (${name}) …`)
   const data = new Uint8Array(await (await fetch(bin.browser_download_url)).arrayBuffer())
-  const expected = (await (await fetch(sums.browser_download_url)).text()).split('\n').find((l) => l.trim().endsWith(` ${name}`) || l.trim().endsWith(`*${name}`))?.split(/\s+/)[0]
+  const expected = (await (await fetch(sums.browser_download_url)).text())
+    .split('\n')
+    .find((l) => l.trim().endsWith(` ${name}`) || l.trim().endsWith(`*${name}`))
+    ?.split(/\s+/)[0]
   const actual = new Bun.CryptoHasher('sha256').update(data).digest('hex')
   if (!expected || expected !== actual) throw new Error('Checksum mismatch – update aborted')
 

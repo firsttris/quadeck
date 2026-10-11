@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { SystemPower, parseLsblkDisks, processesOn } from '~/server/smart/power'
+import { parseLsblkDisks, processesOn, SystemPower } from '~/server/smart/power'
 import { dailyWakes, hdparmArgs, parseHdparmApm, parseHdparmState, parsePowerRules, parsePowerSetting, powerRules, standbyValue, wakeRate } from '~/shared/power'
 
 describe('standby values and the udev rule', () => {
@@ -43,13 +43,54 @@ describe('spin-ups', () => {
   const day = 86_400_000
   const now = 30 * day
   it('per day from the counter, only with enough history and no reset', () => {
-    expect(wakeRate([[now - 7 * day, 100], [now - 3 * day, 140], [now, 170]], now)).toBe(10)
-    expect(wakeRate([[now - 3600_000, 100], [now, 102]], now)).toBeUndefined()
-    expect(wakeRate([[now - 2 * day, 100], [now, 50]], now)).toBeUndefined()
-    expect(wakeRate([[now - 20 * day, 0], [now - 2 * day, 100], [now, 120]], now)).toBe(10) // older points ignored
+    expect(
+      wakeRate(
+        [
+          [now - 7 * day, 100],
+          [now - 3 * day, 140],
+          [now, 170],
+        ],
+        now,
+      ),
+    ).toBe(10)
+    expect(
+      wakeRate(
+        [
+          [now - 3600_000, 100],
+          [now, 102],
+        ],
+        now,
+      ),
+    ).toBeUndefined()
+    expect(
+      wakeRate(
+        [
+          [now - 2 * day, 100],
+          [now, 50],
+        ],
+        now,
+      ),
+    ).toBeUndefined()
+    expect(
+      wakeRate(
+        [
+          [now - 20 * day, 0],
+          [now - 2 * day, 100],
+          [now, 120],
+        ],
+        now,
+      ),
+    ).toBe(10) // older points ignored
   })
   it('as a daily series', () => {
-    expect(dailyWakes([[0, 10], [day / 2, 14], [day + 1, 20], [3 * day + 5, 40]]).map(([, v]) => v)).toEqual([6, 10])
+    expect(
+      dailyWakes([
+        [0, 10],
+        [day / 2, 14],
+        [day + 1, 20],
+        [3 * day + 5, 40],
+      ]).map(([, v]) => v),
+    ).toEqual([6, 10])
   })
 })
 
@@ -59,7 +100,13 @@ describe('disks and what holds them', () => {
       { name: 'nvme0n1', type: 'disk', rota: false, children: [{ name: 'nvme0n1p2', type: 'part', mountpoints: ['/'] }] },
       { name: 'sda', type: 'disk', rota: true, tran: 'sata', serial: 'ZRT0A1B2', model: 'ST12000VN0008', children: [{ name: 'sda1', type: 'part', fstype: 'ext4', mountpoints: ['/mnt/disk1'] }] },
       { name: 'sdb', type: 'disk', rota: '1', tran: 'usb', serial: 'WD 123', model: 'Elements', mountpoints: [null] },
-      { name: 'sdc', type: 'disk', rota: true, serial: 'R1', children: [{ name: 'sdc1', type: 'part', fstype: 'linux_raid_member', children: [{ name: 'md0', type: 'raid1', mountpoints: ['/srv'] }] }] },
+      {
+        name: 'sdc',
+        type: 'disk',
+        rota: true,
+        serial: 'R1',
+        children: [{ name: 'sdc1', type: 'part', fstype: 'linux_raid_member', children: [{ name: 'md0', type: 'raid1', mountpoints: ['/srv'] }] }],
+      },
       { name: 'sdd', type: 'disk', rota: true, serial: 'SYS', children: [{ name: 'sdd1', type: 'part', mountpoint: '/' }] },
       { name: 'sr0', type: 'rom', rota: true },
     ],

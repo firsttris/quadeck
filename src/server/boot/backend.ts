@@ -4,42 +4,42 @@
 // helper's own sandbox (ProtectKernelTunables) keeps /sys read-only.
 
 import { existsSync, readdirSync, readFileSync, renameSync, rmSync, statSync } from 'node:fs'
-import { writeFileAtomic } from '../atomic'
-import { contentHash } from '~/shared/caddy'
-import type { Revision } from '~/shared/quadlets'
-import { release } from 'node:os'
 import { statfs } from 'node:fs/promises'
+import { release } from 'node:os'
 import { dirname, join } from 'node:path'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
-import { HttpError } from '../auth'
-import { run } from '../exec'
-import { UnitHistory } from '../systemd/editor'
 import {
-  ENTRY_FILE,
-  ENTRY_ID,
-  checkEntryConf,
-  entryFromConf,
-  isEditableEntry,
-  bootWarnings,
-  decodeEfiString,
-  isFlavor,
-  kernelEntry,
-  kernelEntryId,
-  kernelInfos,
-  loaderConfValue,
-  parsePacmanQ,
-  parseBootctlList,
-  parseBootctlStatus,
-  parseSystemdVersion,
-  parseTimeout,
   type BootEntry,
   type BootEntryChange,
   type BootEntryFile,
   type BootState,
+  bootWarnings,
+  checkEntryConf,
+  decodeEfiString,
+  ENTRY_FILE,
+  ENTRY_ID,
   type EntryProblem,
+  entryFromConf,
+  isEditableEntry,
+  isFlavor,
   type KernelFlavor,
+  kernelEntry,
+  kernelEntryId,
+  kernelInfos,
+  loaderConfValue,
+  parseBootctlList,
+  parseBootctlStatus,
+  parsePacmanQ,
+  parseSystemdVersion,
+  parseTimeout,
 } from '~/shared/boot'
+import { contentHash } from '~/shared/caddy'
+import { msg } from '~/shared/i18n'
+import type { Revision } from '~/shared/quadlets'
+import { writeFileAtomic } from '../atomic'
+import { HttpError } from '../auth'
+import { run } from '../exec'
+import { UnitHistory } from '../systemd/editor'
 
 export interface BootAdmin {
   bootState(): Promise<BootState>
@@ -96,7 +96,12 @@ export interface EntryHost {
   write(path: string, content: string): void
   rename(from: string, to: string): void
   remove(path: string): void
-  history: { list(path: string): Revision[]; read(path: string, id: string): string; add(path: string, content: string, kind: 'deleted'): void; saved(path: string, before: string | undefined, after: string): void }
+  history: {
+    list(path: string): Revision[]
+    read(path: string, id: string): string
+    add(path: string, content: string, kind: 'deleted'): void
+    saved(path: string, before: string | undefined, after: string): void
+  }
 }
 
 /** $BOOT of an entry: paths inside it (linux /vmlinuz-linux) start there. */

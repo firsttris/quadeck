@@ -5,9 +5,9 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, readlinkSync, symlinkSync, unlinkSync } from 'node:fs'
 import { release } from 'node:os'
 import { join } from 'node:path'
-import type { InstalledPackage, ManagerId, PackageDetail, PackageUpdate } from '~/shared/packages'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
+import type { InstalledPackage, ManagerId, PackageDetail, PackageUpdate } from '~/shared/packages'
 import { run, runOk } from '../exec'
 import * as p from './parse'
 

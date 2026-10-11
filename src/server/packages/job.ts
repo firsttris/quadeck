@@ -4,26 +4,26 @@
 // process where systemd-run is not available. Output goes to stdout; the last
 // line is the exit marker the helper waits for.
 
-import { localize, msg } from '~/shared/i18n'
+import { existsSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
+import { release } from 'node:os'
+import { bytes as formatBytes } from '~/lib/format'
 import { m } from '~/paraglide/messages'
+import { PACK_FORMATS, type PackFormat } from '~/shared/archives'
+import { absPathProblem, SNAPSHOT_ID, STOP_UNIT } from '~/shared/backup'
+import { isFlavor, kernelInfos, kernelRemoveProblem, parseBootctlList, parsePacmanQ } from '~/shared/boot'
+import { baseName, validatePath } from '~/shared/files'
+import { localize, msg } from '~/shared/i18n'
+import { FEATURES, type Feature, type JobSpec, PACKAGE_NAME, PROTECTED_PACKAGES } from '~/shared/packages'
 import { HttpError } from '../auth'
-import { assertUnitName } from '../privileged/actions'
-import { FEATURES, PACKAGE_NAME, PROTECTED_PACKAGES, type Feature, type JobSpec } from '~/shared/packages'
-import { aurHelper, aurUser, runAurUpgrade } from './aur'
+import { SystemBackup } from '../backup/backend'
+import { asOwnerOf, assertExtractable, extractArgv, gnuTar, makeTarget, packArgv, preparePack, systemArchiveHost } from '../files/archives'
 import { fileRootPaths } from '../files/backend'
 import { assertNoMountsInside, fsJobSteps, gnuCoreutils, prepareFsJob, systemFsOps } from '../files/transfer'
-import { baseName, validatePath } from '~/shared/files'
-import { PACK_FORMATS, type PackFormat } from '~/shared/archives'
-import { asOwnerOf, assertExtractable, extractArgv, gnuTar, makeTarget, packArgv, preparePack, systemArchiveHost } from '../files/archives'
-import { imageUpdates } from './images'
+import { assertUnitName } from '../privileged/actions'
+import { aurHelper, aurUser, runAurUpgrade } from './aur'
 import { dirUsage, systemCachePlans } from './cache'
-import { bytes as formatBytes } from '~/lib/format'
+import { imageUpdates } from './images'
 import { detectProvider, type Step } from './providers'
-import { release } from 'node:os'
-import { existsSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
-import { SystemBackup } from '../backup/backend'
-import { STOP_UNIT, SNAPSHOT_ID, absPathProblem } from '~/shared/backup'
-import { isFlavor, kernelInfos, kernelRemoveProblem, parseBootctlList, parsePacmanQ } from '~/shared/boot'
 
 export const EXIT_MARKER = '::quadeck-exit '
 
@@ -262,7 +262,10 @@ async function execute(spec: JobSpec): Promise<number> {
     case 'keyring-upgrade': {
       if (detectProvider()?.id !== 'pacman') throw new Error(msg(m.packages_error_pacmanOnly))
       // the Arch way: the keyring from the fresh database first, then everything (no partial upgrade)
-      return steps([{ argv: ['pacman', '-Sy', '--needed', '--noconfirm', '--noprogressbar', '--color', 'never', 'archlinux-keyring'] }, { argv: ['pacman', '-Su', '--noconfirm', '--noprogressbar', '--color', 'never'] }])
+      return steps([
+        { argv: ['pacman', '-Sy', '--needed', '--noconfirm', '--noprogressbar', '--color', 'never', 'archlinux-keyring'] },
+        { argv: ['pacman', '-Su', '--noconfirm', '--noprogressbar', '--color', 'never'] },
+      ])
     }
     case 'aur-upgrade': {
       const helper = aurHelper()

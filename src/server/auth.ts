@@ -7,11 +7,11 @@
 // - CSRF: every unsafe request must be same-origin, and every authenticated
 //   write must echo the session's CSRF token in X-CSRF-Token.
 
-import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
-import { and, eq, gt, lt } from 'drizzle-orm'
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
+import { and, eq, gt, lt } from 'drizzle-orm'
+import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import { config } from './config'
 import { db, schema } from './db'
 import { deleteSetting, getSetting, setSetting } from './settings'
@@ -115,7 +115,13 @@ export function createSession(): { token: string; session: Session } {
 /** Removes expired login sessions; returns the ids still valid. Also run hourly by the hub. */
 export function pruneSessions(now = Date.now()): Set<string> {
   db().delete(schema.sessions).where(lt(schema.sessions.expiresAt, now)).run()
-  return new Set(db().select({ id: schema.sessions.id }).from(schema.sessions).all().map((s) => s.id))
+  return new Set(
+    db()
+      .select({ id: schema.sessions.id })
+      .from(schema.sessions)
+      .all()
+      .map((s) => s.id),
+  )
 }
 
 export function parseCookies(header: string | null): Record<string, string> {

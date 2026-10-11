@@ -3,8 +3,8 @@
 
 import { existsSync, readdirSync, readFileSync } from 'node:fs'
 import { basename, join } from 'node:path'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import type { SharesState } from '~/shared/shares'
 import type { Share } from '~/shared/types'
 

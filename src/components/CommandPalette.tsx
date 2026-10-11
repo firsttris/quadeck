@@ -2,12 +2,12 @@ import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { useLang } from '~/i18n'
 import { useLiveState } from '~/lib/live'
-import { filterPalette, paletteItems, sectionLabel, type PaletteItem } from '~/lib/palette'
-import { useActions } from './Actions'
 import { setMotion } from '~/lib/motion'
+import { filterPalette, type PaletteItem, paletteItems, sectionLabel } from '~/lib/palette'
 import { setTheme } from '~/lib/theme'
-import { Glyph } from './Glyph'
 import { m } from '~/paraglide/messages'
+import { useActions } from './Actions'
+import { Glyph } from './Glyph'
 
 /** Strg+K / ⌘K: jump to services, pages and units, or run unit actions. */
 export function CommandPalette({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {

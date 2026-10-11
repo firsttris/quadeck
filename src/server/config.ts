@@ -39,7 +39,10 @@ export function config(): Config {
     exports: env('QUADECK_EXPORTS') ?? '/etc/exports',
     exportsDir: '/etc/exports.d',
     // Reverse proxies whose X-Forwarded-For is trusted (IP prefixes), e.g. "10.88." for Caddy in rootful Podman.
-    trustedProxies: (env('QUADECK_TRUSTED_PROXIES') ?? '').split(',').map((s) => s.trim()).filter(Boolean),
+    trustedProxies: (env('QUADECK_TRUSTED_PROXIES') ?? '')
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean),
     // Public URL when a proxy rewrites the Host header (for the same-origin check).
     publicHost: env('QUADECK_PUBLIC_URL') ? new URL(env('QUADECK_PUBLIC_URL')!).host : undefined,
     // Development/E2E only: read host data from JSON fixtures instead of the host.

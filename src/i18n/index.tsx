@@ -5,9 +5,9 @@
  * The language comes from the qd_lang cookie, else from the browser
  * (Accept-Language), so the server renders the page in the right language.
  */
-import { Fragment, createContext, createElement, useContext, type ReactNode } from 'react'
+import { createContext, createElement, Fragment, type ReactNode, useContext } from 'react'
 import { api } from '~/lib/api'
-import { LANG_COOKIE, setClientLang, type Lang } from '~/shared/i18n'
+import { LANG_COOKIE, type Lang, setClientLang } from '~/shared/i18n'
 
 const Ctx = createContext<Lang>('de')
 

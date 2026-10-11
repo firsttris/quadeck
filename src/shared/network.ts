@@ -1,8 +1,8 @@
 // Network overview (read only): interfaces, routes, DNS, listening ports and
 // the firewall's view on them.
 
-import { msg } from './i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from './i18n'
 
 export type IfaceKind = 'ethernet' | 'wifi' | 'bridge' | 'container' | 'vpn' | 'thread' | 'loopback' | 'virtual'
 
@@ -133,7 +133,11 @@ export const knownPorts = (): Record<string, string> => ({
  * Rootful Podman forwards published ports with firewall rules, so they often
  * have no listening socket of their own.
  */
-export function mergeContainerPorts(ports: ListeningPort[], containers: { id: string; name: string; ports: { hostIp?: string; hostPort: number; protocol: string }[] }[], fw: FirewallInfo): ListeningPort[] {
+export function mergeContainerPorts(
+  ports: ListeningPort[],
+  containers: { id: string; name: string; ports: { hostIp?: string; hostPort: number; protocol: string }[] }[],
+  fw: FirewallInfo,
+): ListeningPort[] {
   const out = ports.map((p) => {
     const c = p.container ? containers.find((x) => x.id.startsWith(p.container!)) : undefined
     return c ? { ...p, container: c.name } : { ...p }

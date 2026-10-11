@@ -1,14 +1,13 @@
 import { mkdirSync, mkdtempSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
+import { and, gte, inArray } from 'drizzle-orm'
 import { describe, expect, it } from 'vitest'
 import { smoothPath } from '~/components/HistoryChart'
-import { parseLspciName, parseNvidiaSmi, readDrmCard } from '~/server/collectors/gpu'
-import { and, gte, inArray } from 'drizzle-orm'
+import { GpuCollector, NVIDIA_EVERY_MS, parseLspciName, parseNvidiaSmi, readDrmCard } from '~/server/collectors/gpu'
 import { metricPrefix, openDb, schema } from '~/server/db'
 import { metricRows, parseRange, pruneHistory, queryHistory } from '~/server/metrics'
 import type { SystemMetrics } from '~/shared/types'
-import { GpuCollector, NVIDIA_EVERY_MS } from '~/server/collectors/gpu'
 
 const sample: SystemMetrics = {
   ts: 1_000_000,
@@ -54,7 +53,13 @@ describe('metric history', () => {
     expect(avg).toBeLessThan(0.6)
 
     pruneHistory(db, now)
-    expect(db.select().from(schema.metricSamples).all().some((r) => r.value === 1 && r.metric === 'cpu')).toBe(false)
+    expect(
+      db
+        .select()
+        .from(schema.metricSamples)
+        .all()
+        .some((r) => r.value === 1 && r.metric === 'cpu'),
+    ).toBe(false)
     expect(parseRange('24h')).toBe('24h')
     expect(parseRange('1y')).toBe('1h')
   })
@@ -97,16 +102,34 @@ describe('gpu', () => {
       symlinkSync(join(root, 'drivers', driver), join(dev, 'driver'))
       for (const [f, v] of Object.entries(files)) writeFileSync(f.startsWith('/') ? join(root, card, f) : join(dev, f), v)
     }
-    mk('card0', 'amdgpu', { gpu_busy_percent: '42\n', mem_info_vram_used: '1073741824', mem_info_vram_total: '8589934592', 'hwmon/hwmon3/temp1_input': '55000', 'hwmon/hwmon3/power1_average': '120000000' })
+    mk('card0', 'amdgpu', {
+      gpu_busy_percent: '42\n',
+      mem_info_vram_used: '1073741824',
+      mem_info_vram_total: '8589934592',
+      'hwmon/hwmon3/temp1_input': '55000',
+      'hwmon/hwmon3/power1_average': '120000000',
+    })
     mk('card1', 'i915', { '/gt_act_freq_mhz': '900', '/gt_RP0_freq_mhz': '1800' })
     mk('card2', 'nouveau', {})
-    expect(readDrmCard(root, 'card0', 'AMD Radeon RX 6800')).toEqual({ id: 'card0', name: 'AMD Radeon RX 6800', vendor: 'amd', util: 0.42, utilKind: 'load', memUsed: 1073741824, memTotal: 8589934592, tempC: 55, powerW: 120 })
+    expect(readDrmCard(root, 'card0', 'AMD Radeon RX 6800')).toEqual({
+      id: 'card0',
+      name: 'AMD Radeon RX 6800',
+      vendor: 'amd',
+      util: 0.42,
+      utilKind: 'load',
+      memUsed: 1073741824,
+      memTotal: 8589934592,
+      tempC: 55,
+      powerW: 120,
+    })
     expect(readDrmCard(root, 'card1', undefined)).toMatchObject({ vendor: 'intel', name: 'Intel GPU', util: 0.5, utilKind: 'clock', freqMhz: 900 })
     expect(readDrmCard(root, 'card2', undefined)).toBeUndefined()
   })
 
   it('names GPUs from lspci -mm', () => {
-    expect(parseLspciName('03:00.0 "VGA compatible controller" "Advanced Micro Devices, Inc. [AMD/ATI]" "Navi 21 [Radeon RX 6800/6800 XT / 6900 XT]" -rc1 "XFX" "Device 6801"')).toBe('AMD Radeon RX 6800/6800 XT / 6900 XT')
+    expect(parseLspciName('03:00.0 "VGA compatible controller" "Advanced Micro Devices, Inc. [AMD/ATI]" "Navi 21 [Radeon RX 6800/6800 XT / 6900 XT]" -rc1 "XFX" "Device 6801"')).toBe(
+      'AMD Radeon RX 6800/6800 XT / 6900 XT',
+    )
     expect(parseLspciName('00:02.0 "VGA compatible controller" "Intel Corporation" "Alder Lake-N [UHD Graphics]" "Intel" "Device 7270"')).toBe('Intel UHD Graphics')
     expect(parseLspciName('garbage')).toBeUndefined()
   })
@@ -136,14 +159,39 @@ describe('history queries use the (metric, ts) index', () => {
   it('for a name prefix (LIKE never could) and for the system metrics', () => {
     const { db } = openDb(':memory:')
     const t = schema.metricSamples
-    expect(plan(db.select().from(t).where(and(metricPrefix('ct:'), gte(t.ts, 0))).toSQL())).toMatch(/SEARCH metric_samples USING (COVERING )?INDEX/)
-    expect(plan(db.select().from(t).where(and(inArray(t.metric, ['cpu', 'ram']), gte(t.ts, 0))).toSQL())).toMatch(/SEARCH metric_samples USING (COVERING )?INDEX/)
+    expect(
+      plan(
+        db
+          .select()
+          .from(t)
+          .where(and(metricPrefix('ct:'), gte(t.ts, 0)))
+          .toSQL(),
+      ),
+    ).toMatch(/SEARCH metric_samples USING (COVERING )?INDEX/)
+    expect(
+      plan(
+        db
+          .select()
+          .from(t)
+          .where(and(inArray(t.metric, ['cpu', 'ram']), gte(t.ts, 0)))
+          .toSQL(),
+      ),
+    ).toMatch(/SEARCH metric_samples USING (COVERING )?INDEX/)
   })
   it('matches exactly the prefix', () => {
     const { db } = openDb(':memory:')
     const t = schema.metricSamples
-    db.insert(t).values(['ct:a:cpu', 'ct;x', 'cs:z', 'ct:', 'smart:sda:temp', 'smart:sdab:temp', 'CT:a'].map((metric) => ({ ts: 1, metric, value: 1 }))).run()
-    const names = (p: string) => db.select({ m: t.metric }).from(t).where(metricPrefix(p)).all().map((r) => r.m).sort()
+    db.insert(t)
+      .values(['ct:a:cpu', 'ct;x', 'cs:z', 'ct:', 'smart:sda:temp', 'smart:sdab:temp', 'CT:a'].map((metric) => ({ ts: 1, metric, value: 1 })))
+      .run()
+    const names = (p: string) =>
+      db
+        .select({ m: t.metric })
+        .from(t)
+        .where(metricPrefix(p))
+        .all()
+        .map((r) => r.m)
+        .sort()
     expect(names('ct:')).toEqual(['ct:', 'ct:a:cpu'])
     expect(names('smart:sda:')).toEqual(['smart:sda:temp'])
   })

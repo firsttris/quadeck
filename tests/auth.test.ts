@@ -143,7 +143,9 @@ describe('request parsing', () => {
         c.enqueue(new Uint8Array(16 * 1024).fill(32))
       },
     })
-    await expect(readJson(new Request('http://nas:8484/api/x', { method: 'POST', body: endless, headers: { 'content-type': 'application/json' }, duplex: 'half' } as RequestInit))).rejects.toMatchObject({ status: 413 })
+    await expect(
+      readJson(new Request('http://nas:8484/api/x', { method: 'POST', body: endless, headers: { 'content-type': 'application/json' }, duplex: 'half' } as RequestInit)),
+    ).rejects.toMatchObject({ status: 413 })
     expect(pulled).toBeLessThan(10)
   })
 

@@ -2,8 +2,8 @@
 // services. Parsers for `ip neigh`, `avahi-browse`, OUI lists; subnets to sweep; merging a scan
 // into what Quadeck remembers. No I/O here.
 
-import { msg } from './i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from './i18n'
 import type { NetInterface } from './network'
 
 export interface SeenDevice {

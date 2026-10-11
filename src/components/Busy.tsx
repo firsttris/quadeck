@@ -1,7 +1,7 @@
 // Feedback while something runs on the server: a spinner, a button that shows it is working
 // (and can't be clicked twice), and a hook that remembers which row or action is running.
 
-import { useCallback, useRef, useState, type ButtonHTMLAttributes, type ReactNode } from 'react'
+import { type ButtonHTMLAttributes, type ReactNode, useCallback, useRef, useState } from 'react'
 
 /** A small spinning ring in the current text colour (static with reduced motion; the label says it). */
 export function Spinner({ className = '' }: { className?: string }) {

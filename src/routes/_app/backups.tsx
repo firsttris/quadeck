@@ -2,8 +2,8 @@ import { createFileRoute, useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
 import { useActions } from '~/components/Actions'
 import { BackupBrowser } from '~/components/BackupBrowser'
-import { BackupSetup } from '~/components/BackupSetup'
 import { BackupClients } from '~/components/BackupClients'
+import { BackupSetup } from '~/components/BackupSetup'
 import { BusyButton, useBusy } from '~/components/Busy'
 import { InstallHint } from '~/components/InstallHint'
 import { ConfirmDialog, Modal } from '~/components/Modal'
@@ -12,11 +12,11 @@ import { Dot, Pill, type Tone } from '~/components/Status'
 import { useToast } from '~/components/Toast'
 import { useGuardedApi } from '~/components/Unlock'
 import { api } from '~/lib/api'
-import { bytes, num, relative } from '~/lib/format'
-import { localeOf } from '~/shared/i18n'
 import { checkLabel, kindLabel, presetLabel, repoLabel, runStatusLabel, scheduleLabel } from '~/lib/backup-labels'
-import { retentionEstimate, type BackupPlan, type BackupRun, type BackupState } from '~/shared/backup'
+import { bytes, num, relative } from '~/lib/format'
 import { m } from '~/paraglide/messages'
+import { type BackupPlan, type BackupRun, type BackupState, retentionEstimate } from '~/shared/backup'
+import { localeOf } from '~/shared/i18n'
 
 export const Route = createFileRoute('/_app/backups')({
   validateSearch: (s: Record<string, unknown>): { tab?: 'clients'; snapshot?: string; dir?: string } => ({
@@ -61,7 +61,12 @@ function BackupsPage() {
     return (
       <>
         <PageHeader title={m.backup_browse_title()} subtitle={m.backup_browse_subtitle()} />
-        <BackupBrowser state={state} snapshot={search.snapshot} dir={search.dir} onNavigate={(snapshot, dir) => void navigate({ to: '/backups', search: snapshot ? { snapshot, ...(dir ? { dir } : {}) } : {} })} />
+        <BackupBrowser
+          state={state}
+          snapshot={search.snapshot}
+          dir={search.dir}
+          onNavigate={(snapshot, dir) => void navigate({ to: '/backups', search: snapshot ? { snapshot, ...(dir ? { dir } : {}) } : {} })}
+        />
       </>
     )
 
@@ -72,7 +77,13 @@ function BackupsPage() {
           <button type="button" role="tab" aria-selected={!search.tab} className={`seg ${!search.tab ? 'on' : ''}`} onClick={() => void navigate({ to: '/backups', search: {} })}>
             {m.backup_tab_server()}
           </button>
-          <button type="button" role="tab" aria-selected={search.tab === 'clients'} className={`seg ${search.tab === 'clients' ? 'on' : ''}`} onClick={() => void navigate({ to: '/backups', search: { tab: 'clients' } })}>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={search.tab === 'clients'}
+            className={`seg ${search.tab === 'clients' ? 'on' : ''}`}
+            onClick={() => void navigate({ to: '/backups', search: { tab: 'clients' } })}
+          >
             {m.backup_tab_clients()}
           </button>
         </div>
@@ -180,7 +191,10 @@ function Overview({ state, onState, onEdit, onRefresh }: { state: BackupState; o
         </p>
       )}
       {!plan.passwordSaved && (
-        <section className="flex flex-wrap items-center gap-3 rounded-[12px] border border-[rgba(210,153,34,.35)] bg-[rgba(210,153,34,.08)] px-4 py-3 text-[13px]" aria-label={m.backup_password_label()}>
+        <section
+          className="flex flex-wrap items-center gap-3 rounded-[12px] border border-[rgba(210,153,34,.35)] bg-[rgba(210,153,34,.08)] px-4 py-3 text-[13px]"
+          aria-label={m.backup_password_label()}
+        >
           <span className="grow">{m.backup_password_warn()}</span>
           {!readonly && (
             <BusyButton className="btn sm" busy={work.is('password')} busyLabel={m.common_opening()} disabled={work.busy !== null} onClick={() => void showPassword()}>
@@ -295,7 +309,12 @@ function Overview({ state, onState, onEdit, onRefresh }: { state: BackupState; o
                     <td>{s.added !== undefined ? bytes(s.added) : '–'}</td>
                     <td>{s.bytes !== undefined ? bytes(s.bytes) : '–'}</td>
                     <td className="text-right">
-                      <button type="button" className="btn sm" onClick={() => void navigate({ to: '/backups', search: { snapshot: s.id } })} aria-label={m.backup_browseWith({ when: dateTime(s.time) })}>
+                      <button
+                        type="button"
+                        className="btn sm"
+                        onClick={() => void navigate({ to: '/backups', search: { snapshot: s.id } })}
+                        aria-label={m.backup_browseWith({ when: dateTime(s.time) })}
+                      >
                         {m.backup_browse()}
                       </button>
                     </td>
@@ -313,7 +332,11 @@ function Overview({ state, onState, onEdit, onRefresh }: { state: BackupState; o
           {password}
         </code>
         <div className="flex flex-wrap justify-end gap-2">
-          <a className="btn" download="quadeck-backup-password.txt" href={`data:text/plain;charset=utf-8,${encodeURIComponent(`${m.backup_password_fileNote({ repo: repoLabel(plan.repo) })}\n${password ?? ''}\n`)}`}>
+          <a
+            className="btn"
+            download="quadeck-backup-password.txt"
+            href={`data:text/plain;charset=utf-8,${encodeURIComponent(`${m.backup_password_fileNote({ repo: repoLabel(plan.repo) })}\n${password ?? ''}\n`)}`}
+          >
             {m.backup_password_download()}
           </a>
           {!plan.passwordSaved && !readonly && (
@@ -341,7 +364,16 @@ function Overview({ state, onState, onEdit, onRefresh }: { state: BackupState; o
           </button>
         </div>
       </Modal>
-      <ConfirmDialog open={disable} title={m.backup_disable_title()} body={<p className="m-0">{m.backup_disable_text()}</p>} confirm={m.backup_disable()} danger busyLabel={m.common_applying()} onConfirm={() => switchOff()} onClose={() => setDisable(false)} />
+      <ConfirmDialog
+        open={disable}
+        title={m.backup_disable_title()}
+        body={<p className="m-0">{m.backup_disable_text()}</p>}
+        confirm={m.backup_disable()}
+        danger
+        busyLabel={m.common_applying()}
+        onConfirm={() => switchOff()}
+        onClose={() => setDisable(false)}
+      />
     </>
   )
 }
@@ -398,7 +430,10 @@ function PlanPanel({ plan }: { plan: BackupPlan }) {
         <dd className="m-0">{scheduleLabel(plan.schedule)}</dd>
         <dt className="text-muted">{m.backup_plan_keep()}</dt>
         <dd className="m-0">
-          {plan.keep.yearly ? m.backup_keepYearly({ daily: plan.keep.daily, weekly: plan.keep.weekly, monthly: plan.keep.monthly, yearly: plan.keep.yearly }) : m.backup_keep({ daily: plan.keep.daily, weekly: plan.keep.weekly, monthly: plan.keep.monthly })} <span className="text-muted">({m.backup_estimate({ count: est.count, days: est.days })})</span>
+          {plan.keep.yearly
+            ? m.backup_keepYearly({ daily: plan.keep.daily, weekly: plan.keep.weekly, monthly: plan.keep.monthly, yearly: plan.keep.yearly })
+            : m.backup_keep({ daily: plan.keep.daily, weekly: plan.keep.weekly, monthly: plan.keep.monthly })}{' '}
+          <span className="text-muted">({m.backup_estimate({ count: est.count, days: est.days })})</span>
         </dd>
         <dt className="text-muted">{m.backup_plan_check()}</dt>
         <dd className="m-0">{checkLabel(plan.check)}</dd>
@@ -409,7 +444,10 @@ function PlanPanel({ plan }: { plan: BackupPlan }) {
 
 function RunsPanel({ runs }: { runs: BackupRun[] }) {
   const [open, setOpen] = useState<number | null>(null)
-  const backups = runs.filter((r) => r.kind === 'backup').slice(0, 14).reverse()
+  const backups = runs
+    .filter((r) => r.kind === 'backup')
+    .slice(0, 14)
+    .reverse()
   const max = Math.max(1, ...backups.map((r) => r.added ?? 0))
   return (
     <section className="panel flex flex-col gap-3 p-[18px]" aria-label={m.backup_runs_title()}>
@@ -418,7 +456,15 @@ function RunsPanel({ runs }: { runs: BackupRun[] }) {
         <>
           <div aria-hidden="true" className="flex h-[64px] items-end gap-1.5">
             {backups.map((r) => (
-              <div key={r.startedAt} title={`${dateTime(r.startedAt)} · ${bytes(r.added ?? 0)}`} className="flex-1 rounded-t-[3px]" style={{ height: `${Math.max(6, Math.round(((r.added ?? 0) / max) * 60))}px`, background: r.status === 'ok' ? 'color-mix(in srgb, var(--color-accent) 55%, transparent)' : r.status === 'warning' ? '#e3b341' : '#f85149' }} />
+              <div
+                key={r.startedAt}
+                title={`${dateTime(r.startedAt)} · ${bytes(r.added ?? 0)}`}
+                className="flex-1 rounded-t-[3px]"
+                style={{
+                  height: `${Math.max(6, Math.round(((r.added ?? 0) / max) * 60))}px`,
+                  background: r.status === 'ok' ? 'color-mix(in srgb, var(--color-accent) 55%, transparent)' : r.status === 'warning' ? '#e3b341' : '#f85149',
+                }}
+              />
             ))}
           </div>
           <span className="text-[12px] text-muted">{m.backup_runs_chart()}</span>
@@ -438,7 +484,9 @@ function RunsPanel({ runs }: { runs: BackupRun[] }) {
                   ? m.backup_runCheck({ status: runStatusLabel(r.status) })
                   : r.status === 'failed'
                     ? (r.message ?? '')
-                    : [took(r), r.added !== undefined ? m.backup_added({ size: bytes(r.added) }) : '', r.filesNew !== undefined ? m.backup_newFiles({ n: r.filesNew }) : ''].filter(Boolean).join(' · ')}
+                    : [took(r), r.added !== undefined ? m.backup_added({ size: bytes(r.added) }) : '', r.filesNew !== undefined ? m.backup_newFiles({ n: r.filesNew }) : '']
+                        .filter(Boolean)
+                        .join(' · ')}
               </span>
               {r.errors.length > 0 && (
                 <button type="button" className="btn sm" aria-expanded={open === i} onClick={() => setOpen(open === i ? null : i)}>

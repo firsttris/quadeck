@@ -1,9 +1,9 @@
 // Quadlet files and Podman settings: types shared by the editor UI, the web
 // app and the root helper.
 
-import { getValues } from './ini-parse'
-import { msg } from './i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from './i18n'
+import { getValues } from './ini-parse'
 
 export const QUADLET_TYPES = ['container', 'pod', 'network', 'volume', 'kube', 'image', 'build'] as const
 export type QuadletType = (typeof QUADLET_TYPES)[number]

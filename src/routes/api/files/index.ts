@@ -1,12 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { HttpError } from '~/server/auth'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { HttpError } from '~/server/auth'
 import { assertWritable } from '~/server/guard'
 import { authed, JSON_MAX, readJson } from '~/server/http'
 import { privileged } from '~/server/privileged'
 import { unlockToken } from '~/server/unlock-sessions'
 import { TEXT_MAX } from '~/shared/files'
+import { msg } from '~/shared/i18n'
 
 // GET: roots, ?path=… the folder content, ?read=… a text file, ?raw=…[&download=1] the file itself
 // for the browser (Range for video; keys and secrets only when unlocked), ?archive=…&toDir=… what

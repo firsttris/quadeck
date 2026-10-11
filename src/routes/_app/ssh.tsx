@@ -4,16 +4,16 @@ import { useActions } from '~/components/Actions'
 import { BusyButton, useBusy } from '~/components/Busy'
 import { InstallHint } from '~/components/InstallHint'
 import { PageHeader } from '~/components/PageHeader'
+import { SshKeys, type SshPending, SshPreviewDialog } from '~/components/SshKeys'
 import { Dot, Pill, type Tone } from '~/components/Status'
-import { SshKeys, SshPreviewDialog, type SshPending } from '~/components/SshKeys'
 import { useToast } from '~/components/Toast'
 import { useGuardedApi } from '~/components/Unlock'
+import { pickMsg } from '~/i18n'
 import { useDraft } from '~/lib/draft'
 import { relative } from '~/lib/format'
-import { validateSettings, type RootLogin, type SshSettings, type SshState } from '~/shared/ssh'
-import { m } from '~/paraglide/messages'
-import { pickMsg } from '~/i18n'
 import { usePolling } from '~/lib/polling'
+import { m } from '~/paraglide/messages'
+import { type RootLogin, type SshSettings, type SshState, validateSettings } from '~/shared/ssh'
 
 export const Route = createFileRoute('/_app/ssh')({
   head: () => ({ meta: [{ title: 'SSH · Quadeck' }] }),
@@ -173,9 +173,24 @@ function Hardening({ state, onPreview }: { state: SshState; onPreview: (p: SshPe
   return (
     <section className="panel flex flex-col" aria-label={m.ssh_hardening_title()}>
       <h2 className="h2 px-[18px] pt-4 pb-2">{m.ssh_hardening_title()}</h2>
-      <Row tone={e.passwordAuthentication ? 'warn' : 'ok'} label={m.ssh_hardening_password()} value={e.passwordAuthentication ? m.ssh_hardening_passwordOn() : m.ssh_hardening_passwordOff()} help={e.passwordAuthentication ? m.ssh_hardening_passwordOnHelp() : m.ssh_hardening_passwordOffHelp()} />
-      <Row tone={e.permitRootLogin === 'yes' ? 'bad' : e.permitRootLogin === 'no' ? 'ok' : 'ok'} label={m.ssh_hardening_root()} value={pickMsg({ "yes": m.ssh_rootLabel_yes, "prohibit-password": m.ssh_rootLabel_prohibitpassword, "no": m.ssh_rootLabel_no }, e.permitRootLogin)} help={e.permitRootLogin === 'yes' ? m.ssh_hardening_rootYesHelp() : m.ssh_hardening_rootOtherHelp()} />
-      <Row tone={e.allowUsers.length ? 'ok' : 'idle'} label={m.ssh_hardening_allowed()} value={e.allowUsers.length ? e.allowUsers.join(', ') : m.ssh_hardening_all()} help={m.ssh_hardening_allowedHelp()} />
+      <Row
+        tone={e.passwordAuthentication ? 'warn' : 'ok'}
+        label={m.ssh_hardening_password()}
+        value={e.passwordAuthentication ? m.ssh_hardening_passwordOn() : m.ssh_hardening_passwordOff()}
+        help={e.passwordAuthentication ? m.ssh_hardening_passwordOnHelp() : m.ssh_hardening_passwordOffHelp()}
+      />
+      <Row
+        tone={e.permitRootLogin === 'yes' ? 'bad' : e.permitRootLogin === 'no' ? 'ok' : 'ok'}
+        label={m.ssh_hardening_root()}
+        value={pickMsg({ yes: m.ssh_rootLabel_yes, 'prohibit-password': m.ssh_rootLabel_prohibitpassword, no: m.ssh_rootLabel_no }, e.permitRootLogin)}
+        help={e.permitRootLogin === 'yes' ? m.ssh_hardening_rootYesHelp() : m.ssh_hardening_rootOtherHelp()}
+      />
+      <Row
+        tone={e.allowUsers.length ? 'ok' : 'idle'}
+        label={m.ssh_hardening_allowed()}
+        value={e.allowUsers.length ? e.allowUsers.join(', ') : m.ssh_hardening_all()}
+        help={m.ssh_hardening_allowedHelp()}
+      />
       {!readonly && (
         <form
           className="flex flex-col gap-3 border-t border-line px-[18px] py-3"
@@ -185,7 +200,13 @@ function Hardening({ state, onPreview }: { state: SshState; onPreview: (p: SshPe
           }}
         >
           <label className="flex items-center gap-2 text-[13px]">
-            <input type="checkbox" role="switch" checked={form.passwordAuthentication} onChange={(ev) => setForm((f) => ({ ...f, passwordAuthentication: ev.target.checked }))} aria-label={m.ssh_hardening_allowPassword()} />
+            <input
+              type="checkbox"
+              role="switch"
+              checked={form.passwordAuthentication}
+              onChange={(ev) => setForm((f) => ({ ...f, passwordAuthentication: ev.target.checked }))}
+              aria-label={m.ssh_hardening_allowPassword()}
+            />
             {m.ssh_hardening_allowPassword()}
           </label>
           {!form.passwordAuthentication && !withKeys.length && <p className="m-0 text-[12px] text-[#ff8a80]">{m.ssh_hardening_noKeys()}</p>}
@@ -238,7 +259,9 @@ function Logins({ state }: { state: SshState }) {
           {l.active ? <Dot tone="ok" label={m.ssh_logins_connected()} /> : <Dot tone="idle" label={m.ssh_logins_loggedOut()} />}
           <span className="font-medium">{l.user}</span>
           <span className="font-mono text-[12px] text-muted">{l.from}</span>
-          <span className="text-[12px] text-subtle">{l.method === 'publickey' ? m.ssh_logins_key({ name: (l.fingerprint ? (names.get(l.fingerprint) ?? '') : '') }) : l.method === 'password' ? m.ssh_logins_password() : l.method}</span>
+          <span className="text-[12px] text-subtle">
+            {l.method === 'publickey' ? m.ssh_logins_key({ name: l.fingerprint ? (names.get(l.fingerprint) ?? '') : '' }) : l.method === 'password' ? m.ssh_logins_password() : l.method}
+          </span>
           <span className="ml-auto flex items-center gap-2 font-mono text-[12px] text-subtle" suppressHydrationWarning>
             {l.active && <span className="pill ok">{m.ssh_logins_connected()}</span>}
             {relative(l.ts)}

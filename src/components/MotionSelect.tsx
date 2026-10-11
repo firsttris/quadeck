@@ -1,5 +1,5 @@
-import { MOTION_LEVELS, setMotion, useMotion, type Motion } from '~/lib/motion'
 import { pickMsg } from '~/i18n'
+import { MOTION_LEVELS, type Motion, setMotion, useMotion } from '~/lib/motion'
 import { m } from '~/paraglide/messages'
 
 export const motionLabel = (level: Motion) => pickMsg({ off: m.motion_off, subtle: m.motion_subtle, strong: m.motion_strong }, level)

@@ -1,30 +1,30 @@
 import { useEffect, useMemo, useState } from 'react'
+import { pickMsg } from '~/i18n'
 import { api } from '~/lib/api'
 import { kindLabel, presetLabel, retentionPresetLabel, scheduleLabel, spanLabel } from '~/lib/backup-labels'
 import { bytes, weekdayTime } from '~/lib/format'
+import { m } from '~/paraglide/messages'
 import {
-  EXCLUDE_PRESETS,
-  REPO_KINDS,
-  REPO_SECRETS,
-  defaultPlan,
-  nextBackupRun,
-  parseBackupPlan,
-  repoProblem,
-  retentionEstimate,
-  retentionPreset,
   type BackupPlan,
   type BackupSizes,
   type BackupState,
   type BackupSuggestion,
+  defaultPlan,
+  EXCLUDE_PRESETS,
+  nextBackupRun,
+  parseBackupPlan,
+  REPO_KINDS,
+  REPO_SECRETS,
   type RepoKind,
+  repoProblem,
+  retentionEstimate,
+  retentionPreset,
 } from '~/shared/backup'
 import { FolderPicker, FolderPickerDialog } from './FolderPicker'
-import { RetentionPicker } from './Retention'
 import { Modal } from './Modal'
+import { RetentionPicker } from './Retention'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
-import { m } from '~/paraglide/messages'
-import { pickMsg } from '~/i18n'
 
 const placeholder: Record<RepoKind, string> = {
   local: '/mnt/backup/restic',
@@ -110,7 +110,18 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
   const set = (p: Partial<BackupPlan>) => setPlan({ ...plan, ...p })
   const toggle = <T,>(list: T[], v: T, on: boolean) => (on ? [...list.filter((x) => x !== v), v] : list.filter((x) => x !== v))
   // Stopping containers and the check interval are no choices any more: never stop, check monthly.
-  const full: BackupPlan = { ...plan, stop: [], check: 'monthly', exclude: { ...plan.exclude, patterns: patterns.split('\n').map((l) => l.trim()).filter(Boolean) } }
+  const full: BackupPlan = {
+    ...plan,
+    stop: [],
+    check: 'monthly',
+    exclude: {
+      ...plan.exclude,
+      patterns: patterns
+        .split('\n')
+        .map((l) => l.trim())
+        .filter(Boolean),
+    },
+  }
   const sizeOf = (p: string, list: 'paths' | 'excludes') => sizes?.[list].find((x) => x.path === p)?.bytes
   const total = sizes ? sizes.paths.filter((x) => plan.paths.includes(x.path)).reduce((n, x) => n + (x.bytes ?? 0), 0) : 0
   const skipped = sizes ? sizes.excludes.filter((x) => plan.exclude.dirs.includes(x.path)).reduce((n, x) => n + (x.bytes ?? 0), 0) : 0
@@ -192,7 +203,9 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
                 className={`flex shrink-0 items-center gap-1.5 rounded-full border py-1 pr-2.5 pl-1 ${s === step ? 'border-accent bg-accent/12 text-fg' : 'border-rim text-muted hover:text-fg'}`}
                 onClick={() => go(s)}
               >
-                <span className={`grid size-5 place-items-center rounded-full text-[11px] ${s === step ? 'bg-accent text-bg' : i < at ? 'bg-accent/25 text-accent-soft' : 'bg-raised text-subtle'}`}>{i < at ? '✓' : i + 1}</span>
+                <span className={`grid size-5 place-items-center rounded-full text-[11px] ${s === step ? 'bg-accent text-bg' : i < at ? 'bg-accent/25 text-accent-soft' : 'bg-raised text-subtle'}`}>
+                  {i < at ? '✓' : i + 1}
+                </span>
                 <span className="hidden sm:inline">{stepLabel(s)}</span>
               </button>
               {i < STEPS.length - 1 && <span className="h-px min-w-2 flex-1 bg-rim" aria-hidden="true" />}
@@ -206,7 +219,10 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
           <Section title={m.backup_setup_where()}>
             <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3" role="radiogroup" aria-label={m.backup_setup_where()}>
               {REPO_KINDS.map((k) => (
-                <label key={k} className={`flex cursor-pointer flex-col gap-1 rounded-[10px] border p-3 ${plan.repo.kind === k ? 'border-accent shadow-[inset_0_0_0_1px_var(--color-accent)]' : 'border-rim'} bg-sunken`}>
+                <label
+                  key={k}
+                  className={`flex cursor-pointer flex-col gap-1 rounded-[10px] border p-3 ${plan.repo.kind === k ? 'border-accent shadow-[inset_0_0_0_1px_var(--color-accent)]' : 'border-rim'} bg-sunken`}
+                >
                   <span className="flex items-center gap-2 text-[13px] font-semibold">
                     <input type="radio" name="kind" checked={plan.repo.kind === k} onChange={() => set({ repo: { kind: k, location: k === state.plan?.repo.kind ? state.plan.repo.location : '' } })} />
                     {kindLabel(k)}
@@ -217,7 +233,12 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
             </div>
             <label className="flex flex-col gap-1.5 text-[13px]">
               {plan.repo.kind === 'local' ? m.backup_setup_folder() : m.backup_setup_location()}
-              <input className="field font-mono" value={plan.repo.location} placeholder={placeholder[plan.repo.kind]} onChange={(e) => set({ repo: { ...plan.repo, location: e.target.value.trim() } })} />
+              <input
+                className="field font-mono"
+                value={plan.repo.location}
+                placeholder={placeholder[plan.repo.kind]}
+                onChange={(e) => set({ repo: { ...plan.repo, location: e.target.value.trim() } })}
+              />
             </label>
             {plan.repo.kind === 'local' && <FolderPicker target value={plan.repo.location} compare={plan.paths} onChange={(location) => set({ repo: { ...plan.repo, location } })} />}
             {plan.repo.kind === 'local' && <p className="m-0 text-[12px] text-muted">{m.backup_setup_localHint()}</p>}
@@ -227,7 +248,14 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
                 {REPO_SECRETS[plan.repo.kind].map((k) => (
                   <label key={k} className="flex flex-col gap-1.5 text-[13px]">
                     <span className="font-mono text-[12px]">{k}</span>
-                    <input className="field" type="password" autoComplete="off" value={secrets[k] ?? ''} placeholder={state.plan?.repo.kind === plan.repo.kind && state.secretsSet.includes(k) ? m.backup_setup_secretKept() : ''} onChange={(e) => setSecrets({ ...secrets, [k]: e.target.value })} />
+                    <input
+                      className="field"
+                      type="password"
+                      autoComplete="off"
+                      value={secrets[k] ?? ''}
+                      placeholder={state.plan?.repo.kind === plan.repo.kind && state.secretsSet.includes(k) ? m.backup_setup_secretKept() : ''}
+                      onChange={(e) => setSecrets({ ...secrets, [k]: e.target.value })}
+                    />
                   </label>
                 ))}
               </div>
@@ -265,7 +293,13 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
                           }}
                           onChange={(e) => set({ paths: e.target.checked ? [...new Set([...plan.paths, ...list.map((p) => p.path)])] : plan.paths.filter((p) => !list.some((x) => x.path === p)) })}
                         />
-                        <button type="button" className="flex min-w-0 grow items-center gap-2 text-left" aria-expanded={expanded} aria-label={m.backup_wizard_showFolders({ name })} onClick={() => setOpen((o) => (o.has(name) ? new Set([...o].filter((x) => x !== name)) : new Set([...o, name])))}>
+                        <button
+                          type="button"
+                          className="flex min-w-0 grow items-center gap-2 text-left"
+                          aria-expanded={expanded}
+                          aria-label={m.backup_wizard_showFolders({ name })}
+                          onClick={() => setOpen((o) => (o.has(name) ? new Set([...o].filter((x) => x !== name)) : new Set([...o, name])))}
+                        >
                           <span className="text-muted">{expanded ? '▾' : '▸'}</span>
                           <b className="truncate">{name}</b>
                           <span className="ml-auto shrink-0 text-[12px] text-muted">
@@ -308,7 +342,11 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
               <div className="grid grid-cols-1 gap-1.5 sm:grid-cols-2">
                 {EXCLUDE_PRESETS.map((p) => (
                   <label key={p} className="flex items-center gap-2.5 text-[13px]">
-                    <input type="checkbox" checked={plan.exclude.presets.includes(p)} onChange={(e) => set({ exclude: { ...plan.exclude, presets: toggle(plan.exclude.presets, p, e.target.checked) } })} />
+                    <input
+                      type="checkbox"
+                      checked={plan.exclude.presets.includes(p)}
+                      onChange={(e) => set({ exclude: { ...plan.exclude, presets: toggle(plan.exclude.presets, p, e.target.checked) } })}
+                    />
                     {presetLabel(p)}
                   </label>
                 ))}
@@ -318,7 +356,11 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
                   {excludes.map((x) => (
                     <li key={x.path}>
                       <label className="flex items-center gap-2.5 text-[13px]">
-                        <input type="checkbox" checked={plan.exclude.dirs.includes(x.path)} onChange={(e) => set({ exclude: { ...plan.exclude, dirs: toggle(plan.exclude.dirs, x.path, e.target.checked) } })} />
+                        <input
+                          type="checkbox"
+                          checked={plan.exclude.dirs.includes(x.path)}
+                          onChange={(e) => set({ exclude: { ...plan.exclude, dirs: toggle(plan.exclude.dirs, x.path, e.target.checked) } })}
+                        />
                         <span className="min-w-0 grow">
                           {x.label || m.backup_setup_folderExcluded()}
                           <span className="block truncate font-mono text-[12px] text-muted">{x.path}</span>
@@ -364,7 +406,14 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
               <div className="flex flex-wrap items-end gap-3">
                 <div className="flex flex-wrap gap-1.5" role="radiogroup" aria-label={m.backup_wizard_every()}>
                   {(['daily', '6h', 'weekly'] as const).map((e) => (
-                    <button key={e} type="button" role="radio" aria-checked={plan.schedule.every === e} className={`btn ${plan.schedule.every === e ? 'border-accent! bg-accent/14! text-accent-soft' : ''}`} onClick={() => set({ schedule: { ...plan.schedule, every: e } })}>
+                    <button
+                      key={e}
+                      type="button"
+                      role="radio"
+                      aria-checked={plan.schedule.every === e}
+                      className={`btn ${plan.schedule.every === e ? 'border-accent! bg-accent/14! text-accent-soft' : ''}`}
+                      onClick={() => set({ schedule: { ...plan.schedule, every: e } })}
+                    >
                       {pickMsg({ daily: m.backup_setup_daily, '6h': m.backup_setup_6h, weekly: m.backup_setup_weekly }, e)}
                     </button>
                   ))}

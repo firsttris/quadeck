@@ -1,17 +1,17 @@
-import { createContext, useCallback, useContext, useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { api, ApiError } from '~/lib/api'
-import { msg } from '~/shared/i18n'
-import type { JobInfo, JobSpec, JobState } from '~/shared/packages'
-import { diagnoseJob, TERMINAL_COMMANDS, type Diagnosis } from '~/shared/job-diagnosis'
 import { Link } from '@tanstack/react-router'
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useMemo, useRef, useState } from 'react'
+import { pickMsg } from '~/i18n'
+import { ApiError, api } from '~/lib/api'
+import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
+import { type Diagnosis, diagnoseJob, TERMINAL_COMMANDS } from '~/shared/job-diagnosis'
+import type { JobInfo, JobSpec, JobState } from '~/shared/packages'
 import { Spinner } from './Busy'
 import { Glyph } from './Glyph'
 import { Modal } from './Modal'
 import { Pill } from './Status'
 import { useToast } from './Toast'
 import { useUnlock } from './Unlock'
-import { m } from '~/paraglide/messages'
-import { pickMsg } from '~/i18n'
 
 interface Ctx {
   /** Unlocks if needed, starts the job and shows its output. */
@@ -264,7 +264,11 @@ function JobHint({ job, lines, diagnosis: d, onClose }: { job: JobState; lines: 
   const known = d.kind !== 'unknown'
   const errLines = d.lines.map((i) => lines[i]).filter((l): l is string => l !== undefined)
   return (
-    <section aria-label={m.shell_jobs_hint_label()} data-testid="job-hint" className={`flex flex-col gap-2 rounded-[10px] border px-3.5 py-3 ${known ? 'border-[#5b2a2a] bg-[rgba(248,81,73,0.07)]' : 'border-edge bg-panel-2'}`}>
+    <section
+      aria-label={m.shell_jobs_hint_label()}
+      data-testid="job-hint"
+      className={`flex flex-col gap-2 rounded-[10px] border px-3.5 py-3 ${known ? 'border-[#5b2a2a] bg-[rgba(248,81,73,0.07)]' : 'border-edge bg-panel-2'}`}
+    >
       <h3 className={`m-0 text-[14px] font-semibold ${known ? 'text-[#ff7b72]' : ''}`}>{text.title}</h3>
       <p className="m-0 text-[13px] text-[#c9d1d9]">
         {text.body}
@@ -350,7 +354,13 @@ export function JobChip({ compact = false }: { compact?: boolean }) {
   }
   if (compact) {
     return (
-      <button type="button" className="grid h-10 w-10 place-items-center rounded-lg text-accent hover:bg-surface" onClick={() => show(running.id)} aria-label={m.shell_jobs_running({ title: running.title })} title={running.title}>
+      <button
+        type="button"
+        className="grid h-10 w-10 place-items-center rounded-lg text-accent hover:bg-surface"
+        onClick={() => show(running.id)}
+        aria-label={m.shell_jobs_running({ title: running.title })}
+        title={running.title}
+      >
         <span className="animate-pulse">
           <Glyph name="terminal" size={19} strokeWidth={2} />
         </span>

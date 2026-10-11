@@ -1,5 +1,4 @@
-import { Link, createFileRoute, useNavigate } from '@tanstack/react-router'
-import { contentHash } from '~/shared/caddy'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useActions } from '~/components/Actions'
 import { Spinner, useBusy } from '~/components/Busy'
@@ -9,13 +8,26 @@ import { Diagnostics, DiffView, Field, HistoryDialog, TextView } from '~/compone
 import { Pill, unitTone } from '~/components/Status'
 import { useToast } from '~/components/Toast'
 import { useGuardedApi } from '~/components/Unlock'
+import { pickMsg } from '~/i18n'
 import { api } from '~/lib/api'
+import { m } from '~/paraglide/messages'
+import { contentHash } from '~/shared/caddy'
 import { msg } from '~/shared/i18n'
 import { getValues, parseIni } from '~/shared/ini'
 import type { Revision } from '~/shared/quadlets'
-import { EDITABLE_UNIT, NEW_UNIT, UNIT_DIR, UNIT_TEMPLATES, formSections, lintUnit, overrideTemplate, type UnitDetail, type UnitFilePart, type UnitValidateResult, type UnitWriteResult } from '~/shared/unit-files'
-import { m } from '~/paraglide/messages'
-import { pickMsg } from '~/i18n'
+import {
+  EDITABLE_UNIT,
+  formSections,
+  lintUnit,
+  NEW_UNIT,
+  overrideTemplate,
+  UNIT_DIR,
+  UNIT_TEMPLATES,
+  type UnitDetail,
+  type UnitFilePart,
+  type UnitValidateResult,
+  type UnitWriteResult,
+} from '~/shared/unit-files'
 
 export const Route = createFileRoute('/_app/systemd')({
   validateSearch: (s: Record<string, unknown>): { unit?: string; new?: boolean } => ({
@@ -114,7 +126,14 @@ function UnitView({ unit }: { unit: string }) {
             {d.unitFileState && <span className="chip">{d.unitFileState}</span>}
             {editableState && !d.readonly && (
               <label className="flex items-center gap-2">
-                <input type="checkbox" role="switch" aria-label={m.systemd_unit_startAtBoot()} checked={d.unitFileState === 'enabled'} disabled={readonly || !!boot.busy} onChange={(e) => void toggleEnabled(e.target.checked)} />
+                <input
+                  type="checkbox"
+                  role="switch"
+                  aria-label={m.systemd_unit_startAtBoot()}
+                  checked={d.unitFileState === 'enabled'}
+                  disabled={readonly || !!boot.busy}
+                  onChange={(e) => void toggleEnabled(e.target.checked)}
+                />
                 {m.systemd_unit_startAtBoot()}
                 {boot.busy && (
                   <span className="inline-flex items-center gap-1.5 text-[12px] text-muted" aria-live="polite">
@@ -160,7 +179,10 @@ function UnitView({ unit }: { unit: string }) {
                   <span className="flex flex-wrap gap-1.5">
                     <span className="chip">{p.kind === 'fragment' ? m.systemd_unit_fragment() : m.systemd_unit_override()}</span>
                     <span className={p.origin === 'etc' ? 'chip q' : 'chip'}>
-                      {pickMsg({ etc: m.systemd_origin_etc, vendor: m.systemd_origin_vendor, runtime: m.systemd_origin_runtime, generated: m.systemd_origin_generated, transient: m.systemd_origin_transient }, p.origin)}
+                      {pickMsg(
+                        { etc: m.systemd_origin_etc, vendor: m.systemd_origin_vendor, runtime: m.systemd_origin_runtime, generated: m.systemd_origin_generated, transient: m.systemd_origin_transient },
+                        p.origin,
+                      )}
                     </span>
                     {!p.editable && <span className="chip">{m.systemd_unit_readonly()}</span>}
                   </span>
@@ -173,7 +195,11 @@ function UnitView({ unit }: { unit: string }) {
                 </div>
               )}
               {d.overridePath && !sel?.isNew && !readonly && (
-                <button type="button" className="btn sm self-start" onClick={() => setSel({ isNew: true, part: { path: d.overridePath!, kind: 'dropin', origin: 'etc', editable: true, content: overrideTemplate(unit, d.parts[0]?.path) } })}>
+                <button
+                  type="button"
+                  className="btn sm self-start"
+                  onClick={() => setSel({ isNew: true, part: { path: d.overridePath!, kind: 'dropin', origin: 'etc', editable: true, content: overrideTemplate(unit, d.parts[0]?.path) } })}
+                >
                   {m.systemd_unit_addOverride()}
                 </button>
               )}
@@ -189,7 +215,11 @@ function UnitView({ unit }: { unit: string }) {
                 readonly={readonly || !!d.readonly || !sel.part.editable}
                 onSaved={() => void load(sel.part.path)}
                 onDeleted={() => void load()}
-                onOverride={d.overridePath ? () => setSel({ isNew: true, part: { path: d.overridePath!, kind: 'dropin', origin: 'etc', editable: true, content: overrideTemplate(unit, d.parts[0]?.path) } }) : undefined}
+                onOverride={
+                  d.overridePath
+                    ? () => setSel({ isNew: true, part: { path: d.overridePath!, kind: 'dropin', origin: 'etc', editable: true, content: overrideTemplate(unit, d.parts[0]?.path) } })
+                    : undefined
+                }
               />
             )}
           </div>
@@ -211,7 +241,9 @@ function UnitForm({ unit, text, base, onChange }: { unit: string; text: string; 
           <legend className="px-1 font-mono text-[13px] text-accent">[{section}]</legend>
           {Object.entries(keys).map(([k, doc]) => {
             const inherited = base ? getValues(base, section, k).filter(Boolean).at(-1) : undefined
-            return <Field key={k} section={section} k={k} doc={inherited ? { ...doc, help: m.systemd_form_inheritedHelp({ help: doc.help, inherited: inherited }) } : doc} text={text} onChange={onChange} />
+            return (
+              <Field key={k} section={section} k={k} doc={inherited ? { ...doc, help: m.systemd_form_inheritedHelp({ help: doc.help, inherited: inherited }) } : doc} text={text} onChange={onChange} />
+            )
           })}
         </fieldset>
       ))}

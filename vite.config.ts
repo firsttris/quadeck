@@ -1,11 +1,11 @@
-import { defineConfig, type Plugin } from 'vite'
 import { readdirSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { brotliCompressSync, constants, gzipSync } from 'node:zlib'
+import { paraglideVitePlugin } from '@inlang/paraglide-js'
+import tailwindcss from '@tailwindcss/vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
 import viteReact from '@vitejs/plugin-react'
-import tailwindcss from '@tailwindcss/vite'
-import { paraglideVitePlugin } from '@inlang/paraglide-js'
+import { defineConfig, type Plugin } from 'vite'
 
 import pkg from './package.json' with { type: 'json' }
 

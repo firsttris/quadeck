@@ -1,7 +1,21 @@
 import { beforeEach, describe, expect, it } from 'vitest'
 import { run } from '~/server/exec'
-import { cleanStorage, fixtureApi, readStorage, type PodmanApi, type QuadletRefs } from '~/server/quadlets/storage'
-import { PRUNE_CALENDAR, PRUNE_COMMAND, cleanupPlan, confirmItems, defaultSelection, normalizeImage, parseItems, parseSelection, planSize, quadletKey, storageSummary, type CleanupSelection, type PodmanStorage } from '~/shared/podman-storage'
+import { cleanStorage, fixtureApi, type PodmanApi, type QuadletRefs, readStorage } from '~/server/quadlets/storage'
+import {
+  type CleanupSelection,
+  cleanupPlan,
+  confirmItems,
+  defaultSelection,
+  normalizeImage,
+  type PodmanStorage,
+  PRUNE_CALENDAR,
+  PRUNE_COMMAND,
+  parseItems,
+  parseSelection,
+  planSize,
+  quadletKey,
+  storageSummary,
+} from '~/shared/podman-storage'
 
 const refs: QuadletRefs = {
   images: [
@@ -94,7 +108,20 @@ describe('reading storage', () => {
     ])
     // Quadlet containers stay even when stopped; so do their images and volumes.
     const all = cleanupPlan(s, { containers: true, dangling: true, unusedImages: true, networks: true, volumes: s.volumes.map((v) => v.name) })
-    for (const keep of ['immich-ml', 'qbittorrent', 'scratch', 'caddy-data', 'qbittorrent-config', 'immich', 'podman', 'media', 'docker.io/library/alpine:3', 'lscr.io/linuxserver/qbittorrent:latest', 'ghcr.io/immich-app/immich-machine-learning:release']) expect(all.map((i) => i.label)).not.toContain(keep)
+    for (const keep of [
+      'immich-ml',
+      'qbittorrent',
+      'scratch',
+      'caddy-data',
+      'qbittorrent-config',
+      'immich',
+      'podman',
+      'media',
+      'docker.io/library/alpine:3',
+      'lscr.io/linuxserver/qbittorrent:latest',
+      'ghcr.io/immich-app/immich-machine-learning:release',
+    ])
+      expect(all.map((i) => i.label)).not.toContain(keep)
   })
 
   it('cascades: images, volumes and networks freed by removing their containers', () => {
@@ -126,7 +153,11 @@ describe('cleaning up', () => {
       if (i?.method === 'DELETE') calls.push(p.replace(/^\/v[\d.]+\/libpod/, ''))
       return api(p, i)
     }
-    const r = await cleanStorage(spy, refs, plan.map(({ kind, id }) => ({ kind, id })))
+    const r = await cleanStorage(
+      spy,
+      refs,
+      plan.map(({ kind, id }) => ({ kind, id })),
+    )
     expect(r.skipped).toBe(0)
     expect(r.results.every((x) => x.ok)).toBe(true)
     expect(calls[0]).toMatch(/^\/containers\//)
@@ -146,7 +177,16 @@ describe('cleaning up', () => {
     const nextcloud = s.images.find((i) => i.names.includes('docker.io/library/nextcloud:29'))!
     // a container using nextcloud:29 and nextcloud-data appears between preview and click
     const state = g.__qdPodmanFixture as { containers: unknown[] }
-    state.containers.push({ Id: 'beef'.repeat(16), Names: ['nextcloud'], Image: 'docker.io/library/nextcloud:29', ImageID: nextcloud.id, State: 'running', Labels: {}, Networks: ['nextcloud_default'], Mounts: [{ Type: 'volume', Name: 'nextcloud-data' }] })
+    state.containers.push({
+      Id: 'beef'.repeat(16),
+      Names: ['nextcloud'],
+      Image: 'docker.io/library/nextcloud:29',
+      ImageID: nextcloud.id,
+      State: 'running',
+      Labels: {},
+      Networks: ['nextcloud_default'],
+      Mounts: [{ Type: 'volume', Name: 'nextcloud-data' }],
+    })
     const methods: string[] = []
     const r = await cleanStorage(
       (p, i) => {

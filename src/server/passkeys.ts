@@ -7,20 +7,20 @@
 // - Adding one asks for the admin password again, so a stolen session cannot plant its own.
 // - `quadeck passwd` removes every passkey together with the password.
 
-import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 import {
-  generateAuthenticationOptions,
-  generateRegistrationOptions,
-  verifyAuthenticationResponse,
-  verifyRegistrationResponse,
   type AuthenticationResponseJSON,
   type AuthenticatorTransportFuture,
+  generateAuthenticationOptions,
+  generateRegistrationOptions,
   type PublicKeyCredentialCreationOptionsJSON,
   type PublicKeyCredentialRequestOptionsJSON,
   type RegistrationResponseJSON,
+  verifyAuthenticationResponse,
+  verifyRegistrationResponse,
 } from '@simplewebauthn/server'
 import { eq } from 'drizzle-orm'
+import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import { HttpError } from './auth'
 import { db, schema } from './db'
 import { getSetting, setSetting } from './settings'

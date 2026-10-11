@@ -2,13 +2,13 @@ import { Link } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
 import { api } from '~/lib/api'
 import { relative } from '~/lib/format'
-import { SECRET_NAME, type PlainSecret, type PodmanSecret, type SecretsState } from '~/shared/secrets'
+import { m } from '~/paraglide/messages'
+import { type PlainSecret, type PodmanSecret, SECRET_NAME, type SecretsState } from '~/shared/secrets'
 import { useActions } from './Actions'
 import { BusyButton, useBusy } from './Busy'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
-import { m } from '~/paraglide/messages'
 
 type Dialog = { kind: 'new' } | { kind: 'replace'; secret: PodmanSecret } | { kind: 'move'; plain: PlainSecret } | { kind: 'remove'; secret: PodmanSecret }
 
@@ -122,7 +122,14 @@ export function PodmanSecretsCard() {
                         <button type="button" className="btn sm" onClick={() => setDialog({ kind: 'replace', secret: x })} aria-label={m.secrets_replaceFor({ name: x.name })}>
                           {m.secrets_replace()}
                         </button>
-                        <button type="button" className="btn sm danger" disabled={x.usedBy.length > 0} title={x.usedBy.length ? m.secrets_inUseHint() : undefined} onClick={() => setDialog({ kind: 'remove', secret: x })} aria-label={m.secrets_removeFor({ name: x.name })}>
+                        <button
+                          type="button"
+                          className="btn sm danger"
+                          disabled={x.usedBy.length > 0}
+                          title={x.usedBy.length ? m.secrets_inUseHint() : undefined}
+                          onClick={() => setDialog({ kind: 'remove', secret: x })}
+                          aria-label={m.secrets_removeFor({ name: x.name })}
+                        >
                           {m.secrets_remove()}
                         </button>
                       </div>
@@ -135,12 +142,29 @@ export function PodmanSecretsCard() {
         </div>
       )}
       <p className="m-0 text-[12px] text-muted">
-        {m.secrets_howto()} <span className="font-mono">Secret=name,type=env,target=DB_PASSWORD</span> {m.secrets_howtoOr()} <span className="font-mono">Secret=name</span> → <span className="font-mono">/run/secrets/name</span>
+        {m.secrets_howto()} <span className="font-mono">Secret=name,type=env,target=DB_PASSWORD</span> {m.secrets_howtoOr()} <span className="font-mono">Secret=name</span> →{' '}
+        <span className="font-mono">/run/secrets/name</span>
       </p>
 
-      {dialog?.kind === 'new' && <ValueDialog title={m.secrets_newTitle()} onClose={() => setDialog(null)} onSubmit={(name, value) => post({ action: 'create', name, value }, m.secrets_created({ name }))} />}
-      {dialog?.kind === 'replace' && <ValueDialog title={m.secrets_replaceTitle({ name: dialog.secret.name })} fixedName={dialog.secret.name} onClose={() => setDialog(null)} onSubmit={(name, value) => post({ action: 'replace', name, value }, m.secrets_replaced({ name }))} note={dialog.secret.usedBy.length ? m.secrets_replaceNote({ files: dialog.secret.usedBy.join(', ') }) : undefined} />}
-      {dialog?.kind === 'move' && <MoveDialog plain={dialog.plain} onClose={() => setDialog(null)} onSubmit={(name, restart) => post({ action: 'move', file: dialog.plain.file, key: dialog.plain.key, name, restart }, m.secrets_moved({ key: dialog.plain.key, name }))} />}
+      {dialog?.kind === 'new' && (
+        <ValueDialog title={m.secrets_newTitle()} onClose={() => setDialog(null)} onSubmit={(name, value) => post({ action: 'create', name, value }, m.secrets_created({ name }))} />
+      )}
+      {dialog?.kind === 'replace' && (
+        <ValueDialog
+          title={m.secrets_replaceTitle({ name: dialog.secret.name })}
+          fixedName={dialog.secret.name}
+          onClose={() => setDialog(null)}
+          onSubmit={(name, value) => post({ action: 'replace', name, value }, m.secrets_replaced({ name }))}
+          note={dialog.secret.usedBy.length ? m.secrets_replaceNote({ files: dialog.secret.usedBy.join(', ') }) : undefined}
+        />
+      )}
+      {dialog?.kind === 'move' && (
+        <MoveDialog
+          plain={dialog.plain}
+          onClose={() => setDialog(null)}
+          onSubmit={(name, restart) => post({ action: 'move', file: dialog.plain.file, key: dialog.plain.key, name, restart }, m.secrets_moved({ key: dialog.plain.key, name }))}
+        />
+      )}
       {dialog?.kind === 'remove' && (
         <Modal open title={m.secrets_removeTitle({ name: dialog.secret.name })} onClose={() => setDialog(null)} busy={!!removing.busy}>
           <p className="m-0 text-[13px]">{m.secrets_removeText()}</p>
@@ -167,7 +191,19 @@ export function PodmanSecretsCard() {
   )
 }
 
-function ValueDialog({ title, fixedName, note, onClose, onSubmit }: { title: string; fixedName?: string; note?: string; onClose: () => void; onSubmit: (name: string, value: string) => Promise<boolean> }) {
+function ValueDialog({
+  title,
+  fixedName,
+  note,
+  onClose,
+  onSubmit,
+}: {
+  title: string
+  fixedName?: string
+  note?: string
+  onClose: () => void
+  onSubmit: (name: string, value: string) => Promise<boolean>
+}) {
   const [name, setName] = useState(fixedName ?? '')
   const [value, setValue] = useState('')
   const [show, setShow] = useState(false)

@@ -1,17 +1,17 @@
 import { useEffect, useState } from 'react'
-import { PodmanStorageCard } from './PodmanStorage'
-import { PodmanSecretsCard } from './PodmanSecrets'
+import { pickMsg } from '~/i18n'
 import { relative } from '~/lib/format'
-import { getToml, setToml, type TomlValue } from '~/shared/toml-edit'
+import { m } from '~/paraglide/messages'
 import type { PodmanConfigFile, PodmanSettings } from '~/shared/quadlets'
+import { getToml, setToml, type TomlValue } from '~/shared/toml-edit'
 import { useActions } from './Actions'
 import { BusyButton, Spinner, useBusy } from './Busy'
-import { DiffView } from './QuadletEditor'
 import { Modal } from './Modal'
+import { PodmanSecretsCard } from './PodmanSecrets'
+import { PodmanStorageCard } from './PodmanStorage'
+import { DiffView } from './QuadletEditor'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
-import { m } from '~/paraglide/messages'
-import { pickMsg } from '~/i18n'
 
 /** OnCalendar presets: [value, label key]. */
 const PRESETS: [string, 'daily' | 'daily4' | 'monday4' | 'weekly'][] = [
@@ -90,7 +90,18 @@ function ConfigCard({ file, readonly, onSaved }: { file: PodmanConfigFile; reado
           {form.map((f) => (
             <label key={f.key} className="flex flex-col gap-1 text-[12px]">
               <span className="font-medium text-fg">
-                {pickMsg({ "unqualified-search-registries": m.podman_fields_unqualifiedsearchregistries_label, "short-name-mode": m.podman_fields_shortnamemode_label, "log_driver": m.podman_fields_logdriver_label, "tz": m.podman_fields_tz_label, "log_size_max": m.podman_fields_logsizemax_label, "events_logger": m.podman_fields_eventslogger_label, "image_parallel_copies": m.podman_fields_imageparallelcopies_label }, f.key)}{' '}
+                {pickMsg(
+                  {
+                    'unqualified-search-registries': m.podman_fields_unqualifiedsearchregistries_label,
+                    'short-name-mode': m.podman_fields_shortnamemode_label,
+                    log_driver: m.podman_fields_logdriver_label,
+                    tz: m.podman_fields_tz_label,
+                    log_size_max: m.podman_fields_logsizemax_label,
+                    events_logger: m.podman_fields_eventslogger_label,
+                    image_parallel_copies: m.podman_fields_imageparallelcopies_label,
+                  },
+                  f.key,
+                )}{' '}
                 <span className="font-mono text-subtle">
                   {f.section ? `[${f.section}] ` : ''}
                   {f.key}
@@ -107,12 +118,32 @@ function ConfigCard({ file, readonly, onSaved }: { file: PodmanConfigFile; reado
               ) : (
                 <input className="field font-mono" value={value(f)} onChange={(e) => setField(f, e.target.value)} />
               )}
-              <span className="text-muted">{pickMsg({ "unqualified-search-registries": m.podman_fields_unqualifiedsearchregistries_help, "short-name-mode": m.podman_fields_shortnamemode_help, "log_driver": m.podman_fields_logdriver_help, "tz": m.podman_fields_tz_help, "log_size_max": m.podman_fields_logsizemax_help, "events_logger": m.podman_fields_eventslogger_help, "image_parallel_copies": m.podman_fields_imageparallelcopies_help }, f.key)}</span>
+              <span className="text-muted">
+                {pickMsg(
+                  {
+                    'unqualified-search-registries': m.podman_fields_unqualifiedsearchregistries_help,
+                    'short-name-mode': m.podman_fields_shortnamemode_help,
+                    log_driver: m.podman_fields_logdriver_help,
+                    tz: m.podman_fields_tz_help,
+                    log_size_max: m.podman_fields_logsizemax_help,
+                    events_logger: m.podman_fields_eventslogger_help,
+                    image_parallel_copies: m.podman_fields_imageparallelcopies_help,
+                  },
+                  f.key,
+                )}
+              </span>
             </label>
           ))}
         </div>
       )}
-      <textarea aria-label={m.podman_config_asText({ name: file.name })} spellCheck={false} readOnly={!file.editable || readonly} className="field h-[220px] font-mono text-[12px]" value={text} onChange={(e) => setText(e.target.value)} />
+      <textarea
+        aria-label={m.podman_config_asText({ name: file.name })}
+        spellCheck={false}
+        readOnly={!file.editable || readonly}
+        className="field h-[220px] font-mono text-[12px]"
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+      />
       {error && (
         <p role="alert" className="m-0 text-[13px] text-[#ff8a80]">
           {error}
@@ -222,11 +253,18 @@ export function PodmanSettingsView() {
             </label>
             <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
               {m.podman_updates_schedule()}
-              <input className="field w-[220px] font-mono" value={calendar} placeholder={t.custom ? '' : m.podman_updates_defaultSuffix({ cal: t.calendar })} list="calendar-presets" disabled={readonly} onChange={(e) => setCalendar(e.target.value)} />
+              <input
+                className="field w-[220px] font-mono"
+                value={calendar}
+                placeholder={t.custom ? '' : m.podman_updates_defaultSuffix({ cal: t.calendar })}
+                list="calendar-presets"
+                disabled={readonly}
+                onChange={(e) => setCalendar(e.target.value)}
+              />
               <datalist id="calendar-presets">
                 {PRESETS.map(([v, l]) => (
                   <option key={v} value={v}>
-                    {pickMsg({ "daily": m.podman_presets_daily, "daily4": m.podman_presets_daily4, "monday4": m.podman_presets_monday4, "weekly": m.podman_presets_weekly }, l)}
+                    {pickMsg({ daily: m.podman_presets_daily, daily4: m.podman_presets_daily4, monday4: m.podman_presets_monday4, weekly: m.podman_presets_weekly }, l)}
                   </option>
                 ))}
               </datalist>

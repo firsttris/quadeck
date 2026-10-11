@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
-import { api, ApiError } from '~/lib/api'
+import { ApiError, api } from '~/lib/api'
 import { bytes, dateTime } from '~/lib/format'
+import { m } from '~/paraglide/messages'
 import { baseName, type TextFile } from '~/shared/files'
 import { useActions } from './Actions'
 import { BusyButton } from './Busy'
@@ -8,7 +9,6 @@ import { ConfirmDialog, Modal } from './Modal'
 import { DiffView, TextView } from './QuadletEditor'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
-import { m } from '~/paraglide/messages'
 
 /**
  * A text file from the explorer in the editor: read as root, saved after the
@@ -125,7 +125,15 @@ export function TextFileEditor({ path, onClose, onSaved }: { path: string; onClo
           )}
         </div>
       </Modal>
-      <ConfirmDialog open={discard} title={m.files_editor_unsaved()} body={<p className="m-0 font-mono text-[12px]">{path}</p>} confirm={m.common_close()} danger onConfirm={onClose} onClose={() => setDiscard(false)} />
+      <ConfirmDialog
+        open={discard}
+        title={m.files_editor_unsaved()}
+        body={<p className="m-0 font-mono text-[12px]">{path}</p>}
+        confirm={m.common_close()}
+        danger
+        onConfirm={onClose}
+        onClose={() => setDiscard(false)}
+      />
     </>
   )
 }

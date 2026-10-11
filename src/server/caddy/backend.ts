@@ -12,29 +12,29 @@
 // caddy reload`, else `systemctl reload caddy`). A failed reload restores the
 // previous file; Caddy keeps running with its old config either way.
 
-import { closeSync, fsyncSync, ftruncateSync, lstatSync, mkdirSync, openSync, readFileSync, readdirSync, realpathSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs'
-import { dirname, join } from 'node:path'
+import { closeSync, fsyncSync, ftruncateSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs'
 import { tmpdir } from 'node:os'
-import { HttpError } from '../auth'
-import { run } from '../exec'
-import { UnitHistory } from '../systemd/editor'
-import { msg } from '~/shared/i18n'
+import { dirname, join } from 'node:path'
 import { m } from '~/paraglide/messages'
-import type { Revision } from '~/shared/quadlets'
 import {
-  DEFAULT_CADDYFILE,
   applyCaddyChange,
-  caddyFromQuadlet,
-  configFromCommand,
-  contentHash,
-  manualPathProblem,
-  parseCaddyfile,
   type CaddyChange,
   type CaddyResult,
   type CaddySource,
   type CaddyState,
+  caddyFromQuadlet,
+  configFromCommand,
+  contentHash,
+  DEFAULT_CADDYFILE,
+  manualPathProblem,
+  parseCaddyfile,
   type QuadletCaddy,
 } from '~/shared/caddy'
+import { msg } from '~/shared/i18n'
+import type { Revision } from '~/shared/quadlets'
+import { HttpError } from '../auth'
+import { run } from '../exec'
+import { UnitHistory } from '../systemd/editor'
 
 export interface CaddyAdmin {
   caddyState(): Promise<CaddyState>
@@ -154,11 +154,7 @@ export class CaddyManager implements CaddyBackend {
 
   async caddyRevision(id: string) {
     const loc = await this.locate()
-    if (!loc.source)
-      throw new HttpError(
-        404,
-        msg(m.proxy_errors_noFile),
-      )
+    if (!loc.source) throw new HttpError(404, msg(m.proxy_errors_noFile))
     return this.host.history.read(loc.source.path, id)
   }
 
@@ -170,17 +166,9 @@ export class CaddyManager implements CaddyBackend {
     const p = path.trim()
     const problem = manualPathProblem(p)
     if (problem) throw new HttpError(400, problem)
-    if (!this.host.isFile(p))
-      throw new HttpError(
-        404,
-        msg(m.proxy_errors_missing, { path: p }),
-      )
+    if (!this.host.isFile(p)) throw new HttpError(404, msg(m.proxy_errors_missing, { path: p }))
     const content = this.host.read(p) ?? ''
-    if (content.length > MAX || content.includes('\0'))
-      throw new HttpError(
-        400,
-        msg(m.proxy_errors_notText, { path: p }),
-      )
+    if (content.length > MAX || content.includes('\0')) throw new HttpError(400, msg(m.proxy_errors_notText, { path: p }))
     this.host.setManualPath(p)
     return this.state()
   }
@@ -206,11 +194,7 @@ export class CaddyManager implements CaddyBackend {
     if (!loc.source || loc.problem) throw new HttpError(409, loc.problem ?? msg(m.proxy_errors_noFile))
     const path = loc.source.path
     const before = this.host.read(path) ?? ''
-    if (expected && expected !== contentHash(before))
-      throw new HttpError(
-        409,
-        msg(m.proxy_errors_changed),
-      )
+    if (expected && expected !== contentHash(before)) throw new HttpError(409, msg(m.proxy_errors_changed))
     // A new password from the dialog: Caddy only gets (and the file only keeps) its bcrypt hash.
     const auth = change.kind === 'site' ? change.options?.auth : undefined
     if (change.kind === 'site' && auth?.password) {
@@ -224,11 +208,7 @@ export class CaddyManager implements CaddyBackend {
     } catch (e) {
       throw new HttpError(400, (e as Error).message)
     }
-    if (after.length > MAX || after.includes('\0'))
-      throw new HttpError(
-        400,
-        msg(m.common_errors_invalidContent),
-      )
+    if (after.length > MAX || after.includes('\0')) throw new HttpError(400, msg(m.common_errors_invalidContent))
     if (after === before) return { state: await this.state(loc), reloaded: 'none', warning: msg(m.proxy_errors_noChange) }
     const check = await this.validate(loc, after)
     if (check.error) throw new HttpError(422, msg(m.proxy_errors_rejected) + check.error)
@@ -318,11 +298,7 @@ export class SystemCaddyHost implements CaddyHost {
   write(path: string, content: string) {
     // Never through a symlink into something else: the target must still be a regular file.
     const real = lstatSync(path).isSymbolicLink() ? realpathSync(path) : path
-    if (!statSync(real).isFile())
-      throw new HttpError(
-        409,
-        msg(m.proxy_errors_notRegular, { path: path }),
-      )
+    if (!statSync(real).isFile()) throw new HttpError(409, msg(m.proxy_errors_notRegular, { path: path }))
     const fd = openSync(real, 'r+')
     try {
       ftruncateSync(fd, 0)
@@ -409,9 +385,28 @@ export class SystemCaddyHost implements CaddyHost {
       writeFileSync(file, content, { mode: 0o644 })
       // Same mounts as the real container (imports keep working), the candidate over the Caddyfile.
       const mounts = q.volumes.flatMap((v) => ['-v', readOnlyMount(v)])
-      const r = await run(['podman', 'run', '--rm', '--network=none', '--pull=never', ...mounts, '-v', `${file}:${q.containerPath}:ro`, q.image, 'caddy', 'validate', '--config', q.containerPath, '--adapter', 'caddyfile'], {
-        timeoutMs: 60_000,
-      })
+      const r = await run(
+        [
+          'podman',
+          'run',
+          '--rm',
+          '--network=none',
+          '--pull=never',
+          ...mounts,
+          '-v',
+          `${file}:${q.containerPath}:ro`,
+          q.image,
+          'caddy',
+          'validate',
+          '--config',
+          q.containerPath,
+          '--adapter',
+          'caddyfile',
+        ],
+        {
+          timeoutMs: 60_000,
+        },
+      )
       if (r.code === 0) return undefined
       if (/image not known|no such image|Error: .*pull/i.test(r.stderr)) return 'unavailable' as const
       return caddyError(r.stderr || r.stdout)
@@ -471,25 +466,14 @@ export class FixtureCaddyHost implements CaddyHost {
       list: (p) => (this.revs.get(p) ?? []).map((r) => r.rev).reverse(),
       read: (p, id) => {
         const r = this.revs.get(p)?.find((x) => x.rev.id === id)
-        if (!r)
-          throw new HttpError(
-            404,
-            msg(m.common_errors_versionNotFound),
-          )
+        if (!r) throw new HttpError(404, msg(m.common_errors_versionNotFound))
         return r.content
       },
       saved: (p, b, a) => {
         const list = this.revs.get(p) ?? []
         const add = (content: string, message: string) => list.push({ rev: { id: `${Date.now()}-${++this.seq}`, date: Date.now(), message }, content })
-        if (b !== undefined && !list.length)
-          add(
-            b,
-            msg(m.common_history_original),
-          )
-        add(
-          a,
-          msg(m.common_history_saved),
-        )
+        if (b !== undefined && !list.length) add(b, msg(m.common_history_original))
+        add(a, msg(m.common_history_saved))
         this.revs.set(p, list.slice(-20))
       },
     }

@@ -1,8 +1,8 @@
 // File explorer: types and checks shared by the page, the web app, the
 // root helper and the `quadeck job` runner.
 
-import { msg } from './i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from './i18n'
 
 export interface FileRoot {
   path: string
@@ -70,7 +70,8 @@ const TEXT_EXT =
 const TEXT_NAMES = /^(dockerfile|containerfile|makefile|readme|license|changelog|authors|caddyfile|vagrantfile|procfile|crontab|hosts|fstab|exports|\.[a-z0-9_-]+rc|\.profile|\.bash_\w+)$/i
 /** Shown by the browser itself (new tab); HTML and SVG are not – they could run scripts on Quadeck's address. */
 const BROWSER_EXT = /\.(pdf|png|jpe?g|gif|webp|avif|bmp|ico|mp4|m4v|webm|mov|ogv|mp3|m4a|aac|flac|wav|ogg|oga|opus)$/i
-const BINARY_EXT = /\.(zip|7z|rar|tar|gz|tgz|bz2|xz|zst|iso|img|qcow2|vmdk|vdi|mkv|avi|wmv|flv|mpg|mpeg|exe|dll|so|bin|deb|rpm|apk|jar|class|o|a|db|sqlite3?|heic|raw|cr2|nef|dng|psd|docx?|xlsx?|pptx?|odt|ods|odp|ttf|otf|woff2?)$/i
+const BINARY_EXT =
+  /\.(zip|7z|rar|tar|gz|tgz|bz2|xz|zst|iso|img|qcow2|vmdk|vdi|mkv|avi|wmv|flv|mpg|mpeg|exe|dll|so|bin|deb|rpm|apk|jar|class|o|a|db|sqlite3?|heic|raw|cr2|nef|dng|psd|docx?|xlsx?|pptx?|odt|ods|odp|ttf|otf|woff2?)$/i
 
 export type FileKind = 'text' | 'browser' | 'binary' | 'unknown'
 

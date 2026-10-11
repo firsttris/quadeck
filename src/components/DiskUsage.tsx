@@ -3,9 +3,9 @@
 
 import { Link } from '@tanstack/react-router'
 import { diskSize, pct } from '~/lib/format'
-import { fullInUnit, perMonth, type FsTrend } from '~/shared/disk-usage'
-import type { Disk } from '~/shared/types'
 import { m } from '~/paraglide/messages'
+import { type FsTrend, fullInUnit, perMonth } from '~/shared/disk-usage'
+import type { Disk } from '~/shared/types'
 
 /** Used share from which the bar turns yellow / red (the notification default is 90 %). */
 const WARN = 0.85
@@ -73,7 +73,8 @@ export function DiskUsage({ name, filesystems }: { name: string; filesystems: Di
           <div key={f.path} className="flex flex-col gap-1" data-testid="usage-fs">
             <div className="flex flex-wrap justify-between gap-x-3 text-[12.5px]">
               <span className="min-w-0 truncate">
-                <span className="font-mono text-[12px]">{f.path.replace(/^\/dev\//, '')}</span> → <span className="font-mono text-[12px]">{f.mount}</span> <span className="text-muted">· {f.fstype}</span>
+                <span className="font-mono text-[12px]">{f.path.replace(/^\/dev\//, '')}</span> → <span className="font-mono text-[12px]">{f.mount}</span>{' '}
+                <span className="text-muted">· {f.fstype}</span>
                 {others.length > 0 && <span className="text-muted"> · {m.disks_usage_shared({ disks: others.join(', ') })}</span>}
               </span>
               <span className={bad ? 'text-[#ff7b72]' : undefined}>{m.disks_usage_of({ used: diskSize(f.used), size: diskSize(f.size), pct: pct(used) })}</span>

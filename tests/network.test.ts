@@ -2,8 +2,8 @@ import { mkdirSync, mkdtempSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { FixtureNetwork, cgroupOwner, parseFirewalldZone, parseIpAddr, parseResolvConf, parseResolvectl, parseRoutes, parseSs, parseUfw, firewalldServicePorts } from '~/server/network/collect'
-import { firewallVerdict, mergeContainerPorts, portAllowed, scopeOf, type FirewallInfo } from '~/shared/network'
+import { cgroupOwner, FixtureNetwork, firewalldServicePorts, parseFirewalldZone, parseIpAddr, parseResolvConf, parseResolvectl, parseRoutes, parseSs, parseUfw } from '~/server/network/collect'
+import { type FirewallInfo, firewallVerdict, mergeContainerPorts, portAllowed, scopeOf } from '~/shared/network'
 
 describe('ip', () => {
   it('reads interfaces with kind, state, addresses and counters', () => {
@@ -17,7 +17,15 @@ describe('ip', () => {
     mkdirSync(join(sys, 'wpan0'), { recursive: true })
     writeFileSync(join(sys, 'wpan0/speed'), '10000\n') // tun devices report a made-up 10 Gbit/s
     const json = JSON.stringify([
-      { ifname: 'lo', flags: ['LOOPBACK', 'UP', 'LOWER_UP'], mtu: 65536, operstate: 'UNKNOWN', link_type: 'loopback', address: '00:00:00:00:00:00', addr_info: [{ family: 'inet', local: '127.0.0.1', prefixlen: 8, scope: 'host' }] },
+      {
+        ifname: 'lo',
+        flags: ['LOOPBACK', 'UP', 'LOWER_UP'],
+        mtu: 65536,
+        operstate: 'UNKNOWN',
+        link_type: 'loopback',
+        address: '00:00:00:00:00:00',
+        addr_info: [{ family: 'inet', local: '127.0.0.1', prefixlen: 8, scope: 'host' }],
+      },
       {
         ifname: 'enp3s0',
         flags: ['UP'],
@@ -35,7 +43,15 @@ describe('ip', () => {
       { ifname: 'veth0', flags: ['UP'], mtu: 1500, operstate: 'UP', link_type: 'ether', linkinfo: { info_kind: 'veth' }, master: 'podman0' },
       { ifname: 'wg0', flags: ['UP'], mtu: 1420, operstate: 'UNKNOWN', link_type: 'none', linkinfo: { info_kind: 'wireguard' } },
       // OpenThread border router (Matter/Thread): a tun device, but not a VPN
-      { ifname: 'wpan0', flags: ['UP', 'LOWER_UP'], mtu: 1280, operstate: 'UNKNOWN', link_type: 'none', linkinfo: { info_kind: 'tun' }, addr_info: [{ family: 'inet6', local: 'fddf:bdac:eb86:bced:0:ff:fe00:e400', prefixlen: 64, scope: 'global' }] },
+      {
+        ifname: 'wpan0',
+        flags: ['UP', 'LOWER_UP'],
+        mtu: 1280,
+        operstate: 'UNKNOWN',
+        link_type: 'none',
+        linkinfo: { info_kind: 'tun' },
+        addr_info: [{ family: 'inet6', local: 'fddf:bdac:eb86:bced:0:ff:fe00:e400', prefixlen: 64, scope: 'global' }],
+      },
     ])
     const ifs = parseIpAddr(json, sys)
     expect(ifs.map((i) => [i.name, i.kind, i.state])).toEqual([

@@ -7,12 +7,12 @@
 import { copyFileSync, existsSync, lstatSync, mkdtempSync, readFileSync, rmSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { type ConfigAction, type ConfigFileInfo, describeConfigFile, parseConfigPath, replaceRisk } from '~/shared/configfiles'
+import { msg } from '~/shared/i18n'
+import { writeFileAtomic } from '../atomic'
 import { HttpError } from '../auth'
 import { run } from '../exec'
-import { describeConfigFile, parseConfigPath, replaceRisk, type ConfigAction, type ConfigFileInfo } from '~/shared/configfiles'
-import { writeFileAtomic } from '../atomic'
 
 const MAX = 512 * 1024
 
@@ -128,7 +128,14 @@ export class SystemConfigFs implements ConfigFs {
   }
 
   async after(what: NonNullable<ConfigFileInfo['after']>) {
-    const argv = what === 'sshd-reload' ? ['systemctl', 'try-reload-or-restart', 'sshd.service', 'ssh.service'] : what === 'smb-reload' ? ['smbcontrol', 'smbd', 'reload-config'] : what === 'locale-gen' ? ['locale-gen'] : undefined
+    const argv =
+      what === 'sshd-reload'
+        ? ['systemctl', 'try-reload-or-restart', 'sshd.service', 'ssh.service']
+        : what === 'smb-reload'
+          ? ['smbcontrol', 'smbd', 'reload-config']
+          : what === 'locale-gen'
+            ? ['locale-gen']
+            : undefined
     if (!argv || !Bun.which(argv[0]!)) return undefined
     const r = await run(argv, { timeoutMs: 120_000 })
     return r.code === 0 ? undefined : msg(m.configfiles_warn_afterFailed, { command: argv.join(' '), output: (r.stderr || r.stdout).trim().slice(0, 200) })

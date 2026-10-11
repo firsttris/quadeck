@@ -2,7 +2,7 @@ import { mkdtempSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { MASK, buildRequest, currentAlerts, defaultSettings, maskSettings, parseSettings, problemNotice, recoveryNotice, type Channel } from '~/shared/notify'
+import { buildRequest, type Channel, currentAlerts, defaultSettings, MASK, maskSettings, parseSettings, problemNotice, recoveryNotice } from '~/shared/notify'
 import type { Snapshot } from '~/shared/types'
 
 process.env.QUADECK_DATA_DIR = mkdtempSync(join(tmpdir(), 'quadeck-notify-'))
@@ -58,7 +58,13 @@ describe('problems', () => {
           { id: 'c', name: 'job', image: '', state: 'exited', status: 'Exited (0) 2 hours ago', labels: {}, ports: [], networks: [], aliases: [], ips: [], cpuHistory: [] },
         ],
         services: [
-          { name: 'Medien', note: '', items: [{ key: 'jf', name: 'Jellyfin', url: 'https://jf', host: 'jf', group: 'Medien', icon: { kind: 'glyph', glyph: 'box' }, iconFallback: 'box', color: '', health: 'bad', source: 'caddy' }] },
+          {
+            name: 'Medien',
+            note: '',
+            items: [
+              { key: 'jf', name: 'Jellyfin', url: 'https://jf', host: 'jf', group: 'Medien', icon: { kind: 'glyph', glyph: 'box' }, iconFallback: 'box', color: '', health: 'bad', source: 'caddy' },
+            ],
+          },
         ],
         smart: [{ name: 'sdb', level: 'critical', supported: true }],
         disks: [{ dev: '/dev/sdb1', path: '', mount: '/srv', fstype: 'ext4', size: 100, used: 93, role: 'data' }],
@@ -78,7 +84,20 @@ describe('problems', () => {
 
   it('warns when the trend says full soon, below the usage threshold', () => {
     const disk = (used: number, fullInDays?: number) =>
-      snap({ disks: [{ dev: 'sda', path: '', mount: '/mnt/disk1', fstype: 'xfs', size: 100, used, role: '', trend: { perDay: 2e9, steady: false, spark: [], ...(fullInDays !== undefined ? { fullInDays } : {}) } }] })
+      snap({
+        disks: [
+          {
+            dev: 'sda',
+            path: '',
+            mount: '/mnt/disk1',
+            fstype: 'xfs',
+            size: 100,
+            used,
+            role: '',
+            trend: { perDay: 2e9, steady: false, spark: [], ...(fullInDays !== undefined ? { fullInDays } : {}) },
+          },
+        ],
+      })
     const soon = currentAlerts(disk(70, 10), s).alerts
     expect(soon.map((a) => a.key)).toEqual(['disk-soon:/mnt/disk1'])
     expect(soon[0]).toMatchObject({ rule: 'disk-full', severity: 'warning', title: '/mnt/disk1 ist in etwa 10 Tagen voll' })
@@ -143,7 +162,13 @@ describe('Notifier', () => {
     // A web service must be down for 2 minutes.
     const down = snap({
       units: [failedUnit],
-      services: [{ name: 'g', note: '', items: [{ key: 'jf', name: 'Jellyfin', url: 'https://jf', host: 'jf', group: 'g', icon: { kind: 'glyph', glyph: 'box' }, iconFallback: 'box', color: '', health: 'bad', source: 'caddy' }] }],
+      services: [
+        {
+          name: 'g',
+          note: '',
+          items: [{ key: 'jf', name: 'Jellyfin', url: 'https://jf', host: 'jf', group: 'g', icon: { kind: 'glyph', glyph: 'box' }, iconFallback: 'box', color: '', health: 'bad', source: 'caddy' }],
+        },
+      ],
     })
     await n.evaluate(down, t0 + 10_000)
     expect(sent).toHaveLength(1)
@@ -179,7 +204,10 @@ describe('Notifier', () => {
       return new Response('ok')
     })
     let pkgs = [{ name: 'linux', from: '6.1', to: '6.2' }]
-    const source = { updates: async () => ({ checkedAt: 0, repo: pkgs, aur: [] }), imageUpdates: async () => ({ checkedAt: 0, items: [{ unit: 'a', container: 'jellyfin', image: '', policy: 'registry', updated: 'pending' }] }) }
+    const source = {
+      updates: async () => ({ checkedAt: 0, repo: pkgs, aur: [] }),
+      imageUpdates: async () => ({ checkedAt: 0, items: [{ unit: 'a', container: 'jellyfin', image: '', policy: 'registry', updated: 'pending' }] }),
+    }
     await n.checkUpdates('nas', source, new Date(2026, 9, 2, 7))
     expect(sent).toHaveLength(0) // before 08:00
     await n.checkUpdates('nas', source, new Date(2026, 9, 2, 9))
@@ -217,7 +245,20 @@ describe('Notifier retries', () => {
 })
 
 describe('e-mail', () => {
-  const mail: Channel = { id: 'mail', kind: 'email', name: 'Mail', enabled: true, url: '', host: 'smtp.gmail.com', port: 465, security: 'tls', user: 'ich@gmail.com', token: 'abcd efgh ijkl mnop', from: 'ich@gmail.com', to: 'ich@gmail.com; partner@example.org' }
+  const mail: Channel = {
+    id: 'mail',
+    kind: 'email',
+    name: 'Mail',
+    enabled: true,
+    url: '',
+    host: 'smtp.gmail.com',
+    port: 465,
+    security: 'tls',
+    user: 'ich@gmail.com',
+    token: 'abcd efgh ijkl mnop',
+    from: 'ich@gmail.com',
+    to: 'ich@gmail.com; partner@example.org',
+  }
 
   it('validates the SMTP settings and keeps the password masked', async () => {
     const { channelErrors, recipients } = await import('~/shared/notify')
@@ -284,7 +325,10 @@ describe('e-mail', () => {
     await new Promise<void>((r) => server.listen(0, '127.0.0.1', r))
     const port = (server.address() as { port: number }).port
     try {
-      await sendMail({ ...mail, host: '127.0.0.1', port, security: 'none', user: undefined, token: undefined }, { from: 'nas@example.org', to: ['ich@example.org', 'du@example.org'], subject: '🔴 nas-01: Probleme', text: 'backup.service ist fehlgeschlagen\n' })
+      await sendMail(
+        { ...mail, host: '127.0.0.1', port, security: 'none', user: undefined, token: undefined },
+        { from: 'nas@example.org', to: ['ich@example.org', 'du@example.org'], subject: '🔴 nas-01: Probleme', text: 'backup.service ist fehlgeschlagen\n' },
+      )
     } finally {
       server.close()
     }
@@ -307,7 +351,19 @@ describe('backup rule', () => {
     expect(old).toHaveLength(1)
     expect(currentAlerts(snap({ backup: { server: true, since: now, lastOkAt: now - 3600_000, lastStatus: 'ok' } }), s).alerts).toHaveLength(0)
     // Only clients: no server alert, one per overdue client.
-    const clients = currentAlerts(snap({ backup: { server: false, since: now, stale: [{ name: 'laptop', days: 9, never: false }, { name: 'pc', days: 4, never: true }] } }), s).alerts
+    const clients = currentAlerts(
+      snap({
+        backup: {
+          server: false,
+          since: now,
+          stale: [
+            { name: 'laptop', days: 9, never: false },
+            { name: 'pc', days: 4, never: true },
+          ],
+        },
+      }),
+      s,
+    ).alerts
     expect(clients.map((a) => a.key)).toEqual(['backup:client:laptop', 'backup:client:pc'])
     expect(currentAlerts(snap({ backup: { server: false, since: now, stale: [{ name: 'laptop', days: 9, never: false }] } }), { ...s, rules: { ...s.rules, backup: false } }).alerts).toHaveLength(0)
   })

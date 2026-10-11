@@ -2,11 +2,11 @@
 // (immediate error) and again in the job itself, where root acts.
 
 import { existsSync, lstatSync, readFileSync, realpathSync, statSync } from 'node:fs'
-import { HttpError } from '../auth'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
 import { baseName, joinPath, parentOf } from '~/shared/files'
+import { msg } from '~/shared/i18n'
 import type { JobSpec } from '~/shared/packages'
+import { HttpError } from '../auth'
 import { resolveInRoots } from './backend'
 
 export type FsJob = Extract<JobSpec, { kind: 'fs-copy' | 'fs-move' | 'fs-delete' }>
@@ -53,7 +53,8 @@ export function prepareFsJob(spec: FsJob, ops: FsOps): { sources: string[]; toDi
   const toDir = ops.dir(spec.toDir)
   const conflicts: string[] = []
   for (const s of sources) {
-    if (toDir === s || toDir.startsWith(s + '/')) throw new HttpError(400, spec.kind === 'fs-copy' ? msg(m.files_error_copyIntoItself, { name: baseName(s) }) : msg(m.files_error_moveIntoItself, { name: baseName(s) }))
+    if (toDir === s || toDir.startsWith(s + '/'))
+      throw new HttpError(400, spec.kind === 'fs-copy' ? msg(m.files_error_copyIntoItself, { name: baseName(s) }) : msg(m.files_error_moveIntoItself, { name: baseName(s) }))
     if (spec.kind === 'fs-move' && parentOf(s) === toDir) throw new HttpError(400, msg(m.files_error_alreadyInFolder, { name: baseName(s) }))
     if (ops.exists(joinPath(toDir, baseName(s)))) conflicts.push(baseName(s))
   }

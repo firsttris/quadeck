@@ -1,10 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { m } from '~/paraglide/messages'
 import { HttpError } from '~/server/auth'
 import { authed, readJson } from '~/server/http'
 import { hubReady } from '~/server/hub'
 import { deleteOverride, saveOverride, setHidden, validateOverride } from '~/server/overrides'
 import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 
 // Service overrides from the UI (name, group, URL, icon, hidden, pinned).
 // Only touches the dashboard, so read-only mode does not block it.

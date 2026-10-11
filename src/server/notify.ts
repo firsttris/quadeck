@@ -4,14 +4,28 @@
 // repeat messages.
 
 import { createHash } from 'node:crypto'
-import { getSetting, setSetting } from './settings'
+import { m } from '~/paraglide/messages'
+import { isLang, type Lang, localizeDeep, msg } from '~/shared/i18n'
+import {
+  type Alert,
+  buildMail,
+  buildRequest,
+  type Channel,
+  currentAlerts,
+  DELAY_MS,
+  defaultSettings,
+  type Notice,
+  type NotifySettings,
+  type NotifyState,
+  problemNotice,
+  recoveryNotice,
+  type SentNotice,
+} from '~/shared/notify'
 import type { ImageUpdatesReport, UpdatesReport } from '~/shared/packages'
 import type { Snapshot } from '~/shared/types'
-import { sendMail, type Mail } from './mail'
-import { isLang, localizeDeep, msg, type Lang } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
-import { DELAY_MS, buildMail, buildRequest, currentAlerts, defaultSettings, problemNotice, recoveryNotice, type Alert, type Channel, type Notice, type NotifySettings, type NotifyState, type SentNotice } from '~/shared/notify'
 import { bilingual } from './lang'
+import { type Mail, sendMail } from './mail'
+import { getSetting, setSetting } from './settings'
 
 const KEY = 'notifications'
 const ACTIVE = 'notifications-active'

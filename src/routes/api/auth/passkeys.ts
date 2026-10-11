@@ -1,5 +1,5 @@
-import { createFileRoute } from '@tanstack/react-router'
 import type { RegistrationResponseJSON } from '@simplewebauthn/server'
+import { createFileRoute } from '@tanstack/react-router'
 import { authed, readJson } from '~/server/http'
 import { listPasskeys, register } from '~/server/passkeys'
 

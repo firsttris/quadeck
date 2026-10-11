@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
 
 // Runs after dashboard.spec.ts (password set there). Demo caches: pacman packages and yay builds.
 const PASSWORD = 'e2e-password-123'

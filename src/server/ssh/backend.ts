@@ -5,13 +5,13 @@
 import { closeSync, constants, existsSync, fchmodSync, fchownSync, fstatSync, mkdirSync, openSync, readdirSync, readFileSync, renameSync, rmSync, statSync, writeSync } from 'node:fs'
 import { hostname } from 'node:os'
 import { basename, dirname, join } from 'node:path'
+import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
+import { type SshChange, type SshKey, type SshLogin, type SshPreview, type SshSettings, type SshState, type SshUser, USER_NAME, validateSettings } from '~/shared/ssh'
+import { writeFileAtomic } from '../atomic'
 import { HttpError } from '../auth'
 import { run } from '../exec'
-import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
-import { USER_NAME, validateSettings, type SshChange, type SshKey, type SshLogin, type SshPreview, type SshSettings, type SshState, type SshUser } from '~/shared/ssh'
-import { addKey, parseAuthLog, parseAuthorizedKeys, parseEstablished, parseDropIn, parseKeyLine, parseSshdT, removeKey, renderDropIn } from './keys'
-import { writeFileAtomic } from '../atomic'
+import { addKey, parseAuthLog, parseAuthorizedKeys, parseDropIn, parseEstablished, parseKeyLine, parseSshdT, removeKey, renderDropIn } from './keys'
 
 export interface SshAdmin {
   sshState(): Promise<SshState>
@@ -388,7 +388,8 @@ export class SystemSsh implements SshBackend {
       const after = await this.sshState()
       const e = after.effective
       const s = change.settings
-      if (this.live && (e.passwordAuthentication !== s.passwordAuthentication || e.permitRootLogin !== s.permitRootLogin)) after.error = msg(m.ssh_error_overridden, { password: String(!!e.passwordAuthentication), root: e.permitRootLogin ?? '' })
+      if (this.live && (e.passwordAuthentication !== s.passwordAuthentication || e.permitRootLogin !== s.permitRootLogin))
+        after.error = msg(m.ssh_error_overridden, { password: String(!!e.passwordAuthentication), root: e.permitRootLogin ?? '' })
       return after
     }
     const u = p.user!
@@ -429,7 +430,13 @@ export class FixtureSsh implements SshBackend {
     const fps = this.data.users.flatMap((u) => u.keys.map((k) => (parseKeyLine(k) as { key: SshKey }).key.fingerprint))
     const last = new Map<string, number>()
     for (const l of this.data.logins) if (l.key !== undefined && fps[l.key]) last.set(fps[l.key]!, Math.max(last.get(fps[l.key]!) ?? 0, Date.now() - l.minutesAgo * 60_000))
-    return this.data.users.map((u) => ({ name: u.name, uid: u.uid, home: u.home, problems: [], keys: parseAuthorizedKeys(u.keys.join('\n')).map((k) => ({ ...k, lastUsed: last.get(k.fingerprint) })) }))
+    return this.data.users.map((u) => ({
+      name: u.name,
+      uid: u.uid,
+      home: u.home,
+      problems: [],
+      keys: parseAuthorizedKeys(u.keys.join('\n')).map((k) => ({ ...k, lastUsed: last.get(k.fingerprint) })),
+    }))
   }
 
   async sshState(): Promise<SshState> {
@@ -449,7 +456,14 @@ export class FixtureSsh implements SshBackend {
       dropIn: '/etc/ssh/sshd_config.d/01-quadeck.conf',
       dropInActive: true,
       users,
-      logins: this.data.logins.map((l) => ({ ts: Date.now() - l.minutesAgo * 60_000, user: l.user, from: l.from, method: l.method, fingerprint: l.key !== undefined ? fps[l.key] : undefined, active: !!l.active })),
+      logins: this.data.logins.map((l) => ({
+        ts: Date.now() - l.minutesAgo * 60_000,
+        user: l.user,
+        from: l.from,
+        method: l.method,
+        fingerprint: l.key !== undefined ? fps[l.key] : undefined,
+        active: !!l.active,
+      })),
       failed: this.data.failed.map((f) => ({ from: f.from, count: f.count, last: Date.now() - f.minutesAgo * 60_000 })),
       hostname: 'nas-01',
     }
@@ -457,7 +471,13 @@ export class FixtureSsh implements SshBackend {
 
   private async plan(change: SshChange) {
     const st = await this.sshState()
-    if (change.kind === 'settings') return { file: '/etc/ssh/sshd_config.d/01-quadeck.conf', before: this.managed ? renderDropIn(this.managed) : '', after: renderDropIn(change.settings), ...judgeSettings(st.users, change.settings) }
+    if (change.kind === 'settings')
+      return {
+        file: '/etc/ssh/sshd_config.d/01-quadeck.conf',
+        before: this.managed ? renderDropIn(this.managed) : '',
+        after: renderDropIn(change.settings),
+        ...judgeSettings(st.users, change.settings),
+      }
     const u = this.data.users.find((x) => x.name === change.user)
     if (!u) throw new HttpError(404, msg(m.ssh_error_noLoginAccount, { user: change.user }))
     const file = `${u.home}/.ssh/authorized_keys`

@@ -1,8 +1,8 @@
 // HTTP health checks: HEAD on each service URL, every 60 s. Used when the
 // container has no Podman healthcheck, and for manual links.
 
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import type { HttpHealth } from './registry'
 
 const SLOW_MS = 2000

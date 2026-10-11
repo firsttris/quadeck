@@ -1,12 +1,25 @@
 import { useEffect, useId, useState } from 'react'
 import { api } from '~/lib/api'
-import { ENTRY_FILE, applyEntryForm, bootFileKinds, entryForm, explainParam, knownParams, parseEntryConf, splitOptions, type BootEntryFile, type BootState, type EntryForm, type EntryProblem } from '~/shared/boot'
+import { dateTime } from '~/lib/format'
+import { m } from '~/paraglide/messages'
+import {
+  applyEntryForm,
+  type BootEntryFile,
+  type BootState,
+  bootFileKinds,
+  ENTRY_FILE,
+  type EntryForm,
+  type EntryProblem,
+  entryForm,
+  explainParam,
+  knownParams,
+  parseEntryConf,
+  splitOptions,
+} from '~/shared/boot'
 import { BusyButton } from './Busy'
 import { Modal } from './Modal'
 import { DiffView, TextView } from './QuadletEditor'
 import { useGuardedApi } from './Unlock'
-import { m } from '~/paraglide/messages'
-import { dateTime } from '~/lib/format'
 
 export interface EntryEditorInit {
   /** create: a new file (also a copy); edit: the file in place. */
@@ -185,7 +198,12 @@ export function BootEntryEditor({ init, onClose, onSaved }: { init: EntryEditorI
         <button type="button" className="btn" onClick={onClose}>
           {m.common_cancel()}
         </button>
-        <button type="button" className="btn primary" disabled={!nameOk || problems === null || errors.length > 0 || (init.kind === 'edit' && content === init.file!.content)} onClick={() => (setError(''), setConfirm(true))}>
+        <button
+          type="button"
+          className="btn primary"
+          disabled={!nameOk || problems === null || errors.length > 0 || (init.kind === 'edit' && content === init.file!.content)}
+          onClick={() => (setError(''), setConfirm(true))}
+        >
           {m.boot_editor_next()}
         </button>
       </div>

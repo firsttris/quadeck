@@ -2,8 +2,8 @@
 // snapshot) and how a message is sent to ntfy, Gotify, Telegram, a webhook or by e-mail.
 // Pure functions, shared by the server and the settings page.
 
-import { localize, msg } from './i18n'
 import { m } from '~/paraglide/messages'
+import { localize, msg } from './i18n'
 import type { Snapshot } from './types'
 
 export type ChannelKind = 'ntfy' | 'gotify' | 'telegram' | 'webhook' | 'email'
@@ -176,7 +176,17 @@ export const defaultSettings = (): NotifySettings => ({
 })
 
 /** How long a problem must persist before it is reported. */
-export const DELAY_MS: Record<RuleKey, number> = { 'unit-failed': 0, 'service-down': 120_000, 'container-unhealthy': 120_000, smart: 0, 'disk-full': 0, updates: 0, internet: 0, backup: 0, 'device-new': 0 }
+export const DELAY_MS: Record<RuleKey, number> = {
+  'unit-failed': 0,
+  'service-down': 120_000,
+  'container-unhealthy': 120_000,
+  smart: 0,
+  'disk-full': 0,
+  updates: 0,
+  internet: 0,
+  backup: 0,
+  'device-new': 0,
+}
 
 // ---------- validation ----------
 
@@ -300,13 +310,28 @@ export function currentAlerts(snap: Snapshot, s: NotifySettings, active: Set<str
   if (on('service-down')) {
     for (const g of snap.services)
       for (const svc of g.items)
-        if (svc.health === 'bad') alerts.push({ key: `http:${svc.key}`, rule: 'service-down', severity: 'warning', title: msg(m.notify_alert_serviceDown, { name: svc.name }), subject: svc.name, detail: svc.healthNote ?? svc.url })
+        if (svc.health === 'bad')
+          alerts.push({
+            key: `http:${svc.key}`,
+            rule: 'service-down',
+            severity: 'warning',
+            title: msg(m.notify_alert_serviceDown, { name: svc.name }),
+            subject: svc.name,
+            detail: svc.healthNote ?? svc.url,
+          })
   }
   if (on('container-unhealthy')) {
     if (!snap.sources.podman.ok) unknown.add('container-unhealthy')
     for (const c of snap.containers) {
       if (c.health === 'unhealthy')
-        alerts.push({ key: `ct:${c.name}`, rule: 'container-unhealthy', severity: 'warning', title: msg(m.notify_alert_containerUnhealthy, { name: c.name }), subject: c.name, detail: msg(m.services_health_checkFailing) })
+        alerts.push({
+          key: `ct:${c.name}`,
+          rule: 'container-unhealthy',
+          severity: 'warning',
+          title: msg(m.notify_alert_containerUnhealthy, { name: c.name }),
+          subject: c.name,
+          detail: msg(m.services_health_checkFailing),
+        })
       else if (!c.unit && c.state === 'exited' && /Exited \((?!0\))\d+\)/.test(c.status))
         alerts.push({ key: `ct:${c.name}`, rule: 'container-unhealthy', severity: 'warning', title: msg(m.notify_alert_containerCrashed, { name: c.name }), subject: c.name, detail: c.status })
     }
@@ -330,13 +355,26 @@ export function currentAlerts(snap: Snapshot, s: NotifySettings, active: Set<str
       const used = d.used / d.size
       const key = `disk:${d.mount}`
       const limit = (active.has(key) ? s.diskThreshold - 3 : s.diskThreshold) / 100
-      if (used >= limit) alerts.push({ key, rule: 'disk-full', severity: used >= 0.97 ? 'critical' : 'warning', title: msg(m.notify_alert_diskFull, { mount: d.mount, percent: pct(used) }), detail: `${d.dev} · ${d.fstype}` })
+      if (used >= limit)
+        alerts.push({
+          key,
+          rule: 'disk-full',
+          severity: used >= 0.97 ? 'critical' : 'warning',
+          title: msg(m.notify_alert_diskFull, { mount: d.mount, percent: pct(used) }),
+          detail: `${d.dev} · ${d.fstype}`,
+        })
       else if (s.diskDays > 0 && d.trend?.fullInDays !== undefined) {
         // not full yet, but at the pace of the last 30 days it will be soon
         const soon = `disk-soon:${d.mount}`
         const days = d.trend.fullInDays
         if (days <= (active.has(soon) ? s.diskDays + 3 : s.diskDays))
-          alerts.push({ key: soon, rule: 'disk-full', severity: 'warning', title: msg(m.notify_alert_diskSoon, { mount: d.mount, days }), detail: `${d.dev} · ${pct(used)} · +${(d.trend.perDay / 1e9).toFixed(1)} GB/d` })
+          alerts.push({
+            key: soon,
+            rule: 'disk-full',
+            severity: 'warning',
+            title: msg(m.notify_alert_diskSoon, { mount: d.mount, days }),
+            detail: `${d.dev} · ${pct(used)} · +${(d.trend.perDay / 1e9).toFixed(1)} GB/d`,
+          })
       }
     }
   }
@@ -345,20 +383,35 @@ export function currentAlerts(snap: Snapshot, s: NotifySettings, active: Set<str
       key: 'internet',
       rule: 'internet',
       severity: 'warning',
-      title: snap.speed.alert === 'down' ? msg(m.notify_alert_internetDown) : msg(m.notify_alert_internetSlow, { down: Math.round(snap.speed.down ?? 0), expected: Math.round(snap.speed.expected ?? 0) }),
+      title:
+        snap.speed.alert === 'down' ? msg(m.notify_alert_internetDown) : msg(m.notify_alert_internetSlow, { down: Math.round(snap.speed.down ?? 0), expected: Math.round(snap.speed.expected ?? 0) }),
       subject: msg(m.notify_subject_internet),
       detail: snap.speed.detail,
     })
   if (on('backup') && snap.backup) {
     const b = snap.backup
     for (const c of b.stale ?? [])
-      alerts.push({ key: `backup:client:${c.name}`, rule: 'backup', severity: 'warning', title: c.never ? msg(m.backup_alert_clientNever, { name: c.name }) : msg(m.backup_alert_client, { name: c.name, days: c.days }), subject: c.name })
+      alerts.push({
+        key: `backup:client:${c.name}`,
+        rule: 'backup',
+        severity: 'warning',
+        title: c.never ? msg(m.backup_alert_clientNever, { name: c.name }) : msg(m.backup_alert_client, { name: c.name, days: c.days }),
+        subject: c.name,
+      })
   }
   if (on('backup') && snap.backup?.server) {
     const b = snap.backup
     const age = (Date.now() - (b.lastOkAt ?? b.since)) / 86_400_000
-    if (b.lastStatus === 'failed') alerts.push({ key: 'backup', rule: 'backup', severity: 'warning', title: msg(m.backup_alert_failed, { message: b.lastMessage ?? '' }), subject: msg(m.notify_subject_backup) })
-    else if (age >= s.backupDays) alerts.push({ key: 'backup', rule: 'backup', severity: 'warning', title: b.lastOkAt ? msg(m.backup_alert_old, { days: Math.floor(age) }) : msg(m.backup_alert_never), subject: msg(m.notify_subject_backup) })
+    if (b.lastStatus === 'failed')
+      alerts.push({ key: 'backup', rule: 'backup', severity: 'warning', title: msg(m.backup_alert_failed, { message: b.lastMessage ?? '' }), subject: msg(m.notify_subject_backup) })
+    else if (age >= s.backupDays)
+      alerts.push({
+        key: 'backup',
+        rule: 'backup',
+        severity: 'warning',
+        title: b.lastOkAt ? msg(m.backup_alert_old, { days: Math.floor(age) }) : msg(m.backup_alert_never),
+        subject: msg(m.notify_subject_backup),
+      })
   }
   if (on('device-new'))
     for (const d of snap.devices?.fresh ?? [])
@@ -403,7 +456,10 @@ export function buildRequest(c: Channel, n: Notice): { url: string; init: Reques
       // JSON publishing: titles with umlauts would not survive as HTTP headers.
       return {
         url: c.url,
-        init: json({ topic: c.topic, title: n.title, message: n.body || n.title, priority: NTFY_PRIORITY[n.severity], tags: NTFY_TAGS[n.severity] }, c.token ? { authorization: `Bearer ${c.token}` } : {}),
+        init: json(
+          { topic: c.topic, title: n.title, message: n.body || n.title, priority: NTFY_PRIORITY[n.severity], tags: NTFY_TAGS[n.severity] },
+          c.token ? { authorization: `Bearer ${c.token}` } : {},
+        ),
       }
     case 'gotify':
       return { url: `${c.url}/message`, init: json({ title: n.title, message: n.body || n.title, priority: GOTIFY_PRIORITY[n.severity] }, { 'x-gotify-key': c.token ?? '' }) }

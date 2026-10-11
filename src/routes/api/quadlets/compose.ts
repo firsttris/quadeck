@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { m } from '~/paraglide/messages'
 import { HttpError } from '~/server/auth'
 import { authed, readJson } from '~/server/http'
 import { composeToQuadlets } from '~/server/quadlets/compose'
 import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 
 // docker-compose.yml → Quadlet files (preview only; saving goes through PUT /api/quadlets/file).
 export const Route = createFileRoute('/api/quadlets/compose')({

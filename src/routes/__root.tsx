@@ -1,11 +1,11 @@
+import { createRootRoute, HeadContent, Outlet, Scripts, useRouteContext } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
-import { HeadContent, Outlet, Scripts, createRootRoute, useRouteContext } from '@tanstack/react-router'
 import { I18nProvider } from '~/i18n'
-import { getAuthState } from '~/lib/server-fns'
-import css from '~/styles.css?url'
-import { m } from '~/paraglide/messages'
 import { MOTION_INIT_SCRIPT } from '~/lib/motion'
+import { getAuthState } from '~/lib/server-fns'
 import { THEME_INIT_SCRIPT } from '~/lib/theme'
+import { m } from '~/paraglide/messages'
+import css from '~/styles.css?url'
 
 export const Route = createRootRoute({
   beforeLoad: async () => ({ auth: await getAuthState() }),

@@ -1,26 +1,39 @@
-import { Link, createFileRoute, redirect } from '@tanstack/react-router'
-import { MountsView } from '~/components/Mounts'
+import { createFileRoute, Link, redirect } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
 import { useActions } from '~/components/Actions'
 import { BusyButton, useBusy } from '~/components/Busy'
+import { PowerDialog, type PowerInfo, PowerRow } from '~/components/DiskPower'
+import { DiskUsage } from '~/components/DiskUsage'
 import { Glyph } from '~/components/Glyph'
 import { HistoryChart } from '~/components/HistoryChart'
 import { InstallHint } from '~/components/InstallHint'
 import { Modal } from '~/components/Modal'
+import { MountsView } from '~/components/Mounts'
 import { PageHeader } from '~/components/PageHeader'
 import { Pill, type Tone } from '~/components/Status'
 import { useToast } from '~/components/Toast'
 import { useGuardedApi } from '~/components/Unlock'
+import { pickMsg } from '~/i18n'
 import { api } from '~/lib/api'
 import { diskSize, num, relative } from '~/lib/format'
-import { msg } from '~/shared/i18n'
-import { assessSmart, attributeLevel, describeNote, describeReason, hintText, smartHints, type SmartAssessment, type SmartBaseline, type SmartDisk, type SmartLevel, type SmartReport, type TempSensorGap } from '~/shared/smart'
-import { m } from '~/paraglide/messages'
-import { PowerDialog, PowerRow, type PowerInfo } from '~/components/DiskPower'
-import { dailyWakes, type DiskPower } from '~/shared/power'
-import { pickMsg } from '~/i18n'
-import { DiskUsage } from '~/components/DiskUsage'
 import { useLiveState } from '~/lib/live'
+import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
+import { type DiskPower, dailyWakes } from '~/shared/power'
+import {
+  assessSmart,
+  attributeLevel,
+  describeNote,
+  describeReason,
+  hintText,
+  type SmartAssessment,
+  type SmartBaseline,
+  type SmartDisk,
+  type SmartLevel,
+  type SmartReport,
+  smartHints,
+  type TempSensorGap,
+} from '~/shared/smart'
 import type { Disk } from '~/shared/types'
 
 export const Route = createFileRoute('/_app/disks')({
@@ -168,7 +181,9 @@ function Smart() {
           <InstallHint feature="hdparm" what={m.power_installWhat()} onInstalled={() => void api<PowerInfo>('/api/disks/power', { method: 'GET' }).then(setPower)} />
         </section>
       )}
-      {power && powerDisk && power.disks.find((d) => d.name === powerDisk) && <PowerDialog disk={power.disks.find((d) => d.name === powerDisk)!} info={power} onClose={() => setPowerDisk(null)} onSaved={setPower} />}
+      {power && powerDisk && power.disks.find((d) => d.name === powerDisk) && (
+        <PowerDialog disk={power.disks.find((d) => d.name === powerDisk)!} info={power} onClose={() => setPowerDisk(null)} onSaved={setPower} />
+      )}
       <DetailDialog disk={detail} baseline={detail ? report?.baselines?.[detail.id] : undefined} onClose={() => setDetail(null)} />
     </>
   )
@@ -184,7 +199,25 @@ function Stat({ label, value, tone }: { label: string; value: string; tone?: Ton
   )
 }
 
-function DiskCard({ disk: d, a, onDetail, onReport, power, wakes, onPower, filesystems }: { disk: SmartDisk; a: SmartAssessment; onDetail: () => void; onReport: (r: SmartReport) => void; power?: DiskPower; wakes?: number; onPower: () => void; filesystems?: Disk[] }) {
+function DiskCard({
+  disk: d,
+  a,
+  onDetail,
+  onReport,
+  power,
+  wakes,
+  onPower,
+  filesystems,
+}: {
+  disk: SmartDisk
+  a: SmartAssessment
+  onDetail: () => void
+  onReport: (r: SmartReport) => void
+  power?: DiskPower
+  wakes?: number
+  onPower: () => void
+  filesystems?: Disk[]
+}) {
   const say = useToast()
   const guarded = useGuardedApi()
   const { readonly } = useActions()
@@ -253,16 +286,30 @@ function DiskCard({ disk: d, a, onDetail, onReport, power, wakes, onPower, files
           ))}
         </ul>
       )}
-      {(!d.supported || d.standby) && <p className="m-0 text-[12px] text-muted">{d.standby ? m.disks_card_standbyText() : m.disks_card_unsupportedText({ msg: d.message ?? m.disks_card_noSmartCap() })}</p>}
+      {(!d.supported || d.standby) && (
+        <p className="m-0 text-[12px] text-muted">{d.standby ? m.disks_card_standbyText() : m.disks_card_unsupportedText({ msg: d.message ?? m.disks_card_noSmartCap() })}</p>
+      )}
       {filesystems && <DiskUsage name={d.name} filesystems={filesystems} />}
       {power && <PowerRow disk={power} wakes={wakes} onEdit={onPower} />}
       {d.supported && !d.standby && !readonly && (
         <div className="flex flex-wrap items-center gap-2 border-t border-line pt-3 text-[12px] text-muted">
           <span className="grow">{d.selfTests[0] ? m.disks_card_lastTest({ type: d.selfTests[0].type, status: d.selfTests[0].status }) : m.disks_card_noTest()}</span>
-          <BusyButton className="btn sm" busy={testing.is('short')} busyLabel={m.common_starting()} disabled={d.testRunning !== undefined || testing.busy !== null} onClick={() => void testing.run('short', () => test('short'))}>
+          <BusyButton
+            className="btn sm"
+            busy={testing.is('short')}
+            busyLabel={m.common_starting()}
+            disabled={d.testRunning !== undefined || testing.busy !== null}
+            onClick={() => void testing.run('short', () => test('short'))}
+          >
             {m.disks_card_shortTest()}
           </BusyButton>
-          <BusyButton className="btn sm" busy={testing.is('long')} busyLabel={m.common_starting()} disabled={d.testRunning !== undefined || testing.busy !== null} onClick={() => void testing.run('long', () => test('long'))}>
+          <BusyButton
+            className="btn sm"
+            busy={testing.is('long')}
+            busyLabel={m.common_starting()}
+            disabled={d.testRunning !== undefined || testing.busy !== null}
+            onClick={() => void testing.run('long', () => test('long'))}
+          >
             {m.disks_card_longTest()}
           </BusyButton>
         </div>

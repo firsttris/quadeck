@@ -1,11 +1,13 @@
 // Metric history: one sample per metric every 30 s in SQLite (kept 7 days),
 // read back averaged into at most ~300 buckets per range.
 
-import { FS_KEEP_MS } from '~/shared/disk-usage'
 import { and, asc, eq, gte, inArray, lt, sql } from 'drizzle-orm'
+import { FS_KEEP_MS } from '~/shared/disk-usage'
 import { CRC_WINDOW_DAYS, type SmartBaseline } from '~/shared/smart'
-import { HISTORY_RANGES, METRICS, type HistoryRange, type MetricHistory, type MetricName, type SystemMetrics } from '~/shared/types'
+import { HISTORY_RANGES, type HistoryRange, METRICS, type MetricHistory, type MetricName, type SystemMetrics } from '~/shared/types'
+
 export { metricRows } from '~/shared/metrics'
+
 import type { DB } from './db'
 import { metricPrefix, schema } from './db'
 
@@ -48,15 +50,26 @@ export function pruneHistory(d: DB, now = Date.now()) {
   // A new metric family needs its line here.
   d.transaction((tx) => {
     // system history (cpu, ram …): KEEP_MS
-    tx.delete(t).where(and(inArray(t.metric, [...METRICS]), lt(t.ts, now - KEEP_MS))).run()
+    tx.delete(t)
+      .where(and(inArray(t.metric, [...METRICS]), lt(t.ts, now - KEEP_MS)))
+      .run()
     // SMART trends and speed tests: a year
-    for (const p of ['smart:', 'speed:']) tx.delete(t).where(and(metricPrefix(p), lt(t.ts, now - SMART_KEEP_MS))).run()
+    for (const p of ['smart:', 'speed:'])
+      tx.delete(t)
+        .where(and(metricPrefix(p), lt(t.ts, now - SMART_KEEP_MS)))
+        .run()
     // per container: 30 days
-    tx.delete(t).where(and(metricPrefix('ct:'), lt(t.ts, now - 30 * 86_400_000))).run()
+    tx.delete(t)
+      .where(and(metricPrefix('ct:'), lt(t.ts, now - 30 * 86_400_000)))
+      .run()
     // energy per hour: two years
-    tx.delete(t).where(and(metricPrefix('energy:'), lt(t.ts, now - 2 * SMART_KEEP_MS))).run()
+    tx.delete(t)
+      .where(and(metricPrefix('energy:'), lt(t.ts, now - 2 * SMART_KEEP_MS)))
+      .run()
     // fill level per file system and hour: 400 days
-    tx.delete(t).where(and(metricPrefix('fs:'), lt(t.ts, now - FS_KEEP_MS))).run()
+    tx.delete(t)
+      .where(and(metricPrefix('fs:'), lt(t.ts, now - FS_KEEP_MS)))
+      .run()
   })
 }
 
@@ -86,11 +99,18 @@ export function querySmartHistory(d: DB, diskId: string, days: number, now = Dat
 /** Demo data: a week of plausible curves (fixtures only, when the table is empty). */
 export function seedFixtureHistory(d: DB, now = Date.now()) {
   const t = schema.metricSamples
-  if (d.select({ n: sql<number>`count(*)` }).from(t).where(and(gte(t.ts, now - KEEP_MS))).get()!.n > 0) return
+  if (
+    d
+      .select({ n: sql<number>`count(*)` })
+      .from(t)
+      .where(and(gte(t.ts, now - KEEP_MS)))
+      .get()!.n > 0
+  )
+    return
   const rows: { ts: number; metric: string; value: number }[] = []
   const step = 2 * 60_000
   let seed = 7
-  const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647)
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647
   for (let ts = now - KEEP_MS; ts < now; ts += step) {
     const hour = new Date(ts).getHours() + new Date(ts).getMinutes() / 60
     const day = Math.max(0, Math.sin(((hour - 6) / 24) * 2 * Math.PI)) // busy in the evening
@@ -110,7 +130,10 @@ export function seedFixtureHistory(d: DB, now = Date.now()) {
     )
   }
   d.transaction((tx) => {
-    for (let i = 0; i < rows.length; i += 500) tx.insert(t).values(rows.slice(i, i + 500)).run()
+    for (let i = 0; i < rows.length; i += 500)
+      tx.insert(t)
+        .values(rows.slice(i, i + 500))
+        .run()
   })
 }
 
@@ -162,7 +185,7 @@ export function seedSmartHistory(d: DB, disks: { id: string; samples: { key: str
       for (const s of disk.samples) {
         let v = s.value
         // Spin-ups: a steady few per day (differs per disk), up to today's count.
-        if (s.key === 'startstop') v = Math.max(0, s.value - Math.round((h / 24) * (4 + (disk.id.length * 7) % 23)))
+        if (s.key === 'startstop') v = Math.max(0, s.value - Math.round((h / 24) * (4 + ((disk.id.length * 7) % 23))))
         else if (s.key === 'temp') v = s.value - 3 + 4 * Math.max(0, Math.sin(((hour - 8) / 24) * 2 * Math.PI)) + ((h * 7919) % 10) / 10
         // Counters grew over time to today's value (the interesting part of the demo).
         else if (s.value > 0) v = Math.floor(s.value * Math.min(1, Math.max(0, (age - 0.4) / 0.6)) ** 0.7)
@@ -171,6 +194,9 @@ export function seedSmartHistory(d: DB, disks: { id: string; samples: { key: str
     }
   }
   d.transaction((tx) => {
-    for (let i = 0; i < rows.length; i += 500) tx.insert(t).values(rows.slice(i, i + 500)).run()
+    for (let i = 0; i < rows.length; i += 500)
+      tx.insert(t)
+        .values(rows.slice(i, i + 500))
+        .run()
   })
 }

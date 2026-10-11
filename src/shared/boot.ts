@@ -2,8 +2,8 @@
 // knowing before the next kernel update, and the running kernel command line
 // explained. Pure functions, shared by the page and the root helper.
 
-import { msg, type Message } from './i18n'
 import { m } from '~/paraglide/messages'
+import { type Message, msg } from './i18n'
 
 export type BootLoader = 'systemd-boot' | 'grub' | 'unknown'
 

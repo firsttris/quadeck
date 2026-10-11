@@ -2,10 +2,10 @@
 // show it (images, PDF, audio, video, plain text), as a download otherwise.
 // Range requests let a video start and jump without loading the whole file.
 
-import { fileKind } from '~/shared/files'
-import { HttpError } from '../auth'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { fileKind } from '~/shared/files'
+import { msg } from '~/shared/i18n'
+import { HttpError } from '../auth'
 
 export interface OpenedFile {
   name: string
@@ -100,7 +100,10 @@ export function fileResponse(f: OpenedFile, opts: { range?: string | null; downl
     'cache-control': 'private, no-cache',
     'x-content-type-options': 'nosniff',
     // No scripts in what is shown; the PDF viewer needs its own document, so no sandbox there.
-    'content-security-policy': type === 'application/pdf' ? "default-src 'self'; script-src 'none'; frame-ancestors 'none'" : "sandbox; default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; frame-ancestors 'none'",
+    'content-security-policy':
+      type === 'application/pdf'
+        ? "default-src 'self'; script-src 'none'; frame-ancestors 'none'"
+        : "sandbox; default-src 'none'; img-src 'self'; media-src 'self'; style-src 'unsafe-inline'; frame-ancestors 'none'",
   }
   let range: { start: number; end: number } | undefined
   try {

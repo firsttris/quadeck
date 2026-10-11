@@ -1,13 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { m } from '~/paraglide/messages'
 import { HttpError } from '~/server/auth'
 import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
 import { privileged } from '~/server/privileged'
 import { unlockToken } from '~/server/unlock-sessions'
-import { QUADECK_URL, parseClientPlan } from '~/shared/backup-client'
 import { CLIENT_NAME, parseBackupPlan, parseClientChange, parseSecrets, parseTargetConfig, parseWarnDays } from '~/shared/backup'
+import { parseClientPlan, QUADECK_URL } from '~/shared/backup-client'
 import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 
 // GET: the state (?refresh: read the snapshot list from the repository again), ?suggest: what the
 // Quadlets suggest, ?snapshot=…&dir=… a folder of a snapshot, ?snapshot=…&path=… a file (a folder as
@@ -44,7 +44,14 @@ export const Route = createFileRoute('/api/backup/')({
           sizes?: { paths?: unknown; excludes?: unknown }
           dirs?: { path?: unknown; compare?: unknown }
           target?: { setup?: unknown; remove?: unknown }
-          client?: { add?: { name?: unknown; warnDays?: unknown }; update?: { name?: unknown; change?: unknown }; renew?: unknown; remove?: { name?: unknown; deleteData?: unknown }; plan?: { name?: unknown; plan?: unknown }; link?: { name?: unknown; origin?: unknown } }
+          client?: {
+            add?: { name?: unknown; warnDays?: unknown }
+            update?: { name?: unknown; change?: unknown }
+            renew?: unknown
+            remove?: { name?: unknown; deleteData?: unknown }
+            plan?: { name?: unknown; plan?: unknown }
+            link?: { name?: unknown; origin?: unknown }
+          }
         }>(request)
         const p = privileged()
         const token = unlockToken(session.id)

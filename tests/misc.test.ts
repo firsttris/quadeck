@@ -1,10 +1,10 @@
 import { describe, expect, it } from 'vitest'
 import { calendarLabel, relative } from '~/lib/format'
+import { GIVE_UP_MS, KILL_GRACE_MS, run } from '~/server/exec'
 import { journalArgs, parseJournalLine } from '~/server/journal'
 import { validateLink } from '~/server/links'
 import { assertUnitName } from '~/server/privileged/actions'
 import { assetName, newer } from '~/server/update'
-import { GIVE_UP_MS, KILL_GRACE_MS, run } from '~/server/exec'
 
 describe('privileged action guard', () => {
   it('accepts unit names and rejects anything else', () => {
@@ -31,7 +31,13 @@ describe('journal', () => {
 
 describe('manual links', () => {
   it('validates input', () => {
-    expect(validateLink({ name: ' Router ', url: 'http://192.168.1.1', healthCheck: false })).toEqual({ name: 'Router', url: 'http://192.168.1.1/', group: undefined, icon: undefined, healthCheck: false })
+    expect(validateLink({ name: ' Router ', url: 'http://192.168.1.1', healthCheck: false })).toEqual({
+      name: 'Router',
+      url: 'http://192.168.1.1/',
+      group: undefined,
+      icon: undefined,
+      healthCheck: false,
+    })
     expect(() => validateLink({ name: 'x', url: 'javascript:alert(1)' })).toThrow(/http/)
     expect(() => validateLink({ name: 'x', url: 'nope' })).toThrow(/ungültig/)
     expect(() => validateLink({ name: '', url: 'http://a' })).toThrow(/Name/)

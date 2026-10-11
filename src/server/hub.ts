@@ -1,46 +1,46 @@
 // The hub runs all collectors on their own intervals, merges the result into
 // one Snapshot and pushes changes to SSE subscribers.
 
-import { liveStats, structureKey, type LiveStats } from '~/shared/live-stats'
-import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
-import { asc } from 'drizzle-orm'
 import { readFileSync } from 'node:fs'
 import { hostname, networkInterfaces } from 'node:os'
 import { join } from 'node:path'
-import type { Container, Disk, GpuMetrics, HiddenService, Share, Snapshot, SourceStatus, SystemMetrics, Unit } from '~/shared/types'
-import { collectDisks, diskRole, withSmartTemp } from './collectors/disks'
-import { GpuCollector } from './collectors/gpu'
-import { speedCheck, speedTick, seedSpeedHistory } from './speedtest'
+import { asc } from 'drizzle-orm'
+import { m } from '~/paraglide/messages'
 import { staleClients } from '~/shared/backup'
-import { demoSystemSample, metricRows, pruneHistory, SAMPLE_EVERY_MS, seedFixtureHistory, seedSmartHistory, smartBaselines } from './metrics'
+import type { FsTrend } from '~/shared/disk-usage'
+import { dailyAverage } from '~/shared/energy'
+import { msg } from '~/shared/i18n'
+import { type LiveStats, liveStats, structureKey } from '~/shared/live-stats'
 import { assessSmart } from '~/shared/smart'
 import { smartSamples } from '~/shared/smart-metrics'
-import { collectShares, sharesSummary } from './collectors/shares'
+import type { Container, Disk, GpuMetrics, HiddenService, Share, Snapshot, SourceStatus, SystemMetrics, Unit } from '~/shared/types'
+import { pruneSessions } from './auth'
+import { collectDisks, diskRole, withSmartTemp } from './collectors/disks'
+import { GpuCollector } from './collectors/gpu'
 import { PodmanCollector } from './collectors/podman'
+import { collectShares, sharesSummary } from './collectors/shares'
 import { readHostInfo, SystemCollector } from './collectors/system'
-import { UnitCollector, systemdVersion } from './collectors/systemd'
+import { systemdVersion, UnitCollector } from './collectors/systemd'
 import { config } from './config'
+import { seedUsageHistory, UsageRecorder } from './container-usage'
 import { db, schema } from './db'
+import { freshDevices, markSwept, recordScan, sweepDue } from './devices'
+import { FsHistory, fsTrends, seedFsHistory } from './disk-history'
+import { EnergyMeter, energyHours, energySettings, seedEnergyHistory } from './energy'
 import { HealthChecker } from './health'
 import { iconIndex } from './icons'
+import { bilingual, localize, outsideRequest } from './lang'
+import { demoSystemSample, metricRows, pruneHistory, SAMPLE_EVERY_MS, seedFixtureHistory, seedSmartHistory, smartBaselines } from './metrics'
+import { notifier } from './notify'
+import { privileged } from './privileged'
 import type { UnitAction } from './privileged/actions'
 import { assertUnitName } from './privileged/actions'
-import { privileged } from './privileged'
 import { CaddyProvider, candidatesFromCaddyfile, candidatesFromConfig } from './providers/caddy'
 import type { ServiceCandidate } from './providers/types'
 import { localHostSet, mergeServices } from './registry'
-import { notifier } from './notify'
-import { freshDevices, markSwept, recordScan, sweepDue } from './devices'
-import { EnergyMeter, energyHours, energySettings, seedEnergyHistory } from './energy'
-import { UsageRecorder, seedUsageHistory } from './container-usage'
-import { FsHistory, fsTrends, seedFsHistory } from './disk-history'
-import type { FsTrend } from '~/shared/disk-usage'
-import { dailyAverage } from '~/shared/energy'
-import { bilingual, localize, outsideRequest } from './lang'
-import { pruneSessions } from './auth'
-import { pruneUnlockTokens } from './unlock-sessions'
+import { seedSpeedHistory, speedCheck, speedTick } from './speedtest'
 import { pruneTerminals } from './terminal/web'
+import { pruneUnlockTokens } from './unlock-sessions'
 
 type Source = keyof Snapshot['sources']
 export type HubEvent = { type: 'system'; data: SystemMetrics } | { type: 'state'; data: Snapshot } | { type: 'stats'; data: LiveStats }
@@ -235,7 +235,11 @@ export class Hub {
   private collectSystem() {
     try {
       const p = this.energy.now
-      this.system = { ...(this.fixtures ? demoSystemSample() : this.systemCollector.sample()), gpus: this.gpus.length ? this.gpus : undefined, ...(p && Date.now() - p.at < 120_000 ? { powerW: p.total } : {}) }
+      this.system = {
+        ...(this.fixtures ? demoSystemSample() : this.systemCollector.sample()),
+        gpus: this.gpus.length ? this.gpus : undefined,
+        ...(p && Date.now() - p.at < 120_000 ? { powerW: p.total } : {}),
+      }
       this.ok('system')
       if (Date.now() - this.lastSampleAt >= SAMPLE_EVERY_MS && this.system.memTotal) {
         this.lastSampleAt = Date.now()
@@ -566,7 +570,9 @@ export class Hub {
     if (!this.units.some((u) => u.name === name) && !this.containers.some((c) => c.unit === name)) throw new ActionError(404, msg(m.hub_error_unknownUnit, { unit: name }))
     if (this.fixtures) {
       await this.priv.check(token)
-      this.fixtures.units = (this.fixtures.units ?? []).map((u) => (u.name === name ? { ...u, active: action === 'stop' ? 'inactive' : 'active', sub: action === 'stop' ? 'dead' : 'running', result: 'success', since: Date.now() } : u))
+      this.fixtures.units = (this.fixtures.units ?? []).map((u) =>
+        u.name === name ? { ...u, active: action === 'stop' ? 'inactive' : 'active', sub: action === 'stop' ? 'dead' : 'running', result: 'success', since: Date.now() } : u,
+      )
     } else {
       await this.priv.unit(token, action, name)
     }

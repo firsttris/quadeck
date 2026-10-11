@@ -126,7 +126,8 @@ export function checkEntries(entries: ArchiveEntry[]): ArchiveCheck {
     else if (e.type === 'other') problems.push({ path: raw, reason: 'device' })
     else if (e.special) problems.push({ path: raw, reason: 'special' })
     else if (e.type === 'link' && (e.target === undefined || e.target.startsWith('/') || inside(path, e.target) === undefined)) problems.push({ path: raw, reason: 'linkOutside', target: e.target })
-    else if (e.type === 'hardlink' && (e.target === undefined || e.target.startsWith('/') || normEntry(e.target).split('/').includes('..'))) problems.push({ path: raw, reason: 'linkOutside', target: e.target })
+    else if (e.type === 'hardlink' && (e.target === undefined || e.target.startsWith('/') || normEntry(e.target).split('/').includes('..')))
+      problems.push({ path: raw, reason: 'linkOutside', target: e.target })
     if (!path) continue
     tops.add(path.split('/')[0]!)
     if (e.type === 'dir') dirs++
@@ -159,4 +160,5 @@ export interface ArchivePreview {
 }
 
 /** Can it be unpacked as shown (overwrite: replace existing entries)? */
-export const extractBlocked = (p: ArchivePreview, overwrite: boolean) => !!p.missing || p.problems.length > 0 || !!p.linkInTarget || (p.free !== undefined && p.size > p.free) || (p.conflicts.length > 0 && !overwrite)
+export const extractBlocked = (p: ArchivePreview, overwrite: boolean) =>
+  !!p.missing || p.problems.length > 0 || !!p.linkInTarget || (p.free !== undefined && p.size > p.free) || (p.conflicts.length > 0 && !overwrite)

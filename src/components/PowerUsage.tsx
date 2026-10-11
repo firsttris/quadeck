@@ -1,15 +1,15 @@
 import { Link } from '@tanstack/react-router'
 import { useCallback, useState } from 'react'
+import { pickMsg } from '~/i18n'
 import { api } from '~/lib/api'
 import { num } from '~/lib/format'
-import { COMPONENTS, sumSplit, type Component, type DiskKind, type EnergySettings, type HourEnergy, type PowerNow } from '~/shared/energy'
+import { usePolling } from '~/lib/polling'
+import { m } from '~/paraglide/messages'
+import { COMPONENTS, type Component, type DiskKind, type EnergySettings, type HourEnergy, type PowerNow, sumSplit } from '~/shared/energy'
 import { localeOf } from '~/shared/i18n'
 import { BusyButton, useBusy } from './Busy'
 import { Modal } from './Modal'
 import { useToast } from './Toast'
-import { m } from '~/paraglide/messages'
-import { pickMsg } from '~/i18n'
-import { usePolling } from '~/lib/polling'
 
 interface Report {
   now?: PowerNow
@@ -64,7 +64,11 @@ export function PowerUsage() {
   const peak = bars.length ? bars.reduce((a, b) => (sumSplit(b) > sumSplit(a) ? b : a)) : undefined
   const max = Math.max(1, ...bars.map(sumSplit))
   const when = (ts: number) =>
-    range === '24h' ? new Date(ts).toLocaleTimeString(localeOf(), { hour: '2-digit', minute: '2-digit' }) : range === '12m' ? new Date(ts).toLocaleDateString(localeOf(), { month: 'long', year: 'numeric' }) : new Date(ts).toLocaleDateString(localeOf(), { day: 'numeric', month: 'short' })
+    range === '24h'
+      ? new Date(ts).toLocaleTimeString(localeOf(), { hour: '2-digit', minute: '2-digit' })
+      : range === '12m'
+        ? new Date(ts).toLocaleDateString(localeOf(), { month: 'long', year: 'numeric' })
+        : new Date(ts).toLocaleDateString(localeOf(), { day: 'numeric', month: 'short' })
   const amount = (wh: number) => (unitWh ? `${num(wh, 0)} Wh` : kwhText(wh / 1000))
 
   return (
@@ -168,7 +172,12 @@ export function PowerUsage() {
               </div>
               <ul className="m-0 flex h-[200px] flex-1 list-none items-end gap-[3px] border-b border-line p-0" aria-label={m.energy_history()} data-testid="energy-bars">
                 {bars.map((b) => (
-                  <li key={b.ts} className="flex h-full min-w-0 flex-1 flex-col justify-end gap-px" title={`${when(b.ts)}: ${amount(sumSplit(b))}`} aria-label={`${when(b.ts)}: ${amount(sumSplit(b))}`}>
+                  <li
+                    key={b.ts}
+                    className="flex h-full min-w-0 flex-1 flex-col justify-end gap-px"
+                    title={`${when(b.ts)}: ${amount(sumSplit(b))}`}
+                    aria-label={`${when(b.ts)}: ${amount(sumSplit(b))}`}
+                  >
                     {[...COMPONENTS].reverse().map((c) => (
                       <div key={c} style={{ height: `${(b[c] / max) * 100}%`, background: COLOR[c] }} className="first:rounded-t-[2px]" />
                     ))}

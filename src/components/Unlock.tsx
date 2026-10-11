@@ -1,8 +1,8 @@
-import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
-import { api, ApiError } from '~/lib/api'
+import { createContext, type ReactNode, useCallback, useContext, useEffect, useRef, useState } from 'react'
+import { ApiError, api } from '~/lib/api'
+import { m } from '~/paraglide/messages'
 import { Glyph } from './Glyph'
 import { Modal } from './Modal'
-import { m } from '~/paraglide/messages'
 
 type Mode = 'system' | 'quadeck' | 'none' | 'readonly'
 
@@ -161,7 +161,12 @@ export function UnlockChip({ compact = false }: { compact?: boolean }) {
     if (!open) return null
     const left = Math.max(0, Math.round((u.until! - Date.now()) / 1000))
     return (
-      <button type="button" className="flex h-10 items-center gap-1 rounded-lg px-2 text-[12px] text-[#e3b341] tabular-nums hover:bg-surface" onClick={() => void u.lock()} aria-label={m.shell_unlock_relock()}>
+      <button
+        type="button"
+        className="flex h-10 items-center gap-1 rounded-lg px-2 text-[12px] text-[#e3b341] tabular-nums hover:bg-surface"
+        onClick={() => void u.lock()}
+        aria-label={m.shell_unlock_relock()}
+      >
         <Glyph name="unlock" size={17} strokeWidth={2} />
         {Math.floor(left / 60)}:{String(left % 60).padStart(2, '0')}
       </button>

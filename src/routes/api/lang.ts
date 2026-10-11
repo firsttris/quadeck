@@ -1,10 +1,10 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { m } from '~/paraglide/messages'
 import { HttpError } from '~/server/auth'
 import { authed, readJson } from '~/server/http'
 import { LANG_SETTING } from '~/server/notify'
 import { setSetting } from '~/server/settings'
 import { isLang, msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 
 // The UI's language switch: e-mails and push messages follow it.
 export const Route = createFileRoute('/api/lang')({

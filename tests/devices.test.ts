@@ -1,11 +1,11 @@
-import { mkdtempSync, writeFileSync } from 'node:fs'
 import { createSocket } from 'node:dgram'
+import { mkdtempSync, writeFileSync } from 'node:fs'
 import { createServer } from 'node:net'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { scanLan, type ScanDeps } from '~/server/network/devices'
 import { FixtureNetwork } from '~/server/network/collect'
+import { type ScanDeps, scanLan } from '~/server/network/devices'
 import {
   BUILTIN_OUI,
   deviceViews,
@@ -14,6 +14,7 @@ import {
   inSubnets,
   isPrivateV4,
   isRandomMac,
+  type KnownDevice,
   lanSubnets,
   magicPacket,
   mergeScan,
@@ -22,9 +23,8 @@ import {
   parseNeigh,
   parseOui,
   parsePingTime,
-  serviceLabels,
-  type KnownDevice,
   type ScanResult,
+  serviceLabels,
 } from '~/shared/devices'
 import type { NetInterface } from '~/shared/network'
 import { currentAlerts, defaultSettings, parseSettings } from '~/shared/notify'

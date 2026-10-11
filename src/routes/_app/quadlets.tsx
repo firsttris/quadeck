@@ -1,4 +1,4 @@
-import { Link, createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
 import { useActions } from '~/components/Actions'
 import { BusyButton } from '~/components/Busy'
@@ -12,8 +12,8 @@ import { useGuardedApi } from '~/components/Unlock'
 import { api } from '~/lib/api'
 import { useLiveState } from '~/lib/live'
 import { templates } from '~/lib/quadlet-templates'
-import { QUADLET_NAME, QUADLET_TYPES, type ComposeResult, type QuadletFile, type QuadletType, type Revision } from '~/shared/quadlets'
 import { m } from '~/paraglide/messages'
+import { type ComposeResult, QUADLET_NAME, QUADLET_TYPES, type QuadletFile, type QuadletType, type Revision } from '~/shared/quadlets'
 
 export const Route = createFileRoute('/_app/quadlets')({
   // Podman settings used to be a tab here; they now live on the System page.
@@ -316,7 +316,13 @@ function ComposeDialog({ open, existing, onClose, onDone }: { open: boolean; exi
           </label>
           <label className="flex flex-col gap-1 text-[12px] font-medium text-muted">
             docker-compose.yml
-            <textarea className="field h-[300px] font-mono text-[12px]" spellCheck={false} value={yaml} onChange={(e) => setYaml(e.target.value)} placeholder={'services:\n  web:\n    image: nginx\n    ports:\n      - "8080:80"'} />
+            <textarea
+              className="field h-[300px] font-mono text-[12px]"
+              spellCheck={false}
+              value={yaml}
+              onChange={(e) => setYaml(e.target.value)}
+              placeholder={'services:\n  web:\n    image: nginx\n    ports:\n      - "8080:80"'}
+            />
           </label>
         </>
       ) : (

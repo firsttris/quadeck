@@ -48,7 +48,11 @@ export function shadowHash(shadow: string, user: string): string | undefined {
 export function groupMembers(groupFile: string, group: string): string[] {
   for (const line of groupFile.split('\n')) {
     const f = line.split(':')
-    if (f[0] === group) return (f[3] ?? '').split(',').map((s) => s.trim()).filter(Boolean)
+    if (f[0] === group)
+      return (f[3] ?? '')
+        .split(',')
+        .map((s) => s.trim())
+        .filter(Boolean)
   }
   return []
 }
@@ -74,7 +78,10 @@ export function readAuthFiles(): SystemAuthFiles {
 export function isAdmin(files: SystemAuthFiles, user: string) {
   if (user === 'root' || ADMIN_GROUPS.some((g) => groupMembers(files.group, g).includes(user))) return true
   // /etc/group lists supplementary members only; the primary group is the gid in /etc/passwd
-  const gid = files.passwd?.split('\n').map((l) => l.split(':')).find((f) => f[0] === user)?.[3]
+  const gid = files.passwd
+    ?.split('\n')
+    .map((l) => l.split(':'))
+    .find((f) => f[0] === user)?.[3]
   if (gid === undefined) return false
   const adminGids = files.group
     .split('\n')

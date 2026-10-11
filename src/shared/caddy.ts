@@ -4,8 +4,8 @@
 // snippets, imports, matchers, headers …) is kept as written and only
 // editable as text.
 
-import { msg } from './i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from './i18n'
 import { getValues } from './ini'
 import type { Revision } from './quadlets'
 
@@ -82,7 +82,11 @@ export interface SiteOptions {
 
 export const NO_OPTIONS: SiteOptions = { lanOnly: false, compress: false, insecureTls: false, tlsInternal: false, proxyExtra: '', extra: '' }
 
-export type CaddyChange = { kind: 'site'; /** First address of the block to replace; empty = new. */ previous?: string; addresses: string[]; upstreams: string[]; options?: SiteOptions } | { kind: 'delete'; address: string } | { kind: 'text'; content: string } | { kind: 'block'; /** A domain of the block to replace. */ address: string; text: string }
+export type CaddyChange =
+  | { kind: 'site' /** First address of the block to replace; empty = new. */; previous?: string; addresses: string[]; upstreams: string[]; options?: SiteOptions }
+  | { kind: 'delete'; address: string }
+  | { kind: 'text'; content: string }
+  | { kind: 'block' /** A domain of the block to replace. */; address: string; text: string }
 
 export interface CaddyResult {
   state: CaddyState

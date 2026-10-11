@@ -1,8 +1,8 @@
 import { eq } from 'drizzle-orm'
+import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import { HttpError } from './auth'
 import { db, schema } from './db'
-import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 
 export interface LinkInput {
   name: string

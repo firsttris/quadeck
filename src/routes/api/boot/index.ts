@@ -1,12 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { HttpError } from '~/server/auth'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
-import { parseBootEntryChange } from '~/shared/boot'
+import { HttpError } from '~/server/auth'
 import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
 import { privileged } from '~/server/privileged'
 import { unlockToken } from '~/server/unlock-sessions'
+import { parseBootEntryChange } from '~/shared/boot'
+import { msg } from '~/shared/i18n'
 
 // Boot. GET → loader, entries, settings, warnings, kernel command line.
 // GET ?entryPreview=linux-lts → { path, content } · ?entry=arch.conf → its file and history ·

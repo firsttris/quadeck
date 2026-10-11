@@ -2,8 +2,8 @@
 // disks estimated from type and state, the rest from a base value plus power supply loss. The
 // total is therefore always an estimate. No I/O here.
 
-import { msg } from './i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from './i18n'
 
 export type DiskKind = 'hdd' | 'ssd' | 'nvme'
 

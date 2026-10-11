@@ -13,7 +13,14 @@ export function parseSize(s: string | undefined): number | undefined {
   return Number.isFinite(n) && unit ? Math.round(n * unit) : undefined
 }
 
-const list = (v: string | undefined) => (!v || v.trim() === 'None' ? [] : v.trim().split(/\s{2,}|\n\s*/).map((s) => s.trim()).filter(Boolean))
+const list = (v: string | undefined) =>
+  !v || v.trim() === 'None'
+    ? []
+    : v
+        .trim()
+        .split(/\s{2,}|\n\s*/)
+        .map((s) => s.trim())
+        .filter(Boolean)
 
 /** `pacman -Qi` (several packages, LC_ALL=C) → one record per package. */
 export function parsePacmanInfo(out: string): Record<string, string>[] {
@@ -35,7 +42,10 @@ export function parsePacmanInfo(out: string): Record<string, string>[] {
   return records
 }
 
-export function pacmanRecordToPackage(r: Record<string, string>, foreign: Set<string>): InstalledPackage & { depends: string[]; requiredBy: string[]; optionalFor: string[]; url?: string; installedAt?: number } {
+export function pacmanRecordToPackage(
+  r: Record<string, string>,
+  foreign: Set<string>,
+): InstalledPackage & { depends: string[]; requiredBy: string[]; optionalFor: string[]; url?: string; installedAt?: number } {
   const requiredBy = list(r['Required By'])
   const optionalFor = list(r['Optional For'])
   const reason = r['Install Reason']?.startsWith('Explicitly') ? 'explicit' : r['Install Reason'] ? 'dependency' : undefined
@@ -155,7 +165,20 @@ export function parseControl(out: string): Record<string, string> {
 /** "a (>= 1), b | c, d:any" → package names. */
 export function parseDebDepends(v: string | undefined): string[] {
   if (!v) return []
-  return [...new Set(v.split(',').map((d) => d.split('|')[0]!.trim().split(/[\s(:]/)[0]!).filter(Boolean))]
+  return [
+    ...new Set(
+      v
+        .split(',')
+        .map(
+          (d) =>
+            d
+              .split('|')[0]!
+              .trim()
+              .split(/[\s(:]/)[0]!,
+        )
+        .filter(Boolean),
+    ),
+  ]
 }
 
 /** `apt-cache rdepends --installed name`. */
@@ -163,7 +186,14 @@ export function parseRdepends(out: string): string[] {
   const lines = out.split('\n')
   const i = lines.findIndex((l) => l.startsWith('Reverse Depends:'))
   if (i < 0) return []
-  return [...new Set(lines.slice(i + 1).map((l) => l.trim().replace(/^\|/, '')).filter(Boolean))]
+  return [
+    ...new Set(
+      lines
+        .slice(i + 1)
+        .map((l) => l.trim().replace(/^\|/, ''))
+        .filter(Boolean),
+    ),
+  ]
 }
 
 // ---------- rpm / dnf / zypper ----------

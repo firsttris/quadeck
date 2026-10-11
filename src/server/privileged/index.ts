@@ -1,27 +1,27 @@
 import { verifyPassword } from '../auth'
+import { FixtureBackup, quadletContents, SystemBackup } from '../backup/backend'
+import { FixtureBoot, SystemBoot } from '../boot/backend'
+import { CaddyManager, FixtureCaddyHost, SystemCaddyHost } from '../caddy/backend'
 import { config } from '../config'
+import { FixtureFiles, SystemFiles } from '../files/backend'
+import { FixtureFstabHost, FstabManager, SystemFstabHost } from '../fstab/backend'
+import { FixtureHardware, SystemHardware } from '../hardware/collect'
+import { bilingual } from '../lang'
+import { FixtureNetwork, SystemNetwork } from '../network/collect'
+import { selfArgv } from '../packages/jobs'
+import { FixtureMaintenance, SystemMaintenance } from '../packages/maintenance'
+import { FixturePodmanAdmin, SystemPodmanAdmin } from '../quadlets/backend'
+import { FixtureShares, SystemShares } from '../shares/backend'
+import { FixtureSmart, SystemSmart } from '../smart/backend'
+import { FixturePower, SystemPower } from '../smart/power'
+import { FixtureSsh, SystemSsh } from '../ssh/backend'
+import { FixtureUnitEditor, SystemUnitEditor } from '../systemd/editor'
+import { FixtureTimers, SystemTimers } from '../timers/backend'
+import { FixtureUsers, SystemUsers } from '../users/backend'
 import type { Privileged } from './actions'
 import { Gate, type UnlockMode } from './gate'
 import { HelperClient } from './helper-client'
 import { LocalPrivileged } from './local'
-import { FixtureMaintenance, SystemMaintenance } from '../packages/maintenance'
-import { FixturePodmanAdmin, SystemPodmanAdmin } from '../quadlets/backend'
-import { FixtureShares, SystemShares } from '../shares/backend'
-import { FixtureSsh, SystemSsh } from '../ssh/backend'
-import { FixtureSmart, SystemSmart } from '../smart/backend'
-import { FixtureFiles, SystemFiles } from '../files/backend'
-import { FixtureTimers, SystemTimers } from '../timers/backend'
-import { FixtureUnitEditor, SystemUnitEditor } from '../systemd/editor'
-import { FixtureNetwork, SystemNetwork } from '../network/collect'
-import { FixtureFstabHost, FstabManager, SystemFstabHost } from '../fstab/backend'
-import { FixtureBoot, SystemBoot } from '../boot/backend'
-import { FixtureUsers, SystemUsers } from '../users/backend'
-import { FixtureHardware, SystemHardware } from '../hardware/collect'
-import { CaddyManager, FixtureCaddyHost, SystemCaddyHost } from '../caddy/backend'
-import { FixtureBackup, SystemBackup, quadletContents } from '../backup/backend'
-import { FixturePower, SystemPower } from '../smart/power'
-import { selfArgv } from '../packages/jobs'
-import { bilingual } from '../lang'
 
 export function unlockMode(helperProcess: boolean): UnlockMode {
   const m = (process.env.QUADECK_UNLOCK ?? '').trim().toLowerCase()
@@ -69,7 +69,7 @@ export function privileged(): Privileged {
             fixtures ? new FixtureBoot(fixtures, async () => new Map((await maint.installed()).map((p) => [p.name, p.version]))) : new SystemBoot(),
             fixtures ? new FixtureUsers(fixtures) : new SystemUsers(),
             fixtures ? new FixtureHardware(fixtures) : new SystemHardware(),
-          new CaddyManager(fixtures ? new FixtureCaddyHost(fixtures) : new SystemCaddyHost()),
+            new CaddyManager(fixtures ? new FixtureCaddyHost(fixtures) : new SystemCaddyHost()),
             fixtures ? new FixtureBackup(quadletContents(podman)) : new SystemBackup({ self: selfArgv(), quadlets: quadletContents(podman) }),
             fixtures ? new FixturePower() : new SystemPower(),
           ),

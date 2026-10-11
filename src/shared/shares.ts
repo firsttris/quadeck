@@ -1,8 +1,8 @@
 // SMB shares and NFS exports: types and validation shared by the form, the
 // web app and the root helper.
 
-import { msg } from './i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from './i18n'
 
 export interface SmbShareSpec {
   name: string

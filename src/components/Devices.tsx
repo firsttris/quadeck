@@ -1,14 +1,14 @@
 import { useCallback, useMemo, useState } from 'react'
 import { api } from '~/lib/api'
 import { relative } from '~/lib/format'
-import { serviceLabels, type DeviceView, type ScanResult } from '~/shared/devices'
+import { usePolling } from '~/lib/polling'
+import { m } from '~/paraglide/messages'
+import { type DeviceView, type ScanResult, serviceLabels } from '~/shared/devices'
 import { useActions } from './Actions'
 import { BusyButton, useBusy } from './Busy'
 import { Modal } from './Modal'
 import { Dot } from './Status'
 import { useToast } from './Toast'
-import { m } from '~/paraglide/messages'
-import { usePolling } from '~/lib/polling'
 
 type SweepMinutes = 0 | 15 | 30 | 60 | 360
 interface View {

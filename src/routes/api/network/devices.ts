@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { m } from '~/paraglide/messages'
 import { HttpError } from '~/server/auth'
 import { config } from '~/server/config'
 import { checkPorts, devicesView, editDevice, forgetDevice, setDeviceSettings, wake } from '~/server/devices'
@@ -6,7 +7,6 @@ import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
 import { hub } from '~/server/hub'
 import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 
 let scanning: Promise<void> | undefined
 let scannedAt = 0

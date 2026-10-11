@@ -1,10 +1,10 @@
 import { useState } from 'react'
+import { pickMsg } from '~/i18n'
+import { m } from '~/paraglide/messages'
 import type { IconSize } from '~/shared/layout'
 import type { Service } from '~/shared/types'
 import { Glyph } from './Glyph'
 import { Dot, healthTone } from './Status'
-import { m } from '~/paraglide/messages'
-import { pickMsg } from '~/i18n'
 
 /** Box and image per icon size; wide tiles (≥ 260 px) get the larger pair. */
 const SIZES: Record<IconSize, { box: string; img: string; px: number; glyph: number }> = {
@@ -53,8 +53,11 @@ export function ServiceTile({ s, size, onDelete, onEdit, editing }: { s: Service
     <>
       <div className="flex items-center justify-between">
         <ServiceIcon s={s} size={size} />
-        <span title={s.healthNote ?? pickMsg({ "ok": m.overview_tile_health_ok, "warn": m.overview_tile_health_warn, "bad": m.overview_tile_health_bad, "unknown": m.overview_tile_health_unknown }, s.health)}>
-          <Dot tone={healthTone(s.health)} label={`${pickMsg({ "ok": m.overview_tile_health_ok, "warn": m.overview_tile_health_warn, "bad": m.overview_tile_health_bad, "unknown": m.overview_tile_health_unknown }, s.health)}${s.healthNote ? ` – ${s.healthNote}` : ''}`} />
+        <span title={s.healthNote ?? pickMsg({ ok: m.overview_tile_health_ok, warn: m.overview_tile_health_warn, bad: m.overview_tile_health_bad, unknown: m.overview_tile_health_unknown }, s.health)}>
+          <Dot
+            tone={healthTone(s.health)}
+            label={`${pickMsg({ ok: m.overview_tile_health_ok, warn: m.overview_tile_health_warn, bad: m.overview_tile_health_bad, unknown: m.overview_tile_health_unknown }, s.health)}${s.healthNote ? ` – ${s.healthNote}` : ''}`}
+          />
         </span>
       </div>
       <div className="truncate font-medium text-fg @min-[260px]:text-[17px]">{s.name}</div>

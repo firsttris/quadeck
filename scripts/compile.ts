@@ -1,7 +1,7 @@
 // Builds the single binary: vite build, then `bun build --compile` with the
 // client assets embedded. Usage: bun scripts/compile.ts [target…]
 //   targets: bun-linux-x64-baseline bun-linux-arm64 bun-linux-x64-musl bun-linux-arm64-musl
-import { readdirSync, statSync, writeFileSync, mkdirSync } from 'node:fs'
+import { mkdirSync, readdirSync, statSync, writeFileSync } from 'node:fs'
 import { join, relative } from 'node:path'
 import { $ } from 'bun'
 import pkg from '../package.json'

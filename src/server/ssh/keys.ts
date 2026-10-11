@@ -1,8 +1,8 @@
 // authorized_keys, sshd -T, journal lines: pure functions (unit-tested).
 
 import { createHash } from 'node:crypto'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import { KEY_TYPES, type RootLogin, type SshKey, type SshLogin, type SshSettings } from '~/shared/ssh'
 
 /** Length-prefixed fields of an SSH wire-format blob. */

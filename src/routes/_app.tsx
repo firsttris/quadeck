@@ -1,22 +1,22 @@
-import { Link, Outlet, createFileRoute, redirect, useRouterState } from '@tanstack/react-router'
+import { createFileRoute, Link, Outlet, redirect, useRouterState } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { ActionsProvider } from '~/components/Actions'
-import { CommandPalette } from '~/components/CommandPalette'
-import { JobChip, JobsProvider } from '~/components/Jobs'
-import { UnlockChip, UnlockProvider } from '~/components/Unlock'
 import { LangSelect } from '~/components/AuthCard'
+import { CommandPalette } from '~/components/CommandPalette'
 import { Glyph, Logo } from '~/components/Glyph'
+import { JobChip, JobsProvider } from '~/components/Jobs'
 import { MotionSelect } from '~/components/MotionSelect'
-import { ThemeSelect } from '~/components/ThemeSelect'
 import { PasskeysDialog } from '~/components/Passkeys'
 import { Dot } from '~/components/Status'
+import { ThemeSelect } from '~/components/ThemeSelect'
 import { ToastProvider } from '~/components/Toast'
+import { UnlockChip, UnlockProvider } from '~/components/Unlock'
+import { pickMsg } from '~/i18n'
 import { api, setCsrfToken } from '~/lib/api'
 import { duration } from '~/lib/format'
 import { LiveProvider, useLiveState } from '~/lib/live'
 import { getInitialSnapshot } from '~/lib/server-fns'
 import { m } from '~/paraglide/messages'
-import { pickMsg } from '~/i18n'
 
 export const Route = createFileRoute('/_app')({
   beforeLoad: ({ context }) => {
@@ -66,7 +66,12 @@ function AppLayout() {
   )
 }
 
-type NavItem = { to: '/' | '/units' | '/journal' | '/disks' | '/files' | '/shares' | '/backups' | '/ssh' | '/terminal' | '/network' | '/system' | '/notifications' | '/users'; label: string; glyph: string; badge: number }
+type NavItem = {
+  to: '/' | '/units' | '/journal' | '/disks' | '/files' | '/shares' | '/backups' | '/ssh' | '/terminal' | '/network' | '/system' | '/notifications' | '/users'
+  label: string
+  glyph: string
+  badge: number
+}
 
 function useNav(): { title?: string; items: NavItem[] }[] {
   const { snapshot } = useLiveState()
@@ -227,7 +232,18 @@ function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => vo
             <span key={k} title={s.error} className="flex items-start gap-2 text-[#e3b341]">
               <Dot tone="warn" />
               <span className="line-clamp-2">
-                {pickMsg({ "podman": m.shell_sources_podman, "systemd": m.shell_sources_systemd, "caddy": m.shell_sources_caddy, "disks": m.shell_sources_disks, "system": m.shell_sources_system, "smart": m.shell_sources_smart }, k) ?? k}: {s.error}
+                {pickMsg(
+                  {
+                    podman: m.shell_sources_podman,
+                    systemd: m.shell_sources_systemd,
+                    caddy: m.shell_sources_caddy,
+                    disks: m.shell_sources_disks,
+                    system: m.shell_sources_system,
+                    smart: m.shell_sources_smart,
+                  },
+                  k,
+                ) ?? k}
+                : {s.error}
               </span>
             </span>
           ))}

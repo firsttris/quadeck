@@ -56,4 +56,3 @@ export function getValues(text: string, section: string, key: string): string[] 
 }
 
 export const getValue = (text: string, section: string, key: string) => getValues(text, section, key).at(-1) ?? ''
-

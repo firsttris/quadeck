@@ -1,9 +1,9 @@
-import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 import { createFileRoute } from '@tanstack/react-router'
+import { m } from '~/paraglide/messages'
 import { beginAttempt, HttpError, verifyPassword } from '~/server/auth'
 import { authed, readJson } from '~/server/http'
 import { registrationOptions } from '~/server/passkeys'
+import { msg } from '~/shared/i18n'
 
 // The challenge for a new passkey; asks for the admin password once more
 export const Route = createFileRoute('/api/auth/passkeys/options')({

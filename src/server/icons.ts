@@ -22,7 +22,7 @@ export const ALIASES: Record<string, string> = {
   'immich-machine-learning': 'immich',
   'immich-ml': 'immich',
   jf: 'jellyfin',
-  'adguardhome': 'adguard-home',
+  adguardhome: 'adguard-home',
   adguard: 'adguard-home',
   pihole: 'pi-hole',
   'nextcloud-aio-mastercontainer': 'nextcloud',
@@ -86,8 +86,7 @@ export interface IconIndex {
 
 /** Accepts tree.json ({svg:[…], png:[…]}) and optionally metadata.json ({slug:{aliases:[…]}}). */
 export function parseIconIndex(tree: unknown, metadata?: unknown): IconIndex {
-  const strip = (arr: unknown, ext: string) =>
-    new Set((Array.isArray(arr) ? arr : []).filter((x): x is string => typeof x === 'string').map((f) => f.replace(new RegExp(`\\.${ext}$`), '')))
+  const strip = (arr: unknown, ext: string) => new Set((Array.isArray(arr) ? arr : []).filter((x): x is string => typeof x === 'string').map((f) => f.replace(new RegExp(`\\.${ext}$`), '')))
   const t = (tree ?? {}) as Record<string, unknown>
   const index: IconIndex = { svg: strip(t.svg, 'svg'), png: strip(t.png, 'png'), aliases: new Map() }
   if (metadata && typeof metadata === 'object') {

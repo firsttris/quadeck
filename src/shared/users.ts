@@ -1,8 +1,8 @@
 // Accounts of the server: types, parsers for passwd/shadow/group, the checks
 // for every change and the lock-out guard. Shared by the page and the helper.
 
-import { msg } from './i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from './i18n'
 
 export interface Account {
   name: string
@@ -139,7 +139,9 @@ export function passwordState(pw: string | undefined, expire: number | undefined
 export function parseLast(text: string): LoginRecord[] {
   const out: LoginRecord[] = []
   for (const line of text.split('\n')) {
-    const m = line.match(/^(\S+)\s+(\S+)\s+(?:(\S+)\s+)?(\d{4}-\d\d-\d\dT[\d:]+(?:[+-]\d\d:?\d\d|Z)?)\s+(?:-\s+(\d{4}-\d\d-\d\dT[\d:]+(?:[+-]\d\d:?\d\d|Z)?)|(still logged in|still running|gone - no logout|- crash|- down))/)
+    const m = line.match(
+      /^(\S+)\s+(\S+)\s+(?:(\S+)\s+)?(\d{4}-\d\d-\d\dT[\d:]+(?:[+-]\d\d:?\d\d|Z)?)\s+(?:-\s+(\d{4}-\d\d-\d\dT[\d:]+(?:[+-]\d\d:?\d\d|Z)?)|(still logged in|still running|gone - no logout|- crash|- down))/,
+    )
     if (!m || m[1] === 'reboot' || m[1] === 'wtmp' || m[1] === 'wtmpdb') continue
     const start = Date.parse(m[4]!)
     if (Number.isNaN(start)) continue
@@ -226,7 +228,11 @@ export function changeProblem(state: Pick<UsersState, 'accounts' | 'shells' | 'g
 export function describeChange(c: UserChange, adminGroup: string): string {
   switch (c.kind) {
     case 'create':
-      return msg(m.users_describe_create, { name: c.name, admin: c.admin ? msg(m.users_describe_createAdmin, { group: adminGroup }) : '', password: msg(c.password ? m.users_describe_withPassword : m.users_describe_withoutPassword) })
+      return msg(m.users_describe_create, {
+        name: c.name,
+        admin: c.admin ? msg(m.users_describe_createAdmin, { group: adminGroup }) : '',
+        password: msg(c.password ? m.users_describe_withPassword : m.users_describe_withoutPassword),
+      })
     case 'update':
       return msg(m.users_describe_update, { name: c.name, group: adminGroup, admin: String(!!c.admin) })
     case 'password':

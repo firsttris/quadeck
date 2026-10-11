@@ -2,15 +2,15 @@ import '@xterm/xterm/css/xterm.css'
 import { useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { api, csrfHeaders } from '~/lib/api'
-import { IDLE_MINUTES, KEYS, ctrlKey, type IdleMinutes, type TerminalInfo, type TerminalSettings } from '~/shared/terminal'
+import { m } from '~/paraglide/messages'
 import { TERMINAL_COMMANDS, type TerminalCommand } from '~/shared/job-diagnosis'
+import { ctrlKey, IDLE_MINUTES, type IdleMinutes, KEYS, type TerminalInfo, type TerminalSettings } from '~/shared/terminal'
 import { useActions } from './Actions'
 import { BusyButton, useBusy } from './Busy'
 import { Modal } from './Modal'
 import { PageHeader } from './PageHeader'
 import { useToast } from './Toast'
 import { useGuardedApi } from './Unlock'
-import { m } from '~/paraglide/messages'
 
 type State = { settings: TerminalSettings; sessions: TerminalInfo[] }
 type XTerm = import('@xterm/xterm').Terminal
@@ -112,7 +112,10 @@ export function TerminalPage({ container, type }: { container?: string; type?: T
         <section className={`flex min-h-0 flex-col ${full ? 'fixed inset-0 z-50 bg-bg p-3' : ''}`} aria-label={m.terminal_title()}>
           <div role="tablist" aria-label={m.terminal_sessions()} className="flex flex-wrap items-end gap-1 border-b border-line">
             {tabs.map((t) => (
-              <div key={t.id} className={`-mb-px flex items-center gap-2 rounded-t-[8px] border px-3 py-1.5 text-[13px] ${active === t.id ? 'border-edge border-b-[#0d1117] bg-[#0d1117]' : 'border-line text-subtle'}`}>
+              <div
+                key={t.id}
+                className={`-mb-px flex items-center gap-2 rounded-t-[8px] border px-3 py-1.5 text-[13px] ${active === t.id ? 'border-edge border-b-[#0d1117] bg-[#0d1117]' : 'border-line text-subtle'}`}
+              >
                 <button type="button" role="tab" aria-selected={active === t.id} className="flex items-center gap-2" onClick={() => setActive(t.id)}>
                   {t.kind === 'container' && <span className="rounded-[4px] bg-accent-2 px-1 text-[10px] font-semibold text-bg">CT</span>}
                   <span className="font-mono">{t.label}</span>
@@ -123,7 +126,13 @@ export function TerminalPage({ container, type }: { container?: string; type?: T
               </div>
             ))}
             {!readonly && (
-              <BusyButton className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[13px] text-accent" busy={opening.busy === 'new' || opening.busy === 'container'} busyLabel={m.common_opening()} disabled={!!opening.busy} onClick={() => void open({ kind: 'shell' }, 'new')}>
+              <BusyButton
+                className="inline-flex items-center gap-1.5 px-2.5 py-1.5 text-[13px] text-accent"
+                busy={opening.busy === 'new' || opening.busy === 'container'}
+                busyLabel={m.common_opening()}
+                disabled={!!opening.busy}
+                onClick={() => void open({ kind: 'shell' }, 'new')}
+              >
                 {m.terminal_new()}
               </BusyButton>
             )}
@@ -223,8 +232,7 @@ function TerminalView({ info, visible, font, full, type }: { info: TerminalInfo;
               toType.current = undefined
               setTimeout(() => send(t), 250)
             }
-          }
-          else if (ev === 'exit') {
+          } else if (ev === 'exit') {
             term.current?.write(`\r\n\x1b[2m${m.terminal_ended()}\x1b[0m\r\n`)
             setStatus('ended')
             return
@@ -244,7 +252,13 @@ function TerminalView({ info, visible, font, full, type }: { info: TerminalInfo;
     void (async () => {
       const [{ Terminal }, { FitAddon }] = await Promise.all([import('@xterm/xterm'), import('@xterm/addon-fit')])
       if (disposed || !box.current) return
-      const t = new Terminal({ fontFamily: "'JetBrains Mono', ui-monospace, monospace", fontSize: font, cursorBlink: true, scrollback: 5000, theme: { background: '#0d1117', foreground: '#c9d1d9', cursor: '#c9d1d9', selectionBackground: '#264f78' } })
+      const t = new Terminal({
+        fontFamily: "'JetBrains Mono', ui-monospace, monospace",
+        fontSize: font,
+        cursorBlink: true,
+        scrollback: 5000,
+        theme: { background: '#0d1117', foreground: '#c9d1d9', cursor: '#c9d1d9', selectionBackground: '#264f78' },
+      })
       const f = new FitAddon()
       t.loadAddon(f)
       t.open(box.current)

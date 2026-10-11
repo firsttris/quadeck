@@ -1,13 +1,13 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { m } from '~/paraglide/messages'
 import { HttpError } from '~/server/auth'
 import { config } from '~/server/config'
+import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
-import { drain, nextSpeedRun, runInternetTest, saveSpeed, setSpeedSchedule, speedCheck, speedCheckMessage, speedHistory, speedRunning, speedSchedule, speedSeries, testData } from '~/server/speedtest'
 import { hubReady } from '~/server/hub'
 import { notifier } from '~/server/notify'
-import { assertWritable } from '~/server/guard'
+import { drain, nextSpeedRun, runInternetTest, saveSpeed, setSpeedSchedule, speedCheck, speedCheckMessage, speedHistory, speedRunning, speedSchedule, speedSeries, testData } from '~/server/speedtest'
 import { currentLang, localize, msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 import type { SpeedResult } from '~/shared/speedtest'
 
 // Speed test. GET → { history, schedule, next, series, alert } · ?ping → { t } · ?down=<bytes> → test data.
@@ -72,7 +72,15 @@ export const Route = createFileRoute('/api/speedtest/')({
         const c = b.client
         const num = (v: unknown) => (typeof v === 'number' && Number.isFinite(v) && v >= 0 && v < 1e6 ? Math.round(v * 10) / 10 : undefined)
         if (c && num(c.down) !== undefined && num(c.up) !== undefined && num(c.ping) !== undefined) {
-          const r: SpeedResult = { at: Date.now(), kind: 'client', down: num(c.down)!, up: num(c.up)!, ping: num(c.ping)!, jitter: num(c.jitter) ?? 0, where: typeof c.where === 'string' ? c.where.slice(0, 60) : undefined }
+          const r: SpeedResult = {
+            at: Date.now(),
+            kind: 'client',
+            down: num(c.down)!,
+            up: num(c.up)!,
+            ping: num(c.ping)!,
+            jitter: num(c.jitter) ?? 0,
+            where: typeof c.where === 'string' ? c.where.slice(0, 60) : undefined,
+          }
           return Response.json({ result: r, history: saveSpeed(r) })
         }
         throw new HttpError(400, msg(m.common_errors_unknownRequest))

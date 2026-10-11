@@ -6,17 +6,29 @@
 import { existsSync, lstatSync, mkdirSync, mkdtempSync, readdirSync, readFileSync, rmdirSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
-import { HttpError } from '../auth'
-import { contentHash } from '~/shared/caddy'
-import { run } from '../exec'
-import { parseShow, quadletOf } from '../collectors/systemd'
-import { validContent } from '../quadlets/backend'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { contentHash } from '~/shared/caddy'
+import { msg } from '~/shared/i18n'
 import type { Diagnostic, Revision } from '~/shared/quadlets'
-import { NEW_UNIT, PROTECTED_UNIT, UNIT_DIR, assertUnit, lintUnit, originOf, writablePath, type UnitDetail, type UnitFilePart, type UnitValidateResult, type UnitWriteResult } from '~/shared/unit-files'
 import { LEGACY_MANAGED_HEADER, MANAGED_HEADER } from '~/shared/timers'
+import {
+  assertUnit,
+  lintUnit,
+  NEW_UNIT,
+  originOf,
+  PROTECTED_UNIT,
+  UNIT_DIR,
+  type UnitDetail,
+  type UnitFilePart,
+  type UnitValidateResult,
+  type UnitWriteResult,
+  writablePath,
+} from '~/shared/unit-files'
 import { writeFileAtomic } from '../atomic'
+import { HttpError } from '../auth'
+import { parseShow, quadletOf } from '../collectors/systemd'
+import { run } from '../exec'
+import { validContent } from '../quadlets/backend'
 
 export interface UnitEditorAdmin {
   unitDetail(unit: string): Promise<UnitDetail>
@@ -125,7 +137,11 @@ export class UnitHistory {
     return files
       .map((f) => f.match(/^(\d+)-(\d+)\.(original|saved|deleted)$/))
       .filter((r): r is RegExpMatchArray => !!r)
-      .map((r) => ({ id: `${r[1]}-${r[2]}`, date: Number(r[1]), message: r[3] === 'original' ? msg(m.common_history_original) : r[3] === 'saved' ? msg(m.notifications_saved) : msg(m.systemd_history_beforeDelete) }))
+      .map((r) => ({
+        id: `${r[1]}-${r[2]}`,
+        date: Number(r[1]),
+        message: r[3] === 'original' ? msg(m.common_history_original) : r[3] === 'saved' ? msg(m.notifications_saved) : msg(m.systemd_history_beforeDelete),
+      }))
       .sort((a, b) => b.id.localeCompare(a.id, undefined, { numeric: true }))
   }
 

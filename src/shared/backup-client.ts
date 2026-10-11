@@ -2,8 +2,8 @@
 // (one-time link): what to back up, exclusions, schedule, retention. The script installs restic's
 // configuration, a systemd user timer and the `quadeck-backup` command. No I/O here.
 
-import { msg } from './i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from './i18n'
 
 export type ClientPreset = 'caches' | 'trash' | 'dev' | 'temp' | 'downloads' | 'vms' | 'games' | 'nobackup'
 export const CLIENT_PRESETS: ClientPreset[] = ['caches', 'trash', 'dev', 'temp', 'downloads', 'vms', 'games', 'nobackup']
@@ -122,13 +122,22 @@ export function clientExcludes(plan: ClientPlan): string[] {
 
 export function clientForgetArgs(plan: ClientPlan): string {
   const k = plan.keep
-  return [...(k.daily ? ['--keep-daily', k.daily] : []), ...(k.weekly ? ['--keep-weekly', k.weekly] : []), ...(k.monthly ? ['--keep-monthly', k.monthly] : []), ...(k.yearly ? ['--keep-yearly', k.yearly] : [])].join(' ')
+  return [
+    ...(k.daily ? ['--keep-daily', k.daily] : []),
+    ...(k.weekly ? ['--keep-weekly', k.weekly] : []),
+    ...(k.monthly ? ['--keep-monthly', k.monthly] : []),
+    ...(k.yearly ? ['--keep-yearly', k.yearly] : []),
+  ].join(' ')
 }
 
 /** The install/update script the client runs with `curl … | sh`. POSIX sh, systemd user units. */
 export function clientScript(i: ScriptInput): string {
   const p = i.plan
-  const flags = [...(p.exclude.presets.includes('caches') ? ['--exclude-caches'] : []), ...(p.exclude.presets.includes('nobackup') ? ['--exclude-if-present .nobackup'] : []), ...(p.exclude.maxSizeGB ? [`--exclude-larger-than ${p.exclude.maxSizeGB}G`] : [])].join(' ')
+  const flags = [
+    ...(p.exclude.presets.includes('caches') ? ['--exclude-caches'] : []),
+    ...(p.exclude.presets.includes('nobackup') ? ['--exclude-if-present .nobackup'] : []),
+    ...(p.exclude.maxSizeGB ? [`--exclude-larger-than ${p.exclude.maxSizeGB}G`] : []),
+  ].join(' ')
   return `#!/bin/sh
 # Quadeck backup client "${i.name}" – settings version ${i.version}.
 # Installs or updates: ~/.config/quadeck-backup, ~/.local/bin/quadeck-backup and the systemd user

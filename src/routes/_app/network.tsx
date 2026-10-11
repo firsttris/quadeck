@@ -1,21 +1,23 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { useCallback, useState } from 'react'
-import { PageHeader } from '~/components/PageHeader'
-import { SpeedTest } from '~/components/SpeedTest'
-import { ReverseProxy } from '~/components/ReverseProxy'
 import { Devices } from '~/components/Devices'
+import { PageHeader } from '~/components/PageHeader'
+import { ReverseProxy } from '~/components/ReverseProxy'
+import { SpeedTest } from '~/components/SpeedTest'
 import { Pill, type Tone } from '~/components/Status'
-import { bytes } from '~/lib/format'
-import { msg } from '~/shared/i18n'
-import { knownPorts, type IfaceKind, type ListeningPort, type NetInterface, type NetworkState } from '~/shared/network'
-import { m } from '~/paraglide/messages'
 import { pickMsg } from '~/i18n'
+import { bytes } from '~/lib/format'
 import { usePolling } from '~/lib/polling'
+import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
+import { type IfaceKind, knownPorts, type ListeningPort, type NetInterface, type NetworkState } from '~/shared/network'
 
 type Tab = 'interfaces' | 'devices' | 'ports' | 'firewall' | 'proxy' | 'speed'
 
 export const Route = createFileRoute('/_app/network')({
-  validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({ tab: s.tab === 'devices' || s.tab === 'ports' || s.tab === 'firewall' || s.tab === 'proxy' || s.tab === 'speed' ? s.tab : undefined }),
+  validateSearch: (s: Record<string, unknown>): { tab?: Tab } => ({
+    tab: s.tab === 'devices' || s.tab === 'ports' || s.tab === 'firewall' || s.tab === 'proxy' || s.tab === 'speed' ? s.tab : undefined,
+  }),
   head: () => ({ meta: [{ title: msg(m.page_title_network) }] }),
   component: NetworkPage,
 })
@@ -176,7 +178,16 @@ function Iface({ iface: i, gateway }: { iface: NetInterface; gateway?: string })
         <span className="font-mono text-[14px] font-semibold">{i.name}</span>
         <span className="chip">
           {pickMsg(
-            { ethernet: m.network_kind_ethernet, wifi: m.network_kind_wifi, bridge: m.network_kind_bridge, container: m.network_kind_container, vpn: m.network_kind_vpn, thread: m.network_kind_thread, loopback: m.network_kind_loopback, virtual: m.network_kind_virtual },
+            {
+              ethernet: m.network_kind_ethernet,
+              wifi: m.network_kind_wifi,
+              bridge: m.network_kind_bridge,
+              container: m.network_kind_container,
+              vpn: m.network_kind_vpn,
+              thread: m.network_kind_thread,
+              loopback: m.network_kind_loopback,
+              virtual: m.network_kind_virtual,
+            },
             i.kind,
           )}
         </span>
@@ -296,7 +307,10 @@ function Firewall({ s }: { s: NetworkState }) {
             <p className="m-0 text-[#e3b341]">
               {m.network_firewall_listening({ n: blocked.length })}
               {m.network_firewall_blocked({ ports: blocked.map((p) => `${p.port}/${p.proto}`).join(', ') })}{' '}
-              <span className="font-mono">{f.kind === 'ufw' ? `ufw allow ${blocked[0]!.port}/${blocked[0]!.proto}` : `firewall-cmd --permanent --add-port=${blocked[0]!.port}/${blocked[0]!.proto} && firewall-cmd --reload`}</span>).
+              <span className="font-mono">
+                {f.kind === 'ufw' ? `ufw allow ${blocked[0]!.port}/${blocked[0]!.proto}` : `firewall-cmd --permanent --add-port=${blocked[0]!.port}/${blocked[0]!.proto} && firewall-cmd --reload`}
+              </span>
+              ).
             </p>
           )}
         </>

@@ -1,10 +1,10 @@
 import { useEffect, useState } from 'react'
-import { FEATURES, installCommand, type Feature, type ManagerId } from '~/shared/packages'
+import { m } from '~/paraglide/messages'
+import { FEATURES, type Feature, installCommand, type ManagerId } from '~/shared/packages'
 import { useActions } from './Actions'
 import { BusyButton, useBusy } from './Busy'
 import { Glyph } from './Glyph'
 import { useJobs } from './Jobs'
-import { m } from '~/paraglide/messages'
 
 /**
  * „Not installed“ with a way out: one click installs the package through
@@ -51,7 +51,7 @@ export function InstallHint({ feature, what, onInstalled }: { feature: Feature; 
                 })
               }
             >
-              <Glyph name="download" size={14} /> {m.shell_install_install({ pkgs: (f.packages[manager].join(', ')) })}
+              <Glyph name="download" size={14} /> {m.shell_install_install({ pkgs: f.packages[manager].join(', ') })}
             </BusyButton>
           )}
           <div className="text-[12px] text-muted">
@@ -63,9 +63,12 @@ export function InstallHint({ feature, what, onInstalled }: { feature: Feature; 
         </>
       ) : (
         <div className="text-[12px] text-muted">
-          {m.shell_install_pkg({ list: ((Object.values(f.packages)
+          {m.shell_install_pkg({
+            list: Object.values(f.packages)
               .flat()
-              .filter((v, i, a) => a.indexOf(v) === i))).join(m.shell_install_or()) })}
+              .filter((v, i, a) => a.indexOf(v) === i)
+              .join(m.shell_install_or()),
+          })}
         </div>
       )}
     </div>

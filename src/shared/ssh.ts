@@ -1,7 +1,7 @@
 // SSH access: types shared by the page, the web app and the root helper.
 
-import { msg } from './i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from './i18n'
 
 export interface SshKey {
   type: string
@@ -64,7 +64,10 @@ export interface SshState {
   error?: string
 }
 
-export type SshChange = { kind: 'add-key'; user: string; key: string } | { kind: 'remove-key'; user: string; fingerprint: string; force?: boolean } | { kind: 'settings'; settings: SshSettings; force?: boolean }
+export type SshChange =
+  | { kind: 'add-key'; user: string; key: string }
+  | { kind: 'remove-key'; user: string; fingerprint: string; force?: boolean }
+  | { kind: 'settings'; settings: SshSettings; force?: boolean }
 
 export interface SshPreview {
   file: string

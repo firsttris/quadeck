@@ -52,7 +52,8 @@ export function errorLines(lines: string[], max = 3): number[] {
 }
 
 /** The upgrade to run again after the lock is gone (other pacman jobs: just unlock). */
-const retryKind = (spec: JobSpec): 'upgrade' | 'aur-upgrade' | undefined => (spec.kind === 'upgrade' || spec.kind === 'keyring-upgrade' ? 'upgrade' : spec.kind === 'aur-upgrade' ? spec.kind : spec.kind === 'pacman-unlock' ? spec.retry : undefined)
+const retryKind = (spec: JobSpec): 'upgrade' | 'aur-upgrade' | undefined =>
+  spec.kind === 'upgrade' || spec.kind === 'keyring-upgrade' ? 'upgrade' : spec.kind === 'aur-upgrade' ? spec.kind : spec.kind === 'pacman-unlock' ? spec.retry : undefined
 
 export function diagnoseJob(spec: JobSpec, lines: string[], provider?: string): Diagnosis | undefined {
   if (!PACKAGE_JOBS.has(spec.kind)) return undefined
@@ -70,7 +71,13 @@ export function diagnoseJob(spec: JobSpec, lines: string[], provider?: string): 
   const lock = find(/could not lock database|unable to lock database/)
   if (lock && pacman) {
     const retry = retryKind(spec)
-    return { kind: 'dbLock', lines: [lock.i], unchanged: true, a: '/var/lib/pacman/db.lck', actions: [{ type: 'job', spec: { kind: 'pacman-unlock', ...(retry ? { retry } : {}) }, label: 'unlockRetry' }] }
+    return {
+      kind: 'dbLock',
+      lines: [lock.i],
+      unchanged: true,
+      a: '/var/lib/pacman/db.lck',
+      actions: [{ type: 'job', spec: { kind: 'pacman-unlock', ...(retry ? { retry } : {}) }, label: 'unlockRetry' }],
+    }
   }
   const dpkgLock = find(/^E: Could not get lock /)
   if (dpkgLock) {
@@ -109,19 +116,33 @@ export function diagnoseJob(spec: JobSpec, lines: string[], provider?: string): 
 
   // full disk: pacman checks before it starts, everything else fails on the way
   const full = find(/Partition (\S+) too full|not enough free disk space|No space left on device/)
-  if (full) return { kind: 'diskFull', lines: [full.i], unchanged: /too full|not enough free disk space/.test(lines[full.i]!), a: full.mm[1], actions: [{ type: 'cache' }, { type: 'disks' }, terminal()] }
+  if (full)
+    return { kind: 'diskFull', lines: [full.i], unchanged: /too full|not enough free disk space/.test(lines[full.i]!), a: full.mm[1], actions: [{ type: 'cache' }, { type: 'disks' }, terminal()] }
 
   // downloads: mirror down, file gone (database too old)
   const dl = find(/failed retrieving file|failed to retrieve some files|failed to synchronize all databases|Failed to fetch|Temporary failure resolving/)
-  if (dl) return { kind: 'download', lines: lines.flatMap((l, i) => (/failed retrieving file|failed to retrieve some files|failed to synchronize|Failed to fetch|Temporary failure resolving/.test(l) ? [i] : [])).slice(0, 6), unchanged: pacman, actions: [{ type: 'retry' }] }
+  if (dl)
+    return {
+      kind: 'download',
+      lines: lines.flatMap((l, i) => (/failed retrieving file|failed to retrieve some files|failed to synchronize|Failed to fetch|Temporary failure resolving/.test(l) ? [i] : [])).slice(0, 6),
+      unchanged: pacman,
+      actions: [{ type: 'retry' }],
+    }
 
   // an AUR package that did not build
-  const built = find(/error making: (\S+?)(?:\s+-\s+|-)exit status|failed to build '([^']+)'|==> ERROR: A failure occurred in (build|package|check|prepare)\(\)|==> ERROR: Could not resolve all dependencies/)
+  const built = find(
+    /error making: (\S+?)(?:\s+-\s+|-)exit status|failed to build '([^']+)'|==> ERROR: A failure occurred in (build|package|check|prepare)\(\)|==> ERROR: Could not resolve all dependencies/,
+  )
   if (built) {
     const failedList = find(/^(\S+) - exit status \d+$/)
     const name = built.mm[1] ?? (built.mm[2] ? pkgName(built.mm[2]) : undefined) ?? failedList?.mm[1] ?? lastMaking(lines, built.i)
     const marked = lines.flatMap((l, i) => (/error making:|failed to build '|==> ERROR:|Failed to install the following packages| - exit status \d+$/.test(l) ? [i] : []))
-    return { kind: 'aurBuild', lines: marked, a: name, actions: [...(name ? [{ type: 'link' as const, href: `https://aur.archlinux.org/packages/${encodeURIComponent(name)}`, label: 'aurPage' as const }] : []), terminal()] }
+    return {
+      kind: 'aurBuild',
+      lines: marked,
+      a: name,
+      actions: [...(name ? [{ type: 'link' as const, href: `https://aur.archlinux.org/packages/${encodeURIComponent(name)}`, label: 'aurPage' as const }] : []), terminal()],
+    }
   }
 
   return { kind: 'unknown', lines: errorLines(lines), actions: [terminal()] }

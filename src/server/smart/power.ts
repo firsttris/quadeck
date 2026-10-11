@@ -3,14 +3,14 @@
 
 import { existsSync, readdirSync, readFileSync, readlinkSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
-import { SERIAL, hdparmArgs, parseHdparmApm, parseHdparmState, parsePowerRules, powerRules, type DiskPower, type PowerSetting, type PowerState } from '~/shared/power'
-import { HttpError } from '../auth'
-import { run, type ExecResult } from '../exec'
-import { UnitHistory } from '../systemd/editor'
+import { type PowerSample, parseLsblkKinds, type RaplZone, type SampleDisk } from '~/shared/energy'
+import { msg } from '~/shared/i18n'
+import { type DiskPower, hdparmArgs, type PowerSetting, type PowerState, parseHdparmApm, parseHdparmState, parsePowerRules, powerRules, SERIAL } from '~/shared/power'
 import type { Revision } from '~/shared/quadlets'
-import { parseLsblkKinds, type PowerSample, type RaplZone, type SampleDisk } from '~/shared/energy'
+import { HttpError } from '../auth'
+import { type ExecResult, run } from '../exec'
+import { UnitHistory } from '../systemd/editor'
 
 export interface PowerAdmin {
   diskPower(): Promise<PowerState>
@@ -277,11 +277,20 @@ export class FixturePower implements PowerBackend {
   }
 
   async diskPower(): Promise<PowerState> {
-    return { installed: true, rulesPath: '/etc/udev/rules.d/69-quadeck-power.rules', foreign: [], disks: this.base().map((d) => ({ ...d, ...(d.serial && this.settings[d.serial] ? { setting: this.settings[d.serial] } : {}) })) }
+    return {
+      installed: true,
+      rulesPath: '/etc/udev/rules.d/69-quadeck-power.rules',
+      foreign: [],
+      disks: this.base().map((d) => ({ ...d, ...(d.serial && this.settings[d.serial] ? { setting: this.settings[d.serial] } : {}) })),
+    }
   }
 
   async diskUsers(name: string): Promise<DiskUser[]> {
-    if (name === 'sdb') return [{ command: 'jellyfin', unit: 'jellyfin.service', files: 14 }, { command: 'smbd', unit: 'smb.service', files: 2 }]
+    if (name === 'sdb')
+      return [
+        { command: 'jellyfin', unit: 'jellyfin.service', files: 14 },
+        { command: 'smbd', unit: 'smb.service', files: 2 },
+      ]
     if (name === 'sda') return [{ command: 'immich', unit: 'immich.service', files: 3 }]
     return []
   }

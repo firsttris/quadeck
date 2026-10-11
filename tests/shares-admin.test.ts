@@ -5,7 +5,7 @@ import { describe, expect, it } from 'vitest'
 import { sharesSummary } from '~/server/collectors/shares'
 import { parseShareChange, SystemShares } from '~/server/shares/backend'
 import { parseExportsFile, parseNfsdClientInfo, parseSmbstatusShares, renderExport, setExport, setSmbShare, smbShares } from '~/server/shares/config'
-import { validateNfs, validateSharePath, validateSmb, type SmbShareSpec } from '~/shared/shares'
+import { type SmbShareSpec, validateNfs, validateSharePath, validateSmb } from '~/shared/shares'
 
 const CONF = `[global]
    workgroup = WORKGROUP
@@ -44,7 +44,9 @@ describe('smb.conf', () => {
   it('changes one section, keeps other keys/comments, drops contradicting synonyms', () => {
     const out = setSmbShare(CONF, 'Medien', spec({ readOnly: false, guestOk: false, validUsers: 'tristan, @family' }))
     expect(out).toContain('[global]\n   workgroup = WORKGROUP')
-    expect(out).toContain('# Filme und Serien\n[Medien]\n   path = /mnt/storage/media\n   comment = Filme\n   read only = no\n   guest ok = no\n   valid users = tristan @family\n   browseable = yes\n   create mask = 0664\n   ; Vorschaubilder ausblenden\n   veto files = /.thumbs/\n')
+    expect(out).toContain(
+      '# Filme und Serien\n[Medien]\n   path = /mnt/storage/media\n   comment = Filme\n   read only = no\n   guest ok = no\n   valid users = tristan @family\n   browseable = yes\n   create mask = 0664\n   ; Vorschaubilder ausblenden\n   veto files = /.thumbs/\n',
+    )
     expect(out).not.toContain('writeable')
     expect(out.split('[Fotos]')[1]).toBe(CONF.split('[Fotos]')[1])
     expect(smbShares(out)[0]).toMatchObject({ readOnly: false, validUsers: 'tristan @family', extraKeys: ['create mask', 'veto files'] })
@@ -71,7 +73,14 @@ describe('exports', () => {
   it('parses, replaces, appends and removes lines', () => {
     expect(parseExportsFile(EXP)).toEqual([
       { path: '/mnt/storage/downloads', clients: [{ host: '192.168.1.0/24', options: ['rw', 'sync', 'no_subtree_check'] }], line: 1 },
-      { path: '/mnt/with space', clients: [{ host: '10.0.0.1', options: ['ro'] }, { host: '10.0.0.2', options: ['rw'] }], line: 2 },
+      {
+        path: '/mnt/with space',
+        clients: [
+          { host: '10.0.0.1', options: ['ro'] },
+          { host: '10.0.0.2', options: ['rw'] },
+        ],
+        line: 2,
+      },
     ])
     const changed = setExport(EXP, '/mnt/with space', { path: '/mnt/with space', clients: [{ host: '*', options: ['ro', 'sync'] }] })
     expect(changed).toBe('# NFS exports\n/mnt/storage/downloads  192.168.1.0/24(rw,sync,no_subtree_check)\n"/mnt/with space" *(ro,sync)\n')
@@ -93,7 +102,17 @@ describe('validation', () => {
     expect(validateSmb(spec({ comment: 'x\npath = /etc' }))).toHaveLength(1)
     expect(validateNfs({ path: '/mnt/x', clients: [{ host: '192.168.1.0/24', options: ['rw', 'sync', 'fsid=0', 'anonuid=1000'] }] })).toEqual([])
     // Hand-written exports with less common options stay editable.
-    expect(validateNfs({ path: '/mnt/x', clients: [{ host: '*.lan', options: ['ro', 'wdelay', 'insecure_locks', 'no_acl', 'mountpoint=/mnt/x', 'refer=/a@srv1+srv2', 'xprtsec=tls:mtls', 'anonuid=-2', 'fsid=1a2b3c4d-1111-2222-3333-444455556666'] }] })).toEqual([])
+    expect(
+      validateNfs({
+        path: '/mnt/x',
+        clients: [
+          {
+            host: '*.lan',
+            options: ['ro', 'wdelay', 'insecure_locks', 'no_acl', 'mountpoint=/mnt/x', 'refer=/a@srv1+srv2', 'xprtsec=tls:mtls', 'anonuid=-2', 'fsid=1a2b3c4d-1111-2222-3333-444455556666'],
+          },
+        ],
+      }),
+    ).toEqual([])
     expect(validateNfs({ path: '/mnt/x', clients: [{ host: 'h', options: ['mountpoint=/x,rw'] }] })).toHaveLength(1)
     expect(validateNfs({ path: '/mnt/x', clients: [{ host: 'h', options: ['rw', 'ro'] }] })).toHaveLength(1)
     expect(validateNfs({ path: '/mnt/x', clients: [{ host: 'h(rw) *', options: [] }] })).toHaveLength(1)

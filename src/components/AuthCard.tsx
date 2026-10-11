@@ -1,7 +1,7 @@
-import { useEffect, useState, type ReactNode } from 'react'
-import { LANGS, switchLang, useLang, type Lang } from '~/i18n'
-import { Logo } from './Glyph'
+import { type ReactNode, useEffect, useState } from 'react'
+import { LANGS, type Lang, switchLang, useLang } from '~/i18n'
 import { m } from '~/paraglide/messages'
+import { Logo } from './Glyph'
 
 export function AuthCard({ title, subtitle, children }: { title: string; subtitle: string; children: ReactNode }) {
   return (
@@ -58,7 +58,14 @@ function ContainerShip() {
             <g key={`${col}-${row}`} className="auth-box" style={{ animationDelay: `${0.35 + n * 0.16}s` }}>
               <rect x={x} y={y} width={BOX.w} height={BOX.h} rx={1.5} fill={`color-mix(in srgb, ${tone} 28%, transparent)`} stroke={tone} strokeWidth={1} />
               <path d={`M${x + 7} ${y + 2.5}v7M${x + 13} ${y + 2.5}v7M${x + 19} ${y + 2.5}v7`} stroke={tone} strokeOpacity={0.45} strokeWidth={1} />
-              <circle className="auth-led" cx={x + BOX.w - 3} cy={y + 3} r={1.2} fill="var(--color-ok)" style={{ animationDelay: `${(n * 0.73) % 2.4}s`, animationDuration: `${1.8 + (n % 3) * 0.5}s` }} />
+              <circle
+                className="auth-led"
+                cx={x + BOX.w - 3}
+                cy={y + 3}
+                r={1.2}
+                fill="var(--color-ok)"
+                style={{ animationDelay: `${(n * 0.73) % 2.4}s`, animationDuration: `${1.8 + (n % 3) * 0.5}s` }}
+              />
             </g>
           )
         })}

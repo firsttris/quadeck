@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
 
 // Demo archives (FixtureFiles): /mnt/disk2/Archiv/fotos-2019.tar.gz and the crafted fremd.tar.gz.
 const PASSWORD = 'e2e-password-123'

@@ -1,5 +1,5 @@
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import type { Health, Unit } from '~/shared/types'
 
 export type Tone = 'ok' | 'warn' | 'bad' | 'idle'

@@ -1,8 +1,8 @@
-import { mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync, existsSync, chmodSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { FixtureConfigFs, SystemConfigFs, applyConfigAction, configFileInfo } from '~/server/packages/configfiles'
+import { applyConfigAction, configFileInfo, FixtureConfigFs, SystemConfigFs } from '~/server/packages/configfiles'
 import { findConfigFiles } from '~/server/packages/maintenance'
 import { describeConfigFile, parseConfigPath } from '~/shared/configfiles'
 
@@ -53,7 +53,14 @@ describe('demo', () => {
 
   it('shows both versions; refuses paths outside the list', async () => {
     const { fs } = setup()
-    expect(await configFileInfo(fs, '/etc/ssh/sshd_config.pacnew')).toMatchObject({ live: '/etc/ssh/sshd_config', kind: 'new', liveExists: true, liveContent: 'Port 22\nUsePAM yes\n', content: '#Port 22\nUsePAM yes\n', check: 'sshd -t' })
+    expect(await configFileInfo(fs, '/etc/ssh/sshd_config.pacnew')).toMatchObject({
+      live: '/etc/ssh/sshd_config',
+      kind: 'new',
+      liveExists: true,
+      liveContent: 'Port 22\nUsePAM yes\n',
+      content: '#Port 22\nUsePAM yes\n',
+      check: 'sshd -t',
+    })
     await expect(configFileInfo(fs, '/etc/shadow')).rejects.toThrow(/nicht \(mehr\) in der Liste/)
   })
 

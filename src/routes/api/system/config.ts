@@ -1,11 +1,11 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { HttpError } from '~/server/auth'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { HttpError } from '~/server/auth'
 import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
 import { privileged } from '~/server/privileged'
 import { unlockToken } from '~/server/unlock-sessions'
+import { msg } from '~/shared/i18n'
 
 // .pacnew & co. GET ?path= → both versions, note, what is allowed.
 // POST { path, action: 'replace' | 'keep' | 'merge', content? } with unlock.

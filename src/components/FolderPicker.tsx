@@ -1,8 +1,8 @@
 import { useEffect, useState } from 'react'
 import { api } from '~/lib/api'
 import { bytes } from '~/lib/format'
-import type { FolderListing } from '~/shared/backup'
 import { m } from '~/paraglide/messages'
+import type { FolderListing } from '~/shared/backup'
 import { Glyph } from './Glyph'
 import { Modal } from './Modal'
 
@@ -49,7 +49,11 @@ export function FolderPicker({ value, onChange, compare, target }: { value: stri
           {crumbs.map((c, i) => (
             <span key={i} className="flex items-center gap-0.5">
               {i > 0 && <span className="text-faint">/</span>}
-              <button type="button" className={`rounded px-1 ${i === crumbs.length - 1 ? 'text-accent' : 'text-subtle hover:text-fg'}`} onClick={() => onChange(`/${crumbs.slice(0, i + 1).join('/')}`)}>
+              <button
+                type="button"
+                className={`rounded px-1 ${i === crumbs.length - 1 ? 'text-accent' : 'text-subtle hover:text-fg'}`}
+                onClick={() => onChange(`/${crumbs.slice(0, i + 1).join('/')}`)}
+              >
                 {c}
               </button>
             </span>
@@ -64,14 +68,22 @@ export function FolderPicker({ value, onChange, compare, target }: { value: stri
         <ul className="m-0 max-h-[220px] list-none overflow-y-auto p-0" aria-label={m.folders_list()}>
           {shown !== '/' && (
             <li>
-              <button type="button" className="flex w-full items-center gap-2 border-b border-line px-3 py-[6px] text-left text-[13px] text-muted hover:bg-white/3" onClick={() => onChange(parentOf(shown))}>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 border-b border-line px-3 py-[6px] text-left text-[13px] text-muted hover:bg-white/3"
+                onClick={() => onChange(parentOf(shown))}
+              >
                 <span aria-hidden="true">↑</span> {m.folders_up()}
               </button>
             </li>
           )}
           {dirs.map((d) => (
             <li key={d}>
-              <button type="button" className="flex w-full items-center gap-2 border-b border-line px-3 py-[6px] text-left font-mono text-[13px] last:border-0 hover:bg-accent/8" onClick={() => onChange(join(shown, d))}>
+              <button
+                type="button"
+                className="flex w-full items-center gap-2 border-b border-line px-3 py-[6px] text-left font-mono text-[13px] last:border-0 hover:bg-accent/8"
+                onClick={() => onChange(join(shown, d))}
+              >
                 <span className="text-accent">
                   <Glyph name="folder" size={14} />
                 </span>
@@ -89,13 +101,23 @@ export function FolderPicker({ value, onChange, compare, target }: { value: stri
       )}
       {listing?.missing && (
         <p className="m-0 text-[12px] text-muted" data-testid="folder-missing">
-          {target && parentOf(path) === listing.path ? m.folders_willCreate({ name: path.slice(path.lastIndexOf('/') + 1) }) : <span className="text-[#e3b341]">{m.folders_missing({ path: parentOf(path) })}</span>}
+          {target && parentOf(path) === listing.path ? (
+            m.folders_willCreate({ name: path.slice(path.lastIndexOf('/') + 1) })
+          ) : (
+            <span className="text-[#e3b341]">{m.folders_missing({ path: parentOf(path) })}</span>
+          )}
         </p>
       )}
       {listing?.disk && (
         <p className="m-0 text-[12px] text-muted" data-testid="folder-disk">
           {m.folders_disk({ mount: listing.disk.mount, free: bytes(listing.disk.free), size: bytes(listing.disk.size) })}
-          {compare && compare.length > 0 && (listing.sameDisk.length > 0 ? <span className="text-[#e3b341]"> · {m.folders_sameDisk({ count: listing.sameDisk.length })}</span> : <span className="text-[#7ee2a8]"> · {m.folders_otherDisk()}</span>)}
+          {compare &&
+            compare.length > 0 &&
+            (listing.sameDisk.length > 0 ? (
+              <span className="text-[#e3b341]"> · {m.folders_sameDisk({ count: listing.sameDisk.length })}</span>
+            ) : (
+              <span className="text-[#7ee2a8]"> · {m.folders_otherDisk()}</span>
+            ))}
         </p>
       )}
     </div>

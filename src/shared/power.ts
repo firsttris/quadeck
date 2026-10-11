@@ -2,8 +2,8 @@
 // itself (APM, hdparm -B). Set per disk, bound to its serial number through a udev rule, so it
 // survives reboots and replugging. No I/O here.
 
-import { msg } from './i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from './i18n'
 
 export const STANDBY_MINUTES = [0, 10, 20, 30, 60, 120] as const
 export type StandbyMinutes = (typeof STANDBY_MINUTES)[number]

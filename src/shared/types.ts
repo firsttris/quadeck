@@ -120,10 +120,7 @@ export interface Unit {
   socket?: { listen: string[]; triggers?: string }
 }
 
-export type IconRef =
-  | { kind: 'dash'; slug: string }
-  | { kind: 'favicon'; key: string }
-  | { kind: 'glyph'; glyph: string }
+export type IconRef = { kind: 'dash'; slug: string } | { kind: 'favicon'; key: string } | { kind: 'glyph'; glyph: string }
 
 export interface Service {
   key: string

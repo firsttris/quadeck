@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { getSession } from '~/server/auth'
 import { authed } from '~/server/http'
-import { hubReady, type HubEvent } from '~/server/hub'
+import { type HubEvent, hubReady } from '~/server/hub'
 import { localizeDeep, requestLang } from '~/server/lang'
 import type { Lang } from '~/shared/i18n'
 

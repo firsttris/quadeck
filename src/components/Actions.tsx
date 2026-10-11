@@ -1,10 +1,10 @@
-import { createContext, useCallback, useContext, useState, type ReactNode } from 'react'
-import { api, ApiError } from '~/lib/api'
-import { useUnlock } from './Unlock'
+import { createContext, type ReactNode, useCallback, useContext, useState } from 'react'
+import { pickMsg } from '~/i18n'
+import { ApiError, api } from '~/lib/api'
+import { m } from '~/paraglide/messages'
 import { ConfirmDialog } from './Modal'
 import { useToast } from './Toast'
-import { m } from '~/paraglide/messages'
-import { pickMsg } from '~/i18n'
+import { useUnlock } from './Unlock'
 
 type Action = 'start' | 'stop' | 'restart'
 type Target = { kind: 'unit'; name: string } | { kind: 'container'; name: string; unit?: string }
@@ -20,7 +20,7 @@ interface Ctx {
 const ActionCtx = createContext<Ctx>({ run: () => {}, busy: null, busyAction: null, readonly: false })
 
 /** The "…ing" label for an action (for BusyButton). */
-export const actionBusyLabel = (action: Action) => pickMsg({ "start": m.common_starting, "stop": m.common_stopping, "restart": m.common_restarting }, action)
+export const actionBusyLabel = (action: Action) => pickMsg({ start: m.common_starting, stop: m.common_stopping, restart: m.common_restarting }, action)
 
 /**
  * Unit/container actions with confirmation for the dangerous ones (stop,
@@ -50,7 +50,9 @@ export function ActionsProvider({ readonly, children }: { readonly: boolean; chi
           r = await call()
         }
         const what = target.kind === 'container' && target.unit ? target.unit : target.name
-        say(`${what} ${pickMsg({ "start": m.shell_actions_done_start, "stop": m.shell_actions_done_stop, "restart": m.shell_actions_done_restart }, action)} (${r.via === 'podman' ? `Podman-API` : `systemctl ${action}`})`)
+        say(
+          `${what} ${pickMsg({ start: m.shell_actions_done_start, stop: m.shell_actions_done_stop, restart: m.shell_actions_done_restart }, action)} (${r.via === 'podman' ? `Podman-API` : `systemctl ${action}`})`,
+        )
       } catch (e) {
         say((e as Error).message, 'bad')
       } finally {
@@ -77,9 +79,17 @@ export function ActionsProvider({ readonly, children }: { readonly: boolean; chi
       {children}
       <ConfirmDialog
         open={!!p}
-        title={p ? m.shell_actions_confirmTitle({ name: p.target.name, action: pickMsg({ "start": m.shell_actions_label_start, "stop": m.shell_actions_label_stop, "restart": m.shell_actions_label_restart }, p.action), actionLower: (pickMsg({ "start": m.shell_actions_label_start, "stop": m.shell_actions_label_stop, "restart": m.shell_actions_label_restart }, p.action)).toLowerCase() }) : ''}
+        title={
+          p
+            ? m.shell_actions_confirmTitle({
+                name: p.target.name,
+                action: pickMsg({ start: m.shell_actions_label_start, stop: m.shell_actions_label_stop, restart: m.shell_actions_label_restart }, p.action),
+                actionLower: pickMsg({ start: m.shell_actions_label_start, stop: m.shell_actions_label_stop, restart: m.shell_actions_label_restart }, p.action).toLowerCase(),
+              })
+            : ''
+        }
         danger={p?.action === 'stop'}
-        confirm={p ? pickMsg({ "start": m.shell_actions_label_start, "stop": m.shell_actions_label_stop, "restart": m.shell_actions_label_restart }, p.action) : ''}
+        confirm={p ? pickMsg({ start: m.shell_actions_label_start, stop: m.shell_actions_label_stop, restart: m.shell_actions_label_restart }, p.action) : ''}
         busyLabel={p ? actionBusyLabel(p.action) : undefined}
         body={
           <p className="m-0">

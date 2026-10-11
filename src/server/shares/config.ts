@@ -1,8 +1,8 @@
 // Text operations on smb.conf and exports files. Only the edited share
 // changes; comments, [global] and everything Quadeck does not know stay.
 
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import type { NfsClient, NfsExportSpec, SmbShareInfo, SmbShareSpec } from '~/shared/shares'
 
 // ---------- smb.conf ----------

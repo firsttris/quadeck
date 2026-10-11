@@ -1,12 +1,12 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { m } from '~/paraglide/messages'
 import { HttpError } from '~/server/auth'
 import { authed, readJson } from '~/server/http'
 import { hub } from '~/server/hub'
+import { outsideRequest } from '~/server/lang'
 import { notifier } from '~/server/notify'
 import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
-import { maskSettings, parseSettings, type NotifyState } from '~/shared/notify'
-import { outsideRequest } from '~/server/lang'
+import { maskSettings, type NotifyState, parseSettings } from '~/shared/notify'
 
 const masked = (s: NotifyState): NotifyState => ({ ...s, settings: maskSettings(s.settings) })
 

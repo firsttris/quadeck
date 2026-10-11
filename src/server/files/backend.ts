@@ -3,18 +3,32 @@
 // never the system. Symlinks are resolved before the check, so a link
 // cannot lead out. Copy/move/delete run as jobs (`quadeck job`).
 
-import { chownSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync, renameSync, statfsSync, statSync, type Stats } from 'node:fs'
-import { contentHash } from '~/shared/caddy'
+import { chownSync, closeSync, existsSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, readSync, realpathSync, renameSync, type Stats, statfsSync, statSync } from 'node:fs'
 import { join } from 'node:path'
-import { HttpError } from '../auth'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
-import type { FsOps } from './transfer'
-import { preparePack, previewExtract, systemArchiveHost, type ArchiveHost, type ExtractJob, type PackJob, assertExtractable } from './archives'
-import { normEntry, type ArchiveEntry, type ArchivePreview } from '~/shared/archives'
-import type { OpenedFile } from './serve'
-import { baseName, isSensitivePath, joinPath, looksLikeText, MAX_ENTRIES, parentOf, TEXT_MAX, validateName, validatePath, type DirListing, type FileEntry, type FileRoot, type TextFile } from '~/shared/files'
+import { type ArchiveEntry, type ArchivePreview, normEntry } from '~/shared/archives'
+import { contentHash } from '~/shared/caddy'
+import {
+  baseName,
+  type DirListing,
+  type FileEntry,
+  type FileRoot,
+  isSensitivePath,
+  joinPath,
+  looksLikeText,
+  MAX_ENTRIES,
+  parentOf,
+  TEXT_MAX,
+  type TextFile,
+  validateName,
+  validatePath,
+} from '~/shared/files'
+import { msg } from '~/shared/i18n'
 import { writeFileAtomic } from '../atomic'
+import { HttpError } from '../auth'
+import { type ArchiveHost, assertExtractable, type ExtractJob, type PackJob, preparePack, previewExtract, systemArchiveHost } from './archives'
+import type { OpenedFile } from './serve'
+import type { FsOps } from './transfer'
 
 export interface FilesAdmin {
   fileRoots(): Promise<FileRoot[]>
@@ -60,7 +74,8 @@ export function textToWrite(current: TextFile, content: string, expected: string
 }
 
 const DEFAULT_ROOTS = ['/mnt', '/srv', '/media', '/home', '/data']
-const VIRTUAL_FS = /^(proc|sysfs|tmpfs|devtmpfs|devpts|cgroup2?|securityfs|pstore|bpf|debugfs|tracefs|configfs|fusectl|mqueue|hugetlbfs|autofs|overlay|nsfs|ramfs|efivarfs|binfmt_misc|rpc_pipefs|nfsd|fuse\.portal|squashfs)$/
+const VIRTUAL_FS =
+  /^(proc|sysfs|tmpfs|devtmpfs|devpts|cgroup2?|securityfs|pstore|bpf|debugfs|tracefs|configfs|fusectl|mqueue|hugetlbfs|autofs|overlay|nsfs|ramfs|efivarfs|binfmt_misc|rpc_pipefs|nfsd|fuse\.portal|squashfs)$/
 const SYSTEM = /^\/(boot|efi|etc|root|proc|sys|dev|run|var|usr|bin|sbin|lib|lib64|opt|snap)(\/|$)/
 
 /** QUADECK_FILE_ROOTS (comma separated) or the default data areas plus data mounts outside them. */
@@ -215,7 +230,12 @@ export class SystemFiles implements FilesBackend {
       }
     }
     const users = idNames('/etc/passwd')
-    return textFileFrom(real, st.size > TEXT_MAX ? undefined : raw, { size: st.size, mtime: st.mtimeMs, owner: users.get(st.uid) ?? String(st.uid), mode: (st.mode & 0o7777).toString(8).padStart(3, '0') })
+    return textFileFrom(real, st.size > TEXT_MAX ? undefined : raw, {
+      size: st.size,
+      mtime: st.mtimeMs,
+      owner: users.get(st.uid) ?? String(st.uid),
+      mode: (st.mode & 0o7777).toString(8).padStart(3, '0'),
+    })
   }
 
   async readTextFile(path: string, allowSensitive: boolean) {
@@ -301,7 +321,13 @@ export class FixtureFiles implements FilesBackend {
         Downloads: dir('tristan', { 'ubuntu-24.04.iso': file(6_200_000_000, 2), 'alt.zip': file(120_000_000, 90) }),
       }),
     )
-    const sample = (name: string, days = 30): Node => ({ type: 'file', size: statSync(join(this.fixtureDir, 'files', name)).size, mtime: now - 86_400_000 * days, owner: 'tristan', source: join(this.fixtureDir, 'files', name) })
+    const sample = (name: string, days = 30): Node => ({
+      type: 'file',
+      size: statSync(join(this.fixtureDir, 'files', name)).size,
+      mtime: now - 86_400_000 * days,
+      owner: 'tristan',
+      source: join(this.fixtureDir, 'files', name),
+    })
     const archive = (size: number, entries: ArchiveEntry[]) => (path: string) => {
       this.archives.set(path, entries)
       return file(size, 120)
@@ -320,7 +346,14 @@ export class FixtureFiles implements FilesBackend {
       { path: 'home', type: 'link', size: 0, target: '/root' },
       { path: 'tool', type: 'file', size: 9000, special: true },
     ])
-    this.tree.set('/mnt/disk2', dir('root', { Archiv: dir('tristan', { 'fotos-2019.tar.gz': fotos2019('/mnt/disk2/Archiv/fotos-2019.tar.gz'), 'fremd.tar.gz': fremd('/mnt/disk2/Archiv/fremd.tar.gz') }), Fotos: dir('tristan', { '2024': dir('tristan', { 'IMG_0001.jpg': sample('photo.jpg', 300), 'IMG_0002.jpg': file(3_900_000, 300) }) }), Backup: dir('root') }))
+    this.tree.set(
+      '/mnt/disk2',
+      dir('root', {
+        Archiv: dir('tristan', { 'fotos-2019.tar.gz': fotos2019('/mnt/disk2/Archiv/fotos-2019.tar.gz'), 'fremd.tar.gz': fremd('/mnt/disk2/Archiv/fremd.tar.gz') }),
+        Fotos: dir('tristan', { '2024': dir('tristan', { 'IMG_0001.jpg': sample('photo.jpg', 300), 'IMG_0002.jpg': file(3_900_000, 300) }) }),
+        Backup: dir('root'),
+      }),
+    )
     const text = (content: string, days = 5): Node => ({ type: 'file', size: new TextEncoder().encode(content).length, mtime: now - 86_400_000 * days, owner: 'tristan', content })
     this.tree.set(
       '/srv',
@@ -328,7 +361,9 @@ export class FixtureFiles implements FilesBackend {
         jellyfin: dir('root', { config: dir('root') }),
         scripts: dir('tristan', {
           'backup.sh': text('#!/bin/sh\n# Nightly backup of the photos to the second disk\nset -eu\nrsync -a --delete /mnt/disk2/Fotos/ /mnt/disk1/Backup/Fotos/\necho "backup done: $(date)"\n'),
-          'jellyfin-hwaccel.patch': text('--- a/encoding.xml\n+++ b/encoding.xml\n@@ -3,1 +3,1 @@\n-  <HardwareAccelerationType>none</HardwareAccelerationType>\n+  <HardwareAccelerationType>qsv</HardwareAccelerationType>\n'),
+          'jellyfin-hwaccel.patch': text(
+            '--- a/encoding.xml\n+++ b/encoding.xml\n@@ -3,1 +3,1 @@\n-  <HardwareAccelerationType>none</HardwareAccelerationType>\n+  <HardwareAccelerationType>qsv</HardwareAccelerationType>\n',
+          ),
           'mainboard-manual.pdf': sample('manual.pdf', 60),
           'NOTES.txt': text('Router: 192.168.1.1\nNAS disks: 2× 12 TB, 2× 14 TB (parity)\nTODO: replace sdb (reallocated sectors)\n', 20),
           firmware: { type: 'file', size: 4096, mtime: now - 86_400_000 * 40, owner: 'root', content: '\u0000\u0001binary' },
@@ -367,7 +402,15 @@ export class FixtureFiles implements FilesBackend {
     const n = this.node(path)
     if (!n) throw new HttpError(404, msg(m.files_error_notFound, { path }))
     if (n.type !== 'dir') throw new HttpError(400, msg(m.files_error_notFolder, { path }))
-    const entries = [...n.children!].map(([name, c]) => ({ name, type: c.type, size: c.size, mtime: c.mtime, mode: c.type === 'dir' ? '775' : '664', owner: c.owner, group: c.owner === 'root' ? 'root' : 'users' }))
+    const entries = [...n.children!].map(([name, c]) => ({
+      name,
+      type: c.type,
+      size: c.size,
+      mtime: c.mtime,
+      mode: c.type === 'dir' ? '775' : '664',
+      owner: c.owner,
+      group: c.owner === 'root' ? 'root' : 'users',
+    }))
     return { path, root, entries, truncated: false }
   }
 

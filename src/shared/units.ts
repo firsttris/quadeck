@@ -1,6 +1,7 @@
 // Shared by the server collector and the UI alarm card.
-import { msg } from './i18n'
+
 import { m } from '~/paraglide/messages'
+import { msg } from './i18n'
 import type { Unit } from './types'
 
 /** Human-readable reason for a failed unit (shown on the alarm card). */

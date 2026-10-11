@@ -1,6 +1,6 @@
 import { containerState } from '~/components/Status'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import type { Container, Unit } from '~/shared/types'
 
 export const FILTER_KEYS = ['all', 'container', 'service', 'timer', 'socket', 'failed'] as const

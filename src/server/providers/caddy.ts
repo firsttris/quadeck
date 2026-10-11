@@ -4,10 +4,10 @@
 // neither the API nor the binary is available on the host).
 
 import { existsSync, readFileSync } from 'node:fs'
+import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import { run } from '../exec'
 import type { DiscoveryProvider, ServiceCandidate } from './types'
-import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 
 interface CaddyRoute {
   match?: { host?: string[]; path?: string[] }[]

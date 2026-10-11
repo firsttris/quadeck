@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
 
 // Demo: fixtures/demo/disks.json (mounted file systems) with 60 days of seeded fill-level history.
 const PASSWORD = 'e2e-password-123'

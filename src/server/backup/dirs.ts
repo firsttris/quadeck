@@ -3,9 +3,9 @@
 
 import { readdirSync, statfsSync, statSync } from 'node:fs'
 import { dirname, join } from 'node:path'
+import { m } from '~/paraglide/messages'
 import { absPathProblem, type FolderListing } from '~/shared/backup'
 import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 import { HttpError } from '../auth'
 
 /** What the browser needs from a file system (the real one, or the demo tree). */
@@ -108,7 +108,11 @@ export function treeDirFs(paths: string[], mounts: Record<string, { size: number
 /** listDirs with `volume:<name>` paths compared by their folder on the host. */
 export async function dirsWithVolumes(fs: DirFs, path: string, compare: string[], resolve: (p: string) => Promise<string | undefined>): Promise<FolderListing> {
   const resolved = await Promise.all(compare.slice(0, MAX_COMPARE).map(async (c) => [c, await resolve(c).catch(() => undefined)] as const))
-  const listing = listDirs(fs, path, resolved.flatMap(([, r]) => (r ? [r] : [])))
+  const listing = listDirs(
+    fs,
+    path,
+    resolved.flatMap(([, r]) => (r ? [r] : [])),
+  )
   const same = new Set(listing.sameDisk)
   return { ...listing, sameDisk: resolved.filter(([, r]) => r !== undefined && same.has(r)).map(([c]) => c) }
 }

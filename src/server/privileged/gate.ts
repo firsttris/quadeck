@@ -3,10 +3,10 @@
 // It lives where the root actions run — in the helper when there is one —
 // so a compromised web app cannot act without the password.
 
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import { HttpError } from '../auth'
-import { readAuthFiles, suggestedUser, verifySystemPassword, type SystemAuthFiles } from './crypt'
+import { readAuthFiles, type SystemAuthFiles, suggestedUser, verifySystemPassword } from './crypt'
 
 /** system: Linux password (default) · quadeck: Quadeck password (single-process only) · none: no unlock needed */
 export type UnlockMode = 'system' | 'quadeck' | 'none'

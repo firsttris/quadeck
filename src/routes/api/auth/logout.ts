@@ -8,7 +8,9 @@ export const Route = createFileRoute('/api/auth/logout')({
   server: {
     handlers: {
       POST: authed(async ({ request }, session) => {
-        await privileged().lock(unlockToken(session.id)).catch(() => {})
+        await privileged()
+          .lock(unlockToken(session.id))
+          .catch(() => {})
         clearUnlockToken(session.id)
         destroySession(request)
         return Response.json({ ok: true }, { headers: { 'set-cookie': clearedSessionCookie(request) } })

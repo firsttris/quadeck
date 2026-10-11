@@ -5,11 +5,11 @@
 
 import { randomBytes } from 'node:crypto'
 import { and, asc, gte, sql } from 'drizzle-orm'
-import { getSetting, setSetting } from './settings'
-import { db, metricPrefix, schema } from './db'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
-import { DEFAULT_SCHEDULE, judgeSpeed, lastSlot, mbps, pingStats, SPEED_HISTORY, usualDown, type SpeedResult, type SpeedSchedule } from '~/shared/speedtest'
+import { msg } from '~/shared/i18n'
+import { DEFAULT_SCHEDULE, judgeSpeed, lastSlot, mbps, pingStats, SPEED_HISTORY, type SpeedResult, type SpeedSchedule, usualDown } from '~/shared/speedtest'
+import { db, metricPrefix, schema } from './db'
+import { getSetting, setSetting } from './settings'
 
 const CHUNK = randomBytes(1024 * 1024)
 /** Upper limit of one download request from the page. */
@@ -148,7 +148,7 @@ export async function demoInternetSpeed(onProgress: (p: SpeedProgress) => void =
 
 // ---------- one run at a time, saved, judged ----------
 
-export type SpeedCheck = { at: number; alert?: 'slow' | 'down'; down?: number; expected?: number; detail?: string; /** A bad result waits for a second one. */ recheckAt?: number }
+export type SpeedCheck = { at: number; alert?: 'slow' | 'down'; down?: number; expected?: number; detail?: string /** A bad result waits for a second one. */; recheckAt?: number }
 
 const CHECK = 'speedtest.check'
 const SCHEDULE = 'speedtest.schedule'
@@ -227,7 +227,12 @@ export function speedSeries(days = 365, now = Date.now()): Record<'down' | 'up' 
  * saved, recorded for the graph and judged for the notification rule: a bad result is
  * measured again after 15 minutes and only reported when that one is bad too.
  */
-export function runInternetTest(opts: { demo: boolean; auto?: boolean; rule?: { enabled: boolean; speedMode: 'relative' | 'fixed'; speedPercent: number; speedMbit: number }; onProgress?: (p: SpeedProgress) => void }): Promise<SpeedResult> {
+export function runInternetTest(opts: {
+  demo: boolean
+  auto?: boolean
+  rule?: { enabled: boolean; speedMode: 'relative' | 'fixed'; speedPercent: number; speedMbit: number }
+  onProgress?: (p: SpeedProgress) => void
+}): Promise<SpeedResult> {
   if (running) return running
   const before = speedHistory()
   running = (opts.demo ? demoInternetSpeed(opts.onProgress) : internetSpeed({ onProgress: opts.onProgress }))
@@ -249,7 +254,12 @@ export function runInternetTest(opts: { demo: boolean; auto?: boolean; rule?: { 
   return running
 }
 
-function judge(down: number | undefined, error: string | undefined, before: SpeedResult[], rule: { enabled: boolean; speedMode: 'relative' | 'fixed'; speedPercent: number; speedMbit: number } | undefined) {
+function judge(
+  down: number | undefined,
+  error: string | undefined,
+  before: SpeedResult[],
+  rule: { enabled: boolean; speedMode: 'relative' | 'fixed'; speedPercent: number; speedMbit: number } | undefined,
+) {
   const now = Date.now()
   const prev = speedCheck()
   if (!rule?.enabled) return setSetting(CHECK, { at: now })
@@ -274,19 +284,16 @@ export async function speedTick(opts: { demo: boolean; rule: { enabled: boolean;
 }
 
 export const speedCheckMessage = (c: SpeedCheck | undefined) =>
-  c?.alert === 'down' ? msg(m.speed_alert_down, { detail: c.detail ?? '' }) : c?.alert === 'slow' ? msg(m.speed_alert_slow, { down: Math.round(c.down ?? 0), expected: Math.round(c.expected ?? 0) }) : undefined
+  c?.alert === 'down'
+    ? msg(m.speed_alert_down, { detail: c.detail ?? '' })
+    : c?.alert === 'slow'
+      ? msg(m.speed_alert_slow, { down: Math.round(c.down ?? 0), expected: Math.round(c.expected ?? 0) })
+      : undefined
 
 /** Demo: two months of daily measurements for the graph (once). */
 export function seedSpeedHistory(now = Date.now()) {
   const t = schema.metricSamples
-  if (
-    db()
-      .select({ n: sql<number>`count(*)` })
-      .from(t)
-      .where(metricPrefix('speed:'))
-      .get()!.n > 0
-  )
-    return
+  if (db().select({ n: sql<number>`count(*)` }).from(t).where(metricPrefix('speed:')).get()!.n > 0) return
   const rows: { ts: number; metric: string; value: number }[] = []
   let seed = 11
   const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647

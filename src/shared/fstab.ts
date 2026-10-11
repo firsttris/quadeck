@@ -1,8 +1,8 @@
 // /etc/fstab: parser, writer, option catalogue and the checks that do not need
 // the host. Shared by the disks page, the web app and the root helper.
 
-import { msg, type Message } from './i18n'
 import { m } from '~/paraglide/messages'
+import { type Message, msg } from './i18n'
 import type { Diagnostic, Revision } from './quadlets'
 
 export interface FstabEntry {
@@ -500,7 +500,17 @@ export function defaultOptions(fstype: string): string[] {
 export const defaultPassno = (fstype: string) => (['ext2', 'ext3', 'ext4'].includes(fstype) ? 2 : 0)
 
 /** Driver/helper a file system needs, for the install hint. */
-export const FS_PACKAGE: Record<string, string> = { 'ntfs-3g': 'ntfs-3g', ntfs: 'ntfs-3g', exfat: 'exfatprogs', btrfs: 'btrfs-progs', xfs: 'xfsprogs', f2fs: 'f2fs-tools', cifs: 'cifs-utils', nfs: 'nfs-utils', nfs4: 'nfs-utils' }
+export const FS_PACKAGE: Record<string, string> = {
+  'ntfs-3g': 'ntfs-3g',
+  ntfs: 'ntfs-3g',
+  exfat: 'exfatprogs',
+  btrfs: 'btrfs-progs',
+  xfs: 'xfsprogs',
+  f2fs: 'f2fs-tools',
+  cifs: 'cifs-utils',
+  nfs: 'nfs-utils',
+  nfs4: 'nfs-utils',
+}
 
 /** systemd unit name of a mount point (`systemd-escape --path --suffix=mount`). */
 export function mountUnit(path: string, suffix: 'mount' | 'automount' = 'mount'): string {

@@ -2,8 +2,8 @@
 
 import { readFileSync } from 'node:fs'
 import { join } from 'node:path'
-import { msg } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import type { JournalEntry } from '~/shared/types'
 import { config } from './config'
 

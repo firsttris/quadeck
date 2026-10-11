@@ -3,8 +3,8 @@
 // paths, SATA link speeds and sensors – plus the warnings worth acting on.
 // buildHardware() is pure: the root helper reads sysfs into HardwareRaw.
 
-import { localize, msg } from './i18n'
 import { m } from '~/paraglide/messages'
+import { localize, msg } from './i18n'
 
 export interface PciRaw {
   address: string
@@ -324,7 +324,8 @@ export function buildHardware(raw: HardwareRaw, now = Date.now()): Hardware {
       const kind = pciKind(p.class)
       const group = pciGroup(p.class)
       let downgraded: string | undefined
-      if ((kind === 'nvme' || kind === 'storage' || kind === 'network') && p.linkWidth && p.maxLinkWidth && p.linkWidth < p.maxLinkWidth) downgraded = msg(m.hardware_status_linkWidthDown, { linkWidth: p.linkWidth, maxLinkWidth: p.maxLinkWidth })
+      if ((kind === 'nvme' || kind === 'storage' || kind === 'network') && p.linkWidth && p.maxLinkWidth && p.linkWidth < p.maxLinkWidth)
+        downgraded = msg(m.hardware_status_linkWidthDown, { linkWidth: p.linkWidth, maxLinkWidth: p.maxLinkWidth })
       else if (kind === 'nvme' && pcieGen(p.linkSpeed) && pcieGen(p.maxLinkSpeed) && pcieGen(p.linkSpeed)! < pcieGen(p.maxLinkSpeed)!)
         downgraded = msg(m.hardware_status_pcieGenDown, { gen: pcieGen(p.linkSpeed) ?? '', maxGen: pcieGen(p.maxLinkSpeed) ?? '' })
       return { ...p, group, kind, downgraded }

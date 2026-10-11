@@ -1,21 +1,34 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
+import { createFileRoute, Link } from '@tanstack/react-router'
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { useActions } from '~/components/Actions'
+import { BootView } from '~/components/Boot'
 import { BusyButton, Spinner, useBusy } from '~/components/Busy'
+import { ConfigFilesPanel } from '~/components/ConfigFiles'
 import { Glyph } from '~/components/Glyph'
 import { STATUS_LABEL, statusTone, useJobs } from '~/components/Jobs'
 import { ConfirmDialog, Modal } from '~/components/Modal'
 import { PageHeader } from '~/components/PageHeader'
 import { PodmanSettingsView } from '~/components/PodmanSettings'
-import { BootView } from '~/components/Boot'
-import { ConfigFilesPanel } from '~/components/ConfigFiles'
 import { Pill } from '~/components/Status'
+import { pickMsg } from '~/i18n'
 import { api } from '~/lib/api'
 import { bytes, relative } from '~/lib/format'
-import { localeOf } from '~/shared/i18n'
-import { REBOOT_PACKAGES, type CacheEntry, type PackageCacheReport, type ImageUpdatesReport, type InstalledPackage, type JobInfo, type NewsItem, type PackageDetail, type PackageOverview, type PackageUpdate, type RemovePreview, type UpdatesReport } from '~/shared/packages'
 import { m } from '~/paraglide/messages'
-import { pickMsg } from '~/i18n'
+import { localeOf } from '~/shared/i18n'
+import {
+  type CacheEntry,
+  type ImageUpdatesReport,
+  type InstalledPackage,
+  type JobInfo,
+  type NewsItem,
+  type PackageCacheReport,
+  type PackageDetail,
+  type PackageOverview,
+  type PackageUpdate,
+  REBOOT_PACKAGES,
+  type RemovePreview,
+  type UpdatesReport,
+} from '~/shared/packages'
 
 type Tab = 'updates' | 'packages' | 'podman' | 'boot'
 
@@ -59,7 +72,12 @@ function SystemPage() {
   const o = overview.data
   return (
     <>
-      <PageHeader title={m.system_page_title()} subtitle={o ? (o.manager ? m.system_page_subtitle({ manager: o.label, aur: o.aur?.helper ?? "", hasAur: String(!!o.aur?.helper) }) : m.system_page_noManager()) : m.system_page_defaultSubtitle()} />
+      <PageHeader
+        title={m.system_page_title()}
+        subtitle={
+          o ? (o.manager ? m.system_page_subtitle({ manager: o.label, aur: o.aur?.helper ?? '', hasAur: String(!!o.aur?.helper) }) : m.system_page_noManager()) : m.system_page_defaultSubtitle()
+        }
+      />
       <div role="tablist" aria-label={m.system_page_tabs()} className="flex flex-wrap gap-1.5">
         <Link to="/system" search={{}} role="tab" aria-selected={tab === 'updates'} className={`seg ${tab === 'updates' ? 'on' : ''}`}>
           {m.system_page_updates()}
@@ -87,7 +105,15 @@ function SystemPage() {
           </Link>
         </section>
       )}
-      {tab === 'updates' ? <Updates overview={o} onOverviewChanged={() => void overview.reload()} /> : tab === 'packages' ? <Packages overview={o} /> : tab === 'boot' ? <BootView rebootReason={o?.rebootReason} /> : <PodmanSettingsView />}
+      {tab === 'updates' ? (
+        <Updates overview={o} onOverviewChanged={() => void overview.reload()} />
+      ) : tab === 'packages' ? (
+        <Packages overview={o} />
+      ) : tab === 'boot' ? (
+        <BootView rebootReason={o?.rebootReason} />
+      ) : (
+        <PodmanSettingsView />
+      )}
     </>
   )
 }
@@ -151,7 +177,7 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
       )}
 
       <UpdateTable
-        title={m.system_updates_systemPackages({ label: o?.label ?? "", hasLabel: String(!!o?.label) })}
+        title={m.system_updates_systemPackages({ label: o?.label ?? '', hasLabel: String(!!o?.label) })}
         items={u?.repo}
         error={u?.error ?? updates.error}
         empty={m.system_updates_upToDate()}
@@ -227,11 +253,20 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
                     <td className="max-w-[360px] truncate font-mono text-[12px] text-muted">{i.image}</td>
                     <td className="hidden font-mono text-[12px] md:table-cell">{i.unit}</td>
                     <td>
-                      <Pill tone={i.updated === 'pending' ? 'warn' : i.updated === 'failed' ? 'bad' : 'ok'}>{i.updated === 'pending' ? m.system_updates_updateAvailable() : i.updated === 'false' ? m.system_updates_current() : i.updated}</Pill>
+                      <Pill tone={i.updated === 'pending' ? 'warn' : i.updated === 'failed' ? 'bad' : 'ok'}>
+                        {i.updated === 'pending' ? m.system_updates_updateAvailable() : i.updated === 'false' ? m.system_updates_current() : i.updated}
+                      </Pill>
                     </td>
                     <td className="text-right">
                       {canAct && i.updated === 'pending' && (
-                        <BusyButton className="btn sm" busy={imageStart.is(i.unit)} busyLabel={m.common_starting()} disabled={busy} onClick={() => void imageStart.run(i.unit, () => jobs.start({ kind: 'image-update', unit: i.unit }))} aria-label={m.system_updates_updateOne({ name: i.container })}>
+                        <BusyButton
+                          className="btn sm"
+                          busy={imageStart.is(i.unit)}
+                          busyLabel={m.common_starting()}
+                          disabled={busy}
+                          onClick={() => void imageStart.run(i.unit, () => jobs.start({ kind: 'image-update', unit: i.unit }))}
+                          aria-label={m.system_updates_updateOne({ name: i.container })}
+                        >
                           {m.system_updates_update()}
                         </BusyButton>
                       )}
@@ -295,7 +330,7 @@ function Updates({ overview: o, onOverviewChanged }: { overview: Overview | null
         open={confirm === 'images'}
         title={m.system_updates_imagesTitle()}
         confirm={m.system_updates_update()}
-        body={<p className="m-0">{m.system_updates_imagesBody({ names: (pendingImages.map((i) => i.container).join(', ')) })}</p>}
+        body={<p className="m-0">{m.system_updates_imagesBody({ names: pendingImages.map((i) => i.container).join(', ') })}</p>}
         onConfirm={() => jobs.start({ kind: 'images-update' })}
         busyLabel={m.common_starting()}
         onClose={() => setConfirm(null)}
@@ -356,7 +391,13 @@ function PackageCachePanel({ canAct }: { canAct: boolean }) {
         <div className="flex flex-col gap-3 text-[13px] text-[#c9d1d9]">
           {entries.map((c) => (
             <label key={c.id} className="flex items-start gap-2.5">
-              <input type="checkbox" className="mt-1" checked={picked.has(c.id)} disabled={c.size === 0} onChange={(e) => setPicked((p) => (e.target.checked ? new Set([...p, c.id]) : new Set([...p].filter((x) => x !== c.id))))} />
+              <input
+                type="checkbox"
+                className="mt-1"
+                checked={picked.has(c.id)}
+                disabled={c.size === 0}
+                onChange={(e) => setPicked((p) => (e.target.checked ? new Set([...p, c.id]) : new Set([...p].filter((x) => x !== c.id))))}
+              />
               <span>
                 <b>{cacheLabel(c)}</b> · {bytes(c.size)}
                 <span className="block text-[12px] text-muted">{cacheKeeps(c)}</span>
@@ -483,11 +524,27 @@ function Packages({ overview: o }: { overview: Overview | null }) {
   return (
     <>
       <div className="flex flex-wrap items-center gap-2">
-        <input className="field w-full sm:w-[280px]" type="search" placeholder={m.system_packages_searchPlaceholder()} aria-label={m.system_packages_search()} value={query} onChange={(e) => setQuery(e.target.value)} />
+        <input
+          className="field w-full sm:w-[280px]"
+          type="search"
+          placeholder={m.system_packages_searchPlaceholder()}
+          aria-label={m.system_packages_search()}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
         <div role="group" aria-label={m.system_packages_filter()} className="flex flex-wrap gap-1.5">
           {PKG_FILTERS.filter((k) => k === 'all' || counts[k]).map((k) => (
             <button key={k} type="button" className={`seg ${filter === k ? 'on' : ''}`} aria-pressed={filter === k} onClick={() => setFilter(k)}>
-              {pickMsg({ "all": m.system_packages_filters_all, "explicit": m.system_packages_filters_explicit, "dependency": m.system_packages_filters_dependency, "foreign": m.system_packages_filters_foreign, "orphan": m.system_packages_filters_orphan }, k)}
+              {pickMsg(
+                {
+                  all: m.system_packages_filters_all,
+                  explicit: m.system_packages_filters_explicit,
+                  dependency: m.system_packages_filters_dependency,
+                  foreign: m.system_packages_filters_foreign,
+                  orphan: m.system_packages_filters_orphan,
+                },
+                k,
+              )}
               <span className="opacity-60">{counts[k]}</span>
             </button>
           ))}
@@ -564,7 +621,9 @@ function Packages({ overview: o }: { overview: Overview | null }) {
                 </td>
                 <td className="hidden font-mono text-[12px] md:table-cell">{p.version}</td>
                 <td className="hidden font-mono text-[12px] sm:table-cell">{p.size !== undefined ? bytes(p.size) : '–'}</td>
-                <td className="hidden text-[12px] text-subtle lg:table-cell">{p.reason === 'explicit' ? m.system_packages_explicit() : p.reason === 'dependency' ? m.system_packages_filters_dependency() : '–'}</td>
+                <td className="hidden text-[12px] text-subtle lg:table-cell">
+                  {p.reason === 'explicit' ? m.system_packages_explicit() : p.reason === 'dependency' ? m.system_packages_filters_dependency() : '–'}
+                </td>
               </tr>
             ))}
           </tbody>
@@ -716,7 +775,12 @@ function RemoveDialog({ names, onClose, onStarted }: { names: string[] | null; o
   }, [names])
   const ok = preview && !preview.error && preview.blocked.length === 0 && preview.packages.length > 0
   return (
-    <Modal open={!!names} onClose={onClose} busy={jobs.starting} title={names?.length === 1 ? m.system_packages_removeOne({ name: (names[0]!) }) : m.system_packages_removeMany({ n: (names?.length ?? 0) })}>
+    <Modal
+      open={!!names}
+      onClose={onClose}
+      busy={jobs.starting}
+      title={names?.length === 1 ? m.system_packages_removeOne({ name: names[0]! }) : m.system_packages_removeMany({ n: names?.length ?? 0 })}
+    >
       {!preview && !error && <p className="m-0 text-muted">{m.system_packages_previewing()}</p>}
       {(error || preview?.error) && (
         <pre role="alert" className="joblog !min-h-0 text-[#ff8a80]">

@@ -2,8 +2,8 @@
 // it (exclude file, restic arguments, systemd units), suggestions from the
 // Quadlets, and restic's JSON output. No I/O here.
 
-import { msg } from './i18n'
 import { m } from '~/paraglide/messages'
+import { msg } from './i18n'
 import { quadletMounts, quadletType, quadletUnit, quadletValues } from './quadlets'
 
 export type RepoKind = 'local' | 'sftp' | 's3' | 'b2' | 'rest'
@@ -376,7 +376,8 @@ export function backupUnits(plan: BackupPlan, self: string[], dir?: string): Rec
   const exec = (cmd: string) => [...self, 'backup', cmd].map(quoteArg).join(' ')
   const service = (what: string, cmd: string) =>
     `# Written by Quadeck (Backups page) – changes are overwritten\n[Unit]\nDescription=Quadeck: ${what}\nWants=network-online.target\nAfter=network-online.target\n\n[Service]\nType=oneshot\n${dir ? `Environment=${quoteArg(`QUADECK_BACKUP_DIR=${dir}`)}\n` : ''}ExecStart=${exec(cmd)}\nNice=10\nIOSchedulingClass=idle\n`
-  const timer = (what: string, cal: string) => `# Written by Quadeck (Backups page) – changes are overwritten\n[Unit]\nDescription=Quadeck: ${what}\n\n[Timer]\nOnCalendar=${cal}\nPersistent=true\nRandomizedDelaySec=5min\n\n[Install]\nWantedBy=timers.target\n`
+  const timer = (what: string, cal: string) =>
+    `# Written by Quadeck (Backups page) – changes are overwritten\n[Unit]\nDescription=Quadeck: ${what}\n\n[Timer]\nOnCalendar=${cal}\nPersistent=true\nRandomizedDelaySec=5min\n\n[Install]\nWantedBy=timers.target\n`
   const check = checkCalendar(plan)
   return {
     [BACKUP_UNIT]: service('backup (restic)', 'run'),
@@ -415,7 +416,10 @@ export function suggestBackup(files: { name: string; content: string }[]): Backu
   const stop: BackupSuggestion['stop'] = []
   const seen = new Set<string>()
   for (const f of files.filter((x) => quadletType(x.name) === 'container').sort((a, b) => a.name.localeCompare(b.name))) {
-    const from = f.name.split('/').pop()!.replace(/\.container$/, '')
+    const from = f.name
+      .split('/')
+      .pop()!
+      .replace(/\.container$/, '')
     const image = quadletValues(f.content, 'Container', 'Image')[0] ?? ''
     const mounts = quadletMounts(f.content, 'Container', files)
     for (const mnt of mounts) {
@@ -561,7 +565,7 @@ export function parseLs(stdout: string, dir: string): LsEntry[] {
       ...(typeof o.size === 'number' ? { size: o.size } : {}),
       ...(typeof o.mtime === 'string' ? { mtime: Date.parse(o.mtime) } : {}),
     }))
-    .sort((a, b) => (a.type === 'dir') === (b.type === 'dir') ? a.name.localeCompare(b.name) : a.type === 'dir' ? -1 : 1)
+    .sort((a, b) => ((a.type === 'dir') === (b.type === 'dir') ? a.name.localeCompare(b.name) : a.type === 'dir' ? -1 : 1))
 }
 
 /** Alert for the notifications: the last backup failed, or none succeeded for `days`. */
@@ -627,7 +631,7 @@ export function parseTargetConfig(v: unknown): { config?: TargetConfig; error?: 
   const port = Number(o.port)
   if (!Number.isInteger(port) || port < 1 || port > 65535) return { error: msg(m.backup_error_port) }
   const url = typeof o.url === 'string' ? o.url.trim().replace(/\/+$/, '') : ''
-  if (!/^https?:\/\/[A-Za-z0-9.-]+(:\d{1,5})?(\/[A-Za-z0-9._~\/-]*)?$/.test(url)) return { error: msg(m.backup_error_url) }
+  if (!/^https?:\/\/[A-Za-z0-9.-]+(:\d{1,5})?(\/[A-Za-z0-9._~/-]*)?$/.test(url)) return { error: msg(m.backup_error_url) }
   return { config: { dataDir, port, appendOnly: o.appendOnly === true, url } }
 }
 

@@ -10,11 +10,14 @@ import { DiffView } from '~/components/QuadletEditor'
 import { Pill } from '~/components/Status'
 import { useToast } from '~/components/Toast'
 import { useGuardedApi } from '~/components/Unlock'
+import { pickMsg } from '~/i18n'
 import { api } from '~/lib/api'
+import { fieldLabel } from '~/lib/classes'
 import { age } from '~/lib/format'
+import { usePolling } from '~/lib/polling'
+import { m } from '~/paraglide/messages'
+import { msg } from '~/shared/i18n'
 import {
-  validateNfs,
-  validateSmb,
   type NfsClient,
   type NfsExportInfo,
   type NfsExportSpec,
@@ -25,12 +28,9 @@ import {
   type SharesState,
   type SmbShareInfo,
   type SmbShareSpec,
+  validateNfs,
+  validateSmb,
 } from '~/shared/shares'
-import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
-import { pickMsg } from '~/i18n'
-import { usePolling } from '~/lib/polling'
-import { fieldLabel } from '~/lib/classes'
 
 export const Route = createFileRoute('/_app/shares')({
   head: () => ({ meta: [{ title: msg(m.page_title_shares) }] }),
@@ -78,7 +78,9 @@ function SharesPage() {
             onState={setState}
             onReload={load}
             onEdit={(original) => setNfsEdit({ original })}
-            onDelete={(e) => setPending({ change: { kind: 'nfs', original: { file: e.file, path: e.path }, spec: null }, title: m.shares_page_deleteNfs({ path: e.path }), confirm: m.common_delete(), danger: true })}
+            onDelete={(e) =>
+              setPending({ change: { kind: 'nfs', original: { file: e.file, path: e.path }, spec: null }, title: m.shares_page_deleteNfs({ path: e.path }), confirm: m.common_delete(), danger: true })
+            }
           />
         </div>
       )}
@@ -89,7 +91,11 @@ function SharesPage() {
         onNext={(spec) => {
           const o = smbEdit?.original
           setSmbEdit(null)
-          setPending({ change: { kind: 'smb', original: o?.name, spec }, title: o ? m.shares_page_changeSmb({ name: spec.name }) : m.shares_page_createSmb({ name: spec.name }), confirm: m.common_save() })
+          setPending({
+            change: { kind: 'smb', original: o?.name, spec },
+            title: o ? m.shares_page_changeSmb({ name: spec.name }) : m.shares_page_createSmb({ name: spec.name }),
+            confirm: m.common_save(),
+          })
         }}
       />
       <NfsDialog
@@ -128,7 +134,9 @@ function Services({ kind, services, onState }: { kind: 'smb' | 'nfs'; services: 
         const st = await guarded<SharesState>('/api/shares', { body: { service: { kind, action } } })
         if (st) {
           onState(st)
-          say(`${services.map((s) => s.unit).join(', ')}: ${pickMsg({ stop: m.shares_services_done_stop, enable: m.shares_services_done_enable, restart: m.shares_services_done_restart, start: m.shares_services_done_start }, action)}`)
+          say(
+            `${services.map((s) => s.unit).join(', ')}: ${pickMsg({ stop: m.shares_services_done_stop, enable: m.shares_services_done_enable, restart: m.shares_services_done_restart, start: m.shares_services_done_start }, action)}`,
+          )
         }
       } catch (e) {
         say((e as Error).message, 'bad')
@@ -171,7 +179,19 @@ function Services({ kind, services, onState }: { kind: 'smb' | 'nfs'; services: 
 
 // ---------- SMB ----------
 
-function SmbPanel({ state, onState, onEdit, onDelete, onReload }: { state: SharesState; onState: (s: SharesState) => void; onEdit: (s?: SmbShareInfo) => void; onDelete: (s: SmbShareInfo) => void; onReload: () => void }) {
+function SmbPanel({
+  state,
+  onState,
+  onEdit,
+  onDelete,
+  onReload,
+}: {
+  state: SharesState
+  onState: (s: SharesState) => void
+  onEdit: (s?: SmbShareInfo) => void
+  onDelete: (s: SmbShareInfo) => void
+  onReload: () => void
+}) {
   const { readonly } = useActions()
   const smb = state.smb
   return (
@@ -241,7 +261,20 @@ const emptySmb: SmbShareSpec = { name: '', path: '/mnt/', comment: '', readOnly:
 function SmbDialog({ open, original, onClose, onNext }: { open: boolean; original?: SmbShareInfo; onClose: () => void; onNext: (s: SmbShareSpec) => void }) {
   const [s, setS] = useState<SmbShareSpec>(emptySmb)
   useEffect(() => {
-    if (open) setS(original ? { name: original.name, path: original.path, comment: original.comment, readOnly: original.readOnly, guestOk: original.guestOk, validUsers: original.validUsers, browseable: original.browseable } : emptySmb)
+    if (open)
+      setS(
+        original
+          ? {
+              name: original.name,
+              path: original.path,
+              comment: original.comment,
+              readOnly: original.readOnly,
+              guestOk: original.guestOk,
+              validUsers: original.validUsers,
+              browseable: original.browseable,
+            }
+          : emptySmb,
+      )
   }, [open, original])
   const errors = validateSmb(s)
   const set = (p: Partial<SmbShareSpec>) => setS((x) => ({ ...x, ...p }))
@@ -314,7 +347,19 @@ function SmbDialog({ open, original, onClose, onNext }: { open: boolean; origina
 
 // ---------- NFS ----------
 
-function NfsPanel({ state, onState, onEdit, onDelete, onReload }: { state: SharesState; onState: (s: SharesState) => void; onEdit: (e?: NfsExportInfo) => void; onDelete: (e: NfsExportInfo) => void; onReload: () => void }) {
+function NfsPanel({
+  state,
+  onState,
+  onEdit,
+  onDelete,
+  onReload,
+}: {
+  state: SharesState
+  onState: (s: SharesState) => void
+  onEdit: (e?: NfsExportInfo) => void
+  onDelete: (e: NfsExportInfo) => void
+  onReload: () => void
+}) {
   const { readonly } = useActions()
   const nfs = state.nfs
   return (
@@ -501,7 +546,15 @@ function NfsDialog({ open, original, onClose, onNext }: { open: boolean; origina
 
 // ---------- preview + apply ----------
 
-function PreviewDialog({ pending, onClose, onDone }: { pending: { change: ShareChange; title: string; confirm: string; danger?: boolean } | null; onClose: () => void; onDone: (s: SharesState) => void }) {
+function PreviewDialog({
+  pending,
+  onClose,
+  onDone,
+}: {
+  pending: { change: ShareChange; title: string; confirm: string; danger?: boolean } | null
+  onClose: () => void
+  onDone: (s: SharesState) => void
+}) {
   const say = useToast()
   const guarded = useGuardedApi()
   const [preview, setPreview] = useState<SharePreview | null>(null)

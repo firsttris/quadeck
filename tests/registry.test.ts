@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
-import { parseIconIndex } from '~/server/icons'
 import { checkTarget } from '~/server/health'
-import { localHostSet, matchUpstream, mergeServices, parseDial, probeUrl, type HttpHealth, type MergeInput } from '~/server/registry'
+import { parseIconIndex } from '~/server/icons'
+import { type HttpHealth, localHostSet, type MergeInput, matchUpstream, mergeServices, parseDial, probeUrl } from '~/server/registry'
 import type { Container } from '~/shared/types'
 
 const ct = (name: string, o: Partial<Container> = {}): Container => ({

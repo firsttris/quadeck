@@ -1,12 +1,12 @@
-import { Link, createFileRoute } from '@tanstack/react-router'
-import { useCallback, useState, type ReactNode } from 'react'
+import { createFileRoute, Link } from '@tanstack/react-router'
+import { type ReactNode, useCallback, useState } from 'react'
 import { PageHeader } from '~/components/PageHeader'
 import { PowerUsage } from '~/components/PowerUsage'
 import { useToast } from '~/components/Toast'
 import { num } from '~/lib/format'
-import { gpuQuadletLine, pcieGen, sensorUnit, shortGpuName, type Hardware, type SensorRaw } from '~/shared/hardware'
-import { m } from '~/paraglide/messages'
 import { usePolling } from '~/lib/polling'
+import { m } from '~/paraglide/messages'
+import { gpuQuadletLine, type Hardware, pcieGen, type SensorRaw, sensorUnit, shortGpuName } from '~/shared/hardware'
 
 type Tab = 'overview' | 'power'
 
@@ -122,9 +122,9 @@ function HardwarePage() {
                   .trim(),
                 m.hardware_coresThreads({ cores: hw.cpu.cores, threads: hw.cpu.threads }),
               ],
-              [m.hardware_memory(), gib(hw.memory.total), hw.memory.slots.length ? m.hardware_slotsUsed({ used: (hw.memory.slots.filter((x) => x.size).length), all: hw.memory.slots.length }) : ''],
+              [m.hardware_memory(), gib(hw.memory.total), hw.memory.slots.length ? m.hardware_slotsUsed({ used: hw.memory.slots.filter((x) => x.size).length, all: hw.memory.slots.length }) : ''],
               [m.hardware_graphics(), hw.gpus.length ? hw.gpus.map((g) => shortGpuName(g.name)).join(', ') : m.hardware_noneFound(), hw.gpus.length > 1 ? m.hardware_gpus({ n: hw.gpus.length }) : ''],
-              [m.hardware_mainboard(), s?.board ?? s?.vendor ?? '–', s?.bios ? m.hardware_biosFrom({ version: (s.bios.version ?? ''), date: s.bios.date ?? "", hasDate: String(!!s.bios.date) }) : ''],
+              [m.hardware_mainboard(), s?.board ?? s?.vendor ?? '–', s?.bios ? m.hardware_biosFrom({ version: s.bios.version ?? '', date: s.bios.date ?? '', hasDate: String(!!s.bios.date) }) : ''],
             ].map(([k, v, sub]) => (
               <div key={k} className="panel flex min-w-0 flex-col gap-0.5 px-[18px] py-3.5" data-testid="hw-summary">
                 <span className="text-[11px] font-semibold tracking-[.06em] text-faint uppercase">{k}</span>
@@ -153,7 +153,11 @@ function HardwarePage() {
               {hw.memory.slots.length > 0 ? (
                 <div className="grid grid-cols-2 gap-2 md:grid-cols-4" aria-label={m.hardware_slots()}>
                   {hw.memory.slots.map((slot) => (
-                    <div key={slot.locator} data-testid="ram-slot" className={`flex flex-col gap-0.5 rounded-[10px] border p-2.5 ${slot.size ? 'border-accent/45 bg-accent/8' : 'border-dashed border-edge'}`}>
+                    <div
+                      key={slot.locator}
+                      data-testid="ram-slot"
+                      className={`flex flex-col gap-0.5 rounded-[10px] border p-2.5 ${slot.size ? 'border-accent/45 bg-accent/8' : 'border-dashed border-edge'}`}
+                    >
                       <span className="truncate text-[11px] text-subtle" title={slot.locator}>
                         {slot.locator}
                       </span>
@@ -203,7 +207,7 @@ function HardwarePage() {
                   <div key={g.pci} className="flex flex-col gap-1.5 border-t border-line pt-2 first:border-t-0 first:pt-0" data-testid="gpu">
                     <div className="font-medium">{g.name}</div>
                     <div className="text-[12px] text-muted">
-                      {g.pci} · {m.hardware_label_driver({ driver: (g.driver ?? '–') })} · {g.nodes.join(', ') || m.hardware_noDeviceNode()}
+                      {g.pci} · {m.hardware_label_driver({ driver: g.driver ?? '–' })} · {g.nodes.join(', ') || m.hardware_noDeviceNode()}
                     </div>
                     {line && (
                       <div className="flex items-center gap-2">
@@ -229,13 +233,15 @@ function HardwarePage() {
                     <span className="font-medium">{u.name ?? `${u.vendor}:${u.product}`}</span>
                     <span className="text-[12px] text-muted">{u.manufacturer}</span>
                   </div>
-                  <div className="text-[12px] text-subtle">{[usbSpeed(u.speed), u.driver && m.hardware_label_driver({ driver: u.driver }), `${u.vendor}:${u.product}`].filter(Boolean).join(' · ')}</div>
+                  <div className="text-[12px] text-subtle">
+                    {[usbSpeed(u.speed), u.driver && m.hardware_label_driver({ driver: u.driver }), `${u.vendor}:${u.product}`].filter(Boolean).join(' · ')}
+                  </div>
                   {u.serial.map((p) => (
                     <div key={p} className="flex items-center gap-2">
                       <code className="grow truncate rounded-md bg-sunken px-2 py-1 font-mono text-[12px]" title={p}>
                         {p}
                       </code>
-                      <Copy text={p} label={m.hardware_copyPath({ name: (u.name ?? u.product) })} />
+                      <Copy text={p} label={m.hardware_copyPath({ name: u.name ?? u.product })} />
                     </div>
                   ))}
                 </div>
@@ -289,7 +295,9 @@ function HardwarePage() {
                   .map((p) => (
                     <tr key={p.address} data-testid="pci-device">
                       <td>
-                        <div className="font-medium">{[p.vendorName?.replace(/ Corporation| Co Ltd| Technology Inc\.| Electronics/g, ''), p.deviceName].filter(Boolean).join(' ') || `${p.vendor}:${p.device}`}</div>
+                        <div className="font-medium">
+                          {[p.vendorName?.replace(/ Corporation| Co Ltd| Technology Inc\.| Electronics/g, ''), p.deviceName].filter(Boolean).join(' ') || `${p.vendor}:${p.device}`}
+                        </div>
                         <div className="font-mono text-[11px] text-subtle">
                           {p.address}
                           {p.names?.length ? ` · ${p.names.join(', ')}` : ''}
@@ -329,9 +337,13 @@ function Sensors({ list }: { list: SensorRaw[] }) {
               return (
                 <div key={s.label} className="grid grid-cols-[minmax(0,1fr)_90px_80px] items-center gap-3" data-testid="sensor">
                   <span className="truncate">{s.label}</span>
-                  <span className="h-1.5 overflow-hidden rounded-full bg-line">{pct !== undefined && <span className={`block h-full ${hot ? 'bg-[#f85149]' : 'bg-accent'}`} style={{ width: `${pct}%` }} />}</span>
+                  <span className="h-1.5 overflow-hidden rounded-full bg-line">
+                    {pct !== undefined && <span className={`block h-full ${hot ? 'bg-[#f85149]' : 'bg-accent'}`} style={{ width: `${pct}%` }} />}
+                  </span>
                   <span className={`text-right font-mono text-[12px] ${hot ? 'text-[#ff8a80]' : ''}`}>
-                    {s.kind === 'fan' && s.value === 0 ? m.hardware_fanStopped() : `${s.kind === 'in' ? num(s.value, 2) : s.kind === 'power' ? num(s.value, 1) : Math.round(s.value)} ${sensorUnit(s.kind)}`}
+                    {s.kind === 'fan' && s.value === 0
+                      ? m.hardware_fanStopped()
+                      : `${s.kind === 'in' ? num(s.value, 2) : s.kind === 'power' ? num(s.value, 1) : Math.round(s.value)} ${sensorUnit(s.kind)}`}
                   </span>
                 </div>
               )

@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test'
+import { expect, type Page, test } from '@playwright/test'
 
 // fixtures/demo/boot.json: systemd-boot with two kernels, loader on the ESP older than the package.
 const PASSWORD = 'e2e-password-123'
@@ -120,19 +120,24 @@ test('boot entries: edit the default as a copy, check it live, test it once, ren
   // The same file as text.
   await editor.getByRole('button', { name: 'Text' }).click()
   const text = editor.getByLabel('Inhalt des Eintrags')
-  await expect(text).toHaveValue(/^title   Arch Linux \(copy\)\n[\s\S]*usbcore.autosuspend=-1 loglevel=3\n$/)
+  await expect(text).toHaveValue(/^title {3}Arch Linux \(copy\)\n[\s\S]*usbcore.autosuspend=-1 loglevel=3\n$/)
 
   // Live check: a file that is not on the boot partition, root= missing.
   const good = (await text.inputValue()).replace(' loglevel=3', ' quiet loglevel=3')
   await text.fill(good.replace('/initramfs-linux.img', '/initramfs-nope.img').replace(/root=\S+ /, ''))
-  await expect(editor.getByTestId('entry-problem')).toHaveText(['Zeile 4:/initramfs-nope.img gibt es auf der Boot-Partition nicht', 'Zeile 5:In options fehlt root= – ohne findet der Kernel das System nicht'])
+  await expect(editor.getByTestId('entry-problem')).toHaveText([
+    'Zeile 4:/initramfs-nope.img gibt es auf der Boot-Partition nicht',
+    'Zeile 5:In options fehlt root= – ohne findet der Kernel das System nicht',
+  ])
   await expect(editor.getByRole('button', { name: 'Weiter' })).toBeDisabled()
   await text.fill(good)
   await expect(editor).toContainText('keine Probleme gefunden')
   await editor.getByLabel('Dateiname').fill('arch-test.conf')
   await editor.getByRole('button', { name: 'Weiter' }).click()
   const create = page.getByRole('dialog', { name: 'arch-test.conf anlegen?' })
-  await expect(create.getByLabel('Änderungen')).toContainText('+ options root=UUID=8c1f3e2a-5d4b-4c6e-9f1a-2b3c4d5e6f70 rw rootflags=subvol=@ i915.enable_guc=3 usbcore.autosuspend=-1 quiet loglevel=3')
+  await expect(create.getByLabel('Änderungen')).toContainText(
+    '+ options root=UUID=8c1f3e2a-5d4b-4c6e-9f1a-2b3c4d5e6f70 rw rootflags=subvol=@ i915.enable_guc=3 usbcore.autosuspend=-1 quiet loglevel=3',
+  )
   await create.getByRole('button', { name: 'Anlegen' }).click()
   await unlock(page)
 
@@ -193,7 +198,7 @@ test('boot entries: edit the default as a copy, check it live, test it once, ren
   const fresh = page.getByRole('dialog', { name: 'Neuer Boot-Eintrag' })
   await expect(fresh.getByLabel('Dateiname')).toHaveValue('new-entry.conf')
   await fresh.getByRole('button', { name: 'Text' }).click()
-  await expect(fresh.getByLabel('Inhalt des Eintrags')).toHaveValue(/^title   New entry\nlinux   \/vmlinuz-linux\ninitrd  \/intel-ucode.img\n/)
+  await expect(fresh.getByLabel('Inhalt des Eintrags')).toHaveValue(/^title {3}New entry\nlinux {3}\/vmlinuz-linux\ninitrd {2}\/intel-ucode.img\n/)
   await expect(fresh).toContainText('keine Probleme gefunden')
   await fresh.getByRole('button', { name: 'Abbrechen' }).click()
 })

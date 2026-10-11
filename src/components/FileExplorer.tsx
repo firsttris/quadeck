@@ -1,19 +1,19 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { bytes, dateTime, diskSize } from '~/lib/format'
-import { baseName, fileKind, isSensitivePath, joinPath, parentOf, validateName, type DirListing, type FileEntry, type FileRoot } from '~/shared/files'
+import { m } from '~/paraglide/messages'
+import { archiveFormat } from '~/shared/archives'
+import { baseName, type DirListing, type FileEntry, type FileRoot, fileKind, isSensitivePath, joinPath, parentOf, validateName } from '~/shared/files'
+import { localeOf } from '~/shared/i18n'
 import { useActions } from './Actions'
+import { PackDialog, UnpackDialog } from './ArchiveDialogs'
 import { BusyButton, useBusy } from './Busy'
 import { Glyph } from './Glyph'
 import { useJobs } from './Jobs'
 import { ConfirmDialog, Modal } from './Modal'
-import { useToast } from './Toast'
-import { TextFileEditor } from './TextFileEditor'
-import { PackDialog, UnpackDialog } from './ArchiveDialogs'
-import { archiveFormat } from '~/shared/archives'
 import { RowMenu } from './RowMenu'
+import { TextFileEditor } from './TextFileEditor'
+import { useToast } from './Toast'
 import { useGuardedApi, useUnlock } from './Unlock'
-import { localeOf } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 
 type Clip = { mode: 'copy' | 'cut'; paths: string[] }
 type Sort = 'name' | 'size' | 'mtime'
@@ -149,7 +149,9 @@ export function FileExplorer({ path, right, onNavigate, onTwoPanes }: { path?: s
     a.click()
     a.remove()
   }
-  const [dialog, setDialog] = useState<null | { kind: 'mkdir' } | { kind: 'rename'; entry: FileEntry } | { kind: 'delete' } | { kind: 'overwrite'; names: string[]; toDir: string; run: () => Promise<unknown> }>(null)
+  const [dialog, setDialog] = useState<
+    null | { kind: 'mkdir' } | { kind: 'rename'; entry: FileEntry } | { kind: 'delete' } | { kind: 'overwrite'; names: string[]; toDir: string; run: () => Promise<unknown> }
+  >(null)
 
   useEffect(() => {
     fetch('/api/files')
@@ -369,7 +371,9 @@ export function FileExplorer({ path, right, onNavigate, onTwoPanes }: { path?: s
       <section className="panel flex min-w-0 flex-col" aria-label={m.files_explorer_folderContent()} onKeyDown={onKey}>
         <div className="flex flex-wrap items-center gap-2 px-[18px] pt-4 pb-2">
           {two ? (
-            <span className="grow text-[13px] text-subtle">{pane.selected.size ? m.files_two_selection({ n: pane.selected.size, side: side === 'left' ? m.files_two_leftShort() : m.files_two_rightShort() }) : m.files_two_intro()}</span>
+            <span className="grow text-[13px] text-subtle">
+              {pane.selected.size ? m.files_two_selection({ n: pane.selected.size, side: side === 'left' ? m.files_two_leftShort() : m.files_two_rightShort() }) : m.files_two_intro()}
+            </span>
           ) : (
             <Crumbs pane={pane} onNavigate={(to) => go(to)} className="grow" />
           )}
@@ -430,7 +434,9 @@ export function FileExplorer({ path, right, onNavigate, onTwoPanes }: { path?: s
         {(rootsError || (!two && pane.error)) && <p className="m-0 border-t border-line px-[18px] py-2 text-[13px] text-[#e3b341]">{rootsError || pane.error}</p>}
         {two && hint && (
           <p className="m-0 flex items-center gap-2 border-t border-line bg-accent/6 px-[18px] py-2 text-[13px] text-[#c9d1d9]" data-testid="two-hint">
-            {hint === 'copy' ? m.files_two_hintCopy({ side: (side === 'left' ? m.files_two_rightShort() : m.files_two_leftShort()).toLowerCase() }) : m.files_two_hintMove({ side: (side === 'left' ? m.files_two_rightShort() : m.files_two_leftShort()).toLowerCase() })}
+            {hint === 'copy'
+              ? m.files_two_hintCopy({ side: (side === 'left' ? m.files_two_rightShort() : m.files_two_leftShort()).toLowerCase() })
+              : m.files_two_hintMove({ side: (side === 'left' ? m.files_two_rightShort() : m.files_two_leftShort()).toLowerCase() })}
             <button type="button" className="ml-auto underline" onClick={() => setHint(null)}>
               {m.common_close()}
             </button>
@@ -604,7 +610,9 @@ function PaneView(props: {
         <button type="button" className="btn sm !min-h-[24px] !px-2" disabled={pane.cur === pane.root} onClick={() => props.onNavigate(parentOf(pane.cur))} aria-label={m.files_explorer_up()}>
           ↑
         </button>
-        <span className={`ml-auto rounded-[5px] px-1.5 py-0.5 font-mono text-[10px] ${active ? 'bg-accent/18 text-accent' : 'bg-raised text-muted'}`}>{active ? m.files_two_source() : m.files_two_target()}</span>
+        <span className={`ml-auto rounded-[5px] px-1.5 py-0.5 font-mono text-[10px] ${active ? 'bg-accent/18 text-accent' : 'bg-raised text-muted'}`}>
+          {active ? m.files_two_source() : m.files_two_target()}
+        </span>
       </div>
       <Crumbs pane={pane} onNavigate={props.onNavigate} className="px-3 pb-1.5 text-[12px]" />
       {pane.error && <p className="m-0 px-3 py-1 text-[12px] text-[#e3b341]">{pane.error}</p>}
@@ -657,7 +665,12 @@ function PaneTable(props: {
         <thead>
           <tr>
             <th className="w-8">
-              <input type="checkbox" aria-label={m.files_explorer_selectAll()} checked={!!entries.length && selected.size === entries.length} onChange={(e) => pane.setSelected(e.target.checked ? new Set(entries.map((x) => x.name)) : new Set())} />
+              <input
+                type="checkbox"
+                aria-label={m.files_explorer_selectAll()}
+                checked={!!entries.length && selected.size === entries.length}
+                onChange={(e) => pane.setSelected(e.target.checked ? new Set(entries.map((x) => x.name)) : new Set())}
+              />
             </th>
             <th>{m.common_name()}</th>
             <th className="hidden sm:table-cell">{m.common_size()}</th>
@@ -684,7 +697,12 @@ function PaneTable(props: {
               ...(e.type === 'file' && ['text', 'browser'].includes(kind) ? [{ label: m.files_open_tab(), onSelect: () => props.onOpenRaw(path, false) }] : []),
               ...(e.type === 'file' ? [{ label: m.files_open_download(), onSelect: () => props.onOpenRaw(path, true) }] : []),
               ...(e.type === 'file' && !props.readonly && archiveFormat(e.name) ? [{ label: m.files_menu_unpack(), onSelect: () => props.onUnpack(path), separator: true }] : []),
-              ...(send ? [{ label: m.files_menu_copyTo(), onSelect: () => props.onSendTo('copy', e.name), separator: e.type === 'file' }, { label: m.files_menu_moveTo(), onSelect: () => props.onSendTo('move', e.name) }] : []),
+              ...(send
+                ? [
+                    { label: m.files_menu_copyTo(), onSelect: () => props.onSendTo('copy', e.name), separator: e.type === 'file' },
+                    { label: m.files_menu_moveTo(), onSelect: () => props.onSendTo('move', e.name) },
+                  ]
+                : []),
             ]
             return (
               <tr
@@ -715,7 +733,9 @@ function PaneTable(props: {
                           if (kind === 'text' || kind === 'unknown') props.onOpenText(path)
                           else props.onOpenRaw(path, kind !== 'browser')
                         }}
-                        aria-label={kind === 'browser' ? m.files_open_tabLabel({ name: e.name }) : kind === 'binary' ? m.files_open_downloadLabel({ name: e.name }) : m.files_editor_open({ name: e.name })}
+                        aria-label={
+                          kind === 'browser' ? m.files_open_tabLabel({ name: e.name }) : kind === 'binary' ? m.files_open_downloadLabel({ name: e.name }) : m.files_editor_open({ name: e.name })
+                        }
                       >
                         {e.name}
                       </button>
@@ -750,7 +770,23 @@ function PaneTable(props: {
   )
 }
 
-function NameDialog({ open, title, initial, taken, busyLabel, onClose, onSubmit }: { open: boolean; title: string; initial: string; taken: Set<string>; busyLabel: string; onClose: () => void; onSubmit: (name: string) => Promise<unknown> }) {
+function NameDialog({
+  open,
+  title,
+  initial,
+  taken,
+  busyLabel,
+  onClose,
+  onSubmit,
+}: {
+  open: boolean
+  title: string
+  initial: string
+  taken: Set<string>
+  busyLabel: string
+  onClose: () => void
+  onSubmit: (name: string) => Promise<unknown>
+}) {
   const [name, setName] = useState(initial)
   const work = useBusy()
   const busy = work.busy !== null

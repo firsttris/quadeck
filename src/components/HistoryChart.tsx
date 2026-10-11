@@ -1,6 +1,6 @@
 import { useEffect, useId, useMemo, useRef, useState } from 'react'
-import { localeOf } from '~/shared/i18n'
 import { m } from '~/paraglide/messages'
+import { localeOf } from '~/shared/i18n'
 
 export interface ChartSeries {
   label: string
@@ -67,7 +67,11 @@ const DAY = 24 * 3600_000
 const timeLabel = (ts: number, span: number) =>
   new Date(ts).toLocaleString(
     localeOf(),
-    span > 10 * DAY ? { day: '2-digit', month: '2-digit', year: span > 200 * DAY ? '2-digit' : undefined } : span > 1.5 * DAY ? { weekday: 'short', hour: '2-digit', minute: '2-digit' } : { hour: '2-digit', minute: '2-digit' },
+    span > 10 * DAY
+      ? { day: '2-digit', month: '2-digit', year: span > 200 * DAY ? '2-digit' : undefined }
+      : span > 1.5 * DAY
+        ? { weekday: 'short', hour: '2-digit', minute: '2-digit' }
+        : { hour: '2-digit', minute: '2-digit' },
   )
 const tooltipLabel = (ts: number, span: number) =>
   new Date(ts).toLocaleString(localeOf(), span > 10 * DAY ? { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' } : { weekday: 'short', hour: '2-digit', minute: '2-digit' })
@@ -172,7 +176,10 @@ export function HistoryChart({ series, span, now, format, yMin, yMax, height = 4
             onPointerMove={detailed ? (e) => setHover(e.clientX - e.currentTarget.getBoundingClientRect().left) : undefined}
             onPointerLeave={detailed ? () => setHover(null) : undefined}
           >
-            {detailed && [0, 0.5, 1].map((f) => <line key={f} x1={0} x2={width} y1={padTop + f * (h - padTop - 1)} y2={padTop + f * (h - padTop - 1)} stroke="var(--color-line)" strokeDasharray={f === 1 ? undefined : '3 4'} />)}
+            {detailed &&
+              [0, 0.5, 1].map((f) => (
+                <line key={f} x1={0} x2={width} y1={padTop + f * (h - padTop - 1)} y2={padTop + f * (h - padTop - 1)} stroke="var(--color-line)" strokeDasharray={f === 1 ? undefined : '3 4'} />
+              ))}
             <defs>
               {paths.map((p, i) => (
                 <linearGradient key={p.label} id={`${uid}-g${i}`} x1="0" x2="0" y1="0" y2="1">

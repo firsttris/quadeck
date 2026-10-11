@@ -122,7 +122,8 @@ export class GpuCollector {
   constructor(
     private root = '/sys/class/drm',
     private hasNvidia = !!Bun.which('nvidia-smi'),
-    private smi = () => run(['nvidia-smi', '--query-gpu=index,name,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw,clocks.gr', '--format=csv,noheader,nounits'], { timeoutMs: 5000 }),
+    private smi = () =>
+      run(['nvidia-smi', '--query-gpu=index,name,utilization.gpu,memory.used,memory.total,temperature.gpu,power.draw,clocks.gr', '--format=csv,noheader,nounits'], { timeoutMs: 5000 }),
     private now = () => Date.now(),
   ) {}
 

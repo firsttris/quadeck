@@ -1,7 +1,7 @@
-import { localeOf, msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
-import type { Snapshot } from '~/shared/types'
 import { THEMES, type Theme } from '~/lib/theme'
+import { m } from '~/paraglide/messages'
+import { localeOf, msg } from '~/shared/i18n'
+import type { Snapshot } from '~/shared/types'
 
 export type PaletteAction =
   | { kind: 'navigate'; to: '/' | '/units' | '/journal' | '/system' | '/quadlets' | '/shares' | '/backups' | '/ssh' | '/disks' | '/files' | '/users' | '/hardware'; search?: Record<string, string> }
@@ -24,12 +24,24 @@ export interface PaletteItem {
 export function paletteItems(s: Omit<Snapshot, 'system'>, readonly: boolean): PaletteItem[] {
   const items: PaletteItem[] = [
     { id: 'p:/', section: 'Seiten', label: msg(m.overview_title), keywords: 'dashboard start home übersicht overview', action: { kind: 'navigate', to: '/' } },
-    { id: 'p:/?edit', section: 'Seiten', label: msg(m.palette_page_editOverview), keywords: 'dashboard widgets layout bearbeiten edit hinzufügen add', action: { kind: 'navigate', to: '/', search: { edit: '1' } } },
+    {
+      id: 'p:/?edit',
+      section: 'Seiten',
+      label: msg(m.palette_page_editOverview),
+      keywords: 'dashboard widgets layout bearbeiten edit hinzufügen add',
+      action: { kind: 'navigate', to: '/', search: { edit: '1' } },
+    },
     { id: 'p:/units', section: 'Seiten', label: 'Units', keywords: 'container dienste systemd quadlets services', action: { kind: 'navigate', to: '/units' } },
     { id: 'p:/units?failed', section: 'Seiten', label: msg(m.palette_page_failedUnits), keywords: 'failed fehler error', action: { kind: 'navigate', to: '/units', search: { filter: 'failed' } } },
     { id: 'p:/journal', section: 'Seiten', label: 'Journal', keywords: 'logs journalctl', action: { kind: 'navigate', to: '/journal' } },
     { id: 'p:/quadlets', section: 'Seiten', label: msg(m.palette_page_editQuadlets), keywords: 'editor container datei compose import file edit', action: { kind: 'navigate', to: '/quadlets' } },
-    { id: 'p:/quadlets?new', section: 'Seiten', label: msg(m.palette_page_newContainer), keywords: 'quadlet container anlegen neu new create', action: { kind: 'navigate', to: '/quadlets', search: { new: 'true' } } },
+    {
+      id: 'p:/quadlets?new',
+      section: 'Seiten',
+      label: msg(m.palette_page_newContainer),
+      keywords: 'quadlet container anlegen neu new create',
+      action: { kind: 'navigate', to: '/quadlets', search: { new: 'true' } },
+    },
     {
       id: 'p:/system?boot',
       section: 'Seiten',
@@ -59,12 +71,19 @@ export function paletteItems(s: Omit<Snapshot, 'system'>, readonly: boolean): Pa
       keywords: 'fstab mount einhängen mounten platte festplatte nofail uuid disk',
       action: { kind: 'navigate', to: '/disks', search: { tab: 'mounts' } },
     },
-    { id: 'p:/files', section: 'Seiten', label: msg(m.files_explorer_files), keywords: 'dateien explorer ordner kopieren verschieben umbenennen löschen files folder copy move rename delete', action: { kind: 'navigate', to: '/files' } },
+    {
+      id: 'p:/files',
+      section: 'Seiten',
+      label: msg(m.files_explorer_files),
+      keywords: 'dateien explorer ordner kopieren verschieben umbenennen löschen files folder copy move rename delete',
+      action: { kind: 'navigate', to: '/files' },
+    },
     {
       id: 'p:/hardware',
       section: 'Seiten',
       label: 'Hardware',
-      keywords: 'hardware cpu prozessor ram arbeitsspeicher steckplatz mainboard bios gpu grafik usb pcie sata sensoren lüfter temperatur zigbee processor memory slot graphics sensors fan temperature',
+      keywords:
+        'hardware cpu prozessor ram arbeitsspeicher steckplatz mainboard bios gpu grafik usb pcie sata sensoren lüfter temperatur zigbee processor memory slot graphics sensors fan temperature',
       action: { kind: 'navigate', to: '/hardware' },
     },
     {
@@ -101,7 +120,14 @@ export function paletteItems(s: Omit<Snapshot, 'system'>, readonly: boolean): Pa
   ]
   for (const g of s.services) {
     for (const svc of g.items) {
-      items.push({ id: `s:${svc.key}`, section: 'Services', label: svc.name, hint: svc.host, keywords: `${svc.host} ${g.name} ${svc.container ?? ''} öffnen open`, action: { kind: 'open', url: svc.url } })
+      items.push({
+        id: `s:${svc.key}`,
+        section: 'Services',
+        label: svc.name,
+        hint: svc.host,
+        keywords: `${svc.host} ${g.name} ${svc.container ?? ''} öffnen open`,
+        action: { kind: 'open', url: svc.url },
+      })
     }
   }
   // Units worth acting on: containers/Quadlets, failed ones, and services that run.
@@ -110,8 +136,20 @@ export function paletteItems(s: Omit<Snapshot, 'system'>, readonly: boolean): Pa
     const active = u.active === 'active'
     if (!readonly) {
       if (active) {
-        items.push({ id: `u:restart:${u.name}`, section: 'Units', label: msg(m.units_restartAria, { name: u.name }), keywords: `restart neustart ${u.description}`, action: { kind: 'unit', action: 'restart', name: u.name } })
-        items.push({ id: `u:stop:${u.name}`, section: 'Units', label: msg(m.palette_action_stopUnit, { unit: u.name }), keywords: `stop stopp ${u.description}`, action: { kind: 'unit', action: 'stop', name: u.name } })
+        items.push({
+          id: `u:restart:${u.name}`,
+          section: 'Units',
+          label: msg(m.units_restartAria, { name: u.name }),
+          keywords: `restart neustart ${u.description}`,
+          action: { kind: 'unit', action: 'restart', name: u.name },
+        })
+        items.push({
+          id: `u:stop:${u.name}`,
+          section: 'Units',
+          label: msg(m.palette_action_stopUnit, { unit: u.name }),
+          keywords: `stop stopp ${u.description}`,
+          action: { kind: 'unit', action: 'stop', name: u.name },
+        })
       } else {
         const a = u.active === 'failed' ? 'restart' : 'start'
         items.push({

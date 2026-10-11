@@ -1,12 +1,12 @@
+import { Link } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
-import { api, ApiError, csrfHeaders } from '~/lib/api'
+import { ApiError, api, csrfHeaders } from '~/lib/api'
+import { m } from '~/paraglide/messages'
 import { localeOf } from '~/shared/i18n'
 import { mbps, pingStats, type SpeedResult, type SpeedSchedule } from '~/shared/speedtest'
 import { HistoryChart } from './HistoryChart'
-import { useGuardedApi } from './Unlock'
 import { useToast } from './Toast'
-import { Link } from '@tanstack/react-router'
-import { m } from '~/paraglide/messages'
+import { useGuardedApi } from './Unlock'
 
 const SECONDS = 6
 const dateFmt = (ts: number) => new Date(ts).toLocaleString(localeOf(), { day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit' })
@@ -123,7 +123,11 @@ const ARC = (() => {
   return `M ${x1} ${y1} A ${R} ${R} 0 1 1 ${x2} ${y2}`
 })()
 
-const COLORS: Record<Phase, [string, string]> = { ping: ['#8b949e', '#c9d1d9'], down: ['color-mix(in srgb, var(--color-accent) 78%, black)', 'var(--color-accent)'], up: ['color-mix(in srgb, var(--color-accent-2) 78%, black)', 'var(--color-accent-2)'] }
+const COLORS: Record<Phase, [string, string]> = {
+  ping: ['#8b949e', '#c9d1d9'],
+  down: ['color-mix(in srgb, var(--color-accent) 78%, black)', 'var(--color-accent)'],
+  up: ['color-mix(in srgb, var(--color-accent-2) 78%, black)', 'var(--color-accent-2)'],
+}
 
 function Gauge({ live, idle }: { live: Live | null; idle?: SpeedResult }) {
   const phase = live?.phase ?? 'down'
@@ -147,7 +151,17 @@ function Gauge({ live, idle }: { live: Live | null; idle?: SpeedResult }) {
         </filter>
       </defs>
       <path d={ARC} fill="none" stroke="rgba(255,255,255,.07)" strokeWidth="14" strokeLinecap="round" />
-      <path d={ARC} fill="none" stroke={`url(#${gid})`} strokeWidth="14" strokeLinecap="round" pathLength={100} strokeDasharray={`${frac * 100} 100`} filter="url(#glow)" style={{ transition: 'stroke-dasharray .35s ease-out' }} />
+      <path
+        d={ARC}
+        fill="none"
+        stroke={`url(#${gid})`}
+        strokeWidth="14"
+        strokeLinecap="round"
+        pathLength={100}
+        strokeDasharray={`${frac * 100} 100`}
+        filter="url(#glow)"
+        style={{ transition: 'stroke-dasharray .35s ease-out' }}
+      />
       {TICKS.map((t) => {
         const [x1, y1] = point(pos(t), R - 12)
         const [x2, y2] = point(pos(t), R - 18)
@@ -231,7 +245,10 @@ export function SpeedTest() {
     setError('')
     setLive({ phase: 'ping', value: 0, done: 0, samples: [] })
     try {
-      const h = kind === 'internet' ? await internetTest(report) : (await api<{ history: SpeedResult[] }>('/api/speedtest', { body: { client: { ...(await clientTest(report)), where: browserName() } } })).history
+      const h =
+        kind === 'internet'
+          ? await internetTest(report)
+          : (await api<{ history: SpeedResult[] }>('/api/speedtest', { body: { client: { ...(await clientTest(report)), where: browserName() } } })).history
       if (mounted.current) setHistory(h)
       void load()
     } catch (e) {
@@ -266,7 +283,10 @@ export function SpeedTest() {
               const at = running && live ? ['ping', 'down', 'up'].indexOf(live.phase) : -1
               const state = !running ? 'idle' : order < at ? 'done' : order === at ? 'now' : 'next'
               return (
-                <li key={p} className={`relative overflow-hidden rounded-full border px-3 py-1 ${state === 'now' ? 'border-accent/60 text-fg' : state === 'done' ? 'border-line text-[#7ee2a8]' : 'border-line text-muted'}`}>
+                <li
+                  key={p}
+                  className={`relative overflow-hidden rounded-full border px-3 py-1 ${state === 'now' ? 'border-accent/60 text-fg' : state === 'done' ? 'border-line text-[#7ee2a8]' : 'border-line text-muted'}`}
+                >
                   {state === 'now' && <span className="absolute inset-y-0 left-0 bg-accent/15" style={{ width: `${(live?.done ?? 0) * 100}%`, transition: 'width .2s linear' }} />}
                   <span className="relative">
                     {state === 'done' ? '✓ ' : ''}
@@ -387,7 +407,16 @@ function SpeedChart({ series }: { series: Info['series'] }) {
               { label: `↑ ${m.speed_up()}`, color: 'var(--color-accent-2)', points: series.up },
             ]}
           />
-          <HistoryChart detailed height={60} span={span} now={now} label={m.speed_ping()} yMin={0} format={(v) => `${num(v)} ms`} series={[{ label: m.speed_ping(), color: '#8b949e', points: series.ping }]} />
+          <HistoryChart
+            detailed
+            height={60}
+            span={span}
+            now={now}
+            label={m.speed_ping()}
+            yMin={0}
+            format={(v) => `${num(v)} ms`}
+            series={[{ label: m.speed_ping(), color: '#8b949e', points: series.ping }]}
+          />
         </>
       ) : (
         <p className="m-0 text-[13px] text-muted">{m.speed_chart_empty()}</p>
@@ -423,7 +452,13 @@ function AutoPanel({ schedule, next, onSaved }: { schedule: SpeedSchedule; next?
           <input type="checkbox" checked={s.enabled} onChange={(e) => void save({ ...s, enabled: e.target.checked })} />
           <span className="font-medium">{m.speed_auto_enabled()}</span>
         </label>
-        <select className="field !w-auto !py-1" aria-label={m.speed_auto_every()} value={s.every} disabled={!s.enabled} onChange={(e) => void save({ ...s, every: e.target.value as SpeedSchedule['every'] })}>
+        <select
+          className="field !w-auto !py-1"
+          aria-label={m.speed_auto_every()}
+          value={s.every}
+          disabled={!s.enabled}
+          onChange={(e) => void save({ ...s, every: e.target.value as SpeedSchedule['every'] })}
+        >
           <option value="daily">{m.speed_auto_daily()}</option>
           <option value="6h">{m.speed_auto_6h()}</option>
         </select>

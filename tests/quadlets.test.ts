@@ -1,4 +1,4 @@
-import { mkdirSync, mkdtempSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -170,8 +170,18 @@ describe('diff', () => {
     const a = Array.from({ length: MAX_EDITS + 10 }, (_, i) => `a${i}`).join('\n')
     const b = Array.from({ length: MAX_EDITS + 10 }, (_, i) => `b${i}`).join('\n')
     const d = diffLines(a, b)
-    expect(d.filter((l) => l.op === '-').map((l) => l.text).join('\n')).toBe(a)
-    expect(d.filter((l) => l.op === '+').map((l) => l.text).join('\n')).toBe(b)
+    expect(
+      d
+        .filter((l) => l.op === '-')
+        .map((l) => l.text)
+        .join('\n'),
+    ).toBe(a)
+    expect(
+      d
+        .filter((l) => l.op === '+')
+        .map((l) => l.text)
+        .join('\n'),
+    ).toBe(b)
   })
 
   it('always reproduces both texts', () => {
@@ -180,8 +190,18 @@ describe('diff', () => {
       const a = rnd()
       const b = rnd()
       const d = diffLines(a, b)
-      expect(d.filter((l) => l.op !== '+').map((l) => l.text).join('\n')).toBe(a)
-      expect(d.filter((l) => l.op !== '-').map((l) => l.text).join('\n')).toBe(b)
+      expect(
+        d
+          .filter((l) => l.op !== '+')
+          .map((l) => l.text)
+          .join('\n'),
+      ).toBe(a)
+      expect(
+        d
+          .filter((l) => l.op !== '-')
+          .map((l) => l.text)
+          .join('\n'),
+      ).toBe(b)
     }
   })
 })
@@ -370,7 +390,10 @@ describe('SystemPodmanAdmin on a temp directory', () => {
 
 describe('removalPlan', () => {
   const files = [
-    { name: 'app.container', content: '[Container]\nImage=docker.io/library/app:1\nVolume=db.volume:/var/lib/db\nVolume=cache:/cache:Z\nVolume=/srv/app:/config\nVolume=./rel:/x\nVolume=/anonymous\nVolume=-rf:/bad\n' },
+    {
+      name: 'app.container',
+      content: '[Container]\nImage=docker.io/library/app:1\nVolume=db.volume:/var/lib/db\nVolume=cache:/cache:Z\nVolume=/srv/app:/config\nVolume=./rel:/x\nVolume=/anonymous\nVolume=-rf:/bad\n',
+    },
     { name: 'db.volume', content: '[Volume]\nVolumeName=appdb\n' },
     { name: 'web.container', content: '[Container]\nImage=docker.io/library/app:1\nVolume=cache:/c\n' },
     { name: 'built.container', content: '[Container]\nImage=app.build\n' },

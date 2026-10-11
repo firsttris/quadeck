@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { m } from '~/paraglide/messages'
 import { HttpError } from '~/server/auth'
 import { db } from '~/server/db'
 import { assertWritable } from '~/server/guard'
@@ -7,7 +8,6 @@ import { querySmartHistory } from '~/server/metrics'
 import { privileged } from '~/server/privileged'
 import { unlockToken } from '~/server/unlock-sessions'
 import { msg } from '~/shared/i18n'
-import { m } from '~/paraglide/messages'
 import { parsePowerSetting, wakeRate } from '~/shared/power'
 
 // GET: hard disks with standby state, Quadeck's setting and spin-ups per day (from the SMART
