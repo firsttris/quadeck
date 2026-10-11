@@ -16,6 +16,9 @@ export const THEME_SWATCH: Record<Theme, { accent: string; bg: string }> = {
   copper: { accent: '#e39b6f', bg: '#1f1812' },
 }
 
+/** --color-bg of the default theme: the browser bar and the installed app's splash (public/manifest.webmanifest uses the same). */
+export const APP_BACKGROUND = '#0b0f14'
+
 const KEY = 'quadeck-theme'
 
 export const isTheme = (v: unknown): v is Theme => typeof v === 'string' && (THEMES as readonly string[]).includes(v)

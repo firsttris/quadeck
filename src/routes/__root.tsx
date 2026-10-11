@@ -3,7 +3,7 @@ import type { ReactNode } from 'react'
 import { I18nProvider } from '~/i18n'
 import { MOTION_INIT_SCRIPT } from '~/lib/motion'
 import { getAuthState } from '~/lib/server-fns'
-import { THEME_INIT_SCRIPT } from '~/lib/theme'
+import { APP_BACKGROUND, THEME_INIT_SCRIPT } from '~/lib/theme'
 import { m } from '~/paraglide/messages'
 import css from '~/styles.css?url'
 
@@ -15,7 +15,7 @@ export const Route = createRootRoute({
       { name: 'viewport', content: 'width=device-width, initial-scale=1' },
       { name: 'color-scheme', content: 'dark' },
       // Installable from the browser ("add to home screen"); it opens without the browser's bars
-      { name: 'theme-color', content: '#0b0f14' },
+      { name: 'theme-color', content: APP_BACKGROUND },
       { name: 'mobile-web-app-capable', content: 'yes' },
       { name: 'apple-mobile-web-app-title', content: 'Quadeck' },
       { name: 'apple-mobile-web-app-status-bar-style', content: 'black' },
