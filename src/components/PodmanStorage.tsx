@@ -170,7 +170,7 @@ export function PodmanStorageCard() {
         ))}
       </div>
 
-      <div className="overflow-x-auto">
+      <div className="relative overflow-x-auto">
         {tab === 'images' && <ImagesTable s={s} busy={busy || readonly} removing={work.busy} onRemove={(i) => void remove([i])} />}
         {tab === 'volumes' && <VolumesTable s={s} busy={busy || readonly} removing={work.busy} onRemove={(i) => remove([i])} />}
         {tab === 'containers' && (

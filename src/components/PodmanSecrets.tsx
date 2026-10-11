@@ -91,7 +91,7 @@ export function PodmanSecretsCard() {
       )}
 
       {s && (
-        <div className="overflow-x-auto">
+        <div className="relative overflow-x-auto">
           <table className="tbl">
             <thead>
               <tr>

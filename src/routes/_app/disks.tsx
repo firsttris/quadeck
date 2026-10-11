@@ -441,7 +441,7 @@ function DetailDialog({ disk: d, baseline, onClose }: { disk: SmartDisk | null; 
           )}
 
           {d.attributes.length > 0 && (
-            <div className="max-h-[300px] overflow-auto rounded-[10px] border border-edge">
+            <div className="relative max-h-[300px] overflow-auto rounded-[10px] border border-edge">
               <table className="tbl" aria-label={m.disks_detail_attributes()}>
                 <thead>
                   <tr>
