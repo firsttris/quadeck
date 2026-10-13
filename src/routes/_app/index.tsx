@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { useCallback, useEffect, useMemo, useState } from 'react'
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { actionBusyLabel, useActions } from '~/components/Actions'
 import { AddLinkDialog } from '~/components/AddLinkDialog'
 import { BusyButton, useBusy } from '~/components/Busy'
@@ -47,7 +47,7 @@ const CARD_DEFAULTS: Record<string, Record<CardId, Omit<DefaultItem, 'i'>>> = {
     ram: { x: 3, y: 0, w: 3, ...GAUGE },
     temp: { x: 6, y: 0, w: 3, ...GAUGE },
     net: { x: 9, y: 0, w: 3, ...GAUGE },
-    services: { x: 0, y: 8, w: 8, minW: 3, minH: 3 },
+    services: { x: 0, y: 8, w: 8, minW: 3, minH: 3, autoHeight: true },
     gpu: { x: 8, y: 8, w: 4, ...GAUGE },
     power: { x: 8, y: 50, w: 4, ...GAUGE },
     storage: { x: 8, y: 100, w: 4, minW: 2, minH: 3 },
@@ -61,13 +61,13 @@ const CARD_DEFAULTS: Record<string, Record<CardId, Omit<DefaultItem, 'i'>>> = {
     net: { x: 0, y: 6, w: 3, ...GAUGE, minW: 1 },
     gpu: { x: 3, y: 6, w: 3, ...GAUGE, minW: 1 },
     power: { x: 3, y: 150, w: 3, ...GAUGE, minW: 1 },
-    services: { x: 0, y: 12, w: 6, minW: 2, minH: 3 },
+    services: { x: 0, y: 12, w: 6, minW: 2, minH: 3, autoHeight: true },
     storage: { x: 0, y: 200, w: 3, minW: 2, minH: 3 },
     timers: { x: 3, y: 200, w: 3, minW: 2, minH: 3 },
     shares: { x: 0, y: 300, w: 3, minW: 2, minH: 3 },
   },
   xs: {
-    services: { x: 0, y: 0, w: 1, minH: 3 },
+    services: { x: 0, y: 0, w: 1, minH: 3, autoHeight: true },
     cpu: { x: 0, y: 100, w: 1, ...GAUGE, minW: 1 },
     ram: { x: 0, y: 104, w: 1, ...GAUGE, minW: 1 },
     temp: { x: 0, y: 108, w: 1, ...GAUGE, minW: 1 },
@@ -291,19 +291,13 @@ function Overview() {
   return (
     <>
       {/* No visible title: the navigation and the host card already say where this is, the widgets
-          get the room. The strip sits in the page's top padding; the host name only on phones,
-          which have no sidebar. */}
-      <header className="-mt-[22px] -mb-[18px] flex h-[22px] items-center gap-2">
+          get the room. One slim row with the edit button; the host name only on phones, which
+          have no sidebar. */}
+      <header className="-mt-1.5 -mb-1 flex min-h-[30px] items-center gap-2">
         <h1 className="sr-only">{m.overview_title()}</h1>
         <span className="min-w-0 grow truncate text-[12px] text-muted md:hidden">{m.overview_subtitle({ host: snapshot.host.hostname })}</span>
-        <button
-          type="button"
-          className={`ml-auto inline-flex h-[20px] items-center gap-1.5 rounded-[6px] px-2 text-[12px] ${editing ? 'bg-accent font-semibold text-bg' : 'text-muted hover:bg-surface hover:text-fg'}`}
-          onClick={() => setEditing(!editing)}
-          aria-pressed={editing}
-          title={m.overview_edit_toggleTitle()}
-        >
-          <Glyph name="edit" size={12} strokeWidth={2} />
+        <button type="button" className={`btn sm ml-auto ${editing ? 'primary' : ''}`} onClick={() => setEditing(!editing)} aria-pressed={editing} title={m.overview_edit_toggleTitle()}>
+          <Glyph name={editing ? 'check' : 'edit'} size={14} strokeWidth={2} />
           {editing ? m.overview_edit_done() : m.overview_edit_edit()}
         </button>
       </header>
@@ -487,6 +481,20 @@ function Storage({ disks, smart }: { disks: Disk[]; smart: Snapshot['smart'] }) 
 
 // ---------- services (with tile grid per group) ----------
 
+const groupLabel = (name: string) => pickMsg({ Medien: m.overview_groupNames_Medien, Netzwerk: m.overview_groupNames_Netzwerk, 'Produktivit\u00e4t': m.overview_groupNames_Produktivitaet }, name)
+
+/** The tile group under the pointer of a drag event, the dragged tile itself looked through. */
+function groupAt(e: Event): string | undefined {
+  const p = (e as TouchEvent).changedTouches?.[0] ?? (e as MouseEvent)
+  if (typeof p?.clientX !== 'number') return undefined
+  for (const el of document.elementsFromPoint(p.clientX, p.clientY)) {
+    if (el.closest('.react-draggable-dragging')) continue
+    const g = el.closest<HTMLElement>('[data-tile-group]')
+    if (g) return g.dataset.tileGroup
+  }
+  return undefined
+}
+
 function Services({
   groups,
   editing,
@@ -505,16 +513,39 @@ function Services({
   const [adding, setAdding] = useState(false)
   const [removing, setRemoving] = useState<Service | null>(null)
   const [editingKey, setEditingKey] = useState<string | null>(null)
+  // Drag and drop between groups (edit mode): the group the tile would land in.
+  const [dropTarget, setDropTarget] = useState<string>()
   const say = useToast()
   const groupNames = useMemo(() => groups.map((g) => g.name), [groups])
+  const groupOf = (key: string) => groups.find((g) => g.items.some((s) => s.key === key))
+  // The drop lands where the highlight is (the groups below can still shift as the grid compacts).
+  const lastTarget = useRef<string | undefined>(undefined)
+  const dragOver = (key: string, e: Event) => {
+    const g = groupAt(e)
+    if (!g) return // in the gap between two groups: the last one stays highlighted
+    lastTarget.current = g !== groupOf(key)?.name ? g : undefined
+    setDropTarget(lastTarget.current)
+  }
+  const drop = (key: string, e: Event) => {
+    const at = groupAt(e)
+    const target = at && at !== groupOf(key)?.name ? at : lastTarget.current
+    lastTarget.current = undefined
+    setDropTarget(undefined)
+    const s = groupOf(key)?.items.find((x) => x.key === key)
+    if (!s || !target || target === groupOf(key)?.name) return false
+    api('/api/services/override', { body: { key, group: target, onlyGroup: true } })
+      .then(() => say(m.overview_services_moved({ name: s.name, group: groupLabel(target) })))
+      .catch((err: Error) => say(err.message, 'bad'))
+    return true
+  }
   // Look the service up live, so the dialog follows SSE updates.
   const edited = editingKey ? (groups.flatMap((g) => g.items).find((s) => s.key === editingKey) ?? null) : null
   return (
     <section className="flex flex-col gap-[14px] p-[18px]" aria-label={m.overview_cards_services()}>
       <div className="flex flex-wrap items-center gap-3 in-[.editing]:pr-16">
         <h2 className="h2">{m.overview_cards_services()}</h2>
-        {/* in edit mode the icon size takes the place of the note */}
-        <span className="grow text-[12px] text-muted">{!editing && m.overview_services_detected()}</span>
+        {/* in edit mode: how tiles change group, next to the icon size */}
+        <span className="grow text-[12px] text-muted">{editing ? groups.length > 1 && m.overview_services_dragHint() : m.overview_services_detected()}</span>
         {editing && (
           <div className="no-drag flex items-center gap-1.5" role="radiogroup" aria-label={m.overview_services_iconSize()}>
             <span className="text-[12px] text-muted">{m.overview_services_iconSize()}</span>
@@ -543,6 +574,9 @@ function Services({
           onEdit={(s) => {
             if (!recentlyDragged()) setEditingKey(s.key)
           }}
+          dropTarget={dropTarget === g.name}
+          onItemDrag={groups.length > 1 ? dragOver : undefined}
+          onItemDrop={groups.length > 1 ? drop : undefined}
         />
       ))}
       <AddLinkDialog open={adding} onClose={() => setAdding(false)} groups={groupNames} />
@@ -577,6 +611,9 @@ function TileGroup({
   onSave,
   onDelete,
   onEdit,
+  dropTarget,
+  onItemDrag,
+  onItemDrop,
 }: {
   group: ServiceGroup
   iconSize: IconSize
@@ -585,6 +622,9 @@ function TileGroup({
   onSave: (bp: string, items: GridItem[]) => void
   onDelete: (s: Service) => void
   onEdit: (s: Service) => void
+  dropTarget: boolean
+  onItemDrag?: (key: string, e: Event) => void
+  onItemDrop?: (key: string, e: Event) => boolean
 }) {
   const keys = group.items.map((s) => s.key).join('\n')
   // biome-ignore lint/correctness/useExhaustiveDependencies: only rebuilt when the tiles or the icon size change
@@ -596,11 +636,15 @@ function TileGroup({
     return Object.fromEntries(Object.entries(saved).map(([bp, items]) => [bp, items.filter((it) => ids.has(it.i))]))
   }, [saved, keys])
   return (
-    <div className="flex flex-col gap-[10px]">
+    <div
+      className={`-m-1.5 flex flex-col gap-[10px] rounded-[10px] p-1.5 outline-2 outline-offset-2 ${dropTarget ? 'bg-accent/10 outline-accent outline-dashed' : 'outline-transparent'}`}
+      data-tile-group={group.name}
+      data-testid="tile-group"
+      aria-label={groupLabel(group.name)}
+      role="group"
+    >
       <div className="flex items-center gap-2">
-        <span className="text-[11px] tracking-[.08em] text-muted uppercase">
-          {pickMsg({ Medien: m.overview_groupNames_Medien, Netzwerk: m.overview_groupNames_Netzwerk, 'Produktivit\u00e4t': m.overview_groupNames_Produktivitaet }, group.name)}
-        </span>
+        <span className="text-[11px] tracking-[.08em] text-muted uppercase">{groupLabel(group.name)}</span>
         <span className="text-[11px] text-dim">{group.note}</span>
       </div>
       <EditableGrid
@@ -614,6 +658,8 @@ function TileGroup({
         editing={editing}
         onSave={onSave}
         measureItems={false}
+        onItemDrag={onItemDrag}
+        onItemDrop={onItemDrop}
       />
     </div>
   )

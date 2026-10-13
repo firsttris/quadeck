@@ -34,6 +34,14 @@ describe('mergeLayout', () => {
     expect(fixed.find((x) => x.i === 'services')).toMatchObject({ h: 9, auto: false })
   })
 
+  it('autoHeight: a saved height does not count, only the width can be resized', () => {
+    const d = [{ i: 'services', x: 0, y: 0, w: 8, minH: 3, autoHeight: true }]
+    // Layouts saved before (resized to 9 rows) grow with the content again: no scrollbar inside the card.
+    const l = mergeLayout(d, [{ i: 'services', x: 0, y: 0, w: 6, h: 9 }], { services: 900 }, spec)
+    expect(l[0]).toMatchObject({ w: 6, h: 26, auto: true, resizeHandles: ['e'] })
+    expect(mergeLayout([{ i: 'cpu', x: 0, y: 0, w: 3, h: 4 }], undefined, {}, spec)[0]).not.toHaveProperty('resizeHandles')
+  })
+
   it('places items without a saved position below the saved ones', () => {
     const l = mergeLayout(defaults, [{ i: 'services', x: 0, y: 0, w: 8, h: 0 }], {}, spec)
     expect(l.find((x) => x.i === 'cpu')!.y).toBeGreaterThanOrEqual(1000)

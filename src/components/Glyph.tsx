@@ -37,6 +37,7 @@ export const GLYPHS: Record<string, string[]> = {
   lock: ['M5 11h14v10H5z', 'M8 11V7a4 4 0 0 1 8 0v4'],
   unlock: ['M5 11h14v10H5z', 'M8 11V7a4 4 0 0 1 7.5-2'],
   edit: ['M12 20h9', 'M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z'],
+  check: ['M5 12l5 5 9-10'],
   grip: ['M9 6h.01', 'M15 6h.01', 'M9 12h.01', 'M15 12h.01', 'M9 18h.01', 'M15 18h.01'],
   package: ['M3 7l9-4 9 4v10l-9 4-9-4z', 'M3 7l9 4 9-4', 'M12 11v10', 'M7.5 5l9 4'],
   terminal: ['M3 4h18v16H3z', 'M7 9l3 3-3 3', 'M12 15h5'],

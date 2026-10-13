@@ -452,6 +452,71 @@ test.describe
       await expect(page.getByTestId('service-tile').filter({ hasText: 'Jellyfin' })).toHaveAttribute('href', 'https://jellyfin.home.example')
     })
 
+    test('edit mode: a tile is dragged into another group; outside edit mode nothing moves', async ({ page }) => {
+      await page.setViewportSize({ width: 1280, height: 1400 }) // both groups on screen: the page does not scroll while dragging
+      await login(page)
+      await page.getByRole('img', { name: 'live verbunden' }).waitFor()
+      const groupOf = (testId: string) => page.getByTestId('tile-group').filter({ has: page.getByTestId(testId) })
+      const from = await groupOf('grid-item-ct:jellyfin').getAttribute('aria-label')
+      // Any tile of another group is the drop spot.
+      const other = page
+        .getByTestId('tile-group')
+        .filter({ hasNot: page.getByTestId('grid-item-ct:jellyfin') })
+        .first()
+      const to = await other.getAttribute('aria-label')
+      const spot = other.locator('[data-testid^="grid-item-"]').first()
+      const drag = async () => {
+        const tile = page.getByTestId('grid-item-ct:jellyfin')
+        await tile.evaluate((el) => el.scrollIntoView({ block: 'center' }))
+        await page.waitForTimeout(300)
+        const a = (await tile.boundingBox())!
+        await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2)
+        await page.mouse.down()
+        await page.mouse.move(a.x + a.width / 2, a.y + a.height / 2 + 20, { steps: 4 })
+        const b = (await spot.boundingBox())! // the groups below may shift once the drag starts
+        await page.mouse.move(b.x + b.width / 2, b.y + b.height / 2, { steps: 20 })
+      }
+      // View mode: tiles are links, dragging does nothing.
+      await drag()
+      await page.mouse.up()
+      await expect(groupOf('grid-item-ct:jellyfin')).toHaveAttribute('aria-label', from!)
+
+      await page.getByRole('button', { name: 'Bearbeiten' }).click()
+      await expect(page.getByText('Kachel auf eine andere Gruppe ziehen')).toBeVisible()
+      await drag()
+      await expect(page.getByRole('group', { name: to!, exact: true })).toHaveClass(/outline-dashed/) // drop target shown
+      await page.mouse.up()
+      await expect(page.getByRole('status').filter({ hasText: `Jellyfin nach ${to} verschoben` })).toBeVisible()
+      await expect(groupOf('grid-item-ct:jellyfin')).toHaveAttribute('aria-label', to!)
+      await expect(page.getByTestId('tile-group').filter({ has: page.locator('.outline-dashed') })).toHaveCount(0)
+
+      // Back to automatic: the detected group again (the click right after a drag is ignored on purpose).
+      await expect(async () => {
+        await page.getByRole('button', { name: 'Jellyfin bearbeiten' }).click()
+        await expect(page.getByRole('dialog', { name: 'Jellyfin bearbeiten' })).toBeVisible({ timeout: 1000 })
+      }).toPass()
+      await page.getByRole('dialog').getByRole('button', { name: 'Auf automatisch zurücksetzen' }).click()
+      await expect(groupOf('grid-item-ct:jellyfin')).toHaveAttribute('aria-label', from!)
+      await page.getByRole('button', { name: 'Fertig' }).click()
+    })
+
+    test('the services card is as tall as its tiles: one scrollbar for the page, only the width can be resized', async ({ page }) => {
+      await login(page)
+      await page.getByRole('img', { name: 'live verbunden' }).waitFor()
+      const card = page.getByTestId('grid-item-services')
+      const innerOverflow = () => card.locator('.grid-item-scroll').evaluate((el) => el.scrollHeight - el.clientHeight)
+      await expect.poll(innerOverflow).toBeLessThanOrEqual(1)
+      await page.getByRole('button', { name: 'Bearbeiten' }).click()
+      // the card's own handles (the tiles inside have their own corner handles)
+      await expect(card.locator(':scope > .react-resizable-handle-e')).toHaveCount(1)
+      await expect(card.locator(':scope > .react-resizable-handle-se')).toHaveCount(0)
+      // Bigger icons make taller tiles: the card grows along.
+      await page.getByRole('radio', { name: 'Groß' }).click()
+      await expect.poll(innerOverflow).toBeLessThanOrEqual(1)
+      await page.getByRole('radio', { name: 'Mittel' }).click()
+      await page.getByRole('button', { name: 'Fertig' }).click()
+    })
+
     test('a newly picked icon shows right away, even after the old one failed to load', async ({ page }) => {
       // Only "plex" exists; every other icon (the automatic one included) fails and falls back to a glyph.
       await page.route('**/api/icons/*', (r) =>

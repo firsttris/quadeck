@@ -53,6 +53,31 @@ export function setHidden(key: string, hidden: boolean) {
   db().insert(schema.serviceOverrides).values({ serviceKey: key, hidden }).onConflictDoUpdate({ target: schema.serviceOverrides.serviceKey, set: { hidden } }).run()
 }
 
+/**
+ * Dashboard drag and drop: only the group changes. A manual link keeps it in its own row,
+ * a detected service in its override (the other overridden fields stay as they are).
+ */
+export function setGroup(key: string, group: string) {
+  const g = str(group, 40)
+  if (!KEY.test(key) || !g) throw new HttpError(400, msg(m.api_services_keyGroupRequired))
+  const manual = key.match(/^manual:(\d+)$/)
+  if (manual) {
+    const r = db()
+      .update(schema.manualServices)
+      .set({ group: g })
+      .where(eq(schema.manualServices.id, Number(manual[1])))
+      .returning()
+      .all()
+    if (!r.length) throw new HttpError(404, msg(m.links_error_notFound))
+    return
+  }
+  db()
+    .insert(schema.serviceOverrides)
+    .values({ serviceKey: key, group: g })
+    .onConflictDoUpdate({ target: schema.serviceOverrides.serviceKey, set: { group: g } })
+    .run()
+}
+
 export function deleteOverride(key: string) {
   db().delete(schema.serviceOverrides).where(eq(schema.serviceOverrides.serviceKey, key)).run()
 }
