@@ -13,6 +13,8 @@ export interface DefaultItem {
   minH?: number
   maxW?: number
   maxH?: number
+  /** Always as tall as the content, also with a saved height: only the width can be changed (no inner scrollbar). */
+  autoHeight?: boolean
 }
 
 export interface GridSpec {
@@ -46,12 +48,12 @@ export function mergeLayout(
   return defaults.map((d) => {
     const s = byId.get(d.i)
     const autoDefault = d.h === undefined
-    const auto = s ? s.h === 0 && autoDefault : autoDefault
+    const auto = d.autoHeight || (s ? s.h === 0 && autoDefault : autoDefault)
     const autoH = measured[d.i] !== undefined ? rowsFor(measured[d.i]!, spec.rowHeight, spec.margin[1]) : (d.minH ?? 4)
     // Saved heights below the minimum (older layouts, cards that grew) are raised.
     const h = Math.max(auto ? autoH : s?.h || d.h || 1, d.minH ?? 1)
     const base = s ? { x: s.x, y: s.y, w: s.w } : { x: d.x, y: d.y + offset, w: d.w }
-    return { i: d.i, ...base, h, minW: d.minW, minH: d.minH, maxW: d.maxW, maxH: d.maxH, auto }
+    return { i: d.i, ...base, h, minW: d.minW, minH: d.minH, maxW: d.maxW, maxH: d.maxH, auto, ...(d.autoHeight && { resizeHandles: ['e' as const] }) }
   })
 }
 
@@ -79,6 +81,10 @@ export interface EditableGridProps {
   measureItems?: boolean
   /** Extra controls per item in edit mode (drag handle, hide button). */
   renderChrome?: (id: string) => ReactNode
+  /** While an item is dragged (pointer event), e.g. to find a drop target outside this grid. */
+  onItemDrag?: (id: string, e: Event) => void
+  /** Drag ended; true: the item went somewhere outside this grid, its position here is not saved. */
+  onItemDrop?: (id: string, e: Event) => boolean
 }
 
 /**
@@ -86,11 +92,14 @@ export interface EditableGridProps {
  * Before mount (SSR) the same layout is rendered as a CSS grid, so the page
  * does not jump when the grid takes over.
  */
-export function EditableGrid({ spec, items, saved, editing, onSave, handle, className, ssrBreakpoint, itemClassName, measureItems = true, renderChrome }: EditableGridProps) {
+export function EditableGrid({ spec, items, saved, editing, onSave, handle, className, ssrBreakpoint, itemClassName, measureItems = true, renderChrome, onItemDrag, onItemDrop }: EditableGridProps) {
   const { width, containerRef, mounted } = useContainerWidth()
   const [measured, setMeasured] = useState<Record<string, number>>({})
   const observer = useRef<ResizeObserver | null>(null)
   const resized = useRef(new Set<string>())
+  // Dragging out of the grid (onItemDrop): it keeps its height, so what comes below (the drop
+  // targets) stays where it is while tiles inside make room for the dragged one.
+  const [frozen, setFrozen] = useState<{ rows: number; height: number }>()
 
   useEffect(() => () => observer.current?.disconnect(), [])
 
@@ -169,7 +178,7 @@ export function EditableGrid({ spec, items, saved, editing, onSave, handle, clas
   }
 
   return (
-    <div ref={containerRef} className={className}>
+    <div ref={containerRef} className={className} style={frozen ? { height: frozen.height } : undefined}>
       <Responsive
         width={width}
         breakpoints={spec.breakpoints}
@@ -179,6 +188,8 @@ export function EditableGrid({ spec, items, saved, editing, onSave, handle, clas
         margin={spec.margin}
         containerPadding={[0, 0]}
         dragConfig={{ enabled: editing, handle, cancel: '.no-drag', threshold: 4 }}
+        maxRows={frozen?.rows}
+        onDragStart={onItemDrop ? (l: Layout) => setFrozen({ rows: Math.max(1, ...l.map((x) => x.y + x.h)), height: containerRef.current?.offsetHeight ?? 0 }) : undefined}
         resizeConfig={{ enabled: editing, handles: ['se'] }}
         onResizeStop={(l: Layout, _old: LayoutItem | null, item: LayoutItem | null) => {
           // A resized item keeps its height from now on (no longer automatic).
@@ -186,8 +197,11 @@ export function EditableGrid({ spec, items, saved, editing, onSave, handle, clas
           lastGestureAt = Date.now()
           persist(l)
         }}
-        onDragStop={(l: Layout) => {
+        onDrag={onItemDrag ? (_l: Layout, _old: LayoutItem | null, item: LayoutItem | null, _p: LayoutItem | null, e: Event) => item && onItemDrag(item.i, e) : undefined}
+        onDragStop={(l: Layout, _old: LayoutItem | null, item: LayoutItem | null, _p: LayoutItem | null, e: Event) => {
           lastGestureAt = Date.now()
+          setFrozen(undefined)
+          if (item && onItemDrop?.(item.i, e)) return
           persist(l)
         }}
       >

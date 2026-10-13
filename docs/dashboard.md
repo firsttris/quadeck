@@ -19,6 +19,11 @@ places and merges them in a fixed order; later sources override earlier ones.
 2. **Containers**: the upstream of the route (`jellyfin:8096`, `localhost:8096`, `10.88.0.5:8096`)
    is matched to a Podman container by container name, network alias, container IP or published
    port. Targets that do not match a container stay as external tiles; nothing is guessed.
+   When a container behind a route is **deleted** – the container and its unit are gone, e.g.
+   *Delete Quadlet …* – the route no longer makes a tile, even though it is still in the
+   Caddyfile; the tile disappears right after the deletion. A **stopped** Quadlet keeps its tile,
+   shown as down, because its unit is still there and can be started again. Routes to hosts that
+   never were a container (another machine on the LAN) are not affected.
 3. **Unit**: the label `PODMAN_SYSTEMD_UNIT` that Quadlet sets on every container links it to its
    unit, so the tile knows its journal and can be restarted through systemd.
 4. **Labels in the Quadlet file** refine or override the discovery:
@@ -133,10 +138,17 @@ card already say where you are), so the widgets start at the top. **Edit** in th
   chart fills whatever height the widget has.
 - **Tiles** inside the services widget: move and resize within their group, for example Jellyfin
   as a 2×2 tile. The group of a tile is set by the `quadeck.group` label or the override.
+  **Dragging a tile onto another group** moves it there: the target group is outlined while you
+  drag, and only the group is saved (for a detected service as its override, for your own link in
+  the link itself; name, URL and icon stay as they are). **Reset to automatic** in the tile's
+  dialog brings a detected service back to its detected group. New groups are still made by typing
+  a name into the group field of the dialog.
 
 The layout is stored per screen width (desktop from 960 px content width with 12 columns, tablet
 with 6, phone with 1) in SQLite. Metric widgets start at a fixed height; the others size their
-height to their content until you resize them yourself. **Reset to auto layout** restores the
+height to their content until you resize them yourself. The services widget always grows with its
+tiles – only its width can be changed – so the page has one scrollbar instead of a second one
+inside the card. **Reset to auto layout** restores the
 default positions and the icon size and brings removed built-in widgets back; widgets added from the catalog stay,
 with their content.
 

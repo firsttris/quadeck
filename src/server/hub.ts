@@ -37,7 +37,7 @@ import type { UnitAction } from './privileged/actions'
 import { assertUnitName } from './privileged/actions'
 import { CaddyProvider, candidatesFromCaddyfile, candidatesFromConfig } from './providers/caddy'
 import type { ServiceCandidate } from './providers/types'
-import { localHostSet, mergeServices } from './registry'
+import { goneContainers, localHostSet, mergeServices, rememberContainers } from './registry'
 import { seedSpeedHistory, speedCheck, speedTick } from './speedtest'
 import { pruneTerminals } from './terminal/web'
 import { pruneUnlockTokens } from './unlock-sessions'
@@ -78,6 +78,8 @@ export class Hub {
   private containers: Container[] = []
   private units: Unit[] = []
   private candidates: ServiceCandidate[] = []
+  /** Every container name/alias seen since the start, with its unit: tells deleted from stopped. */
+  private seenContainers = new Map<string, string | undefined>()
   private sources: Snapshot['sources'] = {
     system: { ok: false },
     disks: { ok: false },
@@ -267,6 +269,7 @@ export class Hub {
     try {
       this.containers = this.fixtures ? (this.fixtures.containers ?? []) : await this.podman.collect()
       this.ok('podman')
+      rememberContainers(this.seenContainers, this.containers)
       this.usage.record(this.containers)
     } catch (e) {
       this.fail('podman', e)
@@ -480,6 +483,8 @@ export class Hub {
       httpHealth: this.health.results,
       iconIndex: iconIndex(),
       localHosts: localHostSet(localNames),
+      // Only with a fresh container list: without one every container would count as gone.
+      goneContainers: this.sources.podman.ok ? goneContainers(this.seenContainers, this.containers, new Set(this.units.map((u) => u.name))) : undefined,
     })
     return {
       host: this.host,
@@ -579,6 +584,25 @@ export class Hub {
     this.unitCollector.invalidate(name)
     await this.collectSystemd()
     await this.collectPodman()
+    this.publish()
+  }
+
+  /** After a Quadlet was deleted: its tile and its row go now, not with the next 5 s tick. */
+  async quadletDeleted(unit: string) {
+    if (this.fixtures) {
+      // Demo: what systemd and Podman would report once the file is gone.
+      this.fixtures.units = (this.fixtures.units ?? []).filter((u) => u.name !== unit)
+      this.fixtures.containers = (this.fixtures.containers ?? []).filter((c) => c.unit !== unit)
+    }
+    await Promise.allSettled([this.collectPodman(), this.collectSystemd()])
+    this.publish()
+  }
+
+  /** After start at boot changed in a Quadlet file: the unit's WantedBy= is not in the ListUnits row, so it is read again now. */
+  async quadletBootChanged(unit: string, boot: boolean) {
+    if (this.fixtures) this.fixtures.units = (this.fixtures.units ?? []).map((u) => (u.name === unit && u.quadlet ? { ...u, quadlet: { ...u.quadlet, boot } } : u))
+    else this.unitCollector.invalidate(unit)
+    await this.collectSystemd()
     this.publish()
   }
 

@@ -16,6 +16,8 @@ export interface ContainerUsage {
   memMax: number
   /** Share of the range it was running, 0..1. */
   uptime: number
+  /** No such container any more (removed, or a one-off `podman run --rm` without --name). */
+  gone?: boolean
   cpu: [number, number][]
   cpuPeak: [number, number][]
   mem: [number, number][]

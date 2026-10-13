@@ -174,11 +174,15 @@ function UnitRow({
   const memory = u?.memory ?? c?.memUsage
   // One button for what is usually wanted; everything else in the menu.
   const primary: 'restart' | 'start' = active || u?.active === 'failed' ? 'restart' : 'start'
-  const bootable = u && (u.unitFileState === 'enabled' || u.unitFileState === 'disabled')
+  // Quadlet units are generated: they start at boot through [Install] in their file, not systemctl enable.
+  const bootable = u && (!!u.quadlet || u.unitFileState === 'enabled' || u.unitFileState === 'disabled')
+  const bootOn = u?.quadlet ? !!u.quadlet.boot : u?.unitFileState === 'enabled'
   const setBoot = (enabled: boolean) =>
     boot.run('boot', async () => {
       try {
-        const r = await guarded('/api/systemd', { body: { enable: { unit: u!.name, enabled } } })
+        const r = u!.quadlet
+          ? await guarded('/api/quadlets/file', { method: 'POST', body: { name: u!.quadlet.file, boot: enabled } })
+          : await guarded('/api/systemd', { body: { enable: { unit: u!.name, enabled } } })
         if (r) say(enabled ? m.units_bootOn({ name: u!.name }) : m.units_bootOff({ name: u!.name }))
       } catch (e) {
         say((e as Error).message, 'bad')
@@ -197,9 +201,7 @@ function UnitRow({
       ? []
       : [
           ...(active ? [{ label: m.units_stopDots(), onSelect: () => run('stop', target), danger: true, disabled: busy === name, separator: true }] : []),
-          ...(bootable
-            ? [{ label: m.units_startAtBoot(), checked: u!.unitFileState === 'enabled', onSelect: () => void setBoot(u!.unitFileState !== 'enabled'), disabled: !!boot.busy, separator: true }]
-            : []),
+          ...(bootable ? [{ label: m.units_startAtBoot(), checked: bootOn, onSelect: () => void setBoot(!bootOn), disabled: !!boot.busy, separator: true }] : []),
           ...(u?.quadlet ? [{ label: m.units_deleteQuadlet(), onSelect: () => setRemoving(true), danger: true, separator: !active || !!bootable }] : []),
         ]),
   ]
@@ -244,7 +246,9 @@ function UnitRow({
       <td className="hidden sm:table-cell" suppressHydrationWarning>
         {u ? age(u.since) : '–'}
       </td>
-      <td className="hidden text-subtle 2xl:table-cell">{u?.unitFileState ?? (c ? m.units_noUnit() : '–')}</td>
+      <td className="hidden text-subtle 2xl:table-cell" title={u?.quadlet ? u.unitFileState : undefined}>
+        {u?.quadlet ? (u.quadlet.boot ? 'enabled' : 'disabled') : (u?.unitFileState ?? (c ? m.units_noUnit() : '–'))}
+      </td>
       <td>
         <div className="flex justify-end gap-1.5">
           {!readonly && (

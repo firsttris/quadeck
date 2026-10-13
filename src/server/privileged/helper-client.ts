@@ -142,6 +142,9 @@ export class HelperClient implements Privileged {
   deleteQuadlet(token: string | undefined, name: string, also: RemoveAlso = {}) {
     return this.call<{ warnings: string[] }>('POST', '/quadlets/delete', { token, name, image: also.image === true, volumes: also.volumes === true }, 300_000)
   }
+  setQuadletBoot(token: string | undefined, name: string, enabled: boolean) {
+    return this.call<WriteResult>('POST', '/quadlets/boot', { token, name, enabled }, 180_000)
+  }
   async setAutoUpdateTimer(token: string | undefined, enabled: boolean, calendar: string) {
     await this.call('POST', '/podman/timer', { token, enabled, calendar })
   }

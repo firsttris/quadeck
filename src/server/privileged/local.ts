@@ -375,6 +375,10 @@ export class LocalPrivileged implements Privileged {
     this.gate.check(token)
     return this.admin.deleteQuadlet(name, also)
   }
+  async setQuadletBoot(token: string | undefined, name: string, enabled: boolean) {
+    this.gate.check(token)
+    return this.admin.setQuadletBoot(name, enabled)
+  }
   async setAutoUpdateTimer(token: string | undefined, enabled: boolean, calendar: string) {
     this.gate.check(token)
     return this.admin.setAutoUpdateTimer(enabled, calendar)

@@ -390,6 +390,9 @@ export class SystemCaddyHost implements CaddyHost {
           'podman',
           'run',
           '--rm',
+          // a name of its own: otherwise Podman picks a random one, which then shows in the usage history
+          '--name=quadeck-caddy-check',
+          '--replace',
           '--network=none',
           '--pull=never',
           ...mounts,

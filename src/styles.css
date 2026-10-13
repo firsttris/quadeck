@@ -1050,3 +1050,83 @@
     transform: translateX(-40px);
   }
 }
+
+/* Journal → System: one entry per row; on phones time, level and source above the message. */
+.sj {
+  display: grid;
+  grid-template-columns: 64px 74px minmax(0, 150px) minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+  padding: 4px 16px;
+  border-bottom: 1px solid color-mix(in srgb, var(--color-line) 60%, transparent);
+  font: 12.5px/1.6 var(--font-mono);
+}
+.sj:hover {
+  background: var(--color-surface);
+}
+.sj.err {
+  background: rgba(248, 81, 73, 0.07);
+}
+.sj-prio {
+  font: 500 11px/1.6 var(--font-sans, inherit);
+  color: var(--color-muted);
+}
+.sj-prio.err {
+  color: #ff8a80;
+}
+.sj-prio.warning {
+  color: #e3b341;
+}
+.sj-prio.notice {
+  color: var(--color-subtle);
+}
+.sj-msg {
+  all: unset;
+  cursor: pointer;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.sj.err .sj-msg {
+  color: #ff8a80;
+}
+.sj.warning .sj-msg {
+  color: #e3b341;
+}
+.sj.debug .sj-msg {
+  color: var(--color-muted);
+}
+.sj-src {
+  all: unset;
+  cursor: pointer;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--color-accent);
+}
+.sj-src:hover,
+.sj-msg:hover {
+  text-decoration: underline;
+}
+.sj-src:focus-visible,
+.sj-msg:focus-visible {
+  outline: 2px solid var(--color-accent);
+  outline-offset: 2px;
+}
+.sj mark {
+  background: color-mix(in srgb, var(--color-accent) 35%, transparent);
+  color: inherit;
+  border-radius: 2px;
+}
+@media (max-width: 640px) {
+  .sj {
+    grid-template-columns: auto auto minmax(0, 1fr);
+    gap: 2px 10px;
+  }
+  .sj-msg {
+    grid-column: 1 / -1;
+  }
+}

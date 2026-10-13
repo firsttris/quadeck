@@ -28,7 +28,11 @@ opens the journal.
 - **Edit Quadlet / Edit unit** opens the Quadlet file for Quadlet units and the
   [systemd editor](systemd.md) for everything else.
 - **Start at boot** enables or disables the unit (`systemctl enable/disable`); only shown
-  for units that have an install section.
+  for units that have an install section. Quadlet units are generated, so `systemctl enable` does
+  not apply to them: here the switch writes `WantedBy=multi-user.target` into the file's
+  `[Install]` section, or takes the `WantedBy=`/`RequiredBy=` lines out (an `[Install]` section
+  left empty goes too). The change is saved like an edit – history, `daemon-reload` – and does not
+  start or stop anything. The tick follows what systemd has loaded: a target wants the unit.
 - **Delete Quadlet …** removes a Quadlet container for good, see [Deleting](#deleting).
 - **+ New unit** creates a plain systemd unit from a template.
 
@@ -38,13 +42,50 @@ the journal and the unit files.
 Unit names are validated before anything is sent to systemd, and only units Quadeck has seen in
 its own list can be acted on.
 
+## Journal
+
+The journal page has two tabs.
+
+**Live** follows `journalctl -f`: all units or one (the chips are the container units and the
+failed ones), all, errors or warnings, a search over what is on screen, pause and follow.
+
+**Search the system** browses the whole journal, not only the last lines of the units:
+
+- **Search** (`/` jumps there) runs over the whole range as `journalctl --grep`, literal and
+  case-insensitive; hits are marked. A `journalctl` built without PCRE2 searches the last pages here.
+- **Time range**: 15 minutes, an hour, 24 hours (default), 7 days or everything; **Boot**: all, this
+  one or an earlier one (`journalctl --list-boots`).
+- **Area**: everything, **kernel** (`_TRANSPORT=kernel`, over all boots) or **logins & sudo** (the
+  syslog facilities auth and authpriv: sshd, sudo, polkit, logind).
+- **Unit or program** with suggestions: a name ending in `.service`, `.timer` … or a known unit
+  filters with `-u`, anything else is the program (`SYSLOG_IDENTIFIER`, `-t`). A click on the
+  source of a line filters by it.
+- **From priority**: emergency to debug; info and above by default.
+
+Above the list: how many entries, errors and warnings are loaded and a small chart of when they
+happened. The list is newest first, grouped by day, 200 entries at a time with **Load older**
+below. A click on a message opens it with its time, priority, unit, program, PID and boot, and
+**All fields** shows every field journald stored; copy the message or filter by its source from
+there. All filters are part of the address, so a search can be bookmarked or sent, and back and
+forward work.
+
+The journal is read by the web app (group `systemd-journal`), never by the root helper; every filter
+is checked before it becomes a `journalctl` argument.
+
 ### Usage over time
 
 **Usage over time** (next to the filters) answers "which container eats my CPU and RAM?" over the
 last 24 hours, 7 or 30 days:
 
 - one row per container with average and peak CPU, average and peak RAM, how much of the range it
-  was running and a CPU sparkline; sorted by CPU or RAM, with a bar relative to the top one;
+  was running and a CPU sparkline; sorted by CPU or RAM **used over the whole range** (average ×
+  share of the range it ran), with a bar relative to the top one – so a container that ran twenty
+  minutes at 100 % does not end up above a service that runs all day;
+- containers that are **not there any more** are hidden behind **Removed containers (n)**: deleted
+  ones, and one-off runs. A container started with `podman run` without `--name` gets a random
+  name from Podman (`determined_mahavira`, `priceless_mayer`, …) – scripts, CI runners, `podman
+  run --rm` from a cron job. Shown, they are dimmed and marked *removed*. Quadeck's own check of a
+  Caddyfile runs as `quadeck-caddy-check`, so it is recognisable;
 - **History** (also in a container row's **⋯** menu as *Usage over time*) opens charts of CPU
   (average and peak) and RAM for the chosen range.
 
@@ -129,7 +170,7 @@ starts the units.
 the file, commits the deletion to the history (the file can be restored from there) and reloads
 systemd, so the generated service is gone and does not come back at the next boot. Stopping alone
 is **Stop …** in the row menu; a Quadlet unit then starts again at the next boot if its file has
-an `[Install]` section.
+an `[Install]` section – untick **Start at boot** to keep it off.
 
 For a `.container` the dialog offers two more boxes, both off by default:
 

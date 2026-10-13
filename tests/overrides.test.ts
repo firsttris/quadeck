@@ -41,6 +41,35 @@ describe('service overrides', () => {
     ov.deleteOverride('ct:a')
     expect(row()).toBeUndefined()
   })
+
+  it('moves a service to another group without touching its other fields', () => {
+    const row = (key: string) =>
+      db()
+        .select()
+        .from(schema.serviceOverrides)
+        .all()
+        .find((r) => r.serviceKey === key)
+    ov.saveOverride(ov.validateOverride({ key: 'ct:b', name: 'B', icon: 'jellyfin', pinned: true }))
+    ov.setGroup('ct:b', ' Medien ')
+    expect(row('ct:b')).toMatchObject({ name: 'B', icon: 'jellyfin', pinned: true, hidden: false, group: 'Medien' })
+    // No override yet: one is created with only the group.
+    ov.setGroup('ct:c', 'Tools')
+    expect(row('ct:c')).toMatchObject({ name: null, group: 'Tools', pinned: false })
+    // Manual links keep their group in their own row.
+    const link = db().insert(schema.manualServices).values({ name: 'NAS', url: 'http://nas.local/', group: 'Links' }).returning().get()
+    ov.setGroup(`manual:${link.id}`, 'Netzwerk')
+    expect(
+      db()
+        .select()
+        .from(schema.manualServices)
+        .all()
+        .find((l) => l.id === link.id),
+    ).toMatchObject({ name: 'NAS', url: 'http://nas.local/', group: 'Netzwerk' })
+    expect(row(`manual:${link.id}`)).toBeUndefined()
+    expect(() => ov.setGroup('manual:99999', 'X')).toThrow()
+    expect(() => ov.setGroup('ct:b', '  ')).toThrow()
+    expect(() => ov.setGroup('bad key', 'X')).toThrow()
+  })
 })
 
 describe('icon search', () => {

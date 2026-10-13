@@ -161,6 +161,19 @@ describe('helper over a Unix socket', () => {
     await expect(client.podmanContainer('forged', 'abcdefabcdef', 'stop')).rejects.toMatchObject({ status: 423 })
   })
 
+  it('switches start at boot of a Quadlet only after unlock', async () => {
+    await expect(client.setQuadletBoot(undefined, 'caddy.container', false)).rejects.toMatchObject({ status: 423 })
+    const { token } = await client.unlock('tristan', 'geheim-123')
+    await expect(client.setQuadletBoot(token, '../etc/passwd.container', false)).rejects.toMatchObject({ status: 400 })
+    await expect(client.setQuadletBoot(token, 'missing.container', true)).rejects.toMatchObject({ status: 404 })
+    expect(await client.setQuadletBoot(token, 'caddy.container', false)).toEqual({ unit: 'caddy.service', restarted: false })
+    expect(await client.readQuadlet('caddy.container')).not.toContain('[Install]')
+    await client.setQuadletBoot(token, 'caddy.container', true)
+    expect(await client.readQuadlet('caddy.container')).toContain('[Install]\nWantedBy=multi-user.target')
+    expect((await client.quadletHistory('caddy.container')).length).toBe(3)
+    await client.lock(token)
+  })
+
   it('validates after unlock and keeps Podman reads on the allowlist', async () => {
     const { token } = await client.unlock('tristan', 'geheim-123')
     expect(await client.unlockedUntil(token)).toBeGreaterThan(Date.now())

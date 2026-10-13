@@ -18,6 +18,8 @@ export function ContainerUsageView({ open }: { open?: string }) {
   const navigate = useNavigate()
   const [range, setRange] = useState<UsageRange>('24h')
   const [sort, setSort] = useState<Sort>('cpu')
+  // Containers that are not there any more (removed, one-off runs with random names): hidden unless asked for.
+  const [showGone, setShowGone] = useState(false)
   const [data, setData] = useState<{ containers: ContainerUsage[]; now: number } | null>(null)
   const [error, setError] = useState('')
 
@@ -31,8 +33,12 @@ export function ContainerUsageView({ open }: { open?: string }) {
   }, [range])
   usePolling(load, 60_000)
 
-  const rows = [...(data?.containers ?? [])].sort((a, b) => (sort === 'cpu' ? b.cpuAvg - a.cpuAvg : b.memAvg - a.memAvg))
-  const top = Math.max(1e-9, ...rows.map((r) => (sort === 'cpu' ? r.cpuAvg : r.memAvg)))
+  const goneCount = data?.containers.filter((c) => c.gone).length ?? 0
+  // Ranked by what a container used over the whole range (average × time running): twenty minutes
+  // at 100 % do not outrank a service that runs all day at 5 %.
+  const weight = (r: ContainerUsage) => (sort === 'cpu' ? r.cpuAvg : r.memAvg) * r.uptime
+  const rows = [...(data?.containers ?? [])].filter((c) => showGone || !c.gone).sort((a, b) => weight(b) - weight(a))
+  const top = Math.max(1e-9, ...rows.map(weight))
   const current = open ? data?.containers.find((c) => c.name === open) : undefined
   const close = () => void navigate({ to: '/units', search: { view: 'usage' } })
 
@@ -58,6 +64,11 @@ export function ContainerUsageView({ open }: { open?: string }) {
             {m.usage_byRam()}
           </button>
         </div>
+        {goneCount > 0 && (
+          <button type="button" className={`seg ${showGone ? 'on' : ''}`} aria-pressed={showGone} onClick={() => setShowGone(!showGone)} title={m.usage_goneTitle()}>
+            {m.usage_showGone({ count: goneCount })}
+          </button>
+        )}
       </div>
       {error && <p className="m-0 text-[13px] text-[#e3b341]">{error}</p>}
       <div className="relative overflow-x-auto">
@@ -85,12 +96,17 @@ export function ContainerUsageView({ open }: { open?: string }) {
               </tr>
             )}
             {rows.map((r) => (
-              <tr key={r.name} data-testid="usage-row">
+              <tr key={r.name} data-testid="usage-row" className={r.gone ? 'opacity-60' : undefined}>
                 <td>
                   <span className="font-mono text-[13px] font-medium">{r.name}</span>
+                  {r.gone && (
+                    <span className="chip ml-2" title={m.usage_goneTitle()}>
+                      {m.usage_gone()}
+                    </span>
+                  )}
                   {r.unit && <span className="block text-[12px] text-muted">{r.unit}</span>}
                   <span className="mt-1 block h-1 rounded bg-line" aria-hidden="true">
-                    <span className="block h-1 rounded bg-accent" style={{ width: `${((sort === 'cpu' ? r.cpuAvg : r.memAvg) / top) * 100}%` }} />
+                    <span className="block h-1 rounded bg-accent" style={{ width: `${(weight(r) / top) * 100}%` }} />
                   </span>
                 </td>
                 <td className="font-mono text-[12px]">{cpuText(r.cpuAvg)}</td>

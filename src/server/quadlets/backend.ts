@@ -23,6 +23,7 @@ import {
   type Revision,
   removalPlan,
   type ValidateResult,
+  withQuadletBoot,
 } from '~/shared/quadlets'
 import { writeFileAtomic } from '../atomic'
 import { HttpError } from '../auth'
@@ -57,6 +58,8 @@ export interface PodmanAdminBackend extends PodmanAdmin {
   /** expected: hash of the content the editor loaded ('' for a new file); undefined = no check. */
   writeQuadlet(name: string, content: string, restart: boolean, expected?: string): Promise<WriteResult>
   deleteQuadlet(name: string, also?: RemoveAlso): Promise<{ warnings: string[] }>
+  /** Start at boot: adds or removes the [Install] lines, saved like an edit (history, reload); nothing is started or stopped. */
+  setQuadletBoot(name: string, enabled: boolean): Promise<WriteResult>
   setAutoUpdateTimer(enabled: boolean, calendar: string): Promise<void>
   setAutoUpdateDefault(enabled: boolean): Promise<void>
   writePodmanConfig(name: PodmanConfigName, content: string): Promise<void>
@@ -315,6 +318,13 @@ export class SystemPodmanAdmin implements PodmanAdminBackend {
     }
   }
 
+  async setQuadletBoot(name: string, enabled: boolean) {
+    const content = await this.readQuadlet(name)
+    const next = withQuadletBoot(content, enabled)
+    if (next === content) return { unit: quadletUnit(name), restarted: false }
+    return this.writeQuadlet(name, next, false, contentHash(content))
+  }
+
   /** Every Quadlet file with its content, for what a deleted one leaves behind. */
   async removalPlan(name: string): Promise<RemovalPlan> {
     validName(name)
@@ -530,6 +540,12 @@ export class FixturePodmanAdmin implements PodmanAdminBackend {
     if (err) throw new HttpError(422, `${err.line ? msg(m.fstab_label_linePrefix, { line: err.line }) : ''}${err.message}`)
     this.put(name, content.endsWith('\n') ? content : `${content}\n`, `${name} ${this.files.has(name) ? 'changed' : 'created'}`)
     return { unit: quadletUnit(name), restarted: restart }
+  }
+  async setQuadletBoot(name: string, enabled: boolean) {
+    const content = await this.readQuadlet(name)
+    const next = withQuadletBoot(content, enabled)
+    if (next === content) return { unit: quadletUnit(name), restarted: false }
+    return this.writeQuadlet(name, next, false, contentHash(content))
   }
   async removalPlan(name: string) {
     validName(name)

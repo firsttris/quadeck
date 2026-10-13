@@ -6,7 +6,7 @@ import { diffLines, hunks, MAX_EDITS } from '~/lib/diff'
 import { generatedUnit, generatorDiagnostics, missingReferences, SystemPodmanAdmin } from '~/server/quadlets/backend'
 import { composeToQuadlets } from '~/server/quadlets/compose'
 import { getValue, getValues, lintQuadlet, parseIni, setValues } from '~/shared/ini'
-import { assertQuadletName, quadletUnit, removalPlan } from '~/shared/quadlets'
+import { assertQuadletName, quadletBoots, quadletUnit, removalPlan, withQuadletBoot } from '~/shared/quadlets'
 import { getToml, setToml } from '~/shared/toml-edit'
 
 const FILE = `# Jellyfin
@@ -443,5 +443,70 @@ describe('ini line endings and blank lines', () => {
   it("leaves the user's blank lines alone when [Unit] is added on top", () => {
     expect(setValues('[Service]\nA=1\n\n\n\nB=2\n', 'Unit', 'Description', ['x'])).toBe('[Unit]\nDescription=x\n\n[Service]\nA=1\n\n\n\nB=2\n')
     expect(setValues('', 'Unit', 'Description', ['x'])).toBe('[Unit]\nDescription=x\n')
+  })
+})
+
+describe('start at boot', () => {
+  const base = '[Unit]\nDescription=x\n\n[Container]\nImage=docker.io/library/nginx\n'
+
+  it('adds [Install] when there is none, and takes it out again', () => {
+    const on = withQuadletBoot(base, true)
+    expect(on).toBe(`${base}\n[Install]\nWantedBy=multi-user.target\n`)
+    expect(quadletBoots(on)).toBe(true)
+    expect(withQuadletBoot(on, true)).toBe(on)
+    expect(withQuadletBoot(on, false)).toBe(base)
+    expect(quadletBoots(base)).toBe(false)
+  })
+
+  it('keeps an [Install] section with other keys, comments and the sections after it', () => {
+    const f = '[Container]\nImage=x\n\n[Install]\n# boot\nWantedBy=default.target\nRequiredBy=media.target\nAlias=web.service\n\n[Service]\nRestart=always\n'
+    const off = withQuadletBoot(f, false)
+    expect(off).toBe('[Container]\nImage=x\n\n[Install]\n# boot\nAlias=web.service\n\n[Service]\nRestart=always\n')
+    expect(quadletBoots(off)).toBe(false)
+    // Back on: into the section that is there, not a second one.
+    expect(withQuadletBoot(off, true)).toBe('[Container]\nImage=x\n\n[Install]\nWantedBy=multi-user.target\n# boot\nAlias=web.service\n\n[Service]\nRestart=always\n')
+  })
+
+  it('UpheldBy= counts too; an empty WantedBy= does not; a file without final newline', () => {
+    expect(quadletBoots('[Container]\nImage=x\n[Install]\nUpheldBy=multi-user.target\n')).toBe(true)
+    expect(withQuadletBoot('[Container]\nImage=x\n[Install]\nUpheldBy=multi-user.target\n', false)).toBe('[Container]\nImage=x\n')
+    expect(quadletBoots('[Container]\nImage=x\n[Install]\nWantedBy=\n')).toBe(false)
+    // An empty assignment resets the list, as in systemd: switching on must not leave it behind.
+    const reset = '[Container]\nImage=x\n\n[Install]\nWantedBy=default.target\nWantedBy=\n'
+    expect(quadletBoots(reset)).toBe(false)
+    expect(withQuadletBoot(reset, true)).toBe('[Container]\nImage=x\n\n[Install]\nWantedBy=multi-user.target\n')
+    expect(quadletBoots('[Container]\nWantedBy=multi-user.target\n')).toBe(false) // not in [Install]
+    expect(withQuadletBoot('[Container]\nImage=x', true)).toBe('[Container]\nImage=x\n\n[Install]\nWantedBy=multi-user.target\n')
+  })
+
+  it('drops an emptied [Install] in the middle of the file', () => {
+    const f = '[Container]\nImage=x\n\n[Install]\nWantedBy=multi-user.target\n\n[Service]\nRestart=always\n'
+    expect(withQuadletBoot(f, false)).toBe('[Container]\nImage=x\n\n[Service]\nRestart=always\n')
+  })
+
+  it('saves through the normal write: history and reload, nothing restarted', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'quadeck-boot-'))
+    const dir = join(root, 'systemd')
+    mkdirSync(dir)
+    writeFileSync(join(dir, 'web.container'), base)
+    const calls: string[] = []
+    const admin = new SystemPodmanAdmin({
+      dir,
+      gitDir: join(root, 'git'),
+      manager: async (method) => {
+        calls.push(method)
+        return ''
+      },
+    })
+    const r = await admin.setQuadletBoot('web.container', true)
+    expect(r).toEqual({ unit: 'web.service', restarted: false })
+    expect(readFileSync(join(dir, 'web.container'), 'utf8')).toContain('[Install]\nWantedBy=multi-user.target')
+    expect(calls).toEqual(['Reload'])
+    // Already off: no write, no reload.
+    calls.length = 0
+    await admin.setQuadletBoot('web.container', false)
+    await admin.setQuadletBoot('web.container', false)
+    expect(calls).toEqual(['Reload'])
+    expect(quadletBoots(readFileSync(join(dir, 'web.container'), 'utf8'))).toBe(false)
   })
 })

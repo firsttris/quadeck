@@ -49,6 +49,10 @@ describe('per-container usage', () => {
     expect(u[0]).toMatchObject({ unit: 'jellyfin.service', cpuAvg: 35, cpuMax: 50, memMax: 600 * MB })
     expect(u[0]!.uptime).toBeCloseTo((2 * USAGE_BUCKET_MS) / 86_400_000)
     expect(u[1]).toMatchObject({ cpuAvg: 2, memAvg: 900 * MB })
+    // Containers not there any more are marked, the others not.
+    const marked = queryUsage(db(), '24h', r.units, Date.now(), new Set(['jellyfin']))
+    expect(marked.find((x) => x.name === 'jellyfin')).not.toHaveProperty('gone')
+    expect(marked.find((x) => x.name === 'immich')).toMatchObject({ gone: true })
     // over 24 h a chart point spans 15 minutes: the two buckets are one or two points, depending on the clock
     expect(u[0]!.cpu.length).toBeGreaterThanOrEqual(1)
     expect(u[0]!.cpu.length).toBeLessThanOrEqual(2)
@@ -83,6 +87,16 @@ describe('per-container usage', () => {
     expect(busy.cpuMax).toBe(400)
     expect(Math.max(...busy.cpuPeak.map(([, v]) => v))).toBe(400) // the spike survives thinning
     expect(queryUsage(db(), '24h').find((x) => x.name === 'busy')!.cpuMax).toBe(400)
+  })
+
+  it('ranks by what was used over the range: a short run at 100 % does not outrank a service running all day', () => {
+    const end = Math.floor(Date.now() / USAGE_BUCKET_MS) * USAGE_BUCKET_MS
+    const rows = [{ ts: end - 3_600_000, metric: 'ct:priceless_mayer:cpu', value: 100 }]
+    for (let ts = end - 20 * 3_600_000; ts < end; ts += USAGE_BUCKET_MS) rows.push({ ts, metric: 'ct:steady:cpu', value: 6 })
+    db().insert(schema.metricSamples).values(rows).run()
+    const names = queryUsage(db(), '24h').map((x) => x.name)
+    expect(names.indexOf('steady')).toBeLessThan(names.indexOf('priceless_mayer'))
+    expect(queryUsage(db(), '24h').find((x) => x.name === 'priceless_mayer')!.cpuAvg).toBe(100) // the average itself stays
   })
 
   it('pruning keeps 30 days', () => {

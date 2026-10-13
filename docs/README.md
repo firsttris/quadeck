@@ -62,7 +62,7 @@ server: without a connection the app shows the browser's error page.
 | **Hardware** | host card in the sidebar | CPU, memory, GPUs, USB, sensors, PCIe/SATA links |
 | **Overview** | | gauges with history, failed units, services, storage, timers, shares |
 | **Units** | Services | services, timers and containers with actions; the *Timers* filter is the schedule editor; from here the Quadlet and systemd editors open |
-| **Journal** | Services | `journalctl` live, per unit and priority, searchable |
+| **Journal** | Services | *Live*: `journalctl` following, per unit and priority; *Search the system*: the whole journal by time, boot, kernel or logins, unit or program and full text |
 | **Disks** | Storage | SMART verdicts, history, self-tests; mounting disks via `/etc/fstab` |
 | **Files** | Storage | file explorer for the data areas |
 | **Shares** | Storage | SMB and NFS |
