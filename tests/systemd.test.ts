@@ -27,6 +27,7 @@ describe('systemd', () => {
   it('recognises Quadlet units only by their source file', () => {
     expect(quadletOf('/etc/containers/systemd/jellyfin.container')).toEqual({ file: 'jellyfin.container', type: 'container' })
     expect(quadletOf('/home/u/.config/containers/systemd/media.network')).toEqual({ file: 'media.network', type: 'network' })
+    expect(quadletOf('/etc/containers/systemd/media/jellyfin.container')).toEqual({ file: 'media/jellyfin.container', type: 'container' })
     expect(quadletOf('/etc/systemd/system/foo.container')).toBeUndefined()
     expect(quadletOf(undefined)).toBeUndefined()
     expect(calendarOf('{ OnCalendar=Sun *-*-* 04:00:00 ; next_elapse=… }')).toBe('Sun *-*-* 04:00:00')
@@ -50,6 +51,16 @@ describe('systemd', () => {
     expect(failureReason(u)).toBe('OOM-Kill: Speicherlimit MemoryMax=2G erreicht')
     expect(failureReason({ ...u, result: 'exit-code', exitStatus: 1 })).toBe('Prozess endete mit Exit 1')
     expect(failureReason({ ...u, active: 'active' })).toBeUndefined()
+  })
+
+  it('a Quadlet unit starts at boot when a target wants it, not by its UnitFileState', () => {
+    const l = { name: 'caddy.service', description: '', load: 'loaded', active: 'active', sub: 'running' }
+    const p = { Id: 'caddy.service', SourcePath: '/etc/containers/systemd/caddy.container', UnitFileState: 'generated' }
+    expect(buildUnit(l, { ...p, WantedBy: 'multi-user.target' }).quadlet).toEqual({ file: 'caddy.container', type: 'container', boot: true })
+    expect(buildUnit(l, { ...p, RequiredBy: 'default.target' }).quadlet?.boot).toBe(true)
+    // Wanted only by its pod: starts with the pod, not by itself.
+    expect(buildUnit(l, { ...p, WantedBy: 'media-pod.service' }).quadlet?.boot).toBe(false)
+    expect(buildUnit(l, p).quadlet?.boot).toBe(false)
   })
 
   it('builds timers', () => {

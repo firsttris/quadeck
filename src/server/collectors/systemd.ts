@@ -56,11 +56,15 @@ const bytes = (v: string | undefined) => {
 const QUADLET_EXT = /\.(container|pod|network|volume|kube|image|build)$/
 const QUADLET_DIR = /\/containers\/systemd\//
 
+/** file: relative to the Quadlet directory, so one in a sub-directory opens and saves under its own name. */
 export function quadletOf(sourcePath: string | undefined): Unit['quadlet'] {
   if (!sourcePath || !QUADLET_EXT.test(sourcePath) || !QUADLET_DIR.test(sourcePath)) return undefined
-  const file = sourcePath.split('/').pop()!
+  const file = sourcePath.split(QUADLET_DIR).pop()!
   return { file, type: file.split('.').pop()! }
 }
+
+/** Generated units cannot be enabled: they start at boot when a target wants them (the generator links [Install]). */
+const wantedByTarget = (p: Record<string, string>) => `${p.WantedBy ?? ''} ${p.RequiredBy ?? ''}`.split(/\s+/).some((u) => u.endsWith('.target'))
 
 export function calendarOf(timersCalendar: string | undefined): string | undefined {
   // "{ OnCalendar=*-*-* 03:00:00 ; next_elapse=… }"
@@ -68,7 +72,8 @@ export function calendarOf(timersCalendar: string | undefined): string | undefin
 }
 
 export function buildUnit(l: ListedUnit, p: Record<string, string>): Unit {
-  const quadlet = quadletOf(p.SourcePath)
+  const q = quadletOf(p.SourcePath)
+  const quadlet = q && { ...q, boot: wantedByTarget(p) }
   const isTimer = l.name.endsWith('.timer')
   const isSocket = l.name.endsWith('.socket')
   const kind: UnitKind = quadlet ? 'quadlet' : isTimer ? 'timer' : isSocket ? 'socket' : l.name.endsWith('.service') ? 'service' : 'other'
@@ -116,6 +121,8 @@ const PROPS = [
   'Unit',
   'Listen',
   'Triggers',
+  'WantedBy',
+  'RequiredBy',
 ]
 
 /** Which units are worth showing: services, timers, sockets and anything generated from a Quadlet. */

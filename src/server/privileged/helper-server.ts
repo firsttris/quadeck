@@ -83,6 +83,7 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/quadlets/history': async (b, p) => ({ data: await p.quadletHistory(str(b.name) ?? '') }),
   '/quadlets/revision': async (b, p) => ({ data: await p.quadletRevision(str(b.name) ?? '', str(b.id) ?? '') }),
   '/quadlets/write': (b, p) => p.writeQuadlet(str(b.token), str(b.name) ?? '', str(b.content) ?? '', b.restart === true, str(b.expected)),
+  '/quadlets/boot': (b, p) => p.setQuadletBoot(str(b.token), str(b.name) ?? '', b.enabled === true),
   '/quadlets/plan': (b, p) => p.removalPlan(str(b.name) ?? ''),
   '/quadlets/delete': (b, p) => p.deleteQuadlet(str(b.token), str(b.name) ?? '', { image: b.image === true, volumes: b.volumes === true }),
   '/podman/settings': (_b, p) => p.podmanSettings(),

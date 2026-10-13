@@ -84,3 +84,33 @@ test('a Quadlet container is deleted from its row, the image and volumes only wh
   await page.goto('/quadlets')
   await expect(page.getByTestId('quadlet-file').filter({ hasText: 'immich-ml.container' })).toHaveCount(0)
 })
+
+test('a Quadlet starts at boot through [Install] in its file, switched from the row menu', async ({ page }) => {
+  await login(page)
+  await page.goto('/units')
+  const row = page.getByTestId('unit-row').filter({ hasText: 'jellyfin.service' })
+  const toggle = page.getByRole('menuitemcheckbox', { name: 'Beim Booten starten' })
+  await row.getByRole('button', { name: 'Aktionen für jellyfin.service' }).click()
+  await expect(toggle).toHaveAttribute('aria-checked', 'true')
+  await toggle.click()
+  await unlock(page)
+  await expect(page.getByRole('status')).toContainText('jellyfin.service startet nicht mehr beim Booten')
+  await row.getByRole('button', { name: 'Aktionen für jellyfin.service' }).click()
+  await expect(toggle).toHaveAttribute('aria-checked', 'false')
+  await page.keyboard.press('Escape')
+
+  await page.goto('/quadlets?file=jellyfin.container')
+  const editor = page.getByRole('region', { name: 'Editor jellyfin.container' })
+  await editor.getByRole('button', { name: 'Text' }).click()
+  await expect(editor.getByLabel('Quadlet-Datei')).toHaveValue(/Image=/)
+  await expect(editor.getByLabel('Quadlet-Datei')).not.toHaveValue(/\[Install\]/)
+
+  // And back on: the stopped/running state is not touched, only the file.
+  await page.goto('/units')
+  await row.getByRole('button', { name: 'Aktionen für jellyfin.service' }).click()
+  await toggle.click()
+  await expect(page.getByRole('status')).toContainText('jellyfin.service startet beim Booten')
+  await page.goto('/quadlets?file=jellyfin.container')
+  await editor.getByRole('button', { name: 'Text' }).click()
+  await expect(editor.getByLabel('Quadlet-Datei')).toHaveValue(/\[Install\]\nWantedBy=multi-user\.target/)
+})

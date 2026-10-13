@@ -3,7 +3,7 @@
 
 import { m } from '~/paraglide/messages'
 import { msg } from './i18n'
-import { getValues } from './ini-parse'
+import { getValues, type IniEntry, parseIni } from './ini-parse'
 
 export const QUADLET_TYPES = ['container', 'pod', 'network', 'volume', 'kube', 'image', 'build'] as const
 export type QuadletType = (typeof QUADLET_TYPES)[number]
@@ -155,4 +155,48 @@ export function removalPlan(name: string, files: { name: string; content: string
     volumes: named.filter((v) => VOLUME_NAME.test(v.name) && !seen.has(v.name) && seen.add(v.name)).map((v) => ({ ...v, shared: otherVolumes.has(v.name) })),
     binds: [...new Set(binds)],
   }
+}
+
+// ---------- start at boot ----------
+
+/** [Install] keys that hook a unit into a target; Alias= and Also= do not start anything. */
+const BOOT_KEYS = ['WantedBy', 'RequiredBy', 'UpheldBy']
+export const QUADLET_BOOT_TARGET = 'multi-user.target'
+
+/** Whether the file starts its unit at boot (Quadlet units are generated: systemctl enable does not apply). */
+export function quadletBoots(content: string): boolean {
+  return parseIni(content).some((e) => e.kind === 'kv' && e.section === 'Install' && BOOT_KEYS.includes(e.key!) && e.value!.trim() !== '')
+}
+
+/**
+ * Start at boot on: WantedBy=multi-user.target under [Install] (added if missing).
+ * Off: the WantedBy=/RequiredBy=/UpheldBy= lines go, and an [Install] section left without keys goes too.
+ */
+export function withQuadletBoot(content: string, enabled: boolean): string {
+  if (quadletBoots(content) === enabled) return content
+  const lines = content.split('\n')
+  const entries = parseIni(content)
+  if (enabled) {
+    const install = entries.find((e) => e.kind === 'section' && e.section === 'Install')
+    if (install) {
+      lines.splice(install.end + 1, 0, `WantedBy=${QUADLET_BOOT_TARGET}`)
+      return lines.join('\n')
+    }
+    return `${content.replace(/\s+$/, '')}\n\n[Install]\nWantedBy=${QUADLET_BOOT_TARGET}\n`
+  }
+  const drop = new Set<number>()
+  const mark = (e: IniEntry) => {
+    for (let i = e.start; i <= e.end; i++) drop.add(i)
+  }
+  for (const e of entries) if (e.kind === 'kv' && e.section === 'Install' && BOOT_KEYS.includes(e.key!)) mark(e)
+  // Sections named [Install] whose keys are all gone: header, comments and blank lines with them.
+  for (let i = 0; i < entries.length; i++) {
+    if (entries[i]!.kind !== 'section' || entries[i]!.section !== 'Install') continue
+    let j = i + 1
+    while (j < entries.length && entries[j]!.kind !== 'section') j++
+    const body = entries.slice(i + 1, j)
+    if (body.every((e) => e.kind !== 'kv' || drop.has(e.start))) for (const e of entries.slice(i, j)) mark(e)
+  }
+  const kept = lines.filter((_, i) => !drop.has(i)).join('\n')
+  return `${kept.replace(/\s+$/, '')}\n`
 }

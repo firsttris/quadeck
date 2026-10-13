@@ -94,6 +94,7 @@ export interface Privileged
   startJob(token: string | undefined, spec: JobSpec): Promise<JobInfo>
   writeQuadlet(token: string | undefined, name: string, content: string, restart: boolean, expected?: string): Promise<WriteResult>
   deleteQuadlet(token: string | undefined, name: string, also?: RemoveAlso): Promise<{ warnings: string[] }>
+  setQuadletBoot(token: string | undefined, name: string, enabled: boolean): Promise<WriteResult>
   setAutoUpdateTimer(token: string | undefined, enabled: boolean, calendar: string): Promise<void>
   setAutoUpdateDefault(token: string | undefined, enabled: boolean): Promise<void>
   writePodmanConfig(token: string | undefined, name: PodmanConfigName, content: string): Promise<void>

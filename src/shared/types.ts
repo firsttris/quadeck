@@ -107,7 +107,8 @@ export interface Unit {
   active: string // active, inactive, failed, activating …
   sub: string // running, dead, exited, waiting …
   kind: UnitKind
-  quadlet?: { file: string; type: string } // e.g. jellyfin.container
+  /** e.g. jellyfin.container (sub/x.container one directory deep); boot: a target wants the unit ([Install] in the file). */
+  quadlet?: { file: string; type: string; boot?: boolean }
   type?: string // Type= (simple, oneshot, notify …)
   result?: string // success, oom-kill, exit-code …
   exitStatus?: number

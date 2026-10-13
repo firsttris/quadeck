@@ -28,7 +28,11 @@ opens the journal.
 - **Edit Quadlet / Edit unit** opens the Quadlet file for Quadlet units and the
   [systemd editor](systemd.md) for everything else.
 - **Start at boot** enables or disables the unit (`systemctl enable/disable`); only shown
-  for units that have an install section.
+  for units that have an install section. Quadlet units are generated, so `systemctl enable` does
+  not apply to them: here the switch writes `WantedBy=multi-user.target` into the file's
+  `[Install]` section, or takes the `WantedBy=`/`RequiredBy=` lines out (an `[Install]` section
+  left empty goes too). The change is saved like an edit – history, `daemon-reload` – and does not
+  start or stop anything. The tick follows what systemd has loaded: a target wants the unit.
 - **Delete Quadlet …** removes a Quadlet container for good, see [Deleting](#deleting).
 - **+ New unit** creates a plain systemd unit from a template.
 
@@ -129,7 +133,7 @@ starts the units.
 the file, commits the deletion to the history (the file can be restored from there) and reloads
 systemd, so the generated service is gone and does not come back at the next boot. Stopping alone
 is **Stop …** in the row menu; a Quadlet unit then starts again at the next boot if its file has
-an `[Install]` section.
+an `[Install]` section – untick **Start at boot** to keep it off.
 
 For a `.container` the dialog offers two more boxes, both off by default:
 

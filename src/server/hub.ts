@@ -582,6 +582,14 @@ export class Hub {
     this.publish()
   }
 
+  /** After start at boot changed in a Quadlet file: the unit's WantedBy= is not in the ListUnits row, so it is read again now. */
+  async quadletBootChanged(unit: string, boot: boolean) {
+    if (this.fixtures) this.fixtures.units = (this.fixtures.units ?? []).map((u) => (u.name === unit && u.quadlet ? { ...u, quadlet: { ...u.quadlet, boot } } : u))
+    else this.unitCollector.invalidate(unit)
+    await this.collectSystemd()
+    this.publish()
+  }
+
   /**
    * Containers with a Quadlet unit are always controlled through systemd —
    * never past it — so systemd does not restart a container one meant to stop
