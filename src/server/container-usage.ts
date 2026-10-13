@@ -71,8 +71,11 @@ export class UsageRecorder {
   }
 }
 
-/** Per container over the range: averages, peaks and ~120 points per series, highest CPU first. */
-export function queryUsage(d: DB, range: UsageRange, units: Map<string, string> = new Map(), now = Date.now()): ContainerUsage[] {
+/**
+ * Per container over the range: averages, peaks and ~120 points per series, most CPU over the range first.
+ * present: the containers there now (any state); the others are marked gone.
+ */
+export function queryUsage(d: DB, range: UsageRange, units: Map<string, string> = new Map(), now = Date.now(), present?: Set<string>): ContainerUsage[] {
   const span = USAGE_RANGES[range]
   const step = Math.max(USAGE_BUCKET_MS, Math.ceil(span / POINTS / USAGE_BUCKET_MS) * USAGE_BUCKET_MS)
   const t = schema.metricSamples
@@ -107,6 +110,7 @@ export function queryUsage(d: DB, range: UsageRange, units: Map<string, string> 
     out.push({
       name,
       ...(units.get(name) ? { unit: units.get(name) } : {}),
+      ...(present && !present.has(name) ? { gone: true } : {}),
       cpuAvg: avg(cpuAll),
       cpuMax: Math.max(0, ...all('cpumax')),
       memAvg: avg(all('mem')),
@@ -117,7 +121,8 @@ export function queryUsage(d: DB, range: UsageRange, units: Map<string, string> 
       mem: series('mem', false),
     })
   }
-  return out.sort((a, b) => b.cpuAvg - a.cpuAvg || b.memAvg - a.memAvg)
+  // what it used over the whole range first, not only while it ran
+  return out.sort((a, b) => b.cpuAvg * b.uptime - a.cpuAvg * a.uptime || b.memAvg * b.uptime - a.memAvg * a.uptime)
 }
 
 /** Demo: 30 days for the fixture containers (fixtures only, when there is nothing yet). */
@@ -151,6 +156,14 @@ export function seedUsageHistory(d: DB, containers: Pick<Container, 'name' | 'st
       )
     }
   }
+  // A one-off container without --name (podman picks a random name), for twenty minutes yesterday.
+  for (let ts = end - 86_400_000 + 3_600_000, i = 0; i < 4; i++, ts += USAGE_BUCKET_MS)
+    rows.push(
+      { ts, metric: 'ct:determined_mahavira:cpu', value: 96 },
+      { ts, metric: 'ct:determined_mahavira:cpumax', value: 104 },
+      { ts, metric: 'ct:determined_mahavira:mem', value: 600 * 1024 ** 2 },
+      { ts, metric: 'ct:determined_mahavira:memmax', value: 880 * 1024 ** 2 },
+    )
   d.transaction((tx) => {
     for (let i = 0; i < rows.length; i += 500)
       tx.insert(t)

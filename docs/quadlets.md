@@ -48,7 +48,14 @@ its own list can be acted on.
 last 24 hours, 7 or 30 days:
 
 - one row per container with average and peak CPU, average and peak RAM, how much of the range it
-  was running and a CPU sparkline; sorted by CPU or RAM, with a bar relative to the top one;
+  was running and a CPU sparkline; sorted by CPU or RAM **used over the whole range** (average ×
+  share of the range it ran), with a bar relative to the top one – so a container that ran twenty
+  minutes at 100 % does not end up above a service that runs all day;
+- containers that are **not there any more** are hidden behind **Removed containers (n)**: deleted
+  ones, and one-off runs. A container started with `podman run` without `--name` gets a random
+  name from Podman (`determined_mahavira`, `priceless_mayer`, …) – scripts, CI runners, `podman
+  run --rm` from a cron job. Shown, they are dimmed and marked *removed*. Quadeck's own check of a
+  Caddyfile runs as `quadeck-caddy-check`, so it is recognisable;
 - **History** (also in a container row's **⋯** menu as *Usage over time*) opens charts of CPU
   (average and peak) and RAM for the chosen range.
 

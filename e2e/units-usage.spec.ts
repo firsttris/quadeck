@@ -1,6 +1,7 @@
 import { expect, type Page, test } from '@playwright/test'
 
-// Demo: 30 seeded days for the fixture containers (the stopped ones ran until three days ago).
+// Demo: 30 seeded days for the fixture containers (the stopped ones ran until three days ago),
+// plus a one-off container with a random name yesterday.
 const PASSWORD = 'e2e-password-123'
 
 async function login(page: Page) {
@@ -17,10 +18,18 @@ test('container usage over days: ranking, ranges, sorting, history dialog', asyn
   await expect(page).toHaveURL('/units?view=usage')
   const view = page.getByRole('region', { name: 'CPU und RAM pro Container' })
   const rows = view.getByTestId('usage-row')
-  await expect(rows).toHaveCount(6) // running in the last 24 hours
-  await expect(rows.first()).toContainText('jellyfin') // the busiest by CPU
+  // A one-off container with a random name (podman run without --name) ran yesterday and is gone:
+  // hidden until asked for, then marked. (Quadlets deleted by earlier specs count as removed too.)
+  const oneOff = rows.filter({ hasText: 'determined_mahavira' })
+  await expect(oneOff).toHaveCount(0)
+  const showGone = view.getByRole('button', { name: /Entfernte Container \(\d+\)/ })
+  await showGone.click()
+  await expect(showGone).toHaveAttribute('aria-pressed', 'true')
+  await expect(oneOff).toContainText('entfernt')
+  await expect(rows).toHaveCount(7) // running in the last 24 hours, the one-off included
+  await expect(rows.first()).toContainText('jellyfin') // the busiest by CPU (the one-off ran twenty minutes)
   await view.getByRole('button', { name: '7 Tage' }).click()
-  await expect(rows).toHaveCount(8) // the stopped ones ran within the week
+  await expect(rows).toHaveCount(9) // the stopped ones ran within the week
   await expect(rows.filter({ hasText: 'qbittorrent' })).toContainText('qbittorrent.service')
   await view.getByRole('button', { name: 'nach RAM' }).click()
   const firstByRam = await rows.first().locator('td').first().innerText()
