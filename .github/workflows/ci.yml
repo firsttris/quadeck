@@ -37,7 +37,10 @@ jobs:
       - uses: oven-sh/setup-bun@v2
       - run: bun install --frozen-lockfile
       # tests/backup.test.ts runs against the real restic
-      - run: sudo apt-get install -y --no-install-recommends restic
+      - uses: firsttris/workflows/actions/apt-install@ccr-161f105b-9ns022
+        with:
+          packages: restic
+          recommends: "false"
       - run: bunx biome ci
       - run: bun run typecheck
       - run: bun run test
@@ -68,11 +71,13 @@ jobs:
           lockfile: bun.lock
 
   # The E2E tests share one server and its data directory, so they run one after the other. Split
-  # by file across three runners, each building and starting its own server, they finish in about a
-  # third of the time, alongside the checks above. e2e/zz-i18n.spec.ts switches to English and has
-  # to come last: shards take the files in name order, so it stays at the end of the last one.
+  # by file across four runners, each building and starting its own server, they finish alongside
+  # the checks above. e2e/zz-i18n.spec.ts switches to English and has to come last: shards take the
+  # files in name order, so it stays at the end of the last one. Shards are cut by test count, not
+  # time: e2e/dashboard.spec.ts (28 short tests, ~100 s) fills the first one alone, and with three
+  # the last shard ran 216 s of tests against 122 s for the first; with four the longest is ~160 s.
   e2e:
-    name: E2E ${{ matrix.shard }}/3
+    name: E2E ${{ matrix.shard }}/4
     needs: playwright-image
     runs-on: ubuntu-latest
     timeout-minutes: 20
@@ -82,13 +87,13 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        shard: [1, 2, 3]
+        shard: [1, 2, 3, 4]
     steps:
       - uses: actions/checkout@v4
       - run: npm install --global bun
       - run: bun install --frozen-lockfile
       - name: E2E (production build against fixtures)
-        run: bunx playwright test --shard=${{ matrix.shard }}/3
+        run: bunx playwright test --shard=${{ matrix.shard }}/4
       - uses: actions/upload-artifact@v4
         if: failure()
         with:
