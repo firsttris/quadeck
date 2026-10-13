@@ -50,6 +50,12 @@ export interface MergeInput {
   localHosts: Set<string>
   /** Receives services hidden by an override (so the UI can bring them back). */
   onHidden?: (s: { key: string; name: string }) => void
+  /**
+   * Containers that existed and are gone for good (deleted, their unit too): a Caddy route that
+   * only points at them is left out instead of showing as a dead tile. A stopped Quadlet whose
+   * unit is still there is not in here – it stays, shown as stopped.
+   */
+  goneContainers?: Set<string>
 }
 
 const LOCAL_NAMES = ['localhost', '127.0.0.1', '::1', '0.0.0.0', 'host.containers.internal', 'host.docker.internal', 'host-gateway']
@@ -64,6 +70,23 @@ export function parseDial(dial: string): { host: string; port?: number } {
   if (v6) return { host: v6[1]!.toLowerCase(), port: v6[2] ? Number(v6[2]) : undefined }
   const m = d.match(/^(.*?)(?::(\d+))?$/)!
   return { host: m[1]!.toLowerCase(), port: m[2] ? Number(m[2]) : undefined }
+}
+
+/** Remembers every container name and network alias with its systemd unit, for goneContainers(). */
+export function rememberContainers(seen: Map<string, string | undefined>, containers: Container[]) {
+  for (const c of containers) for (const n of [c.name, ...c.aliases]) seen.set(n.toLowerCase(), c.unit ?? seen.get(n.toLowerCase()))
+}
+
+/**
+ * Names (and aliases) of containers seen before that are gone for good: no container any more,
+ * and their unit is gone too (Quadlet deleted). A stopped Quadlet loses its container (--rm) but
+ * keeps its unit, so it is not in here.
+ */
+export function goneContainers(seen: Map<string, string | undefined>, containers: Container[], units: Set<string>): Set<string> {
+  const present = new Set(containers.flatMap((c) => [c.name, ...c.aliases].map((n) => n.toLowerCase())))
+  const out = new Set<string>()
+  for (const [name, unit] of seen) if (!present.has(name) && !(unit && units.has(unit))) out.add(name)
+  return out
 }
 
 /** Finds the container behind an upstream dial address, or undefined for external targets. */
@@ -190,6 +213,8 @@ export function mergeServices(input: MergeInput): ServiceGroup[] {
   for (const cand of input.candidates) {
     const container = cand.upstreams.map((u) => matchUpstream(u, input.containers, input.localHosts)).find(Boolean)
     if (!safeUrl(cand.url)) continue
+    const gone = input.goneContainers
+    if (!container && gone?.size && cand.upstreams.length && cand.upstreams.every((u) => gone.has(parseDial(u).host))) continue
     const key = container && !usedContainers.has(container.name) ? `ct:${container.name}` : `host:${cand.host}${new URL(cand.url).pathname.replace(/\/$/, '')}`
     if (keys.has(key)) continue
     keys.add(key)

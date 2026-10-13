@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { checkTarget } from '~/server/health'
 import { parseIconIndex } from '~/server/icons'
-import { type HttpHealth, localHostSet, type MergeInput, matchUpstream, mergeServices, parseDial, probeUrl } from '~/server/registry'
+import { goneContainers, type HttpHealth, localHostSet, type MergeInput, matchUpstream, mergeServices, parseDial, probeUrl, rememberContainers } from '~/server/registry'
 import type { Container } from '~/shared/types'
 
 const ct = (name: string, o: Partial<Container> = {}): Container => ({
@@ -78,6 +78,27 @@ describe('mergeServices', () => {
     const [jf, ha] = [flat(groups).find((s) => s.key === 'ct:jellyfin')!, flat(groups).find((s) => s.host === 'ha.example.de')!]
     expect(jf).toMatchObject({ name: 'Jellyfin', group: 'Medien', unit: 'jellyfin.service', container: 'jellyfin', health: 'ok', icon: { kind: 'dash', slug: 'jellyfin' } })
     expect(ha).toMatchObject({ name: 'Home Assistant', group: 'Smart Home', key: 'host:ha.example.de', icon: { kind: 'dash', slug: 'home-assistant' }, health: 'unknown' })
+  })
+
+  it('a Caddy route to a deleted container leaves no dead tile; a stopped Quadlet stays', () => {
+    const seen = new Map<string, string | undefined>()
+    rememberContainers(seen, [ct('jellyfin', { unit: 'jellyfin.service', aliases: ['jf'] }), ct('adhoc'), ct('paused', { unit: 'paused.service' })])
+    // jellyfin: Quadlet deleted (container and unit gone); adhoc: container removed; paused: stopped (--rm), unit still there.
+    const gone = goneContainers(seen, [], new Set(['paused.service']))
+    expect([...gone].sort()).toEqual(['adhoc', 'jellyfin', 'jf'])
+    const candidates = [
+      { host: 'jf.x', url: 'https://jf.x', upstreams: ['jellyfin:8096'], provider: 'caddy' },
+      { host: 'alias.x', url: 'https://alias.x', upstreams: ['JF:8096'], provider: 'caddy' },
+      { host: 'paused.x', url: 'https://paused.x', upstreams: ['paused:80'], provider: 'caddy' },
+      { host: 'lan.x', url: 'https://lan.x', upstreams: ['nas:80'], provider: 'caddy' }, // never a container
+      { host: 'mixed.x', url: 'https://mixed.x', upstreams: ['jellyfin:8096', '192.168.1.5:8096'], provider: 'caddy' },
+    ]
+    const hosts = flat(mergeServices(base({ candidates, goneContainers: gone }))).map((s) => s.host)
+    expect(hosts.sort()).toEqual(['lan.x', 'mixed.x', 'paused.x'])
+    // Recreated under the same name: present again, not gone.
+    expect(goneContainers(seen, [ct('jellyfin')], new Set())).not.toContain('jellyfin')
+    // Without the list (Podman unreachable) nothing is left out.
+    expect(flat(mergeServices(base({ candidates })))).toHaveLength(5)
   })
 
   it('applies quadeck.* labels, and UI overrides on top', () => {

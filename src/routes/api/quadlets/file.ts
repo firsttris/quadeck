@@ -7,6 +7,7 @@ import { hub } from '~/server/hub'
 import { privileged } from '~/server/privileged'
 import { unlockToken } from '~/server/unlock-sessions'
 import { msg } from '~/shared/i18n'
+import { quadletUnit } from '~/shared/quadlets'
 
 const nameParam = (request: Request) => {
   const name = new URL(request.url).searchParams.get('name')
@@ -46,6 +47,7 @@ export const Route = createFileRoute('/api/quadlets/file')({
         const b = await readJson<{ name?: unknown; image?: unknown; volumes?: unknown }>(request)
         if (typeof b.name !== 'string') throw new HttpError(400, msg(m.api_quadlets_nameRequired))
         const r = await privileged().deleteQuadlet(unlockToken(session.id), b.name, { image: b.image === true, volumes: b.volumes === true })
+        await hub().quadletDeleted(quadletUnit(b.name))
         return Response.json({ ok: true, ...r })
       }),
     },

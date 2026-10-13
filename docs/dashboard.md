@@ -19,6 +19,11 @@ places and merges them in a fixed order; later sources override earlier ones.
 2. **Containers**: the upstream of the route (`jellyfin:8096`, `localhost:8096`, `10.88.0.5:8096`)
    is matched to a Podman container by container name, network alias, container IP or published
    port. Targets that do not match a container stay as external tiles; nothing is guessed.
+   When a container behind a route is **deleted** – the container and its unit are gone, e.g.
+   *Delete Quadlet …* – the route no longer makes a tile, even though it is still in the
+   Caddyfile; the tile disappears right after the deletion. A **stopped** Quadlet keeps its tile,
+   shown as down, because its unit is still there and can be started again. Routes to hosts that
+   never were a container (another machine on the LAN) are not affected.
 3. **Unit**: the label `PODMAN_SYSTEMD_UNIT` that Quadlet sets on every container links it to its
    unit, so the tile knows its journal and can be restarted through systemd.
 4. **Labels in the Quadlet file** refine or override the discovery:

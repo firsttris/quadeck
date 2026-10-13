@@ -115,3 +115,22 @@ test('a Quadlet starts at boot through [Install] in its file, switched from the 
   await editor.getByRole('button', { name: 'Text' }).click()
   await expect(editor.getByLabel('Quadlet-Datei')).toHaveValue(/\[Install\]\nWantedBy=multi-user\.target/)
 })
+
+test('a deleted Quadlet leaves the dashboard at once: its Caddy route no longer shows a dead tile', async ({ page }) => {
+  await login(page)
+  await page.getByRole('img', { name: 'live verbunden' }).waitFor()
+  await expect(page.getByTestId('service-tile').filter({ hasText: 'fotos.home.example' })).toHaveCount(1)
+  await page.goto('/units')
+  const row = page.getByTestId('unit-row').filter({ hasText: 'immich.service' })
+  await row.getByRole('button', { name: 'Aktionen für immich.service' }).click()
+  await page.getByRole('menuitem', { name: 'Quadlet löschen …' }).click()
+  await page.getByRole('dialog', { name: 'immich.container löschen?' }).getByRole('button', { name: 'Löschen' }).click()
+  await unlock(page)
+  await expect(page.getByRole('status')).toContainText('immich.container gelöscht')
+  await expect(row).toHaveCount(0)
+  await page.goto('/')
+  await page.getByRole('img', { name: 'live verbunden' }).waitFor()
+  // The route to immich-server is still in the Caddyfile, but the container and its unit are gone.
+  await expect(page.getByTestId('service-tile').filter({ hasText: 'fotos.home.example' })).toHaveCount(0)
+  await expect(page.getByTestId('service-tile').filter({ hasText: 'jellyfin.home.example' })).toHaveCount(1)
+})
