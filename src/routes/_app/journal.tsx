@@ -1,10 +1,12 @@
-import { createFileRoute, useNavigate } from '@tanstack/react-router'
-import { memo, useEffect, useRef, useState } from 'react'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import { memo, useCallback, useEffect, useRef, useState } from 'react'
+import { JournalBrowser, type SystemFilters } from '~/components/JournalBrowser'
 import { PageHeader } from '~/components/PageHeader'
 import { pickMsg } from '~/i18n'
 import { clock } from '~/lib/format'
 import { useLiveState } from '~/lib/live'
 import { m } from '~/paraglide/messages'
+import { JOURNAL_SCOPES, JOURNAL_SINCE, type JournalScope } from '~/shared/journal'
 import type { JournalEntry } from '~/shared/types'
 
 // Labels come from t.journal.prio.
@@ -20,10 +22,26 @@ const RETRY_MAX_MS = 60_000
 
 type Line = JournalEntry & { fresh?: boolean; id: number }
 
+// boot: an offset is kept as a number in the URL (boot=-1), a boot ID as text
+type Search = { unit?: string; prio?: Prio; view?: 'system'; bootRef?: never } & Omit<SystemFilters, 'boot'> & { boot?: string | number }
+const str = (v: unknown, max: number) => (typeof v === 'string' && v && v.length <= max ? v : undefined)
+const int = (v: unknown, ok: (n: number) => boolean) => {
+  const n = typeof v === 'number' ? v : typeof v === 'string' && v ? Number(v) : Number.NaN
+  return Number.isInteger(n) && ok(n) ? n : undefined
+}
+
 export const Route = createFileRoute('/_app/journal')({
-  validateSearch: (s: Record<string, unknown>): { unit?: string; prio?: Prio } => ({
+  // Live: unit, prio. System (view=system): q, since, boot, scope, level, src – all in the URL.
+  validateSearch: (s: Record<string, unknown>): Search => ({
     unit: typeof s.unit === 'string' && s.unit ? s.unit : undefined,
     prio: PRIOS.some(([k]) => k === s.prio) ? (s.prio as Prio) : undefined,
+    view: s.view === 'system' ? 'system' : undefined,
+    q: str(s.q, 200),
+    since: int(s.since, (n) => (JOURNAL_SINCE as readonly number[]).includes(n)),
+    boot: typeof s.boot === 'number' && Number.isInteger(s.boot) ? s.boot : str(s.boot, 40),
+    scope: JOURNAL_SCOPES.includes(s.scope as JournalScope) && s.scope !== 'all' ? (s.scope as JournalScope) : undefined,
+    level: int(s.level, (n) => n >= 0 && n <= 7),
+    src: typeof s.src === 'string' && /^[ui]:.{1,240}$/.test(s.src) ? s.src : undefined,
   }),
   head: () => ({ meta: [{ title: 'Journal · Quadeck' }] }),
   component: Journal,
@@ -34,6 +52,34 @@ function lineClass(p: number) {
 }
 
 function Journal() {
+  const search = Route.useSearch()
+  const navigate = useNavigate({ from: '/journal' })
+  const system = search.view === 'system'
+  const setFilters = useCallback((f: SystemFilters) => void navigate({ search: { view: 'system', ...f, boot: f.boot && /^-?\d+$/.test(f.boot) ? Number(f.boot) : f.boot } }), [navigate])
+  return (
+    <>
+      <PageHeader title="Journal" subtitle={system ? m.journal_sys_subtitle() : m.journal_subtitle({ unit: search.unit ?? '', hasUnit: String(!!search.unit) })} />
+      <nav aria-label={m.journal_tabs()} className="flex gap-1.5">
+        <Link to="/journal" search={{ unit: search.unit, prio: search.prio }} className={`seg ${system ? '' : 'on'}`} aria-current={system ? undefined : 'page'}>
+          {m.journal_tab_live()}
+        </Link>
+        <Link to="/journal" search={{ view: 'system' }} className={`seg ${system ? 'on' : ''}`} aria-current={system ? 'page' : undefined}>
+          {m.journal_tab_system()}
+        </Link>
+      </nav>
+      {system ? (
+        <JournalBrowser
+          filters={{ q: search.q, since: search.since, boot: search.boot === undefined ? undefined : String(search.boot), scope: search.scope, level: search.level, src: search.src }}
+          onChange={setFilters}
+        />
+      ) : (
+        <LiveJournal />
+      )}
+    </>
+  )
+}
+
+function LiveJournal() {
   const { snapshot } = useLiveState()
   const { unit, prio = 'all' } = Route.useSearch()
   const navigate = useNavigate({ from: '/journal' })
@@ -128,7 +174,6 @@ function Journal() {
 
   return (
     <>
-      <PageHeader title="Journal" subtitle={m.journal_subtitle({ unit: unit ?? '', hasUnit: String(!!unit) })} />
       <div className="flex flex-wrap items-center gap-[10px]">
         <div role="group" aria-label={m.journal_unitGroup()} className="flex flex-wrap gap-1.5">
           <button type="button" className={`seg ${!unit ? 'on' : ''}`} onClick={() => navigate({ search: (s) => ({ ...s, unit: undefined }) })}>

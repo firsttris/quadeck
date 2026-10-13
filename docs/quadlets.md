@@ -42,6 +42,36 @@ the journal and the unit files.
 Unit names are validated before anything is sent to systemd, and only units Quadeck has seen in
 its own list can be acted on.
 
+## Journal
+
+The journal page has two tabs.
+
+**Live** follows `journalctl -f`: all units or one (the chips are the container units and the
+failed ones), all, errors or warnings, a search over what is on screen, pause and follow.
+
+**Search the system** browses the whole journal, not only the last lines of the units:
+
+- **Search** (`/` jumps there) runs over the whole range as `journalctl --grep`, literal and
+  case-insensitive; hits are marked. A `journalctl` built without PCRE2 searches the last pages here.
+- **Time range**: 15 minutes, an hour, 24 hours (default), 7 days or everything; **Boot**: all, this
+  one or an earlier one (`journalctl --list-boots`).
+- **Area**: everything, **kernel** (`_TRANSPORT=kernel`, over all boots) or **logins & sudo** (the
+  syslog facilities auth and authpriv: sshd, sudo, polkit, logind).
+- **Unit or program** with suggestions: a name ending in `.service`, `.timer` … or a known unit
+  filters with `-u`, anything else is the program (`SYSLOG_IDENTIFIER`, `-t`). A click on the
+  source of a line filters by it.
+- **From priority**: emergency to debug; info and above by default.
+
+Above the list: how many entries, errors and warnings are loaded and a small chart of when they
+happened. The list is newest first, grouped by day, 200 entries at a time with **Load older**
+below. A click on a message opens it with its time, priority, unit, program, PID and boot, and
+**All fields** shows every field journald stored; copy the message or filter by its source from
+there. All filters are part of the address, so a search can be bookmarked or sent, and back and
+forward work.
+
+The journal is read by the web app (group `systemd-journal`), never by the root helper; every filter
+is checked before it becomes a `journalctl` argument.
+
 ### Usage over time
 
 **Usage over time** (next to the filters) answers "which container eats my CPU and RAM?" over the

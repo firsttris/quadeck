@@ -1,0 +1,1166 @@
+[
+ {
+  "ago": 1.5,
+  "priority": 3,
+  "message": "immich-ml.service: A process of this unit has been killed by the OOM killer.",
+  "unit": "immich-ml.service",
+  "ident": "systemd",
+  "boot": 0
+ },
+ {
+  "ago": 1.6,
+  "priority": 4,
+  "message": "Memory cgroup out of memory: Killed process 48121 (python) total-vm:3021432kB",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": 0
+ },
+ {
+  "ago": 247.47,
+  "priority": 6,
+  "message": "enp3s0: DHCPv4 address 192.168.1.20/24 renewed",
+  "unit": "NetworkManager.service",
+  "ident": "NetworkManager",
+  "boot": 0
+ },
+ {
+  "ago": 323.46,
+  "priority": 6,
+  "message": "enp3s0: DHCPv4 address 192.168.1.20/24 renewed",
+  "unit": "NetworkManager.service",
+  "ident": "NetworkManager",
+  "boot": 0
+ },
+ {
+  "ago": 747.29,
+  "priority": 6,
+  "message": "Accepted publickey for tristan from 192.168.1.56 port 54602 ssh2: ED25519 SHA256:q2…",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": 0
+ },
+ {
+  "ago": 865.31,
+  "priority": 5,
+  "message": "Failed password for invalid user ubuntu from 185.48.129.245 port 53865 ssh2",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": 0
+ },
+ {
+  "ago": 985.8,
+  "priority": 4,
+  "message": "Device: /dev/sdc [SAT], 8 Currently unreadable (pending) sectors",
+  "unit": "smartd.service",
+  "ident": "smartd",
+  "boot": 0
+ },
+ {
+  "ago": 990.91,
+  "priority": 5,
+  "message": "Failed password for invalid user test from 185.236.70.210 port 48246 ssh2",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": 0
+ },
+ {
+  "ago": 1019.54,
+  "priority": 7,
+  "message": "Checking for new jobs (debug)",
+  "unit": "crond.service",
+  "ident": "crond",
+  "boot": 0
+ },
+ {
+  "ago": 1022.42,
+  "priority": 6,
+  "message": "Started podman-auto-update.service - Podman auto-update service.",
+  "ident": "systemd",
+  "boot": 0
+ },
+ {
+  "ago": 1075.71,
+  "priority": 5,
+  "message": "tristan : TTY=pts/0 ; PWD=/home/tristan ; USER=root ; COMMAND=/usr/bin/systemctl restart jellyfin.service",
+  "ident": "sudo",
+  "facility": 10,
+  "boot": 0
+ },
+ {
+  "ago": 1211.99,
+  "priority": 7,
+  "message": "Checking for new jobs (debug)",
+  "unit": "crond.service",
+  "ident": "crond",
+  "boot": 0
+ },
+ {
+  "ago": 1255.27,
+  "priority": 5,
+  "message": "Failed password for invalid user test from 185.132.82.133 port 64619 ssh2",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": 0
+ },
+ {
+  "ago": 1320.05,
+  "priority": 7,
+  "message": "Checking for new jobs (debug)",
+  "unit": "crond.service",
+  "ident": "crond",
+  "boot": 0
+ },
+ {
+  "ago": 1445.25,
+  "priority": 7,
+  "message": "Checking for new jobs (debug)",
+  "unit": "crond.service",
+  "ident": "crond",
+  "boot": 0
+ },
+ {
+  "ago": 1550.77,
+  "priority": 3,
+  "message": "blk_update_request: I/O error, dev sdc, sector 2048 op 0x0:(READ) flags 0x0",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": 0
+ },
+ {
+  "ago": 1550.78,
+  "priority": 4,
+  "message": "ata3.00: exception Emask 0x0 SAct 0x0 SErr 0x0 action 0x0",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": 0
+ },
+ {
+  "ago": 1680.46,
+  "priority": 7,
+  "message": "Checking for new jobs (debug)",
+  "unit": "crond.service",
+  "ident": "crond",
+  "boot": 0
+ },
+ {
+  "ago": 1684.78,
+  "priority": 6,
+  "message": "policy: set 'Wired connection 1' (enp3s0) as default for IPv4 routing and DNS",
+  "unit": "NetworkManager.service",
+  "ident": "NetworkManager",
+  "boot": 0
+ },
+ {
+  "ago": 1796.96,
+  "priority": 6,
+  "message": "enp3s0: DHCPv4 address 192.168.1.20/24 renewed",
+  "unit": "NetworkManager.service",
+  "ident": "NetworkManager",
+  "boot": 0
+ },
+ {
+  "ago": 1826.13,
+  "priority": 3,
+  "message": "blk_update_request: I/O error, dev sdc, sector 2048 op 0x0:(READ) flags 0x0",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": 0
+ },
+ {
+  "ago": 1826.14,
+  "priority": 4,
+  "message": "ata3.00: exception Emask 0x0 SAct 0x0 SErr 0x0 action 0x0",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": 0
+ },
+ {
+  "ago": 1851.52,
+  "priority": 5,
+  "message": "Failed password for invalid user oracle from 185.178.119.4 port 41950 ssh2",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": 0
+ },
+ {
+  "ago": 2041.43,
+  "priority": 3,
+  "message": "blk_update_request: I/O error, dev sdc, sector 2048 op 0x0:(READ) flags 0x0",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": 0
+ },
+ {
+  "ago": 2041.44,
+  "priority": 4,
+  "message": "ata3.00: exception Emask 0x0 SAct 0x0 SErr 0x0 action 0x0",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": 0
+ },
+ {
+  "ago": 2064.78,
+  "priority": 4,
+  "message": "Device: /dev/sdc [SAT], 8 Currently unreadable (pending) sectors",
+  "unit": "smartd.service",
+  "ident": "smartd",
+  "boot": 0
+ },
+ {
+  "ago": 2534.96,
+  "priority": 6,
+  "message": "Finished dnf-makecache.service - dnf makecache.",
+  "ident": "systemd",
+  "boot": 0
+ },
+ {
+  "ago": 2604.47,
+  "priority": 7,
+  "message": "Checking for new jobs (debug)",
+  "unit": "crond.service",
+  "ident": "crond",
+  "boot": 0
+ },
+ {
+  "ago": 2620.94,
+  "priority": 7,
+  "message": "Checking for new jobs (debug)",
+  "unit": "crond.service",
+  "ident": "crond",
+  "boot": 0
+ },
+ {
+  "ago": 2631.83,
+  "priority": 4,
+  "message": "Failed password for invalid user ubuntu from 185.27.123.24 port 33873 ssh2",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": 0
+ },
+ {
+  "ago": 2643.12,
+  "priority": 7,
+  "message": "Checking for new jobs (debug)",
+  "unit": "crond.service",
+  "ident": "crond",
+  "boot": 0
+ },
+ {
+  "ago": 2876.14,
+  "priority": 6,
+  "message": "Finished logrotate.service - Rotate log files.",
+  "ident": "systemd",
+  "boot": 0
+ },
+ {
+  "ago": 2988.62,
+  "priority": 6,
+  "message": "policy: set 'Wired connection 1' (enp3s0) as default for IPv4 routing and DNS",
+  "unit": "NetworkManager.service",
+  "ident": "NetworkManager",
+  "boot": 0
+ },
+ {
+  "ago": 3219.7,
+  "priority": 4,
+  "message": "Failed password for invalid user ubuntu from 185.146.189.157 port 38224 ssh2",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": 0
+ },
+ {
+  "ago": 3375.68,
+  "priority": 6,
+  "message": "enp3s0: DHCPv4 address 192.168.1.20/24 renewed",
+  "unit": "NetworkManager.service",
+  "ident": "NetworkManager",
+  "boot": 0
+ },
+ {
+  "ago": 3455.05,
+  "priority": 5,
+  "message": "tristan : TTY=pts/0 ; PWD=/home/tristan ; USER=root ; COMMAND=/usr/bin/systemctl restart jellyfin.service",
+  "ident": "sudo",
+  "facility": 10,
+  "boot": 0
+ },
+ {
+  "ago": 3487.03,
+  "priority": 5,
+  "message": "Failed password for invalid user test from 185.15.236.91 port 37673 ssh2",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": 0
+ },
+ {
+  "ago": 3527.92,
+  "priority": 6,
+  "message": "Accepted publickey for tristan from 192.168.1.27 port 56775 ssh2: ED25519 SHA256:q2…",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": 0
+ },
+ {
+  "ago": 3837.27,
+  "priority": 4,
+  "message": "Device: /dev/sdc [SAT], 8 Currently unreadable (pending) sectors",
+  "unit": "smartd.service",
+  "ident": "smartd",
+  "boot": 0
+ },
+ {
+  "ago": 3967.09,
+  "priority": 4,
+  "message": "Failed password for invalid user root from 185.28.48.94 port 63255 ssh2",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": 0
+ },
+ {
+  "ago": 4178.86,
+  "priority": 6,
+  "message": "Finished logrotate.service - Rotate log files.",
+  "ident": "systemd",
+  "boot": 0
+ },
+ {
+  "ago": 4186.54,
+  "priority": 5,
+  "message": "tristan : TTY=pts/0 ; PWD=/home/tristan ; USER=root ; COMMAND=/usr/bin/systemctl restart jellyfin.service",
+  "ident": "sudo",
+  "facility": 10,
+  "boot": 0
+ },
+ {
+  "ago": 4281.13,
+  "priority": 6,
+  "message": "Finished dnf-makecache.service - dnf makecache.",
+  "ident": "systemd",
+  "boot": 0
+ },
+ {
+  "ago": 4318.8,
+  "priority": 6,
+  "message": "Startup finished in 3.112s (firmware) + 2.004s (loader) + 1.873s (kernel) + 9.421s (userspace) = 16.411s.",
+  "ident": "systemd",
+  "boot": 0
+ },
+ {
+  "ago": 4319.4,
+  "priority": 6,
+  "message": "Quadeck listening on http://0.0.0.0:8484",
+  "unit": "quadeck.service",
+  "ident": "quadeck",
+  "boot": 0
+ },
+ {
+  "ago": 4319.45,
+  "priority": 6,
+  "message": "Started quadeck-helper.service - Quadeck root helper.",
+  "unit": "quadeck-helper.service",
+  "ident": "quadeck-helper",
+  "boot": 0
+ },
+ {
+  "ago": 4319.5,
+  "priority": 6,
+  "message": "Server listening on 0.0.0.0 port 22.",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "boot": 0
+ },
+ {
+  "ago": 4319.55,
+  "priority": 6,
+  "message": "Listening on podman.socket - Podman API Socket.",
+  "unit": "podman.socket",
+  "ident": "podman",
+  "boot": 0
+ },
+ {
+  "ago": 4319.6,
+  "priority": 6,
+  "message": "NetworkManager (version 1.50.0) is starting...",
+  "unit": "NetworkManager.service",
+  "ident": "NetworkManager",
+  "boot": 0
+ },
+ {
+  "ago": 4319.65,
+  "priority": 6,
+  "message": "Using default interface naming scheme 'v255'.",
+  "unit": "systemd-udevd.service",
+  "ident": "udevd",
+  "boot": 0
+ },
+ {
+  "ago": 4319.7,
+  "priority": 6,
+  "message": "Journal started",
+  "unit": "systemd-journald.service",
+  "ident": "journald",
+  "boot": 0
+ },
+ {
+  "ago": 4319.84,
+  "priority": 6,
+  "message": "i915 0000:00:02.0: [drm] GuC firmware i915/tgl_guc_70.bin version 70.20.0",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": 0
+ },
+ {
+  "ago": 4319.86,
+  "priority": 6,
+  "message": "r8169 0000:03:00.0 enp3s0: Link is Up - 1Gbps/Full - flow control rx/tx",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": 0
+ },
+ {
+  "ago": 4319.88,
+  "priority": 6,
+  "message": "EXT4-fs (nvme0n1p3): mounted filesystem with ordered data mode",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": 0
+ },
+ {
+  "ago": 4319.9,
+  "priority": 5,
+  "message": "sd 0:0:0:0: [sda] 7814037168 512-byte logical blocks: (4.00 TB/3.64 TiB)",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": 0
+ },
+ {
+  "ago": 4319.92,
+  "priority": 6,
+  "message": "ata1: SATA link up 6.0 Gbps (SStatus 133 SControl 300)",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": 0
+ },
+ {
+  "ago": 4319.94,
+  "priority": 6,
+  "message": "ahci 0000:00:17.0: AHCI 0001.0301 32 slots 6 ports 6 Gbps",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": 0
+ },
+ {
+  "ago": 4319.96,
+  "priority": 6,
+  "message": "ACPI: Core revision 20240322",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": 0
+ },
+ {
+  "ago": 4319.98,
+  "priority": 6,
+  "message": "Command line: BOOT_IMAGE=/vmlinuz-6.11.6 root=UUID=7c1e… ro quiet",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": 0
+ },
+ {
+  "ago": 4320.0,
+  "priority": 5,
+  "message": "Linux version 6.11.6-200.fc42.x86_64 (mockbuild@fedora) gcc 14.2.1",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": 0
+ },
+ {
+  "ago": 4329,
+  "priority": 6,
+  "message": "System is rebooting.",
+  "unit": "systemd-logind.service",
+  "ident": "systemd-logind",
+  "boot": -1
+ },
+ {
+  "ago": 4330,
+  "priority": 5,
+  "message": "Stopping quadeck.service - Quadeck...",
+  "unit": "quadeck.service",
+  "ident": "systemd",
+  "boot": -1
+ },
+ {
+  "ago": 4350,
+  "priority": 4,
+  "message": "Kernel update linux 6.11.6 installed, reboot required",
+  "unit": "dnf-automatic.service",
+  "ident": "dnf",
+  "boot": -1
+ },
+ {
+  "ago": 4506.98,
+  "priority": 6,
+  "message": "Started podman-auto-update.service - Podman auto-update service.",
+  "ident": "systemd",
+  "boot": -1
+ },
+ {
+  "ago": 4508.67,
+  "priority": 6,
+  "message": "Finished logrotate.service - Rotate log files.",
+  "ident": "systemd",
+  "boot": -1
+ },
+ {
+  "ago": 4596.3,
+  "priority": 3,
+  "message": "Fatal: unable to open repository at sftp:offsite:/backups: ssh: connect to host offsite port 22: Connection timed out",
+  "unit": "backup-offsite.service",
+  "ident": "restic",
+  "boot": -1
+ },
+ {
+  "ago": 4596.31,
+  "priority": 3,
+  "message": "backup-offsite.service: Main process exited, code=exited, status=1/FAILURE",
+  "unit": "backup-offsite.service",
+  "ident": "systemd",
+  "boot": -1
+ },
+ {
+  "ago": 4659.88,
+  "priority": 3,
+  "message": "Fatal: unable to open repository at sftp:offsite:/backups: ssh: connect to host offsite port 22: Connection timed out",
+  "unit": "backup-offsite.service",
+  "ident": "restic",
+  "boot": -1
+ },
+ {
+  "ago": 4659.89,
+  "priority": 3,
+  "message": "backup-offsite.service: Main process exited, code=exited, status=1/FAILURE",
+  "unit": "backup-offsite.service",
+  "ident": "systemd",
+  "boot": -1
+ },
+ {
+  "ago": 4998.05,
+  "priority": 6,
+  "message": "enp3s0: DHCPv4 address 192.168.1.20/24 renewed",
+  "unit": "NetworkManager.service",
+  "ident": "NetworkManager",
+  "boot": -1
+ },
+ {
+  "ago": 5120.73,
+  "priority": 6,
+  "message": "Accepted publickey for tristan from 192.168.1.29 port 56022 ssh2: ED25519 SHA256:q2…",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": -1
+ },
+ {
+  "ago": 5164.48,
+  "priority": 6,
+  "message": "Accepted publickey for tristan from 192.168.1.24 port 58287 ssh2: ED25519 SHA256:q2…",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": -1
+ },
+ {
+  "ago": 5512.16,
+  "priority": 4,
+  "message": "Device: /dev/sdc [SAT], 8 Currently unreadable (pending) sectors",
+  "unit": "smartd.service",
+  "ident": "smartd",
+  "boot": -1
+ },
+ {
+  "ago": 5668.37,
+  "priority": 6,
+  "message": "Starting dnf-makecache.service - dnf makecache...",
+  "ident": "systemd",
+  "boot": -1
+ },
+ {
+  "ago": 5806.24,
+  "priority": 5,
+  "message": "Failed password for invalid user ubuntu from 185.129.245.124 port 39444 ssh2",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": -1
+ },
+ {
+  "ago": 5896.43,
+  "priority": 5,
+  "message": "Failed password for invalid user oracle from 185.27.106.113 port 52285 ssh2",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": -1
+ },
+ {
+  "ago": 5985.28,
+  "priority": 6,
+  "message": "Finished logrotate.service - Rotate log files.",
+  "ident": "systemd",
+  "boot": -1
+ },
+ {
+  "ago": 6045.33,
+  "priority": 5,
+  "message": "Failed password for invalid user test from 185.43.126.102 port 62539 ssh2",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": -1
+ },
+ {
+  "ago": 6066.69,
+  "priority": 6,
+  "message": "enp3s0: DHCPv4 address 192.168.1.20/24 renewed",
+  "unit": "NetworkManager.service",
+  "ident": "NetworkManager",
+  "boot": -1
+ },
+ {
+  "ago": 6078.63,
+  "priority": 5,
+  "message": "Failed password for invalid user test from 185.129.232.93 port 41781 ssh2",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": -1
+ },
+ {
+  "ago": 6570.09,
+  "priority": 6,
+  "message": "Finished logrotate.service - Rotate log files.",
+  "ident": "systemd",
+  "boot": -1
+ },
+ {
+  "ago": 6749.95,
+  "priority": 6,
+  "message": "Started fstrim.service - Discard unused blocks on filesystems.",
+  "ident": "systemd",
+  "boot": -1
+ },
+ {
+  "ago": 6859.75,
+  "priority": 6,
+  "message": "Accepted publickey for tristan from 192.168.1.26 port 59057 ssh2: ED25519 SHA256:q2…",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": -1
+ },
+ {
+  "ago": 6993.69,
+  "priority": 5,
+  "message": "Failed password for invalid user root from 185.150.32.145 port 43497 ssh2",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": -1
+ },
+ {
+  "ago": 7015.97,
+  "priority": 6,
+  "message": "Accepted publickey for tristan from 192.168.1.40 port 51145 ssh2: ED25519 SHA256:q2…",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": -1
+ },
+ {
+  "ago": 7354.9,
+  "priority": 5,
+  "message": "Failed password for invalid user oracle from 185.147.51.243 port 31671 ssh2",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": -1
+ },
+ {
+  "ago": 7417.12,
+  "priority": 5,
+  "message": "pam_unix(sudo:session): session opened for user root(uid=0) by tristan(uid=1000)",
+  "ident": "sudo",
+  "facility": 10,
+  "boot": -1
+ },
+ {
+  "ago": 7572.07,
+  "priority": 6,
+  "message": "policy: set 'Wired connection 1' (enp3s0) as default for IPv4 routing and DNS",
+  "unit": "NetworkManager.service",
+  "ident": "NetworkManager",
+  "boot": -1
+ },
+ {
+  "ago": 7613.34,
+  "priority": 4,
+  "message": "Device: /dev/sdc [SAT], 8 Currently unreadable (pending) sectors",
+  "unit": "smartd.service",
+  "ident": "smartd",
+  "boot": -1
+ },
+ {
+  "ago": 7771.6,
+  "priority": 6,
+  "message": "Finished logrotate.service - Rotate log files.",
+  "ident": "systemd",
+  "boot": -1
+ },
+ {
+  "ago": 7908.92,
+  "priority": 6,
+  "message": "Started fstrim.service - Discard unused blocks on filesystems.",
+  "ident": "systemd",
+  "boot": -1
+ },
+ {
+  "ago": 7958.88,
+  "priority": 5,
+  "message": "pam_unix(sudo:session): session opened for user root(uid=0) by tristan(uid=1000)",
+  "ident": "sudo",
+  "facility": 10,
+  "boot": -1
+ },
+ {
+  "ago": 8366.18,
+  "priority": 3,
+  "message": "Fatal: unable to open repository at sftp:offsite:/backups: ssh: connect to host offsite port 22: Connection timed out",
+  "unit": "backup-offsite.service",
+  "ident": "restic",
+  "boot": -1
+ },
+ {
+  "ago": 8366.19,
+  "priority": 3,
+  "message": "backup-offsite.service: Main process exited, code=exited, status=1/FAILURE",
+  "unit": "backup-offsite.service",
+  "ident": "systemd",
+  "boot": -1
+ },
+ {
+  "ago": 8453.19,
+  "priority": 5,
+  "message": "Failed password for invalid user root from 185.126.200.102 port 36785 ssh2",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": -1
+ },
+ {
+  "ago": 8511.94,
+  "priority": 5,
+  "message": "Failed password for invalid user ubuntu from 185.27.47.242 port 34259 ssh2",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": -1
+ },
+ {
+  "ago": 8557.2,
+  "priority": 5,
+  "message": "Failed password for invalid user test from 185.144.253.225 port 59414 ssh2",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": -1
+ },
+ {
+  "ago": 8644.12,
+  "priority": 4,
+  "message": "Device: /dev/sdc [SAT], 8 Currently unreadable (pending) sectors",
+  "unit": "smartd.service",
+  "ident": "smartd",
+  "boot": -1
+ },
+ {
+  "ago": 8647.76,
+  "priority": 6,
+  "message": "Accepted publickey for tristan from 192.168.1.44 port 47561 ssh2: ED25519 SHA256:q2…",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": -1
+ },
+ {
+  "ago": 8741.06,
+  "priority": 5,
+  "message": "pam_unix(sudo:session): session opened for user root(uid=0) by tristan(uid=1000)",
+  "ident": "sudo",
+  "facility": 10,
+  "boot": -1
+ },
+ {
+  "ago": 8776.25,
+  "priority": 6,
+  "message": "Starting dnf-makecache.service - dnf makecache...",
+  "ident": "systemd",
+  "boot": -1
+ },
+ {
+  "ago": 8797.83,
+  "priority": 6,
+  "message": "policy: set 'Wired connection 1' (enp3s0) as default for IPv4 routing and DNS",
+  "unit": "NetworkManager.service",
+  "ident": "NetworkManager",
+  "boot": -1
+ },
+ {
+  "ago": 9014.31,
+  "priority": 4,
+  "message": "Device: /dev/sdc [SAT], 8 Currently unreadable (pending) sectors",
+  "unit": "smartd.service",
+  "ident": "smartd",
+  "boot": -1
+ },
+ {
+  "ago": 9092.95,
+  "priority": 4,
+  "message": "Device: /dev/sdc [SAT], 8 Currently unreadable (pending) sectors",
+  "unit": "smartd.service",
+  "ident": "smartd",
+  "boot": -1
+ },
+ {
+  "ago": 9213.9,
+  "priority": 4,
+  "message": "Device: /dev/sdc [SAT], 8 Currently unreadable (pending) sectors",
+  "unit": "smartd.service",
+  "ident": "smartd",
+  "boot": -1
+ },
+ {
+  "ago": 9237.43,
+  "priority": 3,
+  "message": "Fatal: unable to open repository at sftp:offsite:/backups: ssh: connect to host offsite port 22: Connection timed out",
+  "unit": "backup-offsite.service",
+  "ident": "restic",
+  "boot": -1
+ },
+ {
+  "ago": 9237.44,
+  "priority": 3,
+  "message": "backup-offsite.service: Main process exited, code=exited, status=1/FAILURE",
+  "unit": "backup-offsite.service",
+  "ident": "systemd",
+  "boot": -1
+ },
+ {
+  "ago": 9310.24,
+  "priority": 3,
+  "message": "blk_update_request: I/O error, dev sdc, sector 2048 op 0x0:(READ) flags 0x0",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": -1
+ },
+ {
+  "ago": 9310.25,
+  "priority": 4,
+  "message": "ata3.00: exception Emask 0x0 SAct 0x0 SErr 0x0 action 0x0",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": -1
+ },
+ {
+  "ago": 9376.19,
+  "priority": 6,
+  "message": "Finished logrotate.service - Rotate log files.",
+  "ident": "systemd",
+  "boot": -1
+ },
+ {
+  "ago": 9517.48,
+  "priority": 6,
+  "message": "enp3s0: DHCPv4 address 192.168.1.20/24 renewed",
+  "unit": "NetworkManager.service",
+  "ident": "NetworkManager",
+  "boot": -1
+ },
+ {
+  "ago": 9610.09,
+  "priority": 6,
+  "message": "enp3s0: DHCPv4 address 192.168.1.20/24 renewed",
+  "unit": "NetworkManager.service",
+  "ident": "NetworkManager",
+  "boot": -1
+ },
+ {
+  "ago": 9744.19,
+  "priority": 5,
+  "message": "pam_unix(sudo:session): session opened for user root(uid=0) by tristan(uid=1000)",
+  "ident": "sudo",
+  "facility": 10,
+  "boot": -1
+ },
+ {
+  "ago": 10121.54,
+  "priority": 4,
+  "message": "Failed password for invalid user oracle from 185.171.31.148 port 33249 ssh2",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": -1
+ },
+ {
+  "ago": 10215.02,
+  "priority": 6,
+  "message": "Finished dnf-makecache.service - dnf makecache.",
+  "ident": "systemd",
+  "boot": -1
+ },
+ {
+  "ago": 10433.4,
+  "priority": 3,
+  "message": "blk_update_request: I/O error, dev sdc, sector 2048 op 0x0:(READ) flags 0x0",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": -1
+ },
+ {
+  "ago": 10433.41,
+  "priority": 4,
+  "message": "ata3.00: exception Emask 0x0 SAct 0x0 SErr 0x0 action 0x0",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": -1
+ },
+ {
+  "ago": 10481.53,
+  "priority": 4,
+  "message": "Device: /dev/sdc [SAT], 8 Currently unreadable (pending) sectors",
+  "unit": "smartd.service",
+  "ident": "smartd",
+  "boot": -1
+ },
+ {
+  "ago": 10533.54,
+  "priority": 5,
+  "message": "tristan : TTY=pts/0 ; PWD=/home/tristan ; USER=root ; COMMAND=/usr/bin/systemctl restart jellyfin.service",
+  "ident": "sudo",
+  "facility": 10,
+  "boot": -1
+ },
+ {
+  "ago": 10650.32,
+  "priority": 6,
+  "message": "Finished dnf-makecache.service - dnf makecache.",
+  "ident": "systemd",
+  "boot": -1
+ },
+ {
+  "ago": 10910.28,
+  "priority": 3,
+  "message": "Fatal: unable to open repository at sftp:offsite:/backups: ssh: connect to host offsite port 22: Connection timed out",
+  "unit": "backup-offsite.service",
+  "ident": "restic",
+  "boot": -1
+ },
+ {
+  "ago": 10910.29,
+  "priority": 3,
+  "message": "backup-offsite.service: Main process exited, code=exited, status=1/FAILURE",
+  "unit": "backup-offsite.service",
+  "ident": "systemd",
+  "boot": -1
+ },
+ {
+  "ago": 11195.18,
+  "priority": 3,
+  "message": "Fatal: unable to open repository at sftp:offsite:/backups: ssh: connect to host offsite port 22: Connection timed out",
+  "unit": "backup-offsite.service",
+  "ident": "restic",
+  "boot": -1
+ },
+ {
+  "ago": 11195.19,
+  "priority": 3,
+  "message": "backup-offsite.service: Main process exited, code=exited, status=1/FAILURE",
+  "unit": "backup-offsite.service",
+  "ident": "systemd",
+  "boot": -1
+ },
+ {
+  "ago": 11521.55,
+  "priority": 6,
+  "message": "Starting dnf-makecache.service - dnf makecache...",
+  "ident": "systemd",
+  "boot": -1
+ },
+ {
+  "ago": 11949.48,
+  "priority": 4,
+  "message": "Failed password for invalid user oracle from 185.84.214.37 port 50216 ssh2",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "facility": 10,
+  "boot": -1
+ },
+ {
+  "ago": 12101.86,
+  "priority": 6,
+  "message": "Starting dnf-makecache.service - dnf makecache...",
+  "ident": "systemd",
+  "boot": -1
+ },
+ {
+  "ago": 12540.28,
+  "priority": 6,
+  "message": "Starting dnf-makecache.service - dnf makecache...",
+  "ident": "systemd",
+  "boot": -1
+ },
+ {
+  "ago": 12958.8,
+  "priority": 6,
+  "message": "Startup finished in 3.112s (firmware) + 2.004s (loader) + 1.873s (kernel) + 9.421s (userspace) = 16.411s.",
+  "ident": "systemd",
+  "boot": -1
+ },
+ {
+  "ago": 12959.4,
+  "priority": 6,
+  "message": "Quadeck listening on http://0.0.0.0:8484",
+  "unit": "quadeck.service",
+  "ident": "quadeck",
+  "boot": -1
+ },
+ {
+  "ago": 12959.45,
+  "priority": 6,
+  "message": "Started quadeck-helper.service - Quadeck root helper.",
+  "unit": "quadeck-helper.service",
+  "ident": "quadeck-helper",
+  "boot": -1
+ },
+ {
+  "ago": 12959.5,
+  "priority": 6,
+  "message": "Server listening on 0.0.0.0 port 22.",
+  "unit": "sshd.service",
+  "ident": "sshd",
+  "boot": -1
+ },
+ {
+  "ago": 12959.55,
+  "priority": 6,
+  "message": "Listening on podman.socket - Podman API Socket.",
+  "unit": "podman.socket",
+  "ident": "podman",
+  "boot": -1
+ },
+ {
+  "ago": 12959.6,
+  "priority": 6,
+  "message": "NetworkManager (version 1.50.0) is starting...",
+  "unit": "NetworkManager.service",
+  "ident": "NetworkManager",
+  "boot": -1
+ },
+ {
+  "ago": 12959.65,
+  "priority": 6,
+  "message": "Using default interface naming scheme 'v255'.",
+  "unit": "systemd-udevd.service",
+  "ident": "udevd",
+  "boot": -1
+ },
+ {
+  "ago": 12959.7,
+  "priority": 6,
+  "message": "Journal started",
+  "unit": "systemd-journald.service",
+  "ident": "journald",
+  "boot": -1
+ },
+ {
+  "ago": 12959.84,
+  "priority": 6,
+  "message": "i915 0000:00:02.0: [drm] GuC firmware i915/tgl_guc_70.bin version 70.20.0",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": -1
+ },
+ {
+  "ago": 12959.86,
+  "priority": 6,
+  "message": "r8169 0000:03:00.0 enp3s0: Link is Up - 1Gbps/Full - flow control rx/tx",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": -1
+ },
+ {
+  "ago": 12959.88,
+  "priority": 6,
+  "message": "EXT4-fs (nvme0n1p3): mounted filesystem with ordered data mode",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": -1
+ },
+ {
+  "ago": 12959.9,
+  "priority": 5,
+  "message": "sd 0:0:0:0: [sda] 7814037168 512-byte logical blocks: (4.00 TB/3.64 TiB)",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": -1
+ },
+ {
+  "ago": 12959.92,
+  "priority": 6,
+  "message": "ata1: SATA link up 6.0 Gbps (SStatus 133 SControl 300)",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": -1
+ },
+ {
+  "ago": 12959.94,
+  "priority": 6,
+  "message": "ahci 0000:00:17.0: AHCI 0001.0301 32 slots 6 ports 6 Gbps",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": -1
+ },
+ {
+  "ago": 12959.96,
+  "priority": 6,
+  "message": "ACPI: Core revision 20240322",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": -1
+ },
+ {
+  "ago": 12959.98,
+  "priority": 6,
+  "message": "Command line: BOOT_IMAGE=/vmlinuz-6.11.6 root=UUID=7c1e… ro quiet",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": -1
+ },
+ {
+  "ago": 12960.0,
+  "priority": 5,
+  "message": "Linux version 6.11.6-200.fc42.x86_64 (mockbuild@fedora) gcc 14.2.1",
+  "ident": "kernel",
+  "transport": "kernel",
+  "boot": -1
+ }
+]
