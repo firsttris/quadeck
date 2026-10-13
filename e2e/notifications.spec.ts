@@ -85,11 +85,16 @@ test.describe
       await page.reload()
       await page.waitForTimeout(6000) // a few hub rounds: nothing repeated
       // The daily update summary may arrive whenever the update check finishes; problems must not repeat.
+      // A check that first runs a few seconds after the start (backups after 10 s, devices after 20 s)
+      // may still report something new here when this file is the first on its shard's server.
+      const text = (r: { title: string; message: string }) => `${r.title}: ${r.message}`
+      const before = new Set(received.slice(0, count).map(text))
       expect(
         received
           .slice(count)
           .filter((r) => !r.title.includes('Updates verfügbar'))
-          .map((r) => `${r.title}: ${r.message}`),
+          .map(text)
+          .filter((t) => before.has(t)),
       ).toEqual([])
     })
 
