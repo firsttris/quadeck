@@ -85,7 +85,8 @@ test('a Quadlet container is deleted from its row, the image and volumes only wh
   await expect(page.getByTestId('quadlet-file').filter({ hasText: 'immich-ml.container' })).toHaveCount(0)
 })
 
-test('a Quadlet starts at boot through [Install] in its file, switched from the row menu', async ({ page }) => {
+test('a Quadlet starts at boot through [Install] in its file, switched from the row menu', async ({ page, request }) => {
+  expect((await request.post('/api/quadlets/file', { data: { name: 'jellyfin.container', boot: false } })).status()).toBe(401)
   await login(page)
   await page.goto('/units')
   const row = page.getByTestId('unit-row').filter({ hasText: 'jellyfin.service' })

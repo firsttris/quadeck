@@ -467,6 +467,18 @@ describe('start at boot', () => {
     expect(withQuadletBoot(off, true)).toBe('[Container]\nImage=x\n\n[Install]\nWantedBy=multi-user.target\n# boot\nAlias=web.service\n\n[Service]\nRestart=always\n')
   })
 
+  it('UpheldBy= counts too; an empty WantedBy= does not; a file without final newline', () => {
+    expect(quadletBoots('[Container]\nImage=x\n[Install]\nUpheldBy=multi-user.target\n')).toBe(true)
+    expect(withQuadletBoot('[Container]\nImage=x\n[Install]\nUpheldBy=multi-user.target\n', false)).toBe('[Container]\nImage=x\n')
+    expect(quadletBoots('[Container]\nImage=x\n[Install]\nWantedBy=\n')).toBe(false)
+    // An empty assignment resets the list, as in systemd: switching on must not leave it behind.
+    const reset = '[Container]\nImage=x\n\n[Install]\nWantedBy=default.target\nWantedBy=\n'
+    expect(quadletBoots(reset)).toBe(false)
+    expect(withQuadletBoot(reset, true)).toBe('[Container]\nImage=x\n\n[Install]\nWantedBy=multi-user.target\n')
+    expect(quadletBoots('[Container]\nWantedBy=multi-user.target\n')).toBe(false) // not in [Install]
+    expect(withQuadletBoot('[Container]\nImage=x', true)).toBe('[Container]\nImage=x\n\n[Install]\nWantedBy=multi-user.target\n')
+  })
+
   it('drops an emptied [Install] in the middle of the file', () => {
     const f = '[Container]\nImage=x\n\n[Install]\nWantedBy=multi-user.target\n\n[Service]\nRestart=always\n'
     expect(withQuadletBoot(f, false)).toBe('[Container]\nImage=x\n\n[Service]\nRestart=always\n')

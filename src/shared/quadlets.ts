@@ -165,30 +165,32 @@ export const QUADLET_BOOT_TARGET = 'multi-user.target'
 
 /** Whether the file starts its unit at boot (Quadlet units are generated: systemctl enable does not apply). */
 export function quadletBoots(content: string): boolean {
-  return parseIni(content).some((e) => e.kind === 'kv' && e.section === 'Install' && BOOT_KEYS.includes(e.key!) && e.value!.trim() !== '')
+  // Like systemd: an empty assignment resets the list of that key.
+  const lists = new Map<string, number>()
+  for (const e of parseIni(content))
+    if (e.kind === 'kv' && e.section === 'Install' && BOOT_KEYS.includes(e.key!)) lists.set(e.key!, e.value!.trim() ? (lists.get(e.key!) ?? 0) + e.value!.trim().split(/\s+/).length : 0)
+  return [...lists.values()].some((n) => n > 0)
 }
 
 /**
  * Start at boot on: WantedBy=multi-user.target under [Install] (added if missing).
  * Off: the WantedBy=/RequiredBy=/UpheldBy= lines go, and an [Install] section left without keys goes too.
+ * On replaces those lines as well, so an empty WantedBy= further down cannot reset it.
  */
 export function withQuadletBoot(content: string, enabled: boolean): string {
   if (quadletBoots(content) === enabled) return content
   const lines = content.split('\n')
   const entries = parseIni(content)
-  if (enabled) {
-    const install = entries.find((e) => e.kind === 'section' && e.section === 'Install')
-    if (install) {
-      lines.splice(install.end + 1, 0, `WantedBy=${QUADLET_BOOT_TARGET}`)
-      return lines.join('\n')
-    }
-    return `${content.replace(/\s+$/, '')}\n\n[Install]\nWantedBy=${QUADLET_BOOT_TARGET}\n`
-  }
   const drop = new Set<number>()
   const mark = (e: IniEntry) => {
     for (let i = e.start; i <= e.end; i++) drop.add(i)
   }
   for (const e of entries) if (e.kind === 'kv' && e.section === 'Install' && BOOT_KEYS.includes(e.key!)) mark(e)
+  const install = entries.find((e) => e.kind === 'section' && e.section === 'Install')
+  if (enabled) {
+    const out = lines.flatMap((l, i) => (drop.has(i) ? [] : i === install?.end ? [l, `WantedBy=${QUADLET_BOOT_TARGET}`] : [l])).join('\n')
+    return install ? out : `${out.replace(/\s+$/, '')}\n\n[Install]\nWantedBy=${QUADLET_BOOT_TARGET}\n`
+  }
   // Sections named [Install] whose keys are all gone: header, comments and blank lines with them.
   for (let i = 0; i < entries.length; i++) {
     if (entries[i]!.kind !== 'section' || entries[i]!.section !== 'Install') continue
