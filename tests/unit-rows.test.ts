@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { buildRows, matches } from '~/lib/unit-rows'
 import type { Container, Unit } from '~/shared/types'
+import { withQuadletFiles } from '~/shared/units'
 
 const unit = (name: string, o: Partial<Unit> = {}): Unit => ({ name, description: name, load: 'loaded', active: 'active', sub: 'running', kind: 'service', ...o })
 const ct = (name: string, o: Partial<Container> = {}): Container => ({
@@ -47,5 +48,26 @@ describe('unit rows', () => {
   it('shows a container whose unit systemd does not list as its own row', () => {
     const r = buildRows([], [ct('orphan', { unit: 'gone.service' })])
     expect(r).toEqual([{ key: 'ct:orphan', container: expect.objectContaining({ name: 'orphan' }) }])
+  })
+})
+
+describe('withQuadletFiles', () => {
+  const files = [
+    { name: 'jellyfin.container', type: 'container', unit: 'jellyfin.service' },
+    { name: 'media/arr.container', type: 'container', unit: 'arr.service' },
+    { name: 'immich.network', type: 'network', unit: 'immich-network.service' },
+  ]
+
+  it('keeps a row for a Quadlet systemd unloaded (no autostart, stopped), stopped and without autostart', () => {
+    const units = [unit('jellyfin.service', { kind: 'quadlet', quadlet: { file: 'jellyfin.container', type: 'container', boot: true } })]
+    const out = withQuadletFiles(units, files)
+    expect(out.map((u) => u.name)).toEqual(['jellyfin.service', 'arr.service', 'immich-network.service'])
+    expect(out[1]).toMatchObject({ active: 'inactive', sub: 'dead', kind: 'quadlet', quadlet: { file: 'media/arr.container', type: 'container', boot: false } })
+    expect(out[0]).toBe(units[0]) // what systemd lists is kept as it is
+  })
+
+  it('changes nothing when systemd lists every Quadlet', () => {
+    const units = files.map((f) => unit(f.unit))
+    expect(withQuadletFiles(units, files)).toBe(units)
   })
 })

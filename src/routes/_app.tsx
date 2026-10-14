@@ -177,6 +177,8 @@ function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => vo
     }
   }, [open, onClose])
 
+  // The Quadlet files and the unit editor are part of the units area.
+  const here = (to: string) => path === to || (to === '/units' && (path === '/quadlets' || path === '/systemd'))
   const problems = Object.entries(snapshot.sources).filter(([, s]) => !s.ok && s.error)
   return (
     <>
@@ -223,7 +225,7 @@ function Sidebar({ open, onClose, onSearch }: { open: boolean; onClose: () => vo
             <div key={g.title ?? i} role="group" aria-label={g.title} className="flex flex-col gap-[2px]">
               {g.title && <div className="mt-2.5 mb-0.5 px-3 text-[10.5px] font-semibold tracking-[.08em] text-faint uppercase">{g.title}</div>}
               {g.items.map((n) => (
-                <Link key={n.to} to={n.to} className={`navbtn max-md:min-h-[42px] ${path === n.to ? 'on' : ''}`} aria-current={path === n.to ? 'page' : undefined}>
+                <Link key={n.to} to={n.to} className={`navbtn max-md:min-h-[42px] ${here(n.to) ? 'on' : ''}`} aria-current={here(n.to) ? 'page' : undefined}>
                   <Glyph name={n.glyph} />
                   <span className="grow">{n.label}</span>
                   {n.badge > 0 && <Badge n={n.badge} />}

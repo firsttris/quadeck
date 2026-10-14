@@ -598,6 +598,18 @@ test.describe
       const tiles = page.getByTestId('service-tile')
       await expect(tiles.filter({ hasText: 'Jellyfin' })).toHaveAttribute('href', 'https://jellyfin.home.example')
       expect(await page.getByTestId('tile-group').count()).toBeGreaterThan(1)
+      // A wide screen makes the one-row tiles wider than 260 px: they keep the compact layout,
+      // name and host stay inside the tile instead of being cut off at the bottom.
+      await page.setViewportSize({ width: 2600, height: 1000 })
+      const cut = () =>
+        tiles.evaluateAll((els) =>
+          // name and host are flex items with overflow hidden: when they don't fit they shrink and clip
+          // (a couple of pixels for the descenders always overflow)
+          els.filter((e) => [...e.querySelectorAll<HTMLElement>('.truncate')].some((t) => t.clientHeight < t.scrollHeight - 4)).map((e) => e.textContent),
+        )
+      await expect.poll(async () => (await tiles.first().boundingBox())!.width).toBeGreaterThan(260)
+      expect(await cut()).toEqual([])
+      await page.setViewportSize({ width: 1280, height: 720 })
 
       const search = page.getByRole('searchbox', { name: 'Services durchsuchen' })
       await search.fill('jelly')

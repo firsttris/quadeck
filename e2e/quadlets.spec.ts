@@ -25,7 +25,7 @@ test.describe
     test('edit in the form, same file in the text view, save with diff and restart, history', async ({ page }) => {
       await login(page)
       await page.getByRole('navigation', { name: 'Bereiche' }).getByRole('link', { name: 'Units' }).click()
-      await page.getByRole('link', { name: 'Quadlet-Dateien' }).click()
+      await page.getByRole('tab', { name: 'Quadlet-Dateien' }).click()
       await expect(page).toHaveURL(/\/quadlets/)
       await expect(page.getByTestId('quadlet-file')).toHaveCount(5)
       await page.getByTestId('quadlet-file').filter({ hasText: 'jellyfin.container' }).click()

@@ -14,7 +14,7 @@ async function login(page: Page) {
 test('container usage over days: ranking, ranges, sorting, history dialog', async ({ page }) => {
   await login(page)
   await page.goto('/units')
-  await page.getByRole('link', { name: 'Verbrauch über Zeit' }).click()
+  await page.getByRole('tab', { name: 'Verbrauch über Zeit' }).click()
   await expect(page).toHaveURL('/units?view=usage')
   const view = page.getByRole('region', { name: 'CPU und RAM pro Container' })
   const rows = view.getByTestId('usage-row')

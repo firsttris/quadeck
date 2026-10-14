@@ -3,15 +3,22 @@
 ## Units page
 
 **Units** lists everything systemd runs for you: Quadlet units with their container, plain
-services, timers, sockets and containers without a unit. Filters: *All*, *Containers*,
-*Services*, *Timers* (this one opens the [timer editor](systemd.md#timers)), *Sockets* and
-*Failed*.
+services, timers, sockets and containers without a unit. Three tabs show the same units from
+different sides: **Units** (the list), **Quadlet files** (the [editor](#quadlet-editor)) and
+**Usage over time** (CPU and RAM per container over days, [below](#usage-over-time)). Filters in
+the list: *All*, *Containers*, *Services*, *Timers* (this one opens the
+[timer editor](systemd.md#timers)), *Sockets* and *Failed*.
+
+Every Quadlet file has a row, also when systemd does not list its unit: a Quadlet without autostart
+that is stopped is unloaded by systemd after a `daemon-reload` (nothing wants it). Its row stays,
+stopped and with autostart off, so it can be started or get its autostart back.
 
 Per row: name and description (for a socket: what it listens on and which service it starts),
 status (for a container with a healthcheck its health, otherwise the systemd state), memory and
 time since the last state change. On wider screens also CPU over the last 15 minutes as a
 sparkline, the type (`container`, `pod`, `service`, `oneshot`, `timer`, `socket`, `podman` for
-containers without a unit; Quadlets are highlighted) and whether the unit starts at boot.
+containers without a unit; Quadlets are highlighted). **Autostart** is a switch in every row
+that can start at boot, with *On*/*Off* next to it.
 
 ### Actions
 
@@ -27,12 +34,14 @@ opens the journal.
 - **Journal** opens the journal filtered to the unit.
 - **Edit Quadlet / Edit unit** opens the Quadlet file for Quadlet units and the
   [systemd editor](systemd.md) for everything else.
-- **Start at boot** enables or disables the unit (`systemctl enable/disable`); only shown
-  for units that have an install section. Quadlet units are generated, so `systemctl enable` does
+- **Autostart** (the switch in the row) enables or disables the unit (`systemctl
+  enable/disable`); shown for units that have an install section, other units show their state
+  (`static`: another unit starts them). Quadlet units are generated, so `systemctl enable` does
   not apply to them: here the switch writes `WantedBy=multi-user.target` into the file's
   `[Install]` section, or takes the `WantedBy=`/`RequiredBy=` lines out (an `[Install]` section
   left empty goes too). The change is saved like an edit – history, `daemon-reload` – and does not
-  start or stop anything. The tick follows what systemd has loaded: a target wants the unit.
+  start or stop anything. The switch follows what systemd has loaded: a target wants the unit.
+  The Quadlet files tab marks the files with autostart.
 - **Delete Quadlet …** removes a Quadlet container for good, see [Deleting](#deleting).
 - **+ New unit** creates a plain systemd unit from a template.
 
@@ -74,7 +83,7 @@ is checked before it becomes a `journalctl` argument.
 
 ### Usage over time
 
-**Usage over time** (next to the filters) answers "which container eats my CPU and RAM?" over the
+**Usage over time** (the third tab) answers "which container eats my CPU and RAM?" over the
 last 24 hours, 7 or 30 days:
 
 - one row per container with average and peak CPU, average and peak RAM, how much of the range it
@@ -98,7 +107,7 @@ container is re-created, so the history continues). CPU is in percent of one cor
 
 The Quadlet editor is not a menu entry of its own; like the [systemd editor](systemd.md) it is
 reached from the units page: **Edit Quadlet** on a container, **+ New container** (template or
-empty file) or **Quadlet files**. It lists every file in `/etc/containers/systemd`
+empty file) or the **Quadlet files** tab. It lists every file in `/etc/containers/systemd`
 (`QUADECK_QUADLET_DIR`): `.container`,
 `.pod`, `.network`, `.volume`, `.kube`, `.image` and `.build`, including one level of
 subdirectories, each with the state of the unit it generates.
@@ -170,7 +179,7 @@ starts the units.
 the file, commits the deletion to the history (the file can be restored from there) and reloads
 systemd, so the generated service is gone and does not come back at the next boot. Stopping alone
 is **Stop …** in the row menu; a Quadlet unit then starts again at the next boot if its file has
-an `[Install]` section – untick **Start at boot** to keep it off.
+an `[Install]` section – switch **Autostart** off to keep it off.
 
 For a `.container` the dialog offers two more boxes, both off by default:
 

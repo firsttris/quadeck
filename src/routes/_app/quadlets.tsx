@@ -1,13 +1,13 @@
-import { createFileRoute, Link, redirect, useNavigate } from '@tanstack/react-router'
+import { createFileRoute, redirect, useNavigate } from '@tanstack/react-router'
 import { useCallback, useEffect, useState } from 'react'
 import { useActions } from '~/components/Actions'
 import { BusyButton } from '~/components/Busy'
 import { Glyph } from '~/components/Glyph'
 import { Modal } from '~/components/Modal'
-import { PageHeader } from '~/components/PageHeader'
 import { QuadletEditor } from '~/components/QuadletEditor'
 import { Dot, unitTone } from '~/components/Status'
 import { useToast } from '~/components/Toast'
+import { UnitsHeader } from '~/components/UnitsHeader'
 import { useGuardedApi } from '~/components/Unlock'
 import { api } from '~/lib/api'
 import { useLiveState } from '~/lib/live'
@@ -26,18 +26,14 @@ export const Route = createFileRoute('/_app/quadlets')({
   beforeLoad: ({ search }) => {
     if (search.tab === 'settings') throw redirect({ to: '/system', search: { tab: 'podman' } })
   },
-  head: () => ({ meta: [{ title: 'Quadlets · Quadeck' }] }),
+  head: () => ({ meta: [{ title: 'Quadlet-Dateien · Quadeck' }] }),
   component: QuadletsPage,
 })
 
 function QuadletsPage() {
   return (
     <>
-      <PageHeader title="Quadlets" subtitle={m.quadlets_page_subtitle()}>
-        <Link to="/units" search={{ filter: 'container' }} className="btn sm">
-          {m.quadlets_page_backToUnits()}
-        </Link>
-      </PageHeader>
+      <UnitsHeader tab="files" />
       <Files />
     </>
   )
@@ -138,8 +134,18 @@ function Files() {
               className={`flex items-center gap-2 border-t border-line px-[18px] py-[9px] text-left hover:bg-[rgba(255,255,255,.03)] ${file === f.name ? 'bg-accent/10' : ''}`}
             >
               <Dot tone={u ? unitTone(u) : 'idle'} label={u ? `${f.unit}: ${u.active}` : m.quadlets_list_notLoaded({ unit: f.unit })} />
-              <span className="grow truncate font-mono text-[13px]">{f.name}</span>
-              <span className="chip q">{f.type}</span>
+              <span className="flex min-w-0 grow flex-col">
+                <span className="truncate font-mono text-[13px]">{f.name}</span>
+                <span className="text-[11px] text-muted">
+                  {f.type}
+                  {u?.quadlet?.boot && (
+                    <span className="text-accent" title={m.units_bootOn({ name: f.unit })}>
+                      {' · '}
+                      {m.quadlets_list_autostart()}
+                    </span>
+                  )}
+                </span>
+              </span>
             </button>
           )
         })}

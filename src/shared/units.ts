@@ -35,3 +35,29 @@ function formatLimit(b: number) {
   const m = b / 1024 ** 2
   return Number.isInteger(m) ? `${m}M` : `${b}`
 }
+
+/**
+ * systemd lists only the units it has loaded. A Quadlet unit nothing wants (no WantedBy= in the
+ * file) and that is not running is unloaded again after a daemon-reload, so it would drop out of
+ * the units list although its file is still there. Every Quadlet file keeps a row: units systemd
+ * does not list are added as stopped, without start at boot (nothing wants them, or they would be
+ * loaded). Starting one loads it again.
+ */
+export function withQuadletFiles(units: Unit[], files: { name: string; type: string; unit: string }[]): Unit[] {
+  const listed = new Set(units.map((u) => u.name))
+  const missing = files
+    .filter((f) => !listed.has(f.unit))
+    .map(
+      (f): Unit => ({
+        name: f.unit,
+        description: f.name,
+        load: 'unloaded',
+        active: 'inactive',
+        sub: 'dead',
+        kind: 'quadlet',
+        quadlet: { file: f.name, type: f.type, boot: false },
+        unitFileState: 'generated',
+      }),
+    )
+  return missing.length ? [...units, ...missing] : units
+}

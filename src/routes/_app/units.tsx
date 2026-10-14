@@ -3,13 +3,13 @@ import { useState } from 'react'
 import { actionBusyLabel, useActions } from '~/components/Actions'
 import { BusyButton, Spinner, useBusy } from '~/components/Busy'
 import { ContainerUsageView } from '~/components/ContainerUsage'
-import { PageHeader } from '~/components/PageHeader'
 import { RemoveQuadletDialog } from '~/components/QuadletEditor'
 import { type MenuItem, RowMenu } from '~/components/RowMenu'
 import { Sparkline } from '~/components/Sparkline'
 import { containerState, Pill, type Tone, unitState, unitTone } from '~/components/Status'
 import { TimersView } from '~/components/Timers'
 import { useToast } from '~/components/Toast'
+import { UnitsHeader } from '~/components/UnitsHeader'
 import { useGuardedApi } from '~/components/Unlock'
 import { age, bytes, num } from '~/lib/format'
 import { useLiveState } from '~/lib/live'
@@ -62,37 +62,7 @@ function Units() {
   const counts = Object.fromEntries(FILTER_KEYS.map((k) => [k, rows.filter((r) => matches(r, k)).length]))
   return (
     <>
-      <PageHeader title="Units" subtitle={m.units_subtitle()}>
-        {!readonly && (
-          <>
-            <Link to="/systemd" search={{ new: true }} className="btn sm">
-              {m.units_newUnit()}
-            </Link>
-            <Link to="/quadlets" search={{ new: true }} className="btn sm">
-              {m.units_newContainer()}
-            </Link>
-          </>
-        )}
-        <Link to="/quadlets" className="btn sm">
-          {m.units_quadletFiles()}
-        </Link>
-      </PageHeader>
-      <div className="flex flex-wrap items-center gap-1.5">
-        <div role="group" aria-label={m.units_filter()} className="flex flex-wrap gap-1.5">
-          {filters().map(([k, label]) => (
-            <Link key={k} to="/units" search={{ filter: k }} className={`seg ${filter === k && view !== 'usage' ? 'on' : ''}`} aria-current={filter === k && view !== 'usage' ? 'true' : undefined}>
-              {label}
-              <span className="opacity-60">{counts[k]}</span>
-            </Link>
-          ))}
-        </div>
-        <span className="grow" />
-        {hasContainers && (
-          <Link to="/units" search={{ view: 'usage' }} className={`seg ${view === 'usage' ? 'on' : ''}`} aria-current={view === 'usage' ? 'true' : undefined}>
-            {m.usage_tab()}
-          </Link>
-        )}
-      </div>
+      <UnitsHeader tab={view === 'usage' ? 'usage' : 'list'} usage={hasContainers} />
       {snapshot.sources.systemd.error && (
         <p className="m-0 text-[13px] text-[#e3b341]">
           {m.units_systemdDown()} {snapshot.sources.systemd.error}
@@ -102,6 +72,17 @@ function Units() {
         <p className="m-0 text-[13px] text-[#e3b341]">
           {m.units_podmanDown()} {snapshot.sources.podman.error}
         </p>
+      )}
+      {view !== 'usage' && (
+        <div role="group" aria-label={m.units_filter()} className="flex flex-wrap items-center gap-1.5 text-[12px]">
+          <span className="mr-1 text-muted">{m.units_show()}</span>
+          {filters().map(([k, label]) => (
+            <Link key={k} to="/units" search={{ filter: k }} className={`seg ${filter === k ? 'on' : ''}`} aria-current={filter === k ? 'true' : undefined}>
+              {label}
+              <span className="opacity-60">{counts[k]}</span>
+            </Link>
+          ))}
+        </div>
       )}
       {view === 'usage' ? (
         <ContainerUsageView open={container} />
@@ -118,7 +99,7 @@ function Units() {
                 <th className="hidden xl:table-cell">{m.units_col_cpu()}</th>
                 <th>{m.units_col_ram()}</th>
                 <th className="hidden sm:table-cell">{m.units_col_since()}</th>
-                <th className="hidden 2xl:table-cell">{m.units_col_boot()}</th>
+                <th title={m.units_autostartHelp()}>{m.units_col_boot()}</th>
                 <th>
                   <span className="sr-only">{m.units_col_actions()}</span>
                 </th>
@@ -201,8 +182,7 @@ function UnitRow({
       ? []
       : [
           ...(active ? [{ label: m.units_stopDots(), onSelect: () => run('stop', target), danger: true, disabled: busy === name, separator: true }] : []),
-          ...(bootable ? [{ label: m.units_startAtBoot(), checked: bootOn, onSelect: () => void setBoot(!bootOn), disabled: !!boot.busy, separator: true }] : []),
-          ...(u?.quadlet ? [{ label: m.units_deleteQuadlet(), onSelect: () => setRemoving(true), danger: true, separator: !active || !!bootable }] : []),
+          ...(u?.quadlet ? [{ label: m.units_deleteQuadlet(), onSelect: () => setRemoving(true), danger: true, separator: !active }] : []),
         ]),
   ]
   return (
@@ -246,8 +226,33 @@ function UnitRow({
       <td className="hidden sm:table-cell" suppressHydrationWarning>
         {u ? age(u.since) : '–'}
       </td>
-      <td className="hidden text-subtle 2xl:table-cell" title={u?.quadlet ? u.unitFileState : undefined}>
-        {u?.quadlet ? (u.quadlet.boot ? 'enabled' : 'disabled') : (u?.unitFileState ?? (c ? m.units_noUnit() : '–'))}
+      <td>
+        {bootable ? (
+          <label className="inline-flex items-center gap-2 text-[12px]">
+            <input
+              type="checkbox"
+              role="switch"
+              className="switch"
+              aria-label={m.units_autostartAria({ name })}
+              aria-checked={bootOn}
+              checked={bootOn}
+              disabled={readonly || !!boot.busy}
+              onChange={(e) => void setBoot(e.target.checked)}
+            />
+            {boot.busy ? (
+              <span className="inline-flex items-center gap-1.5 text-muted" aria-live="polite">
+                <Spinner />
+                <span className="max-md:sr-only">{m.common_applying()}</span>
+              </span>
+            ) : (
+              <span className={`max-md:sr-only ${bootOn ? 'text-fg' : 'text-muted'}`}>{bootOn ? m.units_autostartOn() : m.units_autostartOff()}</span>
+            )}
+          </label>
+        ) : (
+          <span className="text-[12px] text-subtle" title={u ? m.units_autostartNotBootable() : undefined}>
+            {u?.unitFileState ?? (c ? m.units_noUnit() : '–')}
+          </span>
+        )}
       </td>
       <td>
         <div className="flex justify-end gap-1.5">
@@ -261,12 +266,6 @@ function UnitRow({
             >
               {primary === 'restart' ? m.units_restart() : m.units_start()}
             </BusyButton>
-          )}
-          {boot.busy && (
-            <span className="inline-flex items-center gap-1.5 text-[12px] text-muted" aria-live="polite">
-              <Spinner />
-              {m.common_applying()}
-            </span>
           )}
           {items.length > 0 && <RowMenu label={m.common_actionsFor({ name })} items={items} />}
           {u?.quadlet && <RemoveQuadletDialog open={removing} name={u.quadlet.file} onClose={() => setRemoving(false)} onRemoved={() => {}} />}

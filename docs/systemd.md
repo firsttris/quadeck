@@ -57,7 +57,7 @@ the helper and runs `daemon-reload`. A file that was changed on disk since it wa
 tab, a package update, an edit on the shell) is not overwritten: the save is refused. Every version (the original before the first change, every
 save, the content before a deletion) is kept under `/var/lib/quadeck-helper/unit-history`, up to
 30 per file, and can be loaded back into the editor from **History**. **Start at boot**
-switches `systemctl enable`/`disable`.
+switches `systemctl enable`/`disable`, like the **Autostart** switch in the unit's row.
 
 Quadeck's own units (`quadeck.service`, `quadeck-helper.service`, `quadeck-job-*`) are read-only:
 editing them could cut the branch Quadeck sits on.
