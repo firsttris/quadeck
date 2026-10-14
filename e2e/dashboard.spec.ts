@@ -208,6 +208,7 @@ test.describe
 
     test('add and remove a manual link', async ({ page }) => {
       await login(page)
+      await page.getByRole('img', { name: 'live verbunden' }).waitFor() // hydrated: a click before that opens nothing
       await page.getByRole('button', { name: 'Link hinzufügen' }).click()
       const dialog = page.getByRole('dialog', { name: 'Link hinzufügen' })
       await dialog.getByLabel('Name').fill('Router')
