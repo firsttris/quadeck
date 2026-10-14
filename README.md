@@ -184,7 +184,7 @@ platform through `bun build --compile`. Architecture, tests and releases:
 
 Issues and pull requests are welcome. If your distribution, package manager, GPU or firewall is
 handled wrong, include the output of the command Quadeck ran (the error names it). Please run
-`bun run typecheck`, `bun run test` and `bun run test:e2e` before opening a pull request.
+`bun run check`, `bun run typecheck`, `bun run test` and `bun run test:e2e` before opening a pull request.
 
 ---
 
