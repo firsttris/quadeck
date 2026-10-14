@@ -4,7 +4,11 @@ import { localeOf, msg } from '~/shared/i18n'
 import type { Snapshot } from '~/shared/types'
 
 export type PaletteAction =
-  | { kind: 'navigate'; to: '/' | '/units' | '/journal' | '/system' | '/quadlets' | '/shares' | '/backups' | '/ssh' | '/disks' | '/files' | '/users' | '/hardware'; search?: Record<string, string> }
+  | {
+      kind: 'navigate'
+      to: '/' | '/services' | '/units' | '/journal' | '/system' | '/quadlets' | '/shares' | '/backups' | '/ssh' | '/disks' | '/files' | '/users' | '/hardware'
+      search?: Record<string, string>
+    }
   | { kind: 'open'; url: string }
   | { kind: 'unit'; action: 'start' | 'stop' | 'restart'; name: string }
   | { kind: 'motion'; level: 'off' | 'subtle' | 'strong' }
@@ -30,6 +34,13 @@ export function paletteItems(s: Omit<Snapshot, 'system'>, readonly: boolean): Pa
       label: msg(m.palette_page_editOverview),
       keywords: 'dashboard widgets layout bearbeiten edit hinzufügen add',
       action: { kind: 'navigate', to: '/', search: { edit: '1' } },
+    },
+    {
+      id: 'p:/services',
+      section: 'Seiten',
+      label: msg(m.services_page_title),
+      keywords: 'services dienste apps links lesezeichen bookmarks start launcher kacheln tiles',
+      action: { kind: 'navigate', to: '/services' },
     },
     { id: 'p:/units', section: 'Seiten', label: 'Units', keywords: 'container dienste systemd quadlets services', action: { kind: 'navigate', to: '/units' } },
     { id: 'p:/units?failed', section: 'Seiten', label: msg(m.palette_page_failedUnits), keywords: 'failed fehler error', action: { kind: 'navigate', to: '/units', search: { filter: 'failed' } } },

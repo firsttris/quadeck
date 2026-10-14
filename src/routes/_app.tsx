@@ -67,7 +67,7 @@ function AppLayout() {
 }
 
 type NavItem = {
-  to: '/' | '/units' | '/journal' | '/disks' | '/files' | '/shares' | '/backups' | '/ssh' | '/terminal' | '/network' | '/system' | '/notifications' | '/users'
+  to: '/' | '/services' | '/units' | '/journal' | '/disks' | '/files' | '/shares' | '/backups' | '/ssh' | '/terminal' | '/network' | '/system' | '/notifications' | '/users'
   label: string
   glyph: string
   badge: number
@@ -78,7 +78,12 @@ function useNav(): { title?: string; items: NavItem[] }[] {
   const failed = snapshot.units.filter((u) => u.active === 'failed').length
   const smart = (snapshot.smart ?? []).filter((d) => d.level !== 'ok').length
   return [
-    { items: [{ to: '/', label: m.shell_nav_overview(), glyph: 'overview', badge: 0 }] },
+    {
+      items: [
+        { to: '/', label: m.shell_nav_overview(), glyph: 'overview', badge: 0 },
+        { to: '/services', label: m.shell_nav_servicesPage(), glyph: 'globe', badge: 0 },
+      ],
+    },
     {
       title: m.shell_nav_services(),
       items: [

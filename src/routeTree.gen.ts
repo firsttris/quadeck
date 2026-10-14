@@ -21,6 +21,7 @@ import { Route as AppJournalRouteImport } from './routes/_app/journal'
 import { Route as AppNetworkRouteImport } from './routes/_app/network'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
 import { Route as AppQuadletsRouteImport } from './routes/_app/quadlets'
+import { Route as AppServicesRouteImport } from './routes/_app/services'
 import { Route as AppSharesRouteImport } from './routes/_app/shares'
 import { Route as AppSshRouteImport } from './routes/_app/ssh'
 import { Route as AppSystemRouteImport } from './routes/_app/system'
@@ -152,6 +153,11 @@ const AppNotificationsRoute = AppNotificationsRouteImport.update({
 const AppQuadletsRoute = AppQuadletsRouteImport.update({
   id: '/quadlets',
   path: '/quadlets',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppServicesRoute = AppServicesRouteImport.update({
+  id: '/services',
+  path: '/services',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSharesRoute = AppSharesRouteImport.update({
@@ -532,6 +538,7 @@ export interface FileRoutesByFullPath {
   '/network': typeof AppNetworkRoute
   '/notifications': typeof AppNotificationsRoute
   '/quadlets': typeof AppQuadletsRoute
+  '/services': typeof AppServicesRoute
   '/shares': typeof AppSharesRoute
   '/ssh': typeof AppSshRoute
   '/system': typeof AppSystemRoute
@@ -617,6 +624,7 @@ export interface FileRoutesByTo {
   '/network': typeof AppNetworkRoute
   '/notifications': typeof AppNotificationsRoute
   '/quadlets': typeof AppQuadletsRoute
+  '/services': typeof AppServicesRoute
   '/shares': typeof AppSharesRoute
   '/ssh': typeof AppSshRoute
   '/system': typeof AppSystemRoute
@@ -705,6 +713,7 @@ export interface FileRoutesById {
   '/_app/network': typeof AppNetworkRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/quadlets': typeof AppQuadletsRoute
+  '/_app/services': typeof AppServicesRoute
   '/_app/shares': typeof AppSharesRoute
   '/_app/ssh': typeof AppSshRoute
   '/_app/system': typeof AppSystemRoute
@@ -794,6 +803,7 @@ export interface FileRouteTypes {
     | '/network'
     | '/notifications'
     | '/quadlets'
+    | '/services'
     | '/shares'
     | '/ssh'
     | '/system'
@@ -879,6 +889,7 @@ export interface FileRouteTypes {
     | '/network'
     | '/notifications'
     | '/quadlets'
+    | '/services'
     | '/shares'
     | '/ssh'
     | '/system'
@@ -966,6 +977,7 @@ export interface FileRouteTypes {
     | '/_app/network'
     | '/_app/notifications'
     | '/_app/quadlets'
+    | '/_app/services'
     | '/_app/shares'
     | '/_app/ssh'
     | '/_app/system'
@@ -1196,6 +1208,13 @@ declare module '@tanstack/react-router' {
       path: '/quadlets'
       fullPath: '/quadlets'
       preLoaderRoute: typeof AppQuadletsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/services': {
+      id: '/_app/services'
+      path: '/services'
+      fullPath: '/services'
+      preLoaderRoute: typeof AppServicesRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/shares': {
@@ -1721,6 +1740,7 @@ interface AppRouteChildren {
   AppNetworkRoute: typeof AppNetworkRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppQuadletsRoute: typeof AppQuadletsRoute
+  AppServicesRoute: typeof AppServicesRoute
   AppSharesRoute: typeof AppSharesRoute
   AppSshRoute: typeof AppSshRoute
   AppSystemRoute: typeof AppSystemRoute
@@ -1740,6 +1760,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppNetworkRoute: AppNetworkRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppQuadletsRoute: AppQuadletsRoute,
+  AppServicesRoute: AppServicesRoute,
   AppSharesRoute: AppSharesRoute,
   AppSshRoute: AppSshRoute,
   AppSystemRoute: AppSystemRoute,

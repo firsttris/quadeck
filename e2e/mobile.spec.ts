@@ -15,7 +15,7 @@ async function login(page: Page) {
 
 const overflow = (page: Page) => page.evaluate(() => document.documentElement.scrollWidth - document.documentElement.clientWidth)
 
-const PAGES = ['/', '/units', '/journal', '/disks', '/files', '/shares', '/backups', '/network', '/users', '/ssh', '/notifications', '/hardware', '/terminal']
+const PAGES = ['/', '/services', '/units', '/journal', '/disks', '/files', '/shares', '/backups', '/network', '/users', '/ssh', '/notifications', '/hardware', '/terminal']
 const SYSTEM_TABS = ['', 'packages', 'podman', 'boot']
 
 test('phone: no page is wider than the screen', async ({ page }) => {
