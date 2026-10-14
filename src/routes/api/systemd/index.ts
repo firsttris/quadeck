@@ -3,6 +3,7 @@ import { m } from '~/paraglide/messages'
 import { HttpError } from '~/server/auth'
 import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
+import { hub } from '~/server/hub'
 import { privileged } from '~/server/privileged'
 import { unlockToken } from '~/server/unlock-sessions'
 import { msg } from '~/shared/i18n'
@@ -43,6 +44,7 @@ export const Route = createFileRoute('/api/systemd/')({
         if (b.create) return Response.json(await p.createUnit(token, str(b.create.unit), str(b.create.content), b.create.enable === true))
         if (b.enable) {
           await p.setUnitEnabled(token, str(b.enable.unit), b.enable.enabled === true)
+          await hub().unitEnabledChanged(str(b.enable.unit), b.enable.enabled === true)
           return Response.json({ ok: true })
         }
         throw new HttpError(400, msg(m.common_errors_unknownRequest))

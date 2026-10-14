@@ -620,6 +620,14 @@ export class Hub {
     this.publish()
   }
 
+  /** After systemctl enable/disable: the unit file state is read again now, so the autostart switch does not jump back. */
+  async unitEnabledChanged(unit: string, enabled: boolean) {
+    if (this.fixtures) this.fixtures.units = (this.fixtures.units ?? []).map((u) => (u.name === unit ? { ...u, unitFileState: enabled ? 'enabled' : 'disabled' } : u))
+    else this.unitCollector.invalidate(unit)
+    await this.collectSystemd()
+    this.publish()
+  }
+
   /** After a Quadlet file was written: a new file gets its row now, not after the next directory read. */
   async quadletsChanged() {
     this.quadletCache = undefined
