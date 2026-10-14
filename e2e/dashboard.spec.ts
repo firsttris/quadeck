@@ -583,6 +583,39 @@ test.describe
       await page.getByRole('button', { name: 'Fertig' }).click()
     })
 
+    test('services page: only the services and links, with search; the widget stays on the overview', async ({ page }) => {
+      await login(page)
+      await page.getByRole('img', { name: 'live verbunden' }).waitFor()
+      const widget = page.getByTestId('grid-item-services')
+      await expect(widget.getByTestId('service-tile').filter({ hasText: 'Jellyfin' })).toBeVisible()
+      await widget.getByRole('link', { name: 'Services-Seite' }).click()
+      await expect(page).toHaveURL('/services')
+      await expect(page.getByRole('heading', { name: 'Services & Links', level: 1 })).toBeVisible()
+      await expect(page.getByRole('navigation', { name: 'Bereiche' }).getByRole('link', { name: 'Services & Links' })).toHaveAttribute('aria-current', 'page')
+      // no widgets here, only the tiles in their groups
+      await expect(page.getByTestId('gauge-cpu')).toHaveCount(0)
+      const tiles = page.getByTestId('service-tile')
+      await expect(tiles.filter({ hasText: 'Jellyfin' })).toHaveAttribute('href', 'https://jellyfin.home.example')
+      expect(await page.getByTestId('tile-group').count()).toBeGreaterThan(1)
+
+      const search = page.getByRole('searchbox', { name: 'Services durchsuchen' })
+      await search.fill('jelly')
+      await expect(page.getByTestId('tile-group')).toHaveCount(0)
+      await expect(tiles).toHaveCount(1)
+      await expect(tiles).toHaveAttribute('href', 'https://jellyfin.home.example')
+      await search.fill('gibt-es-nicht')
+      await expect(page.getByText('Kein Service passt zu „gibt-es-nicht“.')).toBeVisible()
+      await search.fill('')
+      await expect(tiles.filter({ hasText: 'Home Assistant' })).toBeVisible()
+
+      // edit mode: the same tools as in the widget, the search steps aside
+      await page.getByRole('button', { name: 'Bearbeiten' }).click()
+      await expect(search).toHaveCount(0)
+      await expect(page.getByRole('radiogroup', { name: 'Icon-Größe' })).toBeVisible()
+      await expect(tiles.filter({ hasText: 'Jellyfin' })).toHaveAttribute('role', 'button')
+      await page.getByRole('button', { name: 'Fertig' }).click()
+    })
+
     test('animations: off, subtle, strong in the sidebar and the palette; kept per browser; "reduce motion" means off', async ({ page }) => {
       await login(page)
       const html = page.locator('html')

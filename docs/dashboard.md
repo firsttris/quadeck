@@ -46,6 +46,15 @@ Names come from the label, the container name or the Caddy host, in title case. 
 `quadeck.group`, otherwise from a built-in list of known applications (media, downloads, home
 automation, …); everything else lands in *Apps*, manual links in *Links*.
 
+### Services page
+
+**Services & links** in the sidebar (or *Services page* in the header of the services widget)
+opens a page with only the tiles, over the whole width, without the other widgets: the place to
+open your apps from, also as a browser start page. A search above the tiles filters by name,
+host, URL and group. **Edit** (or `E`) works as in the widget: move, resize and regroup tiles,
+icon size, hidden services. The tile layout and the icon size are the same on both, so a change
+on one shows on the other. The services widget stays on the overview.
+
 ### Manual links
 
 Devices without a Quadlet (router, printer, another host, a NAS) are added with **Add link**

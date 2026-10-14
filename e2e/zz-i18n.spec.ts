@@ -122,6 +122,7 @@ test.describe('English', () => {
     })
     const pages = [
       '/',
+      '/services',
       '/units',
       '/units?filter=timer',
       '/units?filter=socket',
