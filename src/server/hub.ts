@@ -11,9 +11,11 @@ import type { FsTrend } from '~/shared/disk-usage'
 import { dailyAverage } from '~/shared/energy'
 import { msg } from '~/shared/i18n'
 import { type LiveStats, liveStats, structureKey } from '~/shared/live-stats'
+import type { QuadletFile } from '~/shared/quadlets'
 import { assessSmart } from '~/shared/smart'
 import { smartSamples } from '~/shared/smart-metrics'
 import type { Container, Disk, GpuMetrics, HiddenService, Share, Snapshot, SystemMetrics, Unit } from '~/shared/types'
+import { withQuadletFiles } from '~/shared/units'
 import { pruneSessions } from './auth'
 import { collectDisks, diskRole, withSmartTemp } from './collectors/disks'
 import { GpuCollector } from './collectors/gpu'
@@ -278,7 +280,8 @@ export class Hub {
 
   private async collectSystemd() {
     try {
-      this.units = this.fixtures ? (this.fixtures.units ?? []) : await this.unitCollector.collect()
+      const units = this.fixtures ? (this.fixtures.units ?? []) : await this.unitCollector.collect()
+      this.units = withQuadletFiles(units, await this.quadletFiles())
       this.ok('systemd')
     } catch (e) {
       this.fail('systemd', e)
@@ -347,6 +350,17 @@ export class Hub {
 
   readonly energy = new EnergyMeter()
   private unitCollector = new UnitCollector()
+  /** The Quadlet directory, read again every 30 s or right after a change through Quadeck. */
+  private quadletCache?: { at: number; files: QuadletFile[] }
+  private async quadletFiles(): Promise<QuadletFile[]> {
+    if (this.quadletCache && Date.now() - this.quadletCache.at < 30_000) return this.quadletCache.files
+    // without a readable Quadlet directory the units list is still right, only without unloaded Quadlets
+    const files = await privileged()
+      .quadlets()
+      .catch(() => this.quadletCache?.files ?? [])
+    this.quadletCache = { at: Date.now(), files }
+    return files
+  }
   /** CPU and RAM per container in 5-minute buckets (Units → Usage). */
   readonly usage = new UsageRecorder(db)
   readonly fsHistory = new FsHistory(db)
@@ -575,9 +589,16 @@ export class Hub {
     if (!this.units.some((u) => u.name === name) && !this.containers.some((c) => c.unit === name)) throw new ActionError(404, msg(m.hub_error_unknownUnit, { unit: name }))
     if (this.fixtures) {
       await this.priv.check(token)
+      // Demo: starting a Quadlet systemd had unloaded loads it again.
+      const unloaded = this.units.find((u) => u.name === name && u.load === 'unloaded')
+      if (unloaded && action !== 'stop') this.fixtures.units = [...(this.fixtures.units ?? []), { ...unloaded, load: 'loaded' }]
       this.fixtures.units = (this.fixtures.units ?? []).map((u) =>
         u.name === name ? { ...u, active: action === 'stop' ? 'inactive' : 'active', sub: action === 'stop' ? 'dead' : 'running', result: 'success', since: Date.now() } : u,
       )
+      // …and stopping one nothing wants (no start at boot) unloads it; its file keeps the row.
+      const files = await this.quadletFiles()
+      const gone = (u: Unit) => action === 'stop' && u.name === name && u.quadlet && !u.quadlet.boot && files.some((f) => f.unit === name)
+      this.fixtures.units = this.fixtures.units.filter((u) => !gone(u))
     } else {
       await this.priv.unit(token, action, name)
     }
@@ -589,6 +610,7 @@ export class Hub {
 
   /** After a Quadlet was deleted: its tile and its row go now, not with the next 5 s tick. */
   async quadletDeleted(unit: string) {
+    this.quadletCache = undefined
     if (this.fixtures) {
       // Demo: what systemd and Podman would report once the file is gone.
       this.fixtures.units = (this.fixtures.units ?? []).filter((u) => u.name !== unit)
@@ -598,10 +620,26 @@ export class Hub {
     this.publish()
   }
 
+  /** After a Quadlet file was written: a new file gets its row now, not after the next directory read. */
+  async quadletsChanged() {
+    this.quadletCache = undefined
+    await this.collectSystemd()
+    this.publish()
+  }
+
   /** After start at boot changed in a Quadlet file: the unit's WantedBy= is not in the ListUnits row, so it is read again now. */
   async quadletBootChanged(unit: string, boot: boolean) {
-    if (this.fixtures) this.fixtures.units = (this.fixtures.units ?? []).map((u) => (u.name === unit && u.quadlet ? { ...u, quadlet: { ...u.quadlet, boot } } : u))
-    else this.unitCollector.invalidate(unit)
+    this.quadletCache = undefined
+    if (this.fixtures) {
+      // Demo: what systemd does after the daemon-reload. A unit nothing wants any more and that is
+      // not running is unloaded; one a target wants again is loaded.
+      const units = this.fixtures.units ?? []
+      const known = units.find((u) => u.name === unit)
+      const listed = this.units.find((u) => u.name === unit)
+      if (!boot && known && known.active !== 'active') this.fixtures.units = units.filter((u) => u.name !== unit)
+      else if (boot && !known && listed) this.fixtures.units = [...units, { ...listed, load: 'loaded', quadlet: listed.quadlet && { ...listed.quadlet, boot } }]
+      else this.fixtures.units = units.map((u) => (u.name === unit && u.quadlet ? { ...u, quadlet: { ...u.quadlet, boot } } : u))
+    } else this.unitCollector.invalidate(unit)
     await this.collectSystemd()
     this.publish()
   }
