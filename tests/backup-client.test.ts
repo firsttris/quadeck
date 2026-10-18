@@ -1,4 +1,4 @@
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
@@ -84,6 +84,50 @@ describe('client script', () => {
     expect(text).toContain("RESTIC_REPOSITORY='rest:http://nas.lan:8000/laptop/'")
     expect(text).toContain("CALENDAR='*-*-* 12:00:00'")
     expect(text).not.toContain('QUADECK_REPO_PASSWORD=') // the repository password never comes from the server
+  })
+})
+
+describe('client script without restic or a reachable Quadeck', () => {
+  // A PATH with only what the script needs before the restic check, plus the given stand-ins.
+  const bare = (tools: string[]) => {
+    const root = mkdtempSync(join(tmpdir(), 'qd-bare-'))
+    const bin = join(root, 'bin')
+    mkdirSync(bin)
+    symlinkSync(Bun.which('id')!, join(bin, 'id'))
+    for (const t of tools) {
+      writeFileSync(join(bin, t), '#!/bin/sh\nexit 0\n')
+      chmodSync(join(bin, t), 0o755)
+    }
+    writeFileSync(join(root, 'setup.sh'), clientScript(input()))
+    return run(['/bin/sh', join(root, 'setup.sh')], { env: { HOME: root, PATH: bin, QUADECK_ALLOW_ROOT: '1' } })
+  }
+  it('says how to install restic: brew first, else the package manager', async () => {
+    const brew = await bare(['brew', 'apt-get'])
+    expect(brew.code).not.toBe(0)
+    expect(brew.stderr).toContain('install it first: brew install restic')
+    if (existsSync('/run/ostree-booted')) return
+    expect((await bare(['apt-get'])).stderr).toContain('install it first: sudo apt install restic')
+    expect((await bare([])).stderr).toContain('restic is not installed\n')
+  })
+
+  it("says when this computer does not trust Quadeck's certificate", async () => {
+    const root = mkdtempSync(join(tmpdir(), 'qd-tls-'))
+    const conf = join(root, '.config/quadeck-backup')
+    const bin = join(root, 'bin')
+    mkdirSync(conf, { recursive: true })
+    mkdirSync(bin)
+    writeFileSync(join(conf, 'env'), "QUADECK_NAME='laptop'\nQUADECK_VERSION=1\nQUADECK_URL='https://nas.lan'\nQUADECK_TOKEN='tok'\n")
+    writeFileSync(join(root, 'cmd.sh'), clientCommand())
+    const curl = (code: number) => {
+      writeFileSync(join(bin, 'curl'), `#!/bin/sh\necho "curl: (${code}) some error" >&2\nexit ${code}\n`)
+      chmodSync(join(bin, 'curl'), 0o755)
+      return run(['sh', join(root, 'cmd.sh'), 'plan', 'show'], { env: { HOME: root, XDG_CONFIG_HOME: '', PATH: `${bin}:${process.env.PATH}` } })
+    }
+    const tls = await curl(60)
+    expect(tls.code).not.toBe(0)
+    expect(tls.stderr).toContain("does not trust Quadeck's certificate at https://nas.lan")
+    expect(tls.stderr).toContain('CA certificate')
+    expect((await curl(7)).stderr).toContain('cannot reach Quadeck at https://nas.lan')
   })
 })
 
@@ -195,6 +239,39 @@ describe.skipIf(!hasRestic)('client script on a (sandboxed) computer', () => {
     expect(r.code).not.toBe(0)
     expect(r.stderr).toContain('does not open it')
   }, 60_000)
+
+  it('says so when the backup server cannot be reached, instead of waiting', async () => {
+    const s = sandbox()
+    writeFileSync(join(s.root, 'setup.sh'), clientScript(input({ repo: 'rest:http://127.0.0.1:1/laptop/' })))
+    const r = await run(['sh', join(s.root, 'setup.sh')], { env: s.env, timeoutMs: 60_000 })
+    expect(r.code).not.toBe(0)
+    expect(r.stdout).toContain('Connecting to http://127.0.0.1:1/laptop/')
+    expect(r.stderr).toContain('cannot reach the backup server at http://127.0.0.1:1/laptop/')
+    expect(r.stderr).toContain('connection refused') // restic's own error
+    expect(r.stderr).not.toContain('Creating the repository')
+  }, 60_000)
+
+  it('runs the restic the setup found, also without it on PATH', async () => {
+    const s = sandbox()
+    // restic in a folder only the setup's PATH has (like brew's), logging its calls
+    const rbin = join(s.root, 'rbin')
+    mkdirSync(rbin)
+    writeFileSync(join(rbin, 'restic'), `#!/bin/sh\necho "$1" >> "${s.root}/restic-calls"\nexec ${Bun.which('restic')} "$@"\n`)
+    chmodSync(join(rbin, 'restic'), 0o755)
+    writeFileSync(join(s.root, 'setup.sh'), clientScript(input({ repo: join(s.root, 'repo') })))
+    expect((await run(['sh', join(s.root, 'setup.sh')], { env: { ...s.env, PATH: `${rbin}:${s.env.PATH}` }, timeoutMs: 60_000 })).code).toBe(0)
+    const conf = join(s.home, '.config/quadeck-backup')
+    expect(readFileSync(join(conf, 'env'), 'utf8')).toContain(`QUADECK_RESTIC='${join(rbin, 'restic')}'`)
+    const cmd = join(s.home, '.local/bin/quadeck-backup')
+    expect((await run([cmd, 'run'], { env: s.env, timeoutMs: 60_000 })).code).toBe(0)
+    expect(readFileSync(join(s.root, 'restic-calls'), 'utf8')).toContain('backup')
+    // The stored one gone: restic from PATH.
+    writeFileSync(join(conf, 'env'), readFileSync(join(conf, 'env'), 'utf8').replace(/QUADECK_RESTIC='[^']*'/, "QUADECK_RESTIC='/nonexistent/restic'"))
+    expect((await run([cmd, 'run'], { env: s.env, timeoutMs: 60_000 })).code).toBe(0)
+    // Running the setup again refreshes it.
+    expect((await s.script(plan(), 2)).code).toBe(0)
+    expect(readFileSync(join(conf, 'env'), 'utf8')).toContain(`QUADECK_RESTIC='${Bun.which('restic')}'`)
+  }, 120_000)
 
   /** A Quadeck for the client: the agent endpoint of the route, on the helper's backend. */
   const quadeck = async (root: string, override?: { settings?: string }) => {

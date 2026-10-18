@@ -162,18 +162,28 @@ say() { printf '%s\\n' "$*"; }
 die() { printf 'quadeck-backup: %s\\n' "$*" >&2; exit 1; }
 
 [ "$(id -u)" -ne 0 ] || [ "\${QUADECK_ALLOW_ROOT:-}" = 1 ] || die "please run this as the user whose files are backed up, not as root (QUADECK_ALLOW_ROOT=1 to do it anyway)"
-if ! command -v restic >/dev/null 2>&1; then
-  for pm in pacman apt-get dnf zypper apk; do
-    if command -v "$pm" >/dev/null 2>&1; then
-      case "$pm" in
-        pacman) hint="sudo pacman -S restic" ;; apt-get) hint="sudo apt install restic" ;; dnf) hint="sudo dnf install restic" ;;
-        zypper) hint="sudo zypper install restic" ;; apk) hint="sudo apk add restic" ;;
-      esac
-      die "restic is not installed – install it first: $hint"
-    fi
-  done
+# restic where it is now: the units run without the login shell's PATH (brew, ~/.local/bin).
+if ! RESTIC=$(command -v restic 2>/dev/null); then
+  hint=""
+  if command -v brew >/dev/null 2>&1; then
+    hint="brew install restic"
+  elif [ -e /run/ostree-booted ]; then
+    hint="rpm-ostree install restic, then reboot"
+  else
+    for pm in pacman apt-get dnf zypper apk; do
+      if command -v "$pm" >/dev/null 2>&1; then
+        case "$pm" in
+          pacman) hint="sudo pacman -S restic" ;; apt-get) hint="sudo apt install restic" ;; dnf) hint="sudo dnf install restic" ;;
+          zypper) hint="sudo zypper install restic" ;; apk) hint="sudo apk add restic" ;;
+        esac
+        break
+      fi
+    done
+  fi
+  [ -z "$hint" ] || die "restic is not installed – install it first: $hint"
   die "restic is not installed"
 fi
+case "$RESTIC" in /*) ;; *) RESTIC=restic ;; esac
 command -v systemctl >/dev/null 2>&1 || die "systemd is needed for the schedule"
 
 umask 077
@@ -185,6 +195,7 @@ chmod 700 "$CONF"
 cat > "$CONF/env" <<'QUADECK_ENV'
 ${envFile(i, flags)}
 QUADECK_ENV
+printf "QUADECK_RESTIC='%s'\\n" "$(printf '%s' "$RESTIC" | sed "s/'/'\\\\''/g")" >> "$CONF/env"
 
 # Folders and exclusions, ~ as this user's home.
 printf '%s\\n' "$FOLDERS" | sed "s|^~|$HOME|" > "$CONF/folders"
@@ -214,17 +225,31 @@ if [ ! -s "$CONF/password" ]; then
   chmod 600 "$CONF/password"
 fi
 
-# The repository: open it, or create it on the first run.
-if ! out=$(restic cat config --no-lock 2>&1 >/dev/null); then
-  case "$out" in
+# The repository: open it, or create it on the first run. Bounded: restic retries an unreachable
+# server for minutes (0.17 and later) and says nothing meanwhile.
+url=\${RESTIC_REPOSITORY#rest:}
+say "Connecting to $url …"
+code=0
+if timeout 1 true >/dev/null 2>&1; then
+  out=$(timeout 30 "$RESTIC" cat config --no-lock 2>&1 >/dev/null) || code=$?
+else
+  out=$("$RESTIC" cat config --no-lock 2>&1 >/dev/null) || code=$?
+fi
+if [ "$code" != 0 ]; then
+  last=$(printf '%s\\n' "$out" | grep -iE 'fatal|error|refused|timeout' | tail -n 1 || true)
+  [ -n "$last" ] || last=$(printf '%s\\n' "$out" | grep -v '^ *$' | tail -n 1 || true)
+  [ "$code" != 124 ] || last="no answer within 30 s\${last:+ ($last)}"
+  unreachable="cannot reach the backup server at $url – is the address right (Quadeck → Backups → Clients → Edit …) and the port open? restic: $last"
+  case "$code:$out" in
+    124:*) die "$unreachable" ;;
     *"wrong password"*|*"no key found"*) die "the repository exists but the password in $CONF/password does not open it" ;;
+    *"connection refused"*|*"no such host"*|*"dial tcp"*|*"i/o timeout"*|*"network is unreachable"*|*"no route to host"*|*"deadline exceeded"*|*"connection reset"*|*"x509"*|*"tls:"*) die "$unreachable" ;;
     *"Is there a repository"*|*"does not exist"*|*"no such file"*|*"unable to open config"*|*"404"*)
       say "Creating the repository on the server …"
-      restic init >/dev/null ;;
-    *) die "cannot reach the repository: $out" ;;
+      "$RESTIC" init >/dev/null ;;
+    *) die "$unreachable" ;;
   esac
 fi
-
 cat > "$BIN/quadeck-backup" <<'QUADECK_BIN'
 ${clientCommand()}
 QUADECK_BIN
@@ -279,8 +304,9 @@ say "  quadeck-backup now      back up right now"
 say "  quadeck-backup status   last backups and the next run"
 say "  quadeck-backup guide    how an AI agent can set up this backup with you"
 case ":$PATH:" in *":$BIN:"*) ;; *) say "(add $BIN to your PATH, or call $BIN/quadeck-backup)" ;; esac
-if command -v loginctl >/dev/null 2>&1 && [ "$(loginctl show-user "$(id -un)" -p Linger --value 2>/dev/null || true)" = no ]; then
-  say "The timer runs while you are logged in. For a computer that runs without anyone logged in: sudo loginctl enable-linger $(id -un)"
+# Without lingering the user's timers only run while the user is logged in: a hint, never a stop.
+if command -v loginctl >/dev/null 2>&1 && [ "$(loginctl show-user "$(id -un)" -p Linger 2>/dev/null || true)" = Linger=no ]; then
+  say "Note: the timer only runs while you are logged in. To back up without anyone logged in: sudo loginctl enable-linger $(id -un)"
 fi
 `
 }
@@ -312,6 +338,11 @@ UNITS="\${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
 set -a
 . "$CONF/env"
 set +a
+
+# restic as found by the setup script (systemd user units have no brew or ~/.local/bin in PATH),
+# else whatever PATH has.
+if [ -n "\${QUADECK_RESTIC:-}" ] && [ -x "$QUADECK_RESTIC" ]; then RESTIC=$QUADECK_RESTIC; else RESTIC=restic; fi
+restic() { command "$RESTIC" "$@"; }
 
 # A standard folder under its name in the other language, or where xdg-user-dirs puts it
 # (~/Dokumente on a German desktop, ~/Documents on an English one).
@@ -361,6 +392,15 @@ human() { numfmt --to=iec --suffix=B "$1" 2>/dev/null || echo "$1 bytes"; }
 field() { printf '%s' "$2" | sed -n 's/.*"'"$1"'":\\([0-9]*\\).*/\\1/p'; }
 no_token() { echo "quadeck-backup: this computer was set up with an older script – run the setup command from Quadeck once more (Backups → Clients → $QUADECK_NAME → Edit)" >&2; return 1; }
 
+# curl could not talk to Quadeck: why, for curl's exit code $1.
+unreachable() {
+  case "$1" in
+    60|77) echo "quadeck-backup: this computer does not trust Quadeck's certificate at $QUADECK_URL – install Quadeck's CA certificate (Caddy's local CA) on this computer, or use Quadeck's http address" >&2 ;;
+    *) echo "quadeck-backup: cannot reach Quadeck at $QUADECK_URL" >&2 ;;
+  esac
+  return 1
+}
+
 # Quadeck's endpoint for this client: api GET|POST <what> [content type] (a POST body comes on stdin).
 # Prints the answer; on an error prints Quadeck's message and fails.
 api() {
@@ -371,9 +411,9 @@ api() {
   auth="$CONF/.auth"
   (umask 077 && printf 'Authorization: Bearer %s\\n' "$QUADECK_TOKEN" > "$auth")
   if [ "$1" = GET ]; then
-    resp=$(curl -sS --max-time 30 -H @"$auth" -w '\\n%{http_code}' "$QUADECK_URL/api/backup/agent/$QUADECK_NAME?do=$what") || { echo "quadeck-backup: cannot reach Quadeck at $QUADECK_URL" >&2; return 1; }
+    resp=$(curl -sS --max-time 30 -H @"$auth" -w '\\n%{http_code}' "$QUADECK_URL/api/backup/agent/$QUADECK_NAME?do=$what") || { unreachable $?; return 1; }
   else
-    resp=$(curl -sS --max-time 300 -X POST -H @"$auth" -H "content-type: \${3:-text/plain}" --data-binary @- -w '\\n%{http_code}' "$QUADECK_URL/api/backup/agent/$QUADECK_NAME?do=$what") || { echo "quadeck-backup: cannot reach Quadeck at $QUADECK_URL" >&2; return 1; }
+    resp=$(curl -sS --max-time 300 -X POST -H @"$auth" -H "content-type: \${3:-text/plain}" --data-binary @- -w '\\n%{http_code}' "$QUADECK_URL/api/backup/agent/$QUADECK_NAME?do=$what") || { unreachable $?; return 1; }
   fi
   http=$(printf '%s\\n' "$resp" | tail -n 1)
   body=$(printf '%s\\n' "$resp" | sed '$d')
