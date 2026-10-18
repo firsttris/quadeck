@@ -279,7 +279,8 @@ describe.skipIf(!hasRestic)('client script on a (sandboxed) computer', () => {
       expect(c).toMatchObject({ version: 3, changed: { by: 'client' }, plan: { folders: ['~/Bilder'], keep: { daily: 7, weekly: 4, monthly: 12 } } }) // the retention stays Quadeck's
       expect(readFileSync(join(conf, 'folders'), 'utf8')).toBe(`${s.home}/Bilder\n`)
       // The guide as a skill for Claude Code, in the user's own skills.
-      expect((await run([cmd, 'skill', 'install'], { env: s.env })).code).toBe(0)
+      // Run by a bare name from its folder, which is not on PATH: the skill is still written.
+      expect((await run(['sh', '-c', `cd "${join(s.home, '.local/bin')}" && sh quadeck-backup skill install`], { env: s.env })).code).toBe(0)
       expect(readFileSync(join(s.home, '.claude/skills/quadeck-backup/SKILL.md'), 'utf8')).toMatch(/^---\nname: quadeck-backup\ndescription: .+\n---\n\n# Setting up/)
 
       const args = readFileSync(join(s.root, 'curl-args'), 'utf8')

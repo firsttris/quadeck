@@ -517,6 +517,46 @@ has() {
   return 1
 }
 
+# The guide for an agent, and the head that makes it a skill for Claude Code.
+skill_head() {
+  cat <<'SKILL'
+---
+name: quadeck-backup
+description: Set up or change this computer's backup to the Quadeck server (restic) with the quadeck-backup command – look at the folders, suggest what to back up and what to leave out, check the size with a dry run and set the plan. Use when the person asks about backing up this computer, what is in its backup, or what to exclude.
+---
+
+SKILL
+}
+guide_text() {
+  cat <<'GUIDE'
+# Setting up this computer's backup with quadeck-backup
+
+This computer backs up to a Quadeck server with restic. You can look at its folders, suggest what
+to back up and what to leave out, and set the plan. Talk it through with the person before you set
+anything: what goes in, what stays out and why, and how big it is.
+
+1. \`quadeck-backup plan show\` – the current plan as JSON:
+   - \`folders\`: \`~/Documents\` or absolute paths (a standard folder is found under either language).
+   - \`exclude.presets\`: caches, trash, dev (node_modules, .venv, __pycache__, target …), temp,
+     downloads, vms (disk images), games (Steam), nobackup (folders with a .nobackup file).
+   - \`exclude.patterns\`: restic patterns, e.g. \`*.iso\`, \`**/build\`, \`~/Videos/raw\`.
+   - \`exclude.maxSizeGB\`: leave out files bigger than this (optional).
+   - \`schedule\`: \`{ "every": "hourly" | "6h" | "daily" | "weekly", "time": "12:00" }\`.
+   - \`active\`: false pauses the timer. \`keep\` (how long backups stay) is set in Quadeck only.
+2. Look at the folders: \`quadeck-backup scan --json\` sends the folder list to Quadeck and prints it
+   with sizes (bytes) and marks (caches, dev, git, games …). Use \`du -sh\`, \`ls\` and the like for a
+   closer look; do not read file contents you do not need.
+3. Write a draft (the JSON of \`plan show\`, changed) and try it:
+   \`quadeck-backup check --plan draft.json --json\` – the size without and with the exclusions and
+   what the first run would upload. \`check --plan draft.json --files\` lists the files.
+4. When the person agrees: \`quadeck-backup plan set -f draft.json\`. Quadeck stores it (the person
+   sees it there) and this computer takes it right away.
+5. \`quadeck-backup now\` backs up right away; \`quadeck-backup status\` shows the snapshots.
+
+Never print or copy ~/.config/quadeck-backup/password: it is the key to the backups.
+GUIDE
+}
+
 case "\${1:-help}" in
   run)
     # New settings from Quadeck first; without them the last ones are used.
@@ -643,52 +683,17 @@ EOF
     echo "Timer removed. Settings and the repository password stay in $CONF – delete them yourself if you are sure."
     rm -f "$0"
     ;;
-  guide|skill)
-    # As a skill for Claude Code (skill install: into ~/.claude/skills), or plain.
-    if [ "$1" = skill ]; then
-      [ "\${2:-}" = install ] || { echo "usage: quadeck-backup skill install" >&2; exit 2; }
-      dir="$HOME/.claude/skills/quadeck-backup"
-      mkdir -p "$dir"
-      "$0" guide --skill > "$dir/SKILL.md"
-      echo "Skill written to $dir/SKILL.md – Claude Code uses it when you ask about this computer's backup."
-      exit 0
-    fi
-    if [ "\${2:-}" = --skill ]; then
-      cat <<'SKILL'
----
-name: quadeck-backup
-description: Set up or change this computer's backup to the Quadeck server (restic) with the quadeck-backup command – look at the folders, suggest what to back up and what to leave out, check the size with a dry run and set the plan. Use when the person asks about backing up this computer, what is in its backup, or what to exclude.
----
-
-SKILL
-    fi
-    cat <<'GUIDE'
-# Setting up this computer's backup with quadeck-backup
-
-This computer backs up to a Quadeck server with restic. You can look at its folders, suggest what
-to back up and what to leave out, and set the plan. Talk it through with the person before you set
-anything: what goes in, what stays out and why, and how big it is.
-
-1. \`quadeck-backup plan show\` – the current plan as JSON:
-   - \`folders\`: \`~/Documents\` or absolute paths (a standard folder is found under either language).
-   - \`exclude.presets\`: caches, trash, dev (node_modules, .venv, __pycache__, target …), temp,
-     downloads, vms (disk images), games (Steam), nobackup (folders with a .nobackup file).
-   - \`exclude.patterns\`: restic patterns, e.g. \`*.iso\`, \`**/build\`, \`~/Videos/raw\`.
-   - \`exclude.maxSizeGB\`: leave out files bigger than this (optional).
-   - \`schedule\`: \`{ "every": "hourly" | "6h" | "daily" | "weekly", "time": "12:00" }\`.
-   - \`active\`: false pauses the timer. \`keep\` (how long backups stay) is set in Quadeck only.
-2. Look at the folders: \`quadeck-backup scan --json\` sends the folder list to Quadeck and prints it
-   with sizes (bytes) and marks (caches, dev, git, games …). Use \`du -sh\`, \`ls\` and the like for a
-   closer look; do not read file contents you do not need.
-3. Write a draft (the JSON of \`plan show\`, changed) and try it:
-   \`quadeck-backup check --plan draft.json --json\` – the size without and with the exclusions and
-   what the first run would upload. \`check --plan draft.json --files\` lists the files.
-4. When the person agrees: \`quadeck-backup plan set -f draft.json\`. Quadeck stores it (the person
-   sees it there) and this computer takes it right away.
-5. \`quadeck-backup now\` backs up right away; \`quadeck-backup status\` shows the snapshots.
-
-Never print or copy ~/.config/quadeck-backup/password: it is the key to the backups.
-GUIDE
+  guide)
+    if [ "\${2:-}" = --skill ]; then skill_head; fi
+    guide_text
+    ;;
+  skill)
+    [ "\${2:-}" = install ] || { echo "usage: quadeck-backup skill install" >&2; exit 2; }
+    dir="$HOME/.claude/skills/quadeck-backup"
+    mkdir -p "$dir"
+    { skill_head && guide_text; } > "$dir/SKILL.md.new"
+    mv "$dir/SKILL.md.new" "$dir/SKILL.md"
+    echo "Skill written to $dir/SKILL.md – Claude Code uses it when you ask about this computer's backup."
     ;;
   *)
     echo "quadeck-backup ($QUADECK_NAME, settings version $QUADECK_VERSION)"
