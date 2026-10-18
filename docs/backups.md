@@ -121,6 +121,35 @@ restic restore latest --target /tmp/restore --include /srv/immich/upload
   (credentials), the generated exclude file, the run records and restic's cache. Set
   `QUADECK_BACKUP_DIR` to move it.
 
+## From the command line (and for agents)
+
+`quadeck backup …` does on the server, as root, what the page does. Every command takes `--json`,
+so a script or an AI agent can look around, suggest a plan and set it up; `quadeck backup guide`
+prints the steps for an agent.
+
+```bash
+sudo quadeck backup status                 # plan, last runs, next run, repository
+sudo quadeck backup suggest                # folders from the Quadlets, with the reason when not suggested
+sudo quadeck backup dirs /srv              # sub-folders, the disk and its free space
+sudo quadeck backup sizes /srv/app --exclude /srv/app/cache
+sudo quadeck backup plan draft > plan.json # a new plan from the suggestions, to edit
+sudo quadeck backup plan set -f plan.json --dry-run   # what changes, sizes, warnings; saves nothing
+sudo quadeck backup plan set -f plan.json  # save: opens or creates the repository, writes the timer
+sudo quadeck backup run                    # back up now
+sudo quadeck backup clients                # the clients of the backup target
+sudo quadeck backup client plan set laptop -f laptop.json [--dry-run]
+```
+
+- The plan is the same JSON the page stores, checked the same way; `plan show --json` prints the
+  current one. A plan without `passwordSaved` keeps the current confirmation.
+- Credentials of S3, B2 or REST targets come from a file with `--secrets <file>` (`KEY=value`
+  lines), never from the command line; left out, the stored ones stay.
+- `--dry-run` lists every change (`+` added, `-` removed, `~` changed), the size of the folders with
+  what the excluded folders take, the target's disk, and warns when the target is on the same disk
+  as the data.
+- Exit codes: 0 done, 1 failed, 2 a usage error or a plan that does not pass the checks. With
+  `--json` an error comes as `{ "error": "…" }`.
+
 ## Backup target for clients
 
 The **Clients** tab turns the server into the backup target for the other computers at home: one

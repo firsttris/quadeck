@@ -4,6 +4,7 @@
 import { statSync } from 'node:fs'
 import { ensureSetupToken, PEER_HEADER, resetPassword } from './server/auth'
 import { quadletContents, SystemBackup } from './server/backup/backend'
+import { backupCli, readInput } from './server/backup/cli'
 import { SystemBoot } from './server/boot/backend'
 import { CaddyManager, SystemCaddyHost } from './server/caddy/backend'
 import { config } from './server/config'
@@ -30,6 +31,7 @@ import { SystemUnitEditor } from './server/systemd/editor'
 import { SystemTimers } from './server/timers/backend'
 import { selfUpdate } from './server/update'
 import { SystemUsers } from './server/users/backend'
+import { setLangResolver } from './shared/i18n'
 import { HELPER_UNIT, WEB_UNIT } from './unit-file'
 
 export interface StartServer {
@@ -191,7 +193,7 @@ const HELP = `quadeck – dashboard for Podman servers with Quadlets
   quadeck passwd         reset the password (set it up again via /setup)
   quadeck helper         start the root helper (as root, Unix socket)
   quadeck print-unit web|helper   print a systemd unit (for install.sh)
-  quadeck backup run|check   run the backup or check its repository (started by its timer)
+  quadeck backup …       the server backup and the clients, for a shell or an agent (quadeck backup help)
   quadeck doctor [--json]   show what Quadeck finds on this system (distribution, package manager, Podman …)
   quadeck update         download the latest version from GitHub and restart the service
   quadeck version        print the version
@@ -286,19 +288,18 @@ export async function main(argv: string[], opts: MainOptions) {
       return
     }
     case 'backup': {
-      // Started by quadeck-backup(-check).service, as root.
-      installNoLang()
-      if (process.getuid?.() !== 0) {
-        console.error('quadeck backup: needs root')
+      // As root: run|check are started by quadeck-backup(-check).service; the rest is for a person
+      // or an agent in a shell (backup/cli.ts).
+      if (argv[1] === 'run' || argv[1] === 'check')
+        installNoLang() // run records stay language-neutral
+      else setLangResolver(() => 'en')
+      if (argv[1] !== 'help' && argv[1] !== 'guide' && argv[1] !== undefined && process.getuid?.() !== 0) {
+        console.error('quadeck backup: needs root (sudo quadeck backup …)')
         process.exit(1)
       }
-      if (argv[1] !== 'run' && argv[1] !== 'check') {
-        console.error('Usage: quadeck backup run|check')
-        process.exit(2)
-      }
-      const b = new SystemBackup({ self: selfArgv() })
-      const r = argv[1] === 'run' ? await b.runBackup() : await b.runCheck()
-      return process.exit(r.status === 'failed' ? 1 : 0)
+      const backup = new SystemBackup({ self: selfArgv(), quadlets: quadletContents(new SystemPodmanAdmin()) })
+      const code = await backupCli(argv.slice(1), { backup, out: (t) => console.log(t), err: (t) => console.error(t), read: readInput })
+      return process.exit(code)
     }
     case 'job':
       // Started by the helper only (systemd-run or child process), as root.
