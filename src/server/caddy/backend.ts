@@ -12,6 +12,7 @@
 // caddy reload`, else `systemctl reload caddy`). A failed reload restores the
 // previous file; Caddy keeps running with its old config either way.
 
+import { createHash } from 'node:crypto'
 import { closeSync, fsyncSync, ftruncateSync, lstatSync, mkdirSync, openSync, readdirSync, readFileSync, realpathSync, rmSync, statSync, writeFileSync, writeSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -22,13 +23,18 @@ import {
   type CaddyResult,
   type CaddySource,
   type CaddyState,
+  caddyCaFromQuadlet,
   caddyFromQuadlet,
   configFromCommand,
   contentHash,
   DEFAULT_CADDYFILE,
+  HOST_CADDY_CA,
+  type LocalCa,
   manualPathProblem,
   parseCaddyfile,
+  pemCertificate,
   type QuadletCaddy,
+  usesLocalCa,
 } from '~/shared/caddy'
 import { msg } from '~/shared/i18n'
 import type { Revision } from '~/shared/quadlets'
@@ -39,10 +45,14 @@ import { UnitHistory } from '../systemd/editor'
 export interface CaddyAdmin {
   caddyState(): Promise<CaddyState>
   caddyRevision(id: string): Promise<string>
+  /** Root certificate of Caddy's local CA, when there is one (public: served at /ca.crt). */
+  caddyCa(): Promise<LocalCa | undefined>
 }
 
 /** Writes; the caller has checked the unlock. */
 export interface CaddyBackend extends CaddyAdmin {
+  /** The local CA, when Caddy serves `url` with a certificate of it (see usesLocalCa). */
+  localCaFor(url: string): Promise<LocalCa | undefined>
   applyCaddy(change: CaddyChange, expected: string | undefined): Promise<CaddyResult>
   setCaddyPath(path: string | null): Promise<CaddyState>
 }
@@ -152,6 +162,36 @@ export class CaddyManager implements CaddyBackend {
     return this.state()
   }
 
+  /** Caddy's local CA: from the data volume of the Caddy Quadlet, else where caddy.service keeps it. */
+  async caddyCa(): Promise<LocalCa | undefined> {
+    const h = this.host
+    const paths: string[] = []
+    for (const f of h.quadlets()) {
+      const q = caddyCaFromQuadlet(f.content)
+      if (q?.hostPath) paths.push(q.hostPath)
+      else if (q?.volume) {
+        const mp = await h.volumePath(q.volume.name)
+        if (mp) paths.push(mp.replace(/\/+$/, '') + q.volume.rest)
+      }
+    }
+    paths.push(HOST_CADDY_CA)
+    for (const p of paths) {
+      const text = h.read(p)
+      const pem = text && text.length < 64 * 1024 ? pemCertificate(text) : undefined
+      if (pem) return localCa(pem)
+    }
+    return undefined
+  }
+
+  async localCaFor(url: string) {
+    if (!url.startsWith('https://')) return undefined
+    const ca = await this.caddyCa()
+    if (!ca) return undefined
+    const loc = await this.locate()
+    const content = loc.source && !loc.problem ? this.host.read(loc.source.path) : undefined
+    return content !== undefined && content.length <= MAX && usesLocalCa(content, url) ? ca : undefined
+  }
+
   async caddyRevision(id: string) {
     const loc = await this.locate()
     if (!loc.source) throw new HttpError(404, msg(m.proxy_errors_noFile))
@@ -226,6 +266,13 @@ export class CaddyManager implements CaddyBackend {
     const warning = check.warning ?? (via === 'none' ? msg(m.proxy_errors_stopped) : undefined)
     return { state: await this.state(loc), reloaded: via, warning }
   }
+}
+
+/** The certificate with its fingerprints: of the file as served (what the setup command checks with sha256sum) and of the certificate (what a browser shows). */
+export function localCa(pem: string): LocalCa {
+  const der = Buffer.from(pem.replace(/-----[A-Z ]+-----|\s/g, ''), 'base64')
+  const fingerprint = createHash('sha256').update(der).digest('hex').toUpperCase().match(/../g)!.join(':')
+  return { pem, sha256: createHash('sha256').update(pem).digest('hex'), fingerprint }
 }
 
 // ---------- the real host ----------

@@ -185,6 +185,7 @@ export const HELPER_ROUTES: Record<string, Handler> = {
   '/users/state': (_b, p) => p.usersState(),
   '/hardware': (_b, p) => p.hardware(),
   '/caddy/state': (_b, p) => p.caddyState(),
+  '/caddy/ca': async (_b, p) => ({ ca: await p.caddyCa() }),
   '/caddy/revision': async (b, p) => ({ data: await p.caddyRevision(str(b.id) ?? '') }),
   '/caddy/apply': (b, p) => p.applyCaddy(str(b.token), parseCaddyChange(b.change), str(b.expected)),
   '/power/state': (_b, p) => p.diskPower(),

@@ -9,7 +9,7 @@ import { m } from '~/paraglide/messages'
 import type { ArchivePreview } from '~/shared/archives'
 import type { BackupPlan, BackupState, ClientAction, TargetConfig, TargetState } from '~/shared/backup'
 import type { AgentKind, AgentReply, ClientInventory } from '~/shared/backup-agent'
-import type { ClientPlan } from '~/shared/backup-client'
+import type { ClientLink, ClientPlan } from '~/shared/backup-client'
 import type { BootEntryChange, BootState } from '~/shared/boot'
 import type { CaddyChange, CaddyResult, CaddyState } from '~/shared/caddy'
 import type { ConfigAction, ConfigFileInfo } from '~/shared/configfiles'
@@ -154,7 +154,7 @@ export interface Privileged
   setBackupClientPlan(token: string | undefined, name: string, plan: ClientPlan): Promise<TargetState>
   /** Something for the client to do with its next poll: back up now, send its folder list, fetch the settings. */
   backupClientAction(token: string | undefined, name: string, action: ClientAction): Promise<TargetState>
-  backupClientLink(token: string | undefined, name: string, quadeckUrl: string): Promise<{ token: string; expires: number }>
+  backupClientLink(token: string | undefined, name: string, quadeckUrl: string): Promise<ClientLink>
   /** No unlock: the setup link is the authorisation (good until it expires or the client has connected). */
   redeemBackupClientLink(linkToken: string): Promise<string | undefined>
   /** No unlock: the client's token is the authorisation, checked where the target file lives. */

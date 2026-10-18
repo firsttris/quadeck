@@ -199,6 +199,35 @@ curl -fsSL http://nas.lan:8484/api/backup/script/<setup link> | sh
   (**Show command** in the row menu).
 - **Review first** shows the same as download, check, run.
 
+**Quadeck over HTTPS with Caddy's local CA.** When the browser has Quadeck open over `https://` and
+Caddy gives that address a certificate of its own CA (`tls internal` in the site, also through an
+imported snippet, the global `local_certs`, or a name Caddy never asks a public CA for: `localhost`,
+IP addresses, `.local`, `.internal`, `.home.arpa`), the computer usually does not trust it yet. The
+command then brings the CA along, checked by its fingerprint:
+
+```bash
+curl -fsSLk https://quadeck.lan/ca.crt -o /tmp/quadeck-ca.crt && echo "<sha256>  /tmp/quadeck-ca.crt" | sha256sum -c && curl -fsSL --cacert /tmp/quadeck-ca.crt https://quadeck.lan/api/backup/script/<setup link> | sh
+```
+
+- `/ca.crt` serves Caddy's root certificate without a login (it is public). Quadeck reads it from
+  the Caddy Quadlet's data volume (`$XDG_DATA_HOME/caddy/pki/authorities/local/root.crt`, `/data`
+  in the official image, mapped to the host through `Volume=`) or from
+  `/var/lib/caddy/.local/share/caddy/…` for Caddy from the distribution package. Without one it
+  answers 404.
+- The CA is fetched without checking (`-k`), but `sha256sum -c` compares it with the fingerprint in
+  the command – which came from the browser's own verified connection – before anything else
+  happens. Only then is the script fetched, with that CA as the only one to trust. Nothing that
+  runs comes unchecked. The command works in `sh`, `bash` and `fish`.
+- The script carries the CA (it came over the connection checked against it) and keeps it in
+  `~/.config/quadeck-backup/ca.crt`; every call of `quadeck-backup` to Quadeck uses
+  `curl --cacert` with it. restic gets it too (`RESTIC_CACERT`) when the repository's address is
+  served by Caddy with the same CA.
+- **Review first** shows the same steps, plus the CA's fingerprint as the browser shows it in the
+  certificate details, to compare.
+- Over `http://`, or with a certificate from a public CA (Let's Encrypt …), the command stays the
+  short one above. If Caddy's CA changes later, `quadeck-backup` says so: run the command from
+  **Show command** again.
+
 While the computer has not run the command yet, the dialog says it is waiting and notices within
 seconds when it has; then **Set plan** opens the plan.
 

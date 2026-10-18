@@ -10,6 +10,7 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
+import { Route as CaDotcrtRouteImport } from './routes/ca[.]crt'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
@@ -99,6 +100,11 @@ import { Route as ApiSystemPackagesNameRouteImport } from './routes/api/system/p
 
 const AppRoute = AppRouteImport.update({
   id: '/_app',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const CaDotcrtRoute = CaDotcrtRouteImport.update({
+  id: '/ca.crt',
+  path: '/ca.crt',
   getParentRoute: () => rootRouteImport,
 } as any)
 const LoginRoute = LoginRouteImport.update({
@@ -534,6 +540,7 @@ const ApiSystemPackagesNameRoute = ApiSystemPackagesNameRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/ca.crt': typeof CaDotcrtRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/backups': typeof AppBackupsRoute
@@ -621,6 +628,7 @@ export interface FileRoutesByFullPath {
   '/api/system/packages/': typeof ApiSystemPackagesIndexRoute
 }
 export interface FileRoutesByTo {
+  '/ca.crt': typeof CaDotcrtRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/backups': typeof AppBackupsRoute
@@ -711,6 +719,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
+  '/ca.crt': typeof CaDotcrtRoute
   '/login': typeof LoginRoute
   '/setup': typeof SetupRoute
   '/_app/backups': typeof AppBackupsRoute
@@ -802,6 +811,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/ca.crt'
     | '/login'
     | '/setup'
     | '/backups'
@@ -889,6 +899,7 @@ export interface FileRouteTypes {
     | '/api/system/packages/'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/ca.crt'
     | '/login'
     | '/setup'
     | '/backups'
@@ -978,6 +989,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_app'
+    | '/ca.crt'
     | '/login'
     | '/setup'
     | '/_app/backups'
@@ -1068,6 +1080,7 @@ export interface FileRouteTypes {
 }
 export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
+  CaDotcrtRoute: typeof CaDotcrtRoute
   LoginRoute: typeof LoginRoute
   SetupRoute: typeof SetupRoute
   ApiContainersRoute: typeof ApiContainersRoute
@@ -1144,6 +1157,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AppRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/ca.crt': {
+      id: '/ca.crt'
+      path: '/ca.crt'
+      fullPath: '/ca.crt'
+      preLoaderRoute: typeof CaDotcrtRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/login': {
@@ -1809,6 +1829,7 @@ const ApiAuthPasskeysRouteWithChildren = ApiAuthPasskeysRoute._addFileChildren(
 
 const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
+  CaDotcrtRoute: CaDotcrtRoute,
   LoginRoute: LoginRoute,
   SetupRoute: SetupRoute,
   ApiContainersRoute: ApiContainersRoute,

@@ -117,6 +117,46 @@ export interface ScriptInput {
   quadeckUrl: string
   /** The client's token for /api/backup/agent/<name> (renewed with every script). */
   agentToken?: string
+  /**
+   * Caddy's local root CA (PEM) when Quadeck's address is served with a certificate of it: stored as
+   * ca.crt and given to every curl to Quadeck. Safe to embed: the script itself came over a TLS
+   * connection checked against this CA, whose fingerprint was in the command.
+   */
+  ca?: string
+  /** The repository (rest:https://…) is served with that CA too: restic gets RESTIC_CACERT. */
+  resticCa?: boolean
+}
+
+/** A setup link for the UI; `ca` when the command fetches and checks Caddy's local CA first. */
+export interface ClientLink {
+  token: string
+  expires: number
+  ca?: { sha256: string; fingerprint: string }
+}
+
+/** Where the setup command puts the CA before checking it (the script removes it again). */
+export const CA_TMP = '/tmp/quadeck-ca.crt'
+
+/**
+ * The command that sets up a client: `curl … | sh`. With Caddy's local CA it first fetches the CA
+ * without checking (-k), compares its SHA-256 with the one in the command and only then fetches the
+ * script with it as the CA to trust: nothing that runs comes unchecked. Works in sh, bash and fish.
+ */
+export function setupCommand(origin: string, token: string, ca?: { sha256: string }): string {
+  const url = `${origin}/api/backup/script/${token}`
+  if (!ca) return `curl -fsSL ${url} | sh`
+  return `curl -fsSLk ${origin}/ca.crt -o ${CA_TMP} && echo "${ca.sha256}  ${CA_TMP}" | sha256sum -c && curl -fsSL --cacert ${CA_TMP} ${url} | sh`
+}
+
+/** The same in steps, to read the script before it runs. */
+export function reviewCommands(origin: string, token: string, ca?: { sha256: string }): string {
+  const url = `${origin}/api/backup/script/${token}`
+  return [
+    ...(ca ? [`curl -fsSLk ${origin}/ca.crt -o ${CA_TMP}`, `echo "${ca.sha256}  ${CA_TMP}" | sha256sum -c`] : []),
+    `curl -fsSL${ca ? ` --cacert ${CA_TMP}` : ''} ${url} -o quadeck-backup-setup.sh`,
+    'less quadeck-backup-setup.sh',
+    'sh quadeck-backup-setup.sh',
+  ].join('\n')
 }
 
 /** What kind of exclusion a rule is, for the label next to it. */
@@ -168,6 +208,7 @@ ACTIVE=${p?.active ? 1 : 0}
 CALENDAR=${sq(clientCalendar(p?.schedule ?? defaultClientPlan().schedule))}
 FOLDERS=${sq(p?.folders.join('\n') ?? '')}
 EXCLUDES=${sq(p ? clientExcludes(p).join('\n') : '')}
+CA=${sq(i.ca ?? '')}
 
 CONF="\${XDG_CONFIG_HOME:-$HOME/.config}/quadeck-backup"
 UNITS="\${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
@@ -203,6 +244,11 @@ command -v systemctl >/dev/null 2>&1 || die "systemd is needed for the schedule"
 umask 077
 mkdir -p "$CONF" "$UNITS" "$BIN"
 chmod 700 "$CONF"
+
+# Caddy's local CA, which Quadeck's certificate comes from: every call to Quadeck trusts it (this
+# script came over a connection checked against it). Without one the system's CAs are enough.
+if [ -n "$CA" ]; then printf '%s' "$CA" > "$CONF/ca.crt"; else rm -f "$CONF/ca.crt"; fi
+if [ -f ${CA_TMP} ] && [ -O ${CA_TMP} ]; then rm -f ${CA_TMP}; fi
 
 # Access to the server (renewed with every script) and where restic finds everything.
 # Read with \`. env\` (CONF set before): every value quoted.
@@ -379,6 +425,7 @@ function envFile(i: ScriptInput, flags: string): string {
     `RESTIC_REST_USERNAME=${sq(i.user)}`,
     `RESTIC_REST_PASSWORD=${sq(i.access)}`,
     'RESTIC_PASSWORD_FILE="$CONF/password"',
+    ...(i.ca && i.resticCa ? ['RESTIC_CACERT="$CONF/ca.crt"'] : []),
     `QUADECK_NAME=${sq(i.name)}`,
     `QUADECK_VERSION=${i.version}`,
     `QUADECK_URL=${sq(i.quadeckUrl)}`,
@@ -458,10 +505,20 @@ no_token() { echo "quadeck-backup: this computer was set up with an older script
 # curl could not talk to Quadeck: why, for curl's exit code $1.
 unreachable() {
   case "$1" in
-    60|77) echo "quadeck-backup: this computer does not trust Quadeck's certificate at $QUADECK_URL – install Quadeck's CA certificate (Caddy's local CA) on this computer, or use Quadeck's http address" >&2 ;;
+    60|77)
+      if [ -f "$CONF/ca.crt" ]; then
+        echo "quadeck-backup: Quadeck's certificate at $QUADECK_URL no longer comes from the CA stored in $CONF/ca.crt – run the setup command from Quadeck once more (Backups → Clients → $QUADECK_NAME → Show command); it brings the current CA along" >&2
+      else
+        echo "quadeck-backup: this computer does not trust Quadeck's certificate at $QUADECK_URL – run the setup command from Quadeck once more (Backups → Clients → $QUADECK_NAME → Show command): when the certificate comes from Caddy's local CA, the command brings that CA along" >&2
+      fi ;;
     *) echo "quadeck-backup: cannot reach Quadeck at $QUADECK_URL" >&2 ;;
   esac
   return 1
+}
+
+# curl for Quadeck: with the CA the setup script stored (Caddy's local CA), else the system's.
+qcurl() {
+  if [ -f "$CONF/ca.crt" ]; then curl --cacert "$CONF/ca.crt" "$@"; else curl "$@"; fi
 }
 
 # Quadeck's endpoint for this client: api GET|POST <what> [content type] (a POST body comes on stdin).
@@ -474,9 +531,9 @@ api() {
   auth="$CONF/.auth"
   (umask 077 && printf 'Authorization: Bearer %s\\n' "$QUADECK_TOKEN" > "$auth")
   if [ "$1" = GET ]; then
-    resp=$(curl -sS --max-time 30 -H @"$auth" -w '\\n%{http_code}' "$QUADECK_URL/api/backup/agent/$QUADECK_NAME?do=$what") || { unreachable $?; return 1; }
+    resp=$(qcurl -sS --max-time 30 -H @"$auth" -w '\\n%{http_code}' "$QUADECK_URL/api/backup/agent/$QUADECK_NAME?do=$what") || { unreachable $?; return 1; }
   else
-    resp=$(curl -sS --max-time 300 -X POST -H @"$auth" -H "content-type: \${3:-text/plain}" --data-binary @- -w '\\n%{http_code}' "$QUADECK_URL/api/backup/agent/$QUADECK_NAME?do=$what") || { unreachable $?; return 1; }
+    resp=$(qcurl -sS --max-time 300 -X POST -H @"$auth" -H "content-type: \${3:-text/plain}" --data-binary @- -w '\\n%{http_code}' "$QUADECK_URL/api/backup/agent/$QUADECK_NAME?do=$what") || { unreachable $?; return 1; }
   fi
   http=$(printf '%s\\n' "$resp" | tail -n 1)
   body=$(printf '%s\\n' "$resp" | sed '$d')

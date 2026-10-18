@@ -212,6 +212,12 @@ test('backups: target for clients, a client connected first and planned after, t
   expect(text).toContain("RESTIC_REPOSITORY='rest:http://nas-01.local:8000/tablet/'")
   expect(text).toContain('PLAN=0') // no plan yet: connect first
   expect(text).toContain('quadeck-backup-agent.timer')
+  // Over http there is no CA to bring along: none in the script, no fingerprint under "review first".
+  expect(text).toContain("CA=''")
+  await add.getByText('Erst ansehen').click()
+  await expect(add.getByTestId('client-review')).not.toContainText('ca.crt')
+  await expect(add.getByTestId('client-ca')).toHaveCount(0)
+  expect((await page.context().request.get('/ca.crt')).status()).toBe(404) // the demo's Caddy has no local CA
   const access = /RESTIC_REST_PASSWORD='[^']+'/.exec(text)![0]
   const again = await page.context().request.get(url)
   expect(await again.text()).toContain(access)

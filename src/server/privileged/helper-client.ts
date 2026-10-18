@@ -2,9 +2,9 @@ import { m } from '~/paraglide/messages'
 import type { ArchivePreview } from '~/shared/archives'
 import type { BackupPlan, BackupSizes, BackupState, BackupSuggestion, ClientAction, FolderListing, LsEntry, TargetConfig, TargetState } from '~/shared/backup'
 import type { AgentKind, AgentReply, ClientInventory } from '~/shared/backup-agent'
-import type { ClientPlan } from '~/shared/backup-client'
+import type { ClientLink, ClientPlan } from '~/shared/backup-client'
 import type { BootEntryChange, BootEntryFile, BootState, EntryProblem } from '~/shared/boot'
-import type { CaddyChange, CaddyResult, CaddyState } from '~/shared/caddy'
+import type { CaddyChange, CaddyResult, CaddyState, LocalCa } from '~/shared/caddy'
 import type { ConfigAction, ConfigFileInfo } from '~/shared/configfiles'
 import type { ScanResult } from '~/shared/devices'
 import type { PowerSample } from '~/shared/energy'
@@ -397,6 +397,9 @@ export class HelperClient implements Privileged {
   caddyState() {
     return this.call<CaddyState>('POST', '/caddy/state', {}, 30_000)
   }
+  async caddyCa() {
+    return (await this.call<{ ca?: LocalCa }>('POST', '/caddy/ca', {}, 30_000)).ca
+  }
   async caddyRevision(id: string) {
     return (await this.call<{ data: string }>('POST', '/caddy/revision', { id })).data
   }
@@ -486,7 +489,7 @@ export class HelperClient implements Privileged {
     return this.call<TargetState>('POST', '/backup/client/action', { token, name, action })
   }
   backupClientLink(token: string | undefined, name: string, quadeckUrl: string) {
-    return this.call<{ token: string; expires: number }>('POST', '/backup/client/link', { token, name, url: quadeckUrl })
+    return this.call<ClientLink>('POST', '/backup/client/link', { token, name, url: quadeckUrl })
   }
   async redeemBackupClientLink(linkToken: string) {
     return (await this.call<{ script?: string }>('POST', '/backup/client/redeem', { link: linkToken })).script

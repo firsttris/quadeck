@@ -631,6 +631,9 @@ export class LocalPrivileged implements Privileged {
   caddyRevision(id: string) {
     return this.caddy.caddyRevision(id)
   }
+  caddyCa() {
+    return this.caddy.caddyCa()
+  }
   async applyCaddy(token: string | undefined, change: CaddyChange, expected: string | undefined) {
     this.gate.check(token)
     return this.caddy.applyCaddy(change, expected)
@@ -740,7 +743,7 @@ export class LocalPrivileged implements Privileged {
   }
   async backupClientLink(token: string | undefined, name: string, quadeckUrl: string) {
     this.gate.check(token)
-    return this.backup.clientLink(name, quadeckUrl)
+    return this.backup.clientLink(name, quadeckUrl, (url) => this.caddy.localCaFor(url))
   }
   backupAgent(name: string, token: string, kind: AgentKind, body: string) {
     return this.backup.clientAgent(name, token, kind, body)

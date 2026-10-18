@@ -49,7 +49,8 @@ import {
   VOLUME_PATH,
 } from '~/shared/backup'
 import { AGENT_TOKEN, type AgentKind, type AgentReply, type ClientInventory, clientSettings, parseClientReport, parseInventory, pollText, queueAction } from '~/shared/backup-agent'
-import { type ClientPlan, clientScript, defaultClientPlan, parseClientPlan } from '~/shared/backup-client'
+import { type ClientLink, type ClientPlan, clientScript, defaultClientPlan, parseClientPlan } from '~/shared/backup-client'
+import type { LocalCa } from '~/shared/caddy'
 import { localize, msg } from '~/shared/i18n'
 import { writeFileAtomic } from '../atomic'
 import { HttpError } from '../auth'
@@ -86,7 +87,8 @@ export interface BackupBackend extends BackupAdmin {
   /** Something for the client to do with its next poll (within about 10 minutes). */
   clientAction(name: string, action: ClientAction): Promise<TargetState>
   /** A setup link (30 minutes) for the client's install/update script. */
-  clientLink(name: string, quadeckUrl: string): Promise<{ token: string; expires: number }>
+  /** `caFor`: Caddy's local CA when Caddy serves that URL with it (the command checks it, the script brings it along). */
+  clientLink(name: string, quadeckUrl: string, caFor?: CaFor): Promise<ClientLink>
   /**
    * The script behind a link, with a fresh access password and agent token. The link stays good
    * (same access and token again) until it expires or the client it set up talks to Quadeck.
@@ -128,6 +130,24 @@ export interface LinkCredentials {
   hash: Promise<string>
 }
 
+/** The CA a link's command checks and its script brings along; `restic`: the repository is served with it too. */
+export interface LinkCa {
+  ca: LocalCa
+  restic: boolean
+}
+export type CaFor = (url: string) => Promise<LocalCa | undefined>
+
+/** The local CA for a setup link to `quadeckUrl`, and whether restic needs it for `repo` (rest:https://…). */
+export async function linkCa(caFor: CaFor | undefined, quadeckUrl: string, repo: string): Promise<LinkCa | undefined> {
+  const ca = await caFor?.(quadeckUrl).catch(() => undefined)
+  if (!ca) return undefined
+  const repoUrl = repo.replace(/^rest:/, '')
+  const forRepo = repoUrl.startsWith('https://') ? await caFor!(repoUrl).catch(() => undefined) : undefined
+  return { ca, restic: forRepo?.sha256 === ca.sha256 }
+}
+
+const linkReply = (l: { token: string; expires: number }, ca: LinkCa | undefined): ClientLink => (ca ? { ...l, ca: { sha256: ca.ca.sha256, fingerprint: ca.ca.fingerprint } } : l)
+
 /**
  * Setup links, in memory (a restart of the helper invalidates them). A link can be fetched again
  * – reviewed first, or the script run a second time after it stopped half-way – and hands out the
@@ -135,12 +155,12 @@ export interface LinkCredentials {
  * expires, when the client it set up first talks to Quadeck (`settle`), or with a new link.
  */
 export class LinkStore {
-  private links = new Map<string, { name: string; url: string; expires: number; creds?: LinkCredentials }>()
-  create(name: string, url: string, now = Date.now()) {
+  private links = new Map<string, { name: string; url: string; expires: number; ca?: LinkCa; creds?: LinkCredentials }>()
+  create(name: string, url: string, now = Date.now(), ca?: LinkCa) {
     for (const [k, v] of this.links) if (v.expires < now || v.name === name) this.links.delete(k)
     const token = randomBytes(24).toString('base64url')
     const expires = now + LINK_MINUTES * 60_000
-    this.links.set(token, { name, url, expires })
+    this.links.set(token, { name, url, expires, ca })
     return { token, expires }
   }
   /** The link and its credentials (made now on the first fetch), or undefined when unknown or expired. */
@@ -156,7 +176,7 @@ export class LinkStore {
       const access = accessPassword()
       l.creds = { access, agentToken: randomBytes(24).toString('base64url'), hash: hash(access) }
     }
-    return { name: l.name, url: l.url, creds: l.creds }
+    return { name: l.name, url: l.url, ca: l.ca, creds: l.creds }
   }
   /** The client set up with this agent token has talked to Quadeck: its link is done. */
   settle(name: string, agentToken: string) {
@@ -756,11 +776,12 @@ export class SystemBackup implements BackupBackend {
     return this.targetState()
   }
 
-  async clientLink(name: string, quadeckUrl: string) {
+  async clientLink(name: string, quadeckUrl: string, caFor?: CaFor) {
     const t = this.target()
     this.client(t, name)
     if (!t.config) throw new HttpError(409, msg(m.backup_error_noTarget))
-    return this.linkStore.create(name, quadeckUrl)
+    const ca = await linkCa(caFor, quadeckUrl, clientRepo(t.config, name))
+    return linkReply(this.linkStore.create(name, quadeckUrl, Date.now(), ca), ca)
   }
 
   async redeemClientLink(token: string) {
@@ -787,6 +808,8 @@ export class SystemBackup implements BackupBackend {
       plan: c.plan,
       version: c.version,
       quadeckUrl: link.url,
+      ca: link.ca?.ca.pem,
+      resticCa: link.ca?.restic,
     })
   }
 
@@ -1312,9 +1335,10 @@ export class FixtureBackup implements BackupBackend {
       }, 3000)
     return this.targetState()
   }
-  async clientLink(name: string, quadeckUrl: string) {
+  async clientLink(name: string, quadeckUrl: string, caFor?: CaFor) {
     if (!this.clients.some((x) => x.name === name)) throw new HttpError(404, msg(m.backup_error_clientUnknown, { name }))
-    return this.links.create(name, quadeckUrl)
+    const ca = this.targetConfig ? await linkCa(caFor, quadeckUrl, clientRepo(this.targetConfig, name)) : undefined
+    return linkReply(this.links.create(name, quadeckUrl, Date.now(), ca), ca)
   }
   private agentTokens = new Map<string, string>()
   private inventories = new Map<string, ClientInventory>([['laptop', DEMO_INVENTORY()]])
@@ -1345,6 +1369,8 @@ export class FixtureBackup implements BackupBackend {
       plan: c.plan,
       version: c.version,
       quadeckUrl: link.url,
+      ca: link.ca?.ca.pem,
+      resticCa: link.ca?.restic,
     })
   }
   async clientInventory(name: string) {

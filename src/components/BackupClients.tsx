@@ -19,7 +19,19 @@ import {
   targetHost,
 } from '~/shared/backup'
 import { type ClientInventory, inventoryHints, inventoryListing } from '~/shared/backup-agent'
-import { CLIENT_PRESETS, type ClientPlan, type ClientPreset, clientCalendar, parseClientPlan, recommendedClientPlan, ruleKind, ruleProblem } from '~/shared/backup-client'
+import {
+  CLIENT_PRESETS,
+  type ClientLink,
+  type ClientPlan,
+  type ClientPreset,
+  clientCalendar,
+  parseClientPlan,
+  recommendedClientPlan,
+  reviewCommands,
+  ruleKind,
+  ruleProblem,
+  setupCommand,
+} from '~/shared/backup-client'
 import { localeOf } from '~/shared/i18n'
 import { useActions } from './Actions'
 import { BusyButton, Spinner, useBusy } from './Busy'
@@ -981,7 +993,7 @@ function ClientEditor({ client: c, onSave, onClose }: { client: BackupClient; on
   )
 }
 
-type Link = { token: string; expires: number }
+type Link = ClientLink
 
 /** A new computer: only its name, then the command that connects it. What and when come afterwards. */
 function AddClient({
@@ -1117,7 +1129,10 @@ function CommandDialog({ client, onLink, onRefresh, onClose }: { client: BackupC
 
 /** The command for the computer, how to run it, and whether it has connected. */
 function CommandPanel({ name, link, client, onRefresh }: { name: string; link: Link; client: BackupClient; onRefresh: () => void }) {
-  const url = `${window.location.origin}/api/backup/script/${link.token}`
+  const origin = window.location.origin
+  // Caddy's local CA only over https (the server checks that too): fetched, checked, then trusted.
+  const ca = origin.startsWith('https://') ? link.ca : undefined
+  const command = setupCommand(origin, link.token, ca)
   const waiting = !clientConnected(client)
 
   // While the device runs the command: look more often, so "connected" shows soon after.
@@ -1135,18 +1150,28 @@ function CommandPanel({ name, link, client, onRefresh }: { name: string; link: L
         <Numbered n={2}>
           {m.backup_cwiz_run2()}
           <code className="mt-1.5 block rounded-lg border border-edge bg-[#070a0e] px-3 py-2 font-mono text-[12.5px] break-all select-all" data-testid="client-command">
-            curl -fsSL {url} | sh
+            {command}
           </code>
           <span className="mt-1.5 flex flex-wrap items-center gap-2 text-[12px] text-muted">
-            <button type="button" className="btn sm" onClick={() => void navigator.clipboard?.writeText(`curl -fsSL ${url} | sh`)}>
+            <button type="button" className="btn sm" onClick={() => void navigator.clipboard?.writeText(command)}>
               {m.backup_client_copy()}
             </button>
             <span suppressHydrationWarning>{m.backup_client_valid({ when: relative(link.expires) })}</span>
           </span>
           <details className="mt-1.5">
             <summary className="cursor-pointer text-subtle">{m.backup_client_review()}</summary>
-            <code className="mt-2 block rounded-lg border border-edge bg-[#070a0e] px-3 py-2 font-mono text-[12.5px] break-all whitespace-pre-wrap select-all">{`curl -fsSL ${url} -o quadeck-backup-setup.sh\nless quadeck-backup-setup.sh\nsh quadeck-backup-setup.sh`}</code>
+            <code className="mt-2 block rounded-lg border border-edge bg-[#070a0e] px-3 py-2 font-mono text-[12.5px] break-all whitespace-pre-wrap select-all" data-testid="client-review">
+              {reviewCommands(origin, link.token, ca)}
+            </code>
+            {ca && (
+              <span className="mt-1.5 block text-[12px] break-all text-muted" data-testid="client-ca">
+                {m.backup_client_caFingerprint({ fingerprint: ca.fingerprint })}
+                <br />
+                {m.backup_client_caFile({ sha256: ca.sha256 })}
+              </span>
+            )}
           </details>
+          {ca && <span className="mt-1.5 block text-[12px] text-muted">{m.backup_client_caText()}</span>}
         </Numbered>
         <Numbered n={3}>{m.backup_cwiz_run3()}</Numbered>
       </ol>
