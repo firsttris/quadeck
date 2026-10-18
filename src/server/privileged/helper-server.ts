@@ -5,6 +5,7 @@
 import { chmodSync, chownSync, existsSync, readFileSync, rmSync } from 'node:fs'
 import { m } from '~/paraglide/messages'
 import { parseBackupPlan, parseClientChange, parseSecrets, parseTargetConfig, parseWarnDays } from '~/shared/backup'
+import { AGENT_BODY_MAX, AGENT_KINDS, type AgentKind } from '~/shared/backup-agent'
 import { parseClientPlan, QUADECK_URL } from '~/shared/backup-client'
 import { parseBootEntryChange } from '~/shared/boot'
 import { parseCaddyChange } from '~/shared/caddy'
@@ -236,6 +237,13 @@ export const HELPER_ROUTES: Record<string, Handler> = {
     return p.backupClientLink(str(b.token), str(b.name) ?? '', url)
   },
   '/backup/client/redeem': async (b, p) => ({ script: await p.redeemBackupClientLink(str(b.link) ?? '') }),
+  '/backup/client/inventory': async (b, p) => ({ data: await p.backupInventory(str(b.name) ?? '') }),
+  '/backup/agent': (b, p) => {
+    const kind = b.kind as AgentKind
+    const body = str(b.body) ?? ''
+    if (!AGENT_KINDS.includes(kind) || body.length > AGENT_BODY_MAX) throw new HttpError(400, msg(m.common_errors_unknownRequest))
+    return p.backupAgent(str(b.name) ?? '', str(b.token) ?? '', kind, body)
+  },
   '/backup/client/remove': (b, p) => p.removeBackupClient(str(b.token), str(b.name) ?? '', b.deleteData === true),
   '/caddy/path': (b, p) => p.setCaddyPath(str(b.token), b.path === null ? null : (str(b.path) ?? '')),
   '/users/apply': (b, p) => p.applyUser(str(b.token), parseUserChange(b.change)),

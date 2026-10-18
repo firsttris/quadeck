@@ -8,6 +8,7 @@
 import { m } from '~/paraglide/messages'
 import type { ArchivePreview } from '~/shared/archives'
 import type { BackupPlan, BackupState, TargetConfig, TargetState } from '~/shared/backup'
+import type { AgentKind, AgentReply, ClientInventory } from '~/shared/backup-agent'
 import type { ClientPlan } from '~/shared/backup-client'
 import type { BootEntryChange, BootState } from '~/shared/boot'
 import type { CaddyChange, CaddyResult, CaddyState } from '~/shared/caddy'
@@ -154,6 +155,10 @@ export interface Privileged
   backupClientLink(token: string | undefined, name: string, quadeckUrl: string): Promise<{ token: string; expires: number }>
   /** No unlock: the one-time link is the authorisation (it is used up here). */
   redeemBackupClientLink(linkToken: string): Promise<string | undefined>
+  /** No unlock: the client's token is the authorisation, checked where the target file lives. */
+  backupAgent(name: string, token: string, kind: AgentKind, body: string): Promise<AgentReply>
+  /** The folders a client last reported (names and sizes only, like the folder browser). */
+  backupInventory(name: string): Promise<ClientInventory | null>
 }
 
 const UNIT_NAME = /^[A-Za-z0-9:_.\\@-]{1,240}\.(service|timer|socket)$/

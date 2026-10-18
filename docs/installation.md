@@ -147,6 +147,7 @@ quadeck passwd                  reset the admin password and remove all passkeys
 quadeck update [--force]        download the newest release, verify, swap in, restart
 quadeck doctor [--json]         show what Quadeck finds: distribution, package manager, Podman, init, boot loader
 quadeck print-unit web|helper   print a systemd unit (used by install.sh)
+quadeck backup …                the backups from a shell or an agent, as root (see Backups)
 quadeck version
 quadeck help
 ```

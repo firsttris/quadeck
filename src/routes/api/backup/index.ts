@@ -10,7 +10,7 @@ import { parseClientPlan, QUADECK_URL } from '~/shared/backup-client'
 import { msg } from '~/shared/i18n'
 
 // GET: the state (?refresh: read the snapshot list from the repository again), ?suggest: what the
-// Quadlets suggest, ?snapshot=…&dir=… a folder of a snapshot, ?snapshot=…&path=… a file (a folder as
+// Quadlets suggest, ?inventory=<client> the folders a client last scanned, ?snapshot=…&dir=… a folder of a snapshot, ?snapshot=…&path=… a file (a folder as
 // zip) for download (unlock).
 // POST (unlock): { save: { plan, secrets } } | { disable: true } | { start: 'backup'|'check' } |
 // { password: true } | { target: { setup: config } | { remove: true } } |
@@ -32,6 +32,11 @@ export const Route = createFileRoute('/api/backup/')({
           return Response.json({ entries: await p.backupLs(snapshot, q.get('dir') ?? '/') })
         }
         if (q.has('suggest')) return Response.json(await p.backupSuggest())
+        const inventory = q.get('inventory')
+        if (inventory !== null) {
+          if (!CLIENT_NAME.test(inventory)) throw new HttpError(400, msg(m.backup_error_clientName))
+          return Response.json(await p.backupInventory(inventory))
+        }
         if (q.has('target')) return Response.json(await p.targetState(q.has('refresh')))
         return Response.json(await p.backupState(q.has('refresh')))
       }),

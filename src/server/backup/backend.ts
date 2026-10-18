@@ -7,7 +7,7 @@
 // credentials (env), the exclude file, the run records and a cache of the
 // snapshot list. The schedule is a pair of systemd units in /etc/systemd/system.
 
-import { randomBytes } from 'node:crypto'
+import { createHash, randomBytes, timingSafeEqual } from 'node:crypto'
 import { chmodSync, existsSync, lstatSync, mkdirSync, readdirSync, readFileSync, rmSync, statSync } from 'node:fs'
 import { statfs } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
@@ -45,7 +45,8 @@ import {
   targetQuadlet,
   VOLUME_PATH,
 } from '~/shared/backup'
-import { type ClientPlan, clientScript, defaultClientPlan } from '~/shared/backup-client'
+import { AGENT_TOKEN, type AgentKind, type AgentReply, type ClientInventory, clientSettings, parseClientReport, parseInventory } from '~/shared/backup-agent'
+import { type ClientPlan, clientScript, defaultClientPlan, parseClientPlan } from '~/shared/backup-client'
 import { localize, msg } from '~/shared/i18n'
 import { writeFileAtomic } from '../atomic'
 import { HttpError } from '../auth'
@@ -82,6 +83,29 @@ export interface BackupBackend extends BackupAdmin {
   clientLink(name: string, quadeckUrl: string): Promise<{ token: string; expires: number }>
   /** The script behind a link; the link is used up, the access password renewed. */
   redeemClientLink(token: string): Promise<string | undefined>
+  /** A request of the client's `quadeck-backup`, authorised by its token (see AgentKind). */
+  clientAgent(name: string, token: string, kind: AgentKind, body: string): Promise<AgentReply>
+  /** The folders the client last reported, for the folder browser. */
+  clientInventory(name: string): Promise<ClientInventory | null>
+}
+
+const MAX_CLIENT_RUNS = 10
+const sha256 = (s: string) => createHash('sha256').update(s).digest()
+
+/** A client's plan as it may come from the client: everything but the retention, which stays Quadeck's. */
+export function clientProposal(body: string, current: ClientPlan | undefined): ClientPlan {
+  let raw: unknown
+  try {
+    raw = JSON.parse(body)
+  } catch {
+    throw new HttpError(400, 'the plan is not JSON')
+  }
+  // `quadeck-backup plan show` prints { name, version, plan, appendOnly }: its edited output is taken as is.
+  const o = raw && typeof raw === 'object' && 'plan' in raw && raw.plan && typeof raw.plan === 'object' ? raw.plan : raw
+  const keep = (current ?? defaultClientPlan()).keep
+  const { plan, error } = parseClientPlan(o && typeof o === 'object' ? { ...o, keep } : o)
+  if (!plan) throw new HttpError(400, error!)
+  return plan
 }
 
 const LINK_MINUTES = 30
@@ -105,9 +129,11 @@ export class LinkStore {
   }
 }
 
-interface StoredClient extends Omit<BackupClient, 'lastAt' | 'snapshots' | 'size'> {
+interface StoredClient extends Omit<BackupClient, 'lastAt' | 'snapshots' | 'size' | 'agent'> {
   /** bcrypt, kept so a disabled client can be enabled again with the same access. */
   hash: string
+  /** SHA-256 of the client's token for /api/backup/agent (hex). */
+  agentHash?: string
 }
 
 interface TargetFile {
@@ -531,8 +557,9 @@ export class SystemBackup implements BackupBackend {
       t.sizes = sizes
       writePrivate(this.file('target.json'), JSON.stringify(t, null, 2))
     }
-    const clients = t.clients.map(({ hash: _h, ...c }) => ({
+    const clients = t.clients.map(({ hash: _h, agentHash, ...c }) => ({
       ...c,
+      ...(agentHash ? { agent: true } : {}),
       ...(config ? clientRepoStatus(join(config.dataDir, c.name)) : {}),
       ...(t.sizes?.[c.name] !== undefined ? { size: t.sizes[c.name] } : {}),
     }))
@@ -605,6 +632,7 @@ export class SystemBackup implements BackupBackend {
     if (t.sizes) delete t.sizes[name]
     this.writeTarget(t)
     if (deleteData && t.config && CLIENT_NAME.test(name)) rmSync(join(t.config.dataDir, name), { recursive: true, force: true })
+    if (CLIENT_NAME.test(name)) rmSync(this.inventoryFile(name), { force: true })
     return this.targetState()
   }
 
@@ -615,6 +643,7 @@ export class SystemBackup implements BackupBackend {
     const c = this.client(t, name)
     c.plan = plan
     c.version = (c.version ?? 0) + 1
+    c.changed = { by: 'quadeck', at: Date.now() }
     this.writeTarget(t)
     return this.targetState()
   }
@@ -634,21 +663,88 @@ export class SystemBackup implements BackupBackend {
     if (!c || !t.config) return undefined
     // A fresh access password for every script: the one it carries is the only valid one.
     const access = accessPassword()
+    const agentToken = randomBytes(24).toString('base64url')
     c.hash = await Bun.password.hash(access, { algorithm: 'bcrypt', cost: 10 })
-    delete c.disabled
-    c.version ??= 0
-    c.applied = { version: c.version, at: Date.now() }
-    this.writeTarget(t)
+    // Read again: another request may have changed the file while bcrypt ran.
+    const fresh = this.target()
+    const fc = fresh.clients.find((x) => x.name === link.name)
+    if (!fc || !fresh.config) return undefined
+    fc.hash = c.hash
+    fc.agentHash = sha256(agentToken).toString('hex')
+    delete fc.disabled
+    fc.version ??= 0
+    fc.applied = { version: fc.version, at: Date.now() }
+    this.writeTarget(fresh)
     return clientScript({
-      name: c.name,
-      repo: clientRepo(t.config, c.name),
-      user: c.name,
+      agentToken,
+      name: fc.name,
+      repo: clientRepo(fresh.config, fc.name),
+      user: fc.name,
       access,
-      appendOnly: t.config.appendOnly,
-      plan: c.plan ?? defaultClientPlan(),
-      version: c.version,
+      appendOnly: fresh.config.appendOnly,
+      plan: fc.plan ?? defaultClientPlan(),
+      version: fc.version,
       quadeckUrl: link.url,
     })
+  }
+
+  private inventoryFile = (name: string) => join(this.dir, 'inventory', `${name}.json`)
+
+  async clientInventory(name: string) {
+    if (!CLIENT_NAME.test(name)) throw new HttpError(400, msg(m.backup_error_clientName))
+    return readJson<ClientInventory | null>(this.inventoryFile(name), null)
+  }
+
+  /** The client behind a token; unknown name and wrong token look the same. */
+  private agentClient(t: TargetFile, name: string, token: string): StoredClient {
+    const c = t.clients.find((x) => x.name === name)
+    const ok = !!c?.agentHash && AGENT_TOKEN.test(token) && timingSafeEqual(sha256(token), Buffer.from(c.agentHash, 'hex'))
+    if (!c || !ok) throw new HttpError(401, 'unknown client or token – run the setup command from Quadeck again')
+    if (c.disabled || !t.config) throw new HttpError(403, 'this client is disabled in Quadeck')
+    return c
+  }
+
+  async clientAgent(name: string, token: string, kind: AgentKind, body: string): Promise<AgentReply> {
+    const t = this.target()
+    const c = this.agentClient(t, name, token)
+    const appendOnly = t.config!.appendOnly
+    switch (kind) {
+      case 'settings':
+        c.version ??= 0
+        c.applied = { version: c.version, at: Date.now() }
+        this.writeTarget(t)
+        return { text: clientSettings(c.plan ?? defaultClientPlan(), c.version, appendOnly) }
+      case 'plan':
+        return { json: { name: c.name, version: c.version ?? 0, plan: c.plan ?? defaultClientPlan(), appendOnly } }
+      case 'preview':
+        return { text: clientSettings(clientProposal(body, c.plan), c.version ?? 0, appendOnly) }
+      case 'propose': {
+        const plan = clientProposal(body, c.plan)
+        if (JSON.stringify(plan) !== JSON.stringify(c.plan)) {
+          c.plan = plan
+          c.version = (c.version ?? 0) + 1
+          c.changed = { by: 'client', at: Date.now() }
+          this.writeTarget(t)
+        }
+        return { json: { version: c.version ?? 0, plan } }
+      }
+      case 'inventory': {
+        const { inventory, error } = parseInventory(body)
+        if (!inventory) throw new HttpError(400, error!)
+        mkdirSync(join(this.dir, 'inventory'), { recursive: true, mode: 0o700 })
+        writePrivate(this.inventoryFile(name), JSON.stringify(inventory))
+        c.scannedAt = inventory.at
+        this.writeTarget(t)
+        return { json: inventory }
+      }
+      case 'report': {
+        const { run, error } = parseClientReport(body)
+        if (!run) throw new HttpError(400, error!)
+        c.runs = [run, ...(c.runs ?? [])].slice(0, MAX_CLIENT_RUNS)
+        this.writeTarget(t)
+        return { json: { ok: true } }
+      }
+    }
   }
 
   // ---------- runs (`quadeck backup run|check`, restore jobs) ----------
@@ -796,6 +892,41 @@ const DEMO_DIRS = [
   '/var/lib/containers/storage/volumes',
   '/opt',
 ]
+/** The demo laptop's scan: a home with projects, caches and a Steam library. */
+const DEMO_INVENTORY = (): ClientInventory => {
+  const h = '/home/tristan'
+  const d: [number, string][] = [
+    [96e6, ''],
+    [8.2e6, '/Dokumente'],
+    [1.1e6, '/Dokumente/Steuer'],
+    [3.4e6, '/Dokumente/Verträge'],
+    [41e6, '/Bilder'],
+    [38e6, '/Bilder/Urlaub'],
+    [2.1e6, '/Musik'],
+    [6.4e6, '/Downloads'],
+    [14e6, '/Projekte'],
+    [9.5e6, '/Projekte/quadeck'],
+    [1.2e6, '/Projekte/quadeck/node_modules'],
+    [3.9e6, '/Projekte/website'],
+    [0.8e6, '/Projekte/website/node_modules'],
+    [2.6e6, '/.cache'],
+    [0.9e6, '/.config'],
+    [31e6, '/.local'],
+    [30.5e6, '/.local/share'],
+    [30.2e6, '/.local/share/Steam'],
+    [0.2e6, '/.local/share/Trash'],
+    [0.01e6, '/.ssh'],
+  ]
+  const text = [
+    `home\t${h}`,
+    ...d.map(([kib, p]) => `d\t${kib}\t${h}${p}`),
+    `m\t${h}/Projekte/quadeck/.git`,
+    `m\t${h}/Projekte/website/.git`,
+    `m\t${h}/Projekte/quadeck/node_modules`,
+    `m\t${h}/Projekte/website/node_modules`,
+  ].join('\n')
+  return parseInventory(text, Date.now() - 5 * 3600_000).inventory!
+}
 const DEMO_MOUNTS = { '/': { size: 500e9, free: 210e9 }, '/mnt/backup': { size: 4e12, free: 2.6e12 }, '/mnt/media': { size: 8e12, free: 1.1e12 } }
 
 export class FixtureBackup implements BackupBackend {
@@ -858,7 +989,10 @@ export class FixtureBackup implements BackupBackend {
         size: 84e9,
         plan: { ...defaultClientPlan(), folders: ['~/Dokumente', '~/Bilder', '~/Projekte'] },
         version: 4,
-        applied: { version: 4, at: ago(24 * 2) },
+        applied: { version: 4, at: ago(6) },
+        agent: true,
+        scannedAt: ago(5),
+        runs: [{ kind: 'backup', startedAt: ago(6), endedAt: ago(6) + 95_000, status: 'ok', files: 18_204, bytes: 62e9, added: 140e6, filesNew: 31, filesChanged: 8, errors: [] }],
       },
       {
         name: 'pc-wohnzimmer',
@@ -1071,13 +1205,19 @@ export class FixtureBackup implements BackupBackend {
     if (!this.clients.some((x) => x.name === name)) throw new HttpError(404, msg(m.backup_error_clientUnknown, { name }))
     return this.links.create(name, quadeckUrl)
   }
+  private agentTokens = new Map<string, string>()
+  private inventories = new Map<string, ClientInventory>([['laptop', DEMO_INVENTORY()]])
   async redeemClientLink(token: string) {
     const link = this.links.take(token)
     const c = link && this.clients.find((x) => x.name === link.name)
     if (!link || !c || !this.targetConfig) return undefined
     c.version ??= 0
     c.applied = { version: c.version, at: Date.now() }
+    const agentToken = randomBytes(24).toString('base64url')
+    this.agentTokens.set(c.name, agentToken)
+    c.agent = true
     return clientScript({
+      agentToken,
       name: c.name,
       repo: clientRepo(this.targetConfig, c.name),
       user: c.name,
@@ -1087,5 +1227,44 @@ export class FixtureBackup implements BackupBackend {
       version: c.version,
       quadeckUrl: link.url,
     })
+  }
+  async clientInventory(name: string) {
+    return this.inventories.get(name) ?? null
+  }
+  async clientAgent(name: string, token: string, kind: AgentKind, body: string): Promise<AgentReply> {
+    const c = this.clients.find((x) => x.name === name)
+    if (!c || this.agentTokens.get(name) !== token) throw new HttpError(401, 'unknown client or token – run the setup command from Quadeck again')
+    const appendOnly = this.targetConfig?.appendOnly ?? false
+    switch (kind) {
+      case 'settings':
+        c.applied = { version: c.version ?? 0, at: Date.now() }
+        return { text: clientSettings(c.plan ?? defaultClientPlan(), c.version ?? 0, appendOnly) }
+      case 'plan':
+        return { json: { name, version: c.version ?? 0, plan: c.plan ?? defaultClientPlan(), appendOnly } }
+      case 'preview':
+        return { text: clientSettings(clientProposal(body, c.plan), c.version ?? 0, appendOnly) }
+      case 'propose': {
+        const plan = clientProposal(body, c.plan)
+        if (JSON.stringify(plan) !== JSON.stringify(c.plan)) {
+          c.plan = plan
+          c.version = (c.version ?? 0) + 1
+          c.changed = { by: 'client', at: Date.now() }
+        }
+        return { json: { version: c.version ?? 0, plan } }
+      }
+      case 'inventory': {
+        const { inventory, error } = parseInventory(body)
+        if (!inventory) throw new HttpError(400, error!)
+        this.inventories.set(name, inventory)
+        c.scannedAt = inventory.at
+        return { json: inventory }
+      }
+      case 'report': {
+        const { run, error } = parseClientReport(body)
+        if (!run) throw new HttpError(400, error!)
+        c.runs = [run, ...(c.runs ?? [])].slice(0, MAX_CLIENT_RUNS)
+        return { json: { ok: true } }
+      }
+    }
   }
 }

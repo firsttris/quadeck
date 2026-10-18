@@ -40,6 +40,12 @@ export async function readJson<T>(request: Request, limit = JSON_MAX): Promise<T
   }
 }
 
+/** A text body of at most `limit` bytes (same reading as readJson, for clients that send lines). */
+export async function readText(request: Request, limit: number): Promise<string> {
+  if (Number(request.headers.get('content-length')) > limit) throw new HttpError(413, msg(m.http_error_tooLarge))
+  return readLimited(request.body, limit)
+}
+
 async function readLimited(body: ReadableStream<Uint8Array> | null, limit: number): Promise<string> {
   if (!body) return ''
   const reader = body.getReader()

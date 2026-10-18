@@ -6,10 +6,12 @@ import { bytes, relative } from '~/lib/format'
 import { useLiveState } from '~/lib/live'
 import { m } from '~/paraglide/messages'
 import { type BackupClient, CLIENT_NAME, clientRepo, retentionPreset, staleClients, TARGET_UNIT, type TargetConfig, type TargetState } from '~/shared/backup'
+import { type ClientInventory, inventoryHints, inventoryListing } from '~/shared/backup-agent'
 import { CLIENT_PRESETS, type ClientPlan, type ClientPreset, clientCalendar, defaultClientPlan, parseClientPlan, ruleKind, ruleProblem } from '~/shared/backup-client'
 import { localeOf } from '~/shared/i18n'
 import { useActions } from './Actions'
 import { BusyButton, Spinner, useBusy } from './Busy'
+import { FolderPicker, FolderPickerDialog } from './FolderPicker'
 import { ConfirmDialog, Modal } from './Modal'
 import { RetentionPicker } from './Retention'
 import { RowMenu } from './RowMenu'
@@ -174,15 +176,28 @@ export function BackupClients() {
                         </td>
                         <td>
                           <span className="inline-flex items-center gap-2" suppressHydrationWarning>
-                            <Dot tone={c.disabled ? 'idle' : late ? 'warn' : c.lastAt ? 'ok' : 'idle'} />
+                            <Dot tone={c.disabled ? 'idle' : c.runs?.[0]?.status === 'failed' ? 'bad' : late || c.runs?.[0]?.status === 'warning' ? 'warn' : c.lastAt ? 'ok' : 'idle'} />
                             {c.lastAt ? relative(c.lastAt) : m.backup_clients_never()}
                           </span>
+                          {c.runs?.[0] && c.runs[0].status !== 'ok' && (
+                            <span
+                              className={`block max-w-[38ch] truncate text-[12px] ${c.runs[0].status === 'failed' ? 'text-[#ff8a80]' : 'text-[#e3b341]'}`}
+                              title={c.runs[0].message ?? c.runs[0].errors.join('\n')}
+                            >
+                              {(c.runs[0].status === 'failed' ? m.backup_clients_runFailed : m.backup_clients_runWarning)({ message: c.runs[0].message ?? c.runs[0].errors[0] ?? '' })}
+                            </span>
+                          )}
                         </td>
                         <td>{c.size !== undefined ? bytes(c.size) : '–'}</td>
                         <td>{c.snapshots ?? 0}</td>
                         <td className="text-subtle">{c.warnDays ? m.backup_clients_warnDays({ n: c.warnDays }) : '–'}</td>
                         <td>
                           <SettingsChip client={c} />
+                          {c.changed?.by === 'client' && (
+                            <span className="ml-1.5 text-[12px] text-muted" suppressHydrationWarning>
+                              {m.backup_clients_changedByClient({ when: relative(c.changed.at) })}
+                            </span>
+                          )}
                         </td>
                         <td className="text-right">
                           {!readonly && (
@@ -318,6 +333,7 @@ function TargetDialog({ config, host, onClose, onSave }: { config?: TargetConfig
         {m.backup_target_dataDir()}
         <input className="field font-mono" value={c.dataDir} onChange={(e) => setC({ ...c, dataDir: e.target.value.trim() })} />
       </label>
+      <FolderPicker target value={c.dataDir} onChange={(dataDir) => setC({ ...c, dataDir })} />
       <div className="grid grid-cols-[110px_minmax(0,1fr)] gap-3">
         <label className="flex flex-col gap-1.5 text-[13px]">
           {m.backup_target_port()}
@@ -484,6 +500,9 @@ const presetLabel = (p: ClientPreset) =>
     p,
   )
 
+/** A mark from a client's scan: the preset that leaves it out, or a git project. */
+const markLabel = (k: string) => (k === 'git' ? m.backup_mark_git() : (CLIENT_PRESETS as string[]).includes(k) ? presetLabel(k as ClientPreset) : k)
+
 const CLIENT_STEPS = ['what', 'when', 'setup'] as const
 type ClientStep = (typeof CLIENT_STEPS)[number]
 const clientStepLabel = (s: ClientStep) => pickMsg({ what: m.backup_cwiz_stepWhat, when: m.backup_wizard_stepWhen, setup: m.backup_cwiz_stepSetup }, s)
@@ -539,6 +558,8 @@ function ClientWizard({
   const [warn, setWarn] = useState(client ? client.warnDays !== undefined : true)
   const [days, setDays] = useState(client?.warnDays ?? 3)
   const [link, setLink] = useState<{ token: string; expires: number } | null>(null)
+  const [inventory, setInventory] = useState<ClientInventory | null>(null)
+  const [picking, setPicking] = useState(false)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState('')
   const live = clients.find((c) => c.name === name)
@@ -549,6 +570,20 @@ function ClientWizard({
   const url = link ? `${window.location.origin}/api/backup/script/${link.token}` : ''
   const de = localeOf().startsWith('de')
   const waiting = !!link && !!live && (!live.applied || (live.version ?? 0) > live.applied.version)
+
+  // The folders the device last reported, for the folder browser and the hints.
+  const scannedAt = live?.scannedAt
+  useEffect(() => {
+    if (!created || !scannedAt) return
+    let stale = false
+    api<ClientInventory | null>(`/api/backup?inventory=${encodeURIComponent(name)}`, { method: 'GET' })
+      .then((inv) => !stale && setInventory(inv))
+      .catch(() => {})
+    return () => {
+      stale = true
+    }
+  }, [created, name, scannedAt])
+  const hints = inventory ? inventoryHints(inventory, plan).filter((h) => h.bytes > 0) : []
 
   // While the device runs the command: look more often, so "set up" shows soon after.
   useEffect(() => {
@@ -715,10 +750,40 @@ function ClientWizard({
                   {m.backup_setup_add()}
                 </button>
               </form>
+              <div className="flex flex-wrap items-center gap-2 text-[12px] text-muted" data-testid="client-folders-source">
+                {inventory ? (
+                  <>
+                    <button type="button" className="btn sm" onClick={() => setPicking(true)}>
+                      {m.backup_cwiz_browse()}
+                    </button>
+                    <span suppressHydrationWarning>{m.backup_cwiz_scanned({ when: relative(inventory.at) })}</span>
+                  </>
+                ) : (
+                  <span>{!created ? m.backup_cwiz_newClient() : live?.agent ? m.backup_cwiz_noScan() : m.backup_cwiz_oldScript()}</span>
+                )}
+              </div>
             </section>
 
             <section className="flex flex-col gap-2.5" aria-label={m.backup_setup_excludes()}>
               <h3 className="label-caps m-0 font-normal">{m.backup_setup_excludes()}</h3>
+              {hints.map((h) => (
+                <p key={h.preset} className="m-0 flex flex-wrap items-center gap-2 rounded-lg border border-edge bg-sunken px-2.5 py-1.5 text-[12.5px]" data-testid="client-hint">
+                  <span className="grow">
+                    {m.backup_cwiz_hint({ what: presetLabel(h.preset), size: bytes(h.bytes) })}
+                    <span className="ml-1.5 font-mono text-muted">
+                      {h.paths.slice(0, 2).join(', ')}
+                      {h.paths.length > 2 ? ' …' : ''}
+                    </span>
+                  </span>
+                  {h.on ? (
+                    <span className="text-[#7ee2a8]">{m.backup_cwiz_hintOn()}</span>
+                  ) : (
+                    <button type="button" className="btn sm" onClick={() => set({ exclude: { ...plan.exclude, presets: [...plan.exclude.presets, h.preset] } })}>
+                      {m.backup_cwiz_hintAdd()}
+                    </button>
+                  )}
+                </p>
+              ))}
               <div className="flex flex-wrap gap-1.5" role="group" aria-label={m.backup_cwiz_presets()}>
                 {CLIENT_PRESETS.map((p) => {
                   const on = plan.exclude.presets.includes(p)
@@ -953,6 +1018,8 @@ function ClientWizard({
                     'quadeck-backup status     # last backups, next run',
                     'quadeck-backup mount      # backups as folders under ~/Backup',
                     'quadeck-backup restore ~/Dokumente/x',
+                    'quadeck-backup scan       # send the folder list to Quadeck',
+                    'quadeck-backup guide      # steps for an AI agent on this computer',
                     'quadeck-backup uninstall  # remove the timer',
                   ].join('\n')}
                 </pre>
@@ -987,6 +1054,20 @@ function ClientWizard({
           </BusyButton>
         )}
       </div>
+      {picking && inventory && (
+        <FolderPickerDialog
+          title={m.backup_cwiz_browseTitle({ name })}
+          root="~"
+          source={async (p) => inventoryListing(inventory, p)}
+          markLabel={markLabel}
+          note={m.backup_cwiz_scanned({ when: relative(inventory.at) })}
+          onClose={() => setPicking(false)}
+          onPick={(f) => {
+            if (!plan.folders.includes(f)) set({ folders: [...plan.folders, f] })
+            setPicking(false)
+          }}
+        />
+      )}
     </Modal>
   )
 }

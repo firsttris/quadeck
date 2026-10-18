@@ -92,6 +92,7 @@ import { Route as ApiAuthPasskeyLoginRouteImport } from './routes/api/auth/passk
 import { Route as ApiAuthPasskeyOptionsRouteImport } from './routes/api/auth/passkey/options'
 import { Route as ApiAuthPasskeysIdRouteImport } from './routes/api/auth/passkeys/$id'
 import { Route as ApiAuthPasskeysOptionsRouteImport } from './routes/api/auth/passkeys/options'
+import { Route as ApiBackupAgentNameRouteImport } from './routes/api/backup/agent/$name'
 import { Route as ApiBackupScriptTokenRouteImport } from './routes/api/backup/script/$token'
 import { Route as ApiSystemPackagesIndexRouteImport } from './routes/api/system/packages/index'
 import { Route as ApiSystemPackagesNameRouteImport } from './routes/api/system/packages/$name'
@@ -510,6 +511,11 @@ const ApiAuthPasskeysOptionsRoute = ApiAuthPasskeysOptionsRouteImport.update({
   path: '/options',
   getParentRoute: () => ApiAuthPasskeysRoute,
 } as any)
+const ApiBackupAgentNameRoute = ApiBackupAgentNameRouteImport.update({
+  id: '/api/backup/agent/$name',
+  path: '/api/backup/agent/$name',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiBackupScriptTokenRoute = ApiBackupScriptTokenRouteImport.update({
   id: '/api/backup/script/$token',
   path: '/api/backup/script/$token',
@@ -609,6 +615,7 @@ export interface FileRoutesByFullPath {
   '/api/auth/passkey/options': typeof ApiAuthPasskeyOptionsRoute
   '/api/auth/passkeys/$id': typeof ApiAuthPasskeysIdRoute
   '/api/auth/passkeys/options': typeof ApiAuthPasskeysOptionsRoute
+  '/api/backup/agent/$name': typeof ApiBackupAgentNameRoute
   '/api/backup/script/$token': typeof ApiBackupScriptTokenRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages/': typeof ApiSystemPackagesIndexRoute
@@ -696,6 +703,7 @@ export interface FileRoutesByTo {
   '/api/auth/passkey/options': typeof ApiAuthPasskeyOptionsRoute
   '/api/auth/passkeys/$id': typeof ApiAuthPasskeysIdRoute
   '/api/auth/passkeys/options': typeof ApiAuthPasskeysOptionsRoute
+  '/api/backup/agent/$name': typeof ApiBackupAgentNameRoute
   '/api/backup/script/$token': typeof ApiBackupScriptTokenRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages': typeof ApiSystemPackagesIndexRoute
@@ -785,6 +793,7 @@ export interface FileRoutesById {
   '/api/auth/passkey/options': typeof ApiAuthPasskeyOptionsRoute
   '/api/auth/passkeys/$id': typeof ApiAuthPasskeysIdRoute
   '/api/auth/passkeys/options': typeof ApiAuthPasskeysOptionsRoute
+  '/api/backup/agent/$name': typeof ApiBackupAgentNameRoute
   '/api/backup/script/$token': typeof ApiBackupScriptTokenRoute
   '/api/system/packages/$name': typeof ApiSystemPackagesNameRoute
   '/api/system/packages/': typeof ApiSystemPackagesIndexRoute
@@ -874,6 +883,7 @@ export interface FileRouteTypes {
     | '/api/auth/passkey/options'
     | '/api/auth/passkeys/$id'
     | '/api/auth/passkeys/options'
+    | '/api/backup/agent/$name'
     | '/api/backup/script/$token'
     | '/api/system/packages/$name'
     | '/api/system/packages/'
@@ -961,6 +971,7 @@ export interface FileRouteTypes {
     | '/api/auth/passkey/options'
     | '/api/auth/passkeys/$id'
     | '/api/auth/passkeys/options'
+    | '/api/backup/agent/$name'
     | '/api/backup/script/$token'
     | '/api/system/packages/$name'
     | '/api/system/packages'
@@ -1049,6 +1060,7 @@ export interface FileRouteTypes {
     | '/api/auth/passkey/options'
     | '/api/auth/passkeys/$id'
     | '/api/auth/passkeys/options'
+    | '/api/backup/agent/$name'
     | '/api/backup/script/$token'
     | '/api/system/packages/$name'
     | '/api/system/packages/'
@@ -1119,6 +1131,7 @@ export interface RootRouteChildren {
   ApiUsersIndexRoute: typeof ApiUsersIndexRoute
   ApiAuthPasskeyLoginRoute: typeof ApiAuthPasskeyLoginRoute
   ApiAuthPasskeyOptionsRoute: typeof ApiAuthPasskeyOptionsRoute
+  ApiBackupAgentNameRoute: typeof ApiBackupAgentNameRoute
   ApiBackupScriptTokenRoute: typeof ApiBackupScriptTokenRoute
   ApiSystemPackagesNameRoute: typeof ApiSystemPackagesNameRoute
   ApiSystemPackagesIndexRoute: typeof ApiSystemPackagesIndexRoute
@@ -1707,6 +1720,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiAuthPasskeysOptionsRouteImport
       parentRoute: typeof ApiAuthPasskeysRoute
     }
+    '/api/backup/agent/$name': {
+      id: '/api/backup/agent/$name'
+      path: '/api/backup/agent/$name'
+      fullPath: '/api/backup/agent/$name'
+      preLoaderRoute: typeof ApiBackupAgentNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/backup/script/$token': {
       id: '/api/backup/script/$token'
       path: '/api/backup/script/$token'
@@ -1852,6 +1872,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiUsersIndexRoute: ApiUsersIndexRoute,
   ApiAuthPasskeyLoginRoute: ApiAuthPasskeyLoginRoute,
   ApiAuthPasskeyOptionsRoute: ApiAuthPasskeyOptionsRoute,
+  ApiBackupAgentNameRoute: ApiBackupAgentNameRoute,
   ApiBackupScriptTokenRoute: ApiBackupScriptTokenRoute,
   ApiSystemPackagesNameRoute: ApiSystemPackagesNameRoute,
   ApiSystemPackagesIndexRoute: ApiSystemPackagesIndexRoute,
