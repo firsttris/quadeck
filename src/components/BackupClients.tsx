@@ -5,7 +5,7 @@ import { retentionPresetLabel } from '~/lib/backup-labels'
 import { bytes, relative } from '~/lib/format'
 import { useLiveState } from '~/lib/live'
 import { m } from '~/paraglide/messages'
-import { type BackupClient, CLIENT_NAME, clientRepo, retentionPreset, staleClients, TARGET_UNIT, type TargetConfig, type TargetState } from '~/shared/backup'
+import { type BackupClient, CLIENT_NAME, clientRepo, retentionPreset, staleClients, TARGET_UNIT, type TargetConfig, type TargetState, targetHost } from '~/shared/backup'
 import { type ClientInventory, inventoryHints, inventoryListing } from '~/shared/backup-agent'
 import { CLIENT_PRESETS, type ClientPlan, type ClientPreset, clientCalendar, defaultClientPlan, parseClientPlan, ruleKind, ruleProblem } from '~/shared/backup-client'
 import { localeOf } from '~/shared/i18n'
@@ -324,7 +324,7 @@ export function BackupClients() {
 }
 
 function TargetDialog({ config, host, onClose, onSave }: { config?: TargetConfig; host: string; onClose: () => void; onSave: (c: TargetConfig) => Promise<void> }) {
-  const [c, setC] = useState<TargetConfig>(config ?? { dataDir: '/srv/backups', port: 8000, appendOnly: false, url: `http://${host || 'server'}:8000` })
+  const [c, setC] = useState<TargetConfig>(config ?? { dataDir: '/srv/backups', port: 8000, appendOnly: false, url: `http://${targetHost(window.location.hostname, host)}:8000` })
   const [busy, setBusy] = useState(false)
   return (
     <Modal open title={config ? m.backup_target_editTitle() : m.backup_target_setupTitle()} onClose={onClose} busy={busy}>
