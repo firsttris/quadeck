@@ -3,6 +3,7 @@
 // configuration, a systemd user timer and the `quadeck-backup` command. No I/O here.
 
 import { m } from '~/paraglide/messages'
+import { sizeArg } from './backup'
 import { msg } from './i18n'
 
 export type ClientPreset = 'caches' | 'trash' | 'dev' | 'temp' | 'downloads' | 'vms' | 'games' | 'nobackup'
@@ -138,7 +139,7 @@ export function clientScript(i: ScriptInput): string {
   const flags = [
     ...(p.exclude.presets.includes('caches') ? ['--exclude-caches'] : []),
     ...(p.exclude.presets.includes('nobackup') ? ['--exclude-if-present .nobackup'] : []),
-    ...(p.exclude.maxSizeGB ? [`--exclude-larger-than ${p.exclude.maxSizeGB}G`] : []),
+    ...(p.exclude.maxSizeGB ? [`--exclude-larger-than ${sizeArg(p.exclude.maxSizeGB)}`] : []),
   ].join(' ')
   return `#!/bin/sh
 # Quadeck backup client "${i.name}" – settings version ${i.version}.
@@ -366,10 +367,13 @@ api() {
   [ -n "\${QUADECK_TOKEN:-}" ] || no_token
   command -v curl >/dev/null 2>&1 || { echo "quadeck-backup: curl is needed to talk to Quadeck" >&2; return 1; }
   what=$2
+  # The token goes to curl in a file, never on its command line (other users see that in ps).
+  auth="$CONF/.auth"
+  (umask 077 && printf 'Authorization: Bearer %s\\n' "$QUADECK_TOKEN" > "$auth")
   if [ "$1" = GET ]; then
-    resp=$(curl -sS --max-time 30 -H "Authorization: Bearer $QUADECK_TOKEN" -w '\\n%{http_code}' "$QUADECK_URL/api/backup/agent/$QUADECK_NAME?do=$what") || { echo "quadeck-backup: cannot reach Quadeck at $QUADECK_URL" >&2; return 1; }
+    resp=$(curl -sS --max-time 30 -H @"$auth" -w '\\n%{http_code}' "$QUADECK_URL/api/backup/agent/$QUADECK_NAME?do=$what") || { echo "quadeck-backup: cannot reach Quadeck at $QUADECK_URL" >&2; return 1; }
   else
-    resp=$(curl -sS --max-time 300 -X POST -H "Authorization: Bearer $QUADECK_TOKEN" -H "content-type: \${3:-text/plain}" --data-binary @- -w '\\n%{http_code}' "$QUADECK_URL/api/backup/agent/$QUADECK_NAME?do=$what") || { echo "quadeck-backup: cannot reach Quadeck at $QUADECK_URL" >&2; return 1; }
+    resp=$(curl -sS --max-time 300 -X POST -H @"$auth" -H "content-type: \${3:-text/plain}" --data-binary @- -w '\\n%{http_code}' "$QUADECK_URL/api/backup/agent/$QUADECK_NAME?do=$what") || { echo "quadeck-backup: cannot reach Quadeck at $QUADECK_URL" >&2; return 1; }
   fi
   http=$(printf '%s\\n' "$resp" | tail -n 1)
   body=$(printf '%s\\n' "$resp" | sed '$d')
@@ -407,7 +411,7 @@ parse_settings() {
           trash|dev|temp|downloads|vms|games) ;;
           *) return 1 ;;
         esac ;;
-      maxsize) case "$value" in ''|*[!0-9.]*|*.*.*) return 1 ;; esac; size="--exclude-larger-than \${value}G" ;;
+      maxsize) case "$value" in ''|*[!0-9]*) return 1 ;; esac; size="--exclude-larger-than \${value}M" ;; # MiB
       keep)
         rule=\${value%% *} n=\${value#* }
         case "$rule" in daily|weekly|monthly|yearly) ;; *) return 1 ;; esac
@@ -639,7 +643,25 @@ EOF
     echo "Timer removed. Settings and the repository password stay in $CONF – delete them yourself if you are sure."
     rm -f "$0"
     ;;
-  guide)
+  guide|skill)
+    # As a skill for Claude Code (skill install: into ~/.claude/skills), or plain.
+    if [ "$1" = skill ]; then
+      [ "\${2:-}" = install ] || { echo "usage: quadeck-backup skill install" >&2; exit 2; }
+      dir="$HOME/.claude/skills/quadeck-backup"
+      mkdir -p "$dir"
+      "$0" guide --skill > "$dir/SKILL.md"
+      echo "Skill written to $dir/SKILL.md – Claude Code uses it when you ask about this computer's backup."
+      exit 0
+    fi
+    if [ "\${2:-}" = --skill ]; then
+      cat <<'SKILL'
+---
+name: quadeck-backup
+description: Set up or change this computer's backup to the Quadeck server (restic) with the quadeck-backup command – look at the folders, suggest what to back up and what to leave out, check the size with a dry run and set the plan. Use when the person asks about backing up this computer, what is in its backup, or what to exclude.
+---
+
+SKILL
+    fi
     cat <<'GUIDE'
 # Setting up this computer's backup with quadeck-backup
 
@@ -678,7 +700,8 @@ GUIDE
     echo "  sync       fetch new settings from Quadeck now (also done before every backup)"
     echo "  mount [dir]           the backups as folders (needs fuse)"
     echo "  restore <path> [dir]  restore from the latest backup"
-    echo "  guide      how an agent goes about setting up this backup"
+    echo "  guide [--skill]       how an agent goes about setting up this backup (as a SKILL.md)"
+    echo "  skill install         that guide as a skill for Claude Code (~/.claude/skills)"
     echo "  uninstall  remove the timer and this command"
     ;;
 esac`

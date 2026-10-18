@@ -2,7 +2,9 @@
 // person in a shell or an agent (`--json` on every command). It works on the backup directory
 // directly, like the timer's `quadeck backup run`; checks and storage are the backend's.
 
-import { readFileSync } from 'node:fs'
+import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
+import { homedir } from 'node:os'
+import { dirname, join } from 'node:path'
 import { HttpError } from '~/server/auth'
 import { type BackupPlan, CLIENT_NAME, defaultPlan, parseBackupPlan, parseSecrets, REPO_SECRETS } from '~/shared/backup'
 import { type ClientPlan, parseClientPlan } from '~/shared/backup-client'
@@ -15,6 +17,9 @@ export interface BackupCliDeps {
   err: (text: string) => void
   /** A file's text; `-` is stdin. */
   read: (path: string) => string
+  /** Writes a file, creating its folder (skill install). */
+  write?: (path: string, text: string) => void
+  home?: string
 }
 
 export const BACKUP_CLI_HELP = `quadeck backup – the server backup and the clients, as root (add --json for scripts and agents)
@@ -33,13 +38,23 @@ export const BACKUP_CLI_HELP = `quadeck backup – the server backup and the cli
   quadeck backup clients                  the backup target for other computers and its clients
   quadeck backup client plan show <name>
   quadeck backup client plan set <name> -f <file|-> [--dry-run]
-  quadeck backup guide                    how an agent goes about setting up a backup
+  quadeck backup guide [--skill]          how an agent goes about setting up a backup (as a SKILL.md)
+  quadeck backup skill install [--dir <dir>]   that guide as a skill for Claude Code (no root needed;
+                                          default ~/.claude/skills/quadeck-server-backup)
 
 --secrets: KEY=value lines with the target's credentials (S3, B2, REST); stored ones stay when left out.`
 
+/** The guide as a skill: Claude Code reads the head to know when to load it. */
+export const BACKUP_CLI_SKILL_HEAD = `---
+name: quadeck-server-backup
+description: Set up or change the backup of this Quadeck server and of the computers that back up to it (restic) with \`sudo quadeck backup\` – what to back up from the containers, what to leave out, sizes, the target disk, schedule and retention, checked with a dry run before saving. Use when the person asks about backups on this server or of its clients.
+---
+
+`
+
 export const BACKUP_CLI_GUIDE = `# Setting up Quadeck backups from the command line
 
-You are on a Quadeck server, as root. Quadeck backs up the server with restic and is the backup
+You are on a Quadeck server. The commands need root: run them with \`sudo\`. Quadeck backs up the server with restic and is the backup
 target (a restic rest-server) for other computers at home. Every command takes --json.
 
 ## The server backup
@@ -90,11 +105,13 @@ interface Args {
   refresh: boolean
   file?: string
   secrets?: string
+  dir?: string
+  skill: boolean
   exclude: string[]
 }
 
 export function parseCliArgs(argv: string[]): Args {
-  const a: Args = { pos: [], json: false, dryRun: false, refresh: false, exclude: [] }
+  const a: Args = { pos: [], json: false, dryRun: false, refresh: false, skill: false, exclude: [] }
   for (let i = 0; i < argv.length; i++) {
     const x = argv[i]!
     const value = () => {
@@ -105,6 +122,8 @@ export function parseCliArgs(argv: string[]): Args {
     if (x === '--json') a.json = true
     else if (x === '--dry-run' || x === '-n') a.dryRun = true
     else if (x === '--refresh') a.refresh = true
+    else if (x === '--skill') a.skill = true
+    else if (x === '--dir') a.dir = value()
     else if (x === '-f' || x === '--file') a.file = value()
     else if (x === '--secrets') a.secrets = value()
     else if (x === '--exclude') a.exclude.push(value())
@@ -204,7 +223,7 @@ export function parseSecretsFile(text: string): Record<string, string> {
 
 /** Runs one `quadeck backup …` command; returns the exit code. */
 export async function backupCli(argv: string[], deps: BackupCliDeps): Promise<number> {
-  let a: Args = { pos: [], json: argv.includes('--json'), dryRun: false, refresh: false, exclude: [] }
+  let a: Args = { pos: [], json: argv.includes('--json'), dryRun: false, refresh: false, skill: false, exclude: [] }
   const emit = (data: unknown, text: () => string) => deps.out(a.json ? JSON.stringify(localizeDeep(data, 'en'), null, 2) : localize(text(), 'en'))
   try {
     a = parseCliArgs(argv)
@@ -216,8 +235,15 @@ export async function backupCli(argv: string[], deps: BackupCliDeps): Promise<nu
         deps.out(BACKUP_CLI_HELP)
         return 0
       case 'guide':
-        deps.out(BACKUP_CLI_GUIDE)
+        deps.out(a.skill ? BACKUP_CLI_SKILL_HEAD + BACKUP_CLI_GUIDE : BACKUP_CLI_GUIDE)
         return 0
+      case 'skill': {
+        if (sub !== 'install' || !deps.write) throw new HttpError(400, 'usage: quadeck backup skill install [--dir <dir>]')
+        const path = join(a.dir ?? join(deps.home ?? homedir(), '.claude/skills/quadeck-server-backup'), 'SKILL.md')
+        deps.write(path, BACKUP_CLI_SKILL_HEAD + BACKUP_CLI_GUIDE)
+        emit({ path }, () => `Skill written to ${path} – Claude Code uses it when you ask about backups on this server.`)
+        return 0
+      }
       case 'run':
       case 'check': {
         const fn = cmd === 'run' ? b.runBackup : b.runCheck
@@ -384,6 +410,12 @@ async function clientPlanCommand(action: string | undefined, clientName: string 
       .join('\n'),
   )
   return 0
+}
+
+/** Writes a file and its folder (for the skill). */
+export function writeOutput(path: string, text: string) {
+  mkdirSync(dirname(path), { recursive: true })
+  writeFileSync(path, text)
 }
 
 /** Reads a file, `-` for stdin. */

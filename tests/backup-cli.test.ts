@@ -145,4 +145,19 @@ describe('quadeck backup (CLI)', () => {
     expect(c.out[1]).toContain('--dry-run')
     expect(await c.run('nope')).toBe(2)
   })
+
+  it('the guide as a skill for Claude Code', async () => {
+    const c = cli()
+    expect(await c.run('guide', '--skill')).toBe(0)
+    expect(c.out[0]).toMatch(/^---\nname: quadeck-server-backup\ndescription: .+\n---\n\n# Setting up/)
+    const written: Record<string, string> = {}
+    const backup = new FixtureBackup()
+    const out: string[] = []
+    const deps = { backup, out: (t: string) => out.push(t), err: () => {}, read: () => '', write: (p: string, t: string) => (written[p] = t), home: '/home/tris' }
+    expect(await backupCli(['skill', 'install'], deps)).toBe(0)
+    expect(Object.keys(written)).toEqual(['/home/tris/.claude/skills/quadeck-server-backup/SKILL.md'])
+    expect(await backupCli(['skill', 'install', '--dir', '/x/skills/b'], deps)).toBe(0)
+    expect(written['/x/skills/b/SKILL.md']).toContain('sudo quadeck backup')
+    expect(await backupCli(['skill'], deps)).toBe(2)
+  })
 })

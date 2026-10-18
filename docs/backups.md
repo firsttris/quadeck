@@ -125,7 +125,9 @@ restic restore latest --target /tmp/restore --include /srv/immich/upload
 
 `quadeck backup …` does on the server, as root, what the page does. Every command takes `--json`,
 so a script or an AI agent can look around, suggest a plan and set it up; `quadeck backup guide`
-prints the steps for an agent.
+prints the steps for an agent. `quadeck backup skill install` writes them as a skill for Claude Code
+(`~/.claude/skills/quadeck-server-backup/SKILL.md`, no root needed): asked about backups on the
+server, Claude Code then knows the commands by itself.
 
 ```bash
 sudo quadeck backup status                 # plan, last runs, next run, repository
@@ -243,7 +245,8 @@ On the client:
 | `quadeck-backup sync` | fetch new settings from Quadeck now (also before every backup) |
 | `quadeck-backup plan show` / `plan set -f <plan.json>` | the plan as JSON / set a new one from the computer |
 | `quadeck-backup check --plan <draft.json> [--json]` | the dry run for a draft plan, without saving it |
-| `quadeck-backup guide` | the steps for an AI agent that sets up this backup with you |
+| `quadeck-backup guide [--skill]` | the steps for an AI agent that sets up this backup with you |
+| `quadeck-backup skill install` | the same as a skill for Claude Code (`~/.claude/skills/quadeck-backup`) |
 | `quadeck-backup mount [dir]` | the backups as folders under `~/Backup` (needs FUSE) |
 | `quadeck-backup restore <path> [dir]` | restore from the latest backup |
 | `quadeck-backup uninstall` | remove the timer and the command (settings and password stay) |
@@ -274,7 +277,9 @@ A disabled client gets no answer; a wrong token is refused.
 
 `quadeck-backup guide` prints the steps for an agent (Claude Code, for example) on the computer:
 look at the plan and the folders, try a draft with `check --plan`, talk it through with you, then
-`plan set`. The agent sees the folders itself and needs no access to the server.
+`plan set`. The agent sees the folders itself and needs no access to the server. With
+`quadeck-backup skill install` Claude Code finds these steps by itself when you ask it about the
+computer's backup.
 
 ### By hand
 

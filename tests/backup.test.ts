@@ -123,7 +123,7 @@ describe('restic arguments and units', () => {
       '--exclude-if-present',
       '.nobackup',
       '--exclude-larger-than',
-      '4G',
+      '4096M',
       '--',
       '/srv/app',
       '/var/lib/containers/storage/volumes/caddy-data/_data',

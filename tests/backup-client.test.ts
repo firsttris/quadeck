@@ -229,6 +229,10 @@ describe.skipIf(!hasRestic)('client script on a (sandboxed) computer', () => {
   it('talks to Quadeck: scan, new settings before a run, the run report, a plan from the client', async () => {
     const s = sandbox()
     const q = await quadeck(s.root)
+    // curl's command line, as other users would see it in ps
+    const realCurl = Bun.which('curl')!
+    writeFileSync(join(s.root, 'bin/curl'), `#!/bin/sh\nprintf '%s\\n' "$*" >> "${s.root}/curl-args"\nexec ${realCurl} "$@"\n`)
+    chmodSync(join(s.root, 'bin/curl'), 0o755)
     try {
       await q.b.setClientPlan('laptop', plan({ folders: ['~/Dokumente'] }))
       writeFileSync(join(s.root, 'setup.sh'), clientScript(input({ repo: join(s.root, 'repo'), plan: plan({ folders: ['~/Dokumente'] }), version: 1, agentToken: q.token, quadeckUrl: q.url })))
@@ -242,7 +246,8 @@ describe.skipIf(!hasRestic)('client script on a (sandboxed) computer', () => {
       expect(inv.dirs.find((d) => d.path === '~/.cache')?.marks).toEqual(['caches'])
 
       // A change in Quadeck reaches the client before its next run, without a new script.
-      await q.b.setClientPlan('laptop', plan({ folders: ['~/Dokumente', '~/Bilder'], exclude: { presets: ['caches'], patterns: [] }, schedule: { every: '6h', time: '01:30' } }))
+      // 0.5 GB: restic takes no fraction (0.5G fails), the client gets whole MiB.
+      await q.b.setClientPlan('laptop', plan({ folders: ['~/Dokumente', '~/Bilder'], exclude: { presets: ['caches'], patterns: [], maxSizeGB: 0.5 }, schedule: { every: '6h', time: '01:30' } }))
       const cmd = join(s.home, '.local/bin/quadeck-backup')
       const ran = await run([cmd, 'run'], { env: s.env, timeoutMs: 60_000 })
       expect(ran.stderr).not.toContain('quadeck-backup:')
@@ -250,6 +255,7 @@ describe.skipIf(!hasRestic)('client script on a (sandboxed) computer', () => {
       const conf = join(s.home, '.config/quadeck-backup')
       expect(readFileSync(join(conf, 'folders'), 'utf8')).toBe(`${s.home}/Dokumente\n${s.home}/Bilder\n`)
       expect(readFileSync(join(conf, 'env'), 'utf8')).toContain('QUADECK_VERSION=2')
+      expect(readFileSync(join(conf, 'env'), 'utf8')).toContain("QUADECK_FLAGS='--exclude-caches --exclude-larger-than 512M'")
       expect(readFileSync(join(s.home, '.config/systemd/user/quadeck-backup.timer'), 'utf8')).toContain('OnCalendar=*-*-* 1/6:30:00')
       const ls = (await s.restic('ls', 'latest')).stdout
       expect(ls).toContain('/Bilder/foto.jpg')
@@ -261,7 +267,8 @@ describe.skipIf(!hasRestic)('client script on a (sandboxed) computer', () => {
       // The plan as JSON, a draft tried without saving, then set from the client.
       const shown = JSON.parse((await run([cmd, 'plan', 'show'], { env: s.env })).stdout)
       expect(shown.plan.folders).toEqual(['~/Dokumente', '~/Bilder'])
-      writeFileSync(join(s.root, 'draft.json'), JSON.stringify({ ...shown.plan, folders: ['~/Bilder'], keep: { daily: 1, weekly: 0, monthly: 0 } }))
+      // The edited output of plan show, as the guide says.
+      writeFileSync(join(s.root, 'draft.json'), JSON.stringify({ ...shown, plan: { ...shown.plan, folders: ['~/Bilder'], keep: { daily: 1, weekly: 0, monthly: 0 } } }))
       const check = await run([cmd, 'check', '--plan', join(s.root, 'draft.json'), '--json'], { env: s.env, timeoutMs: 60_000 })
       expect(check.code).toBe(0)
       expect(JSON.parse(check.stdout)).toMatchObject({ files: 1 })
@@ -271,6 +278,13 @@ describe.skipIf(!hasRestic)('client script on a (sandboxed) computer', () => {
       c = await laptop(q.b)
       expect(c).toMatchObject({ version: 3, changed: { by: 'client' }, plan: { folders: ['~/Bilder'], keep: { daily: 7, weekly: 4, monthly: 12 } } }) // the retention stays Quadeck's
       expect(readFileSync(join(conf, 'folders'), 'utf8')).toBe(`${s.home}/Bilder\n`)
+      // The guide as a skill for Claude Code, in the user's own skills.
+      expect((await run([cmd, 'skill', 'install'], { env: s.env })).code).toBe(0)
+      expect(readFileSync(join(s.home, '.claude/skills/quadeck-backup/SKILL.md'), 'utf8')).toMatch(/^---\nname: quadeck-backup\ndescription: .+\n---\n\n# Setting up/)
+
+      const args = readFileSync(join(s.root, 'curl-args'), 'utf8')
+      expect(args).toContain('do=report')
+      expect(args).not.toContain(q.token)
 
       // A wrong token: the client says so and backs up with what it has.
       writeFileSync(join(conf, 'env'), readFileSync(join(conf, 'env'), 'utf8').replace(/QUADECK_TOKEN='[^']+'/, `QUADECK_TOKEN='${'x'.repeat(32)}'`))

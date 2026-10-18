@@ -4,7 +4,7 @@
 import { statSync } from 'node:fs'
 import { ensureSetupToken, PEER_HEADER, resetPassword } from './server/auth'
 import { quadletContents, SystemBackup } from './server/backup/backend'
-import { backupCli, readInput } from './server/backup/cli'
+import { backupCli, readInput, writeOutput } from './server/backup/cli'
 import { SystemBoot } from './server/boot/backend'
 import { CaddyManager, SystemCaddyHost } from './server/caddy/backend'
 import { config } from './server/config'
@@ -293,12 +293,12 @@ export async function main(argv: string[], opts: MainOptions) {
       if (argv[1] === 'run' || argv[1] === 'check')
         installNoLang() // run records stay language-neutral
       else setLangResolver(() => 'en')
-      if (argv[1] !== 'help' && argv[1] !== 'guide' && argv[1] !== undefined && process.getuid?.() !== 0) {
+      if (argv[1] !== 'help' && argv[1] !== 'guide' && argv[1] !== 'skill' && argv[1] !== undefined && process.getuid?.() !== 0) {
         console.error('quadeck backup: needs root (sudo quadeck backup …)')
         process.exit(1)
       }
       const backup = new SystemBackup({ self: selfArgv(), quadlets: quadletContents(new SystemPodmanAdmin()) })
-      const code = await backupCli(argv.slice(1), { backup, out: (t) => console.log(t), err: (t) => console.error(t), read: readInput })
+      const code = await backupCli(argv.slice(1), { backup, out: (t) => console.log(t), err: (t) => console.error(t), read: readInput, write: writeOutput })
       return process.exit(code)
     }
     case 'job':

@@ -79,7 +79,7 @@ describe('client settings and reports', () => {
       'appendonly 1',
       'preset caches',
       'preset nobackup',
-      'maxsize 2',
+      'maxsize 2048',
       'keep daily 7',
       'keep weekly 4',
       'keep monthly 12',
@@ -110,6 +110,13 @@ describe('client settings and reports', () => {
     expect(parseClientReport('start 1', now).error).toBeTruthy()
     const failed = parseClientReport(`code 1\nstart ${now / 1000 - 5}\nend ${now / 1000}\nstderr Fatal: unable to open repository`, now).run!
     expect(failed).toMatchObject({ status: 'failed', message: 'Fatal: unable to open repository' })
+    // Kept with the client and sent to every browser: no huge strings.
+    const big = parseClientReport(
+      `code 3\nstart ${now / 1000 - 5}\nend ${now / 1000}\n{"message_type":"summary","snapshot_id":"${'A'.repeat(100_000)}"}\n{"message_type":"error","error":{"message":"${'x'.repeat(100_000)}"},"item":"/a"}`,
+      now,
+    ).run!
+    expect(big.snapshot).toBeUndefined()
+    expect(big.errors[0]!.length).toBe(500)
   })
 
   it('a proposal from the client keeps the retention', () => {
@@ -117,6 +124,8 @@ describe('client settings and reports', () => {
     const p = clientProposal(JSON.stringify({ ...defaultClientPlan(), folders: ['~/x'], keep: { daily: 1, weekly: 0, monthly: 0 } }), current)
     expect(p.keep).toEqual({ daily: 30, weekly: 0, monthly: 0 })
     expect(p.folders).toEqual(['~/x'])
+    // The edited output of `quadeck-backup plan show`: { name, version, plan, appendOnly }
+    expect(clientProposal(JSON.stringify({ name: 'laptop', version: 3, plan: { ...defaultClientPlan(), folders: ['~/y'] }, appendOnly: false }), current).folders).toEqual(['~/y'])
     expect(() => clientProposal('nope', current)).toThrow()
     expect(() => clientProposal(JSON.stringify({ folders: ['../x'] }), current)).toThrow()
   })

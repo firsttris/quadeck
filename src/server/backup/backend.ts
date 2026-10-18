@@ -100,8 +100,10 @@ export function clientProposal(body: string, current: ClientPlan | undefined): C
   } catch {
     throw new HttpError(400, 'the plan is not JSON')
   }
+  // `quadeck-backup plan show` prints { name, version, plan, appendOnly }: its edited output is taken as is.
+  const o = raw && typeof raw === 'object' && 'plan' in raw && raw.plan && typeof raw.plan === 'object' ? raw.plan : raw
   const keep = (current ?? defaultClientPlan()).keep
-  const { plan, error } = parseClientPlan(raw && typeof raw === 'object' ? { ...raw, keep } : raw)
+  const { plan, error } = parseClientPlan(o && typeof o === 'object' ? { ...o, keep } : o)
   if (!plan) throw new HttpError(400, error!)
   return plan
 }

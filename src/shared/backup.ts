@@ -270,6 +270,9 @@ export function excludeFile(plan: BackupPlan): string {
   return `${lines.join('\n')}\n`
 }
 
+/** restic's size for --exclude-larger-than: whole MiB (restic refuses a fraction like 1.5G). */
+export const sizeArg = (gb: number) => `${Math.max(1, Math.round(gb * 1024))}M`
+
 /** `restic backup` arguments after the command (paths already resolved). */
 export function backupArgs(plan: BackupPlan, excludeFilePath: string, paths: string[]): string[] {
   return [
@@ -280,7 +283,7 @@ export function backupArgs(plan: BackupPlan, excludeFilePath: string, paths: str
     excludeFilePath,
     ...(plan.exclude.presets.includes('caches') ? ['--exclude-caches'] : []),
     ...(plan.exclude.presets.includes('nobackup') ? ['--exclude-if-present', '.nobackup'] : []),
-    ...(plan.exclude.maxSizeGB ? ['--exclude-larger-than', `${plan.exclude.maxSizeGB}G`] : []),
+    ...(plan.exclude.maxSizeGB ? ['--exclude-larger-than', sizeArg(plan.exclude.maxSizeGB)] : []),
     '--',
     ...paths,
   ]

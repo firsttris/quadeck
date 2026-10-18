@@ -4,7 +4,7 @@
 // Line formats, because the client is POSIX sh. No I/O here.
 
 import type { BackupRun, FolderListing } from './backup'
-import { backupRunFrom } from './backup'
+import { backupRunFrom, sizeArg } from './backup'
 import { type ClientPlan, type ClientPreset, clientCalendar, clientExcludes, folderProblem } from './backup-client'
 
 /**
@@ -167,7 +167,7 @@ export function clientSettings(plan: ClientPlan, version: number, appendOnly: bo
     `calendar ${clientCalendar(plan.schedule)}`,
     `appendonly ${appendOnly ? 1 : 0}`,
     ...plan.exclude.presets.map((p) => `preset ${p}`),
-    ...(plan.exclude.maxSizeGB ? [`maxsize ${plan.exclude.maxSizeGB}`] : []),
+    ...(plan.exclude.maxSizeGB ? [`maxsize ${sizeArg(plan.exclude.maxSizeGB).slice(0, -1)}`] : []), // MiB
     ...(['daily', 'weekly', 'monthly', 'yearly'] as const).filter((r) => k[r]).map((r) => `keep ${r} ${k[r]}`),
     ...plan.folders.map((f) => `folder ${f}`),
     ...clientExcludes(plan)
@@ -197,5 +197,9 @@ export function parseClientReport(text: string, now = Date.now()): { run?: Backu
   const end = head.end * 1000
   if (end < start || end > now + 86_400_000 || start < now - 30 * 86_400_000) return { error: 'times out of range' }
   const run = backupRunFrom(head.code, json.join('\n'), stderr.slice(-20).join('\n'), start, end)
+  // Stored with the client and sent to every browser: only what fits the record.
+  if (run.snapshot !== undefined && !/^[0-9a-f]{8,64}$/.test(run.snapshot)) delete run.snapshot
+  run.errors = run.errors.slice(0, 20).map((e) => e.slice(0, 500))
+  if (run.message) run.message = run.message.slice(0, 500)
   return { run, ...(head.version !== undefined ? { version: head.version } : {}) }
 }
