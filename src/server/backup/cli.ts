@@ -6,7 +6,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { HttpError } from '~/server/auth'
-import { type BackupClient, type BackupPlan, CLIENT_NAME, clientConnected, clientOnline, defaultPlan, parseBackupPlan, parseSecrets, REPO_SECRETS } from '~/shared/backup'
+import { type BackupClient, type BackupPlan, backupActive, CLIENT_NAME, clientConnected, clientOnline, defaultPlan, holdsRepo, parseBackupPlan, parseSecrets, REPO_SECRETS } from '~/shared/backup'
 import { type ClientPlan, parseClientPlan } from '~/shared/backup-client'
 import { localize, localizeDeep } from '~/shared/i18n'
 import type { BackupBackend } from './backend'
@@ -24,16 +24,18 @@ export interface BackupCliDeps {
 
 export const BACKUP_CLI_HELP = `quadeck backup – the server backup and the clients, as root (add --json for scripts and agents)
 
-  quadeck backup status [--refresh]       plan, last runs, next run, repository (--refresh: read the snapshots now)
+  quadeck backup status [--refresh]       plan, last runs, next run, repository (--refresh: read the snapshots now);
+                                          "active": false while only the target is set up (no folders yet)
   quadeck backup snapshots [--refresh]    the snapshots in the repository
   quadeck backup suggest                  folders, exclusions and units the Quadlets suggest, with the reasons
   quadeck backup dirs <path>              sub-folders of a folder, the disk it is on and its free space
   quadeck backup sizes <path>… [--exclude <path>]…   size of folders (du)
   quadeck backup plan show                the plan as JSON
-  quadeck backup plan draft               a new plan from the suggestions (to edit and set)
+  quadeck backup plan draft               a plan with the folders the Quadlets suggest (and the current target), to edit and set
   quadeck backup plan set -f <file|-> [--secrets <file>] [--dry-run]
                                           check a plan, show what changes; without --dry-run save it
-                                          (creates or opens the repository, writes the timer)
+                                          (creates or opens the repository, writes the timer – none
+                                          while "paths" is empty: then only the target is set up)
   quadeck backup run | check              back up now / check the repository (what the timers run)
   quadeck backup clients                  the backup target for other computers and its clients (plan, online, waiting)
   quadeck backup client plan show <name>
@@ -59,21 +61,30 @@ target (a restic rest-server) for other computers at home. Every command takes -
 
 ## The server backup
 
+The target comes first, the plan afterwards: **Set up backup …** on the Backups page asks only
+where to (and creates or opens the repository); what to back up and when is set later, on the page
+(**Choose**) or here with \`plan set\`. A plan without folders is that state: the target is set up,
+nothing is backed up and no timer runs (\`status --json\` says \`"active": false\`).
+
 1. Look at what there is:
-   - \`quadeck backup status --json\`: is there a plan, how did the last runs go.
-   - \`quadeck backup suggest --json\`: folders of the containers (from the Quadlets). \`checked\`
-     is the suggestion; \`reason\` says why one is not checked: \`broad\` (a whole disk or home),
-     \`contains\` (holds folders of other containers), \`media\` (movies, music, downloads: big and
-     usually replaceable). \`readOnly\` folders are mounted read-only (a library). \`excludes\` are
-     folders an app rebuilds by itself (caches, thumbnails).
+   - \`quadeck backup status --json\`: is there a plan, is it active (has folders), how did the last
+     runs go. "Target set up, no folders yet" means: write a plan with folders and \`plan set\` it.
+   - \`quadeck backup suggest --json\`: folders of the containers (from the Quadlets) as suggestions
+     – the page does not offer them, you do. \`checked\` is the suggestion; \`reason\` says why one
+     is not checked: \`broad\` (a whole disk or home), \`contains\` (holds folders of other
+     containers), \`media\` (movies, music, downloads: big and usually replaceable). \`readOnly\`
+     folders are mounted read-only (a library). \`excludes\` are folders an app rebuilds by itself
+     (caches, thumbnails): put the ones under folders you keep into \`exclude.dirs\`.
 2. Look closer where it is unclear: \`quadeck backup dirs /srv --json\`, \`quadeck backup sizes
    /srv/app/data --exclude /srv/app/data/cache --json\`.
-3. Write a plan: start from \`quadeck backup plan draft --json\` (or \`plan show\` to change the
-   current one) and edit it. Fields:
+3. Write a plan: start from \`quadeck backup plan draft --json\` (the suggested folders, with the
+   current target if there is one) or \`plan show\` to change the current one, and edit it. Fields:
    - \`repo\`: \`{ "kind": "local", "location": "/mnt/backup/restic" }\` (also sftp, s3, b2, rest).
-     A local target must not be inside a backed-up folder, nor the other way round, and should be
-     on another disk (\`dirs <target> --json\` shows the disk).
-   - \`paths\`: absolute folders, or \`volume:<name>\` for a podman volume. At most 50.
+     A local target should be on another disk (\`dirs <target> --json\` shows the disk). A folder
+     inside the target is refused; a folder that holds the target is fine – the target is left
+     out by itself (it is added to \`exclude.dirs\`).
+   - \`paths\`: absolute folders, or \`volume:<name>\` for a podman volume. At most 50. Empty: only
+     the target, no timer.
    - \`exclude\`: \`presets\` (caches, temp, logs, nobackup), \`dirs\` (absolute folders),
      \`patterns\` (restic patterns like \`*.iso\`, \`**/node_modules\`), \`maxSizeGB\` (optional).
    - \`schedule\`: \`{ "every": "daily" | "6h" | "weekly", "time": "02:00" }\`.
@@ -276,12 +287,20 @@ export async function backupCli(argv: string[], deps: BackupCliDeps): Promise<nu
       }
       case 'status': {
         const s = await b.backupState(a.refresh)
-        emit(s, () => {
+        emit(s.plan ? { ...s, active: backupActive(s.plan) } : s, () => {
           const lines = [`restic: ${s.installed ? (s.version ?? 'installed') : 'not installed'}`]
           if (!s.plan) return [...lines, 'No backup set up yet. Start with: quadeck backup guide'].join('\n')
+          const target = `target:    ${s.plan.repo.kind === 'local' ? s.plan.repo.location : `${s.plan.repo.kind}:${s.plan.repo.location}`}${s.target ? ` (${human(s.target.free)} free)` : ''}`
+          if (!backupActive(s.plan))
+            return [
+              ...lines,
+              target,
+              'folders:   none yet – not active, nothing is backed up and no timer runs',
+              'Target set up, no folders yet → write a plan with folders and set it: quadeck backup plan draft > plan.json, edit, quadeck backup plan set -f plan.json --dry-run (how: quadeck backup guide)',
+            ].join('\n')
           const last = s.runs.find((r) => r.kind === 'backup')
           lines.push(
-            `target:    ${s.plan.repo.kind === 'local' ? s.plan.repo.location : `${s.plan.repo.kind}:${s.plan.repo.location}`}${s.target ? ` (${human(s.target.free)} free)` : ''}`,
+            target,
             `folders:   ${s.plan.paths.join(', ')}`,
             `schedule:  ${s.plan.schedule.every} ${s.plan.schedule.time}, next ${when(s.next)}${s.running ? ` – running: ${s.running}` : ''}`,
             `last run:  ${last ? `${when(last.startedAt)} ${last.status}${last.message ? ` – ${last.message}` : ''}` : 'never'}`,
@@ -361,7 +380,8 @@ async function planCommand(sub: string | undefined, a: Args, deps: BackupCliDeps
     return 0
   }
   if (sub === 'draft') {
-    const draft = defaultPlan(await b.backupSuggest())
+    // The suggested folders, at the target that is set up already (if any).
+    const draft = { ...defaultPlan(await b.backupSuggest()), ...(current ? { repo: current.repo, passwordSaved: current.passwordSaved } : {}) }
     emit(draft, () => JSON.stringify(draft, null, 2))
     return 0
   }
@@ -382,6 +402,8 @@ async function planCommand(sub: string | undefined, a: Args, deps: BackupCliDeps
   const total = sizes?.paths.reduce((n, p) => n + (p.bytes ?? 0), 0)
   const excluded = sizes?.excludes.reduce((n, p) => n + (p.bytes ?? 0), 0)
   const warnings = [
+    ...(!backupActive(plan) ? ['no folders: only the target is set up – nothing is backed up and no timer runs until the plan has folders'] : []),
+    ...plan.paths.filter((p) => holdsRepo(p, plan.repo)).map((p) => `${p} holds the target: the target is left out (exclude.dirs)`),
     ...(target?.sameDisk.length ? [`the target is on the same disk as ${target.sameDisk.join(', ')}: if the disk fails, data and backup are both gone`] : []),
     ...(target?.missing && target.path !== plan.repo.location.slice(0, plan.repo.location.lastIndexOf('/')) ? [`${target.path} is the closest folder that exists – is the disk mounted?`] : []),
     ...(sizes?.paths.filter((p) => p.bytes === undefined).map((p) => `${p.path} does not exist (yet)`) ?? []),

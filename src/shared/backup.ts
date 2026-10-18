@@ -39,7 +39,7 @@ export interface BackupPlan {
   paths: string[]
   exclude: {
     presets: ExcludePreset[]
-    /** Concrete directories (e.g. a Jellyfin cache), offered from the Quadlets. */
+    /** Concrete directories chosen to leave out, and the local target when a chosen folder holds it. */
     dirs: string[]
     /** restic patterns, one per line. */
     patterns: string[]
@@ -180,6 +180,24 @@ export function repoProblem(kind: RepoKind, location: string): string | undefine
   }
 }
 
+/**
+ * What keeps a chosen folder out of the plan, shown at the folder: not a usable path, or it is the
+ * local target or lies inside it. A folder that holds the target is fine: the target is left out.
+ */
+export function backupPathProblem(p: unknown, repo: BackupPlan['repo']): string | undefined {
+  if (typeof p === 'string' && VOLUME_PATH.test(p)) return undefined
+  const pr = absPathProblem(p)
+  if (pr) return pr
+  if (repo.kind === 'local' && repo.location && inside(p as string, repo.location)) return msg(m.backup_error_insideRepo, { path: p as string })
+  return undefined
+}
+
+/** The chosen folder holds the local target, which the plan then leaves out (exclude.dirs). */
+export const holdsRepo = (p: string, repo: BackupPlan['repo']) => repo.kind === 'local' && !!repo.location && p.startsWith('/') && p !== repo.location && inside(repo.location, p)
+
+/** A plan with folders runs on its schedule; without any (only the target set up so far) no timer runs. */
+export const backupActive = (plan: Pick<BackupPlan, 'paths'>) => plan.paths.length > 0
+
 /** The plan from the web app, checked. Everything that ends up in a unit or a restic argument passes here. */
 export function parseBackupPlan(v: unknown): { plan?: BackupPlan; error?: string } {
   const o = (v && typeof v === 'object' ? v : {}) as Record<string, unknown>
@@ -190,17 +208,12 @@ export function parseBackupPlan(v: unknown): { plan?: BackupPlan; error?: string
   const rp = repoProblem(kind, location)
   if (rp) return { error: rp }
 
+  // No folders is a plan too: only the target is set up so far, and no timer runs (backupActive).
   const paths = Array.isArray(o.paths) ? [...new Set(o.paths as unknown[])] : []
-  if (!paths.length) return { error: msg(m.backup_error_noPaths) }
   if (paths.length > 50) return { error: msg(m.backup_error_tooMany) }
   for (const p of paths) {
-    if (typeof p === 'string' && VOLUME_PATH.test(p)) continue
-    const pr = absPathProblem(p)
+    const pr = backupPathProblem(p, { kind, location })
     if (pr) return { error: pr }
-  }
-  if (kind === 'local') {
-    const clash = (paths as string[]).find((p) => p.startsWith('/') && (inside(location, p) || inside(p, location)))
-    if (clash) return { error: msg(m.backup_error_repoInside, { path: clash }) }
   }
 
   const ex = (o.exclude && typeof o.exclude === 'object' ? o.exclude : {}) as Record<string, unknown>
@@ -211,6 +224,8 @@ export function parseBackupPlan(v: unknown): { plan?: BackupPlan; error?: string
     const pr = absPathProblem(d)
     if (pr) return { error: pr }
   }
+  // A chosen folder holds the local target: restic must not back up its own repository.
+  if ((paths as string[]).some((p) => holdsRepo(p, { kind, location })) && !dirs.includes(location)) dirs.push(location)
   const patterns = (Array.isArray(ex.patterns) ? ex.patterns : []).map((x) => (typeof x === 'string' ? x.trim() : '')).filter(Boolean)
   if (patterns.length > 200 || patterns.some((x) => x.length > 300 || CTRL.test(x))) return { error: msg(m.backup_error_pattern) }
   let maxSizeGB: number | undefined
@@ -461,12 +476,15 @@ export function suggestBackup(files: { name: string; content: string }[]): Backu
   return { paths, excludes, stop }
 }
 
-/** The plan the setup dialog starts with. */
-export function defaultPlan(s: BackupSuggestion): BackupPlan {
+/**
+ * The plan the setup starts with: only a target, no folders yet. With suggestions (`quadeck backup
+ * plan draft` for agents) the suggested folders; excluded folders stay the ones chosen by hand.
+ */
+export function defaultPlan(s?: BackupSuggestion): BackupPlan {
   return {
     repo: { kind: 'local', location: '' },
-    paths: s.paths.filter((p) => p.checked).map((p) => p.path),
-    exclude: { presets: [...DEFAULT_PRESETS], dirs: s.excludes.map((e) => e.path), patterns: [] },
+    paths: s ? s.paths.filter((p) => p.checked).map((p) => p.path) : [],
+    exclude: { presets: [...DEFAULT_PRESETS], dirs: [], patterns: [] },
     stop: [],
     schedule: { every: 'daily', time: '02:00' },
     keep: { ...RETENTION_PRESETS.year },
@@ -577,7 +595,7 @@ export function parseLs(stdout: string, dir: string): LsEntry[] {
 
 /** Alert for the notifications: the last backup failed, or none succeeded for `days`. */
 export function backupAlert(state: Pick<BackupState, 'plan' | 'runs'>, days: number, now = Date.now()): string | undefined {
-  if (!state.plan) return undefined
+  if (!state.plan || !backupActive(state.plan)) return undefined
   const backups = state.runs.filter((r) => r.kind === 'backup')
   const last = backups[0]
   if (last?.status === 'failed') return msg(m.backup_alert_failed, { message: last.message ?? '' })

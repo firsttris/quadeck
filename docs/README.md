@@ -15,7 +15,7 @@ Also as a website with search: **https://firsttris.github.io/quadeck/**
 | [Hardware](hardware.md) | CPU, memory slots, GPUs, USB paths, sensors, PCIe and SATA links, warnings |
 | [Users](users.md) | accounts, groups, passwords, lock, Samba password, keys, login history, lock-out guard |
 | [Disks and files](disks.md) | SMART verdicts and advice, history, self-tests, usage and trend per disk, energy saving, fstab configurator and its checks, file explorer with two panes and archives, data areas |
-| [Backups](backups.md) | restic: the setup wizard with its folder browser, targets, what is suggested from the Quadlets, exclusions, schedule and retention, the password, browsing and restoring; the rest-server as backup target for clients |
+| [Backups](backups.md) | restic: the target first, then what and when (folder browser, exclusions), schedule and retention, the password, browsing and restoring; the rest-server as backup target for clients |
 | [Shares](shares.md) | SMB shares, NFS exports, services, what is checked, what is never touched |
 | [SSH](ssh.md) | keys, hardening, lock-out guard, logins, connecting a new device |
 | [Terminal](terminal.md) | shell on the server and in containers in the browser, off by default, home network only, what is logged |

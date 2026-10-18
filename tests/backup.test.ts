@@ -7,8 +7,10 @@ import { run } from '~/server/exec'
 import { parseJobSpec } from '~/server/packages/job'
 import {
   type BackupPlan,
+  backupActive,
   backupAlert,
   backupArgs,
+  backupPathProblem,
   backupRunFrom,
   backupUnits,
   checkCalendar,
@@ -69,10 +71,9 @@ describe('parseBackupPlan', () => {
     ['dot-dot', { paths: ['/srv/../etc'] }],
     ['trailing slash', { paths: ['/srv/app/'] }],
     ['control character', { paths: ['/srv/a\nb'] }],
-    ['no paths', { paths: [] }],
     ['bad volume name', { paths: ['volume:-rf'] }],
-    ['repo inside a source', { repo: { kind: 'local', location: '/srv/app/backup' } }],
     ['source inside the repo', { repo: { kind: 'local', location: '/srv' } }],
+    ['source is the repo', { repo: { kind: 'local', location: '/srv/app' } }],
     ['relative repo', { repo: { kind: 'local', location: 'backup' } }],
     ['repo with spaces', { repo: { kind: 'sftp', location: 'nas:/a b' } }],
     ['unknown repo kind', { repo: { kind: 'ftp', location: 'x' } }],
@@ -91,6 +92,35 @@ describe('parseBackupPlan', () => {
     ['size limit zero', { exclude: { presets: [], dirs: [], patterns: [], maxSizeGB: 0 } }],
   ])('refuses %s', (_name, over) => {
     expect(parseBackupPlan({ ...plan(), ...over }).error).toBeTruthy()
+  })
+
+  it('a plan without folders is only the target: valid, not active', () => {
+    const { plan: p, error } = parseBackupPlan({ ...plan(), paths: [] })
+    expect(error).toBeUndefined()
+    expect(p!.paths).toEqual([])
+    expect(backupActive(p!)).toBe(false)
+    expect(backupActive(plan())).toBe(true)
+    // What the setup saves first: a target, no folders, the defaults for the rest.
+    const first = { ...defaultPlan(), repo: { kind: 'local' as const, location: '/mnt/backup/restic' } }
+    expect(first.paths).toEqual([])
+    expect(first.exclude.dirs).toEqual([])
+    expect(parseBackupPlan(first).plan).toMatchObject({ paths: [], schedule: { every: 'daily', time: '02:00' }, keep: RETENTION_PRESETS.year })
+  })
+
+  it('a chosen folder that holds the local target leaves the target out; a folder inside it is refused', () => {
+    const p = parseBackupPlan(plan({ repo: { kind: 'local', location: '/srv/app/backup' } })).plan!
+    expect(p.exclude.dirs).toEqual(['/srv/app/cache', '/srv/app/backup'])
+    expect(excludeFile(p)).toContain('\n/srv/app/backup\n')
+    // Saved again: not twice.
+    expect(parseBackupPlan(p).plan!.exclude.dirs).toEqual(['/srv/app/cache', '/srv/app/backup'])
+    // Shown at the folder.
+    const repo = { kind: 'local' as const, location: '/srv/app/backup' }
+    expect(backupPathProblem('/srv/app', repo)).toBeUndefined()
+    expect(backupPathProblem('/srv/app/backup/x', repo)).toMatch(/\/srv\/app\/backup\/x/)
+    expect(backupPathProblem('/srv/app/backup', repo)).toBeTruthy()
+    expect(backupPathProblem('/srv/../etc', repo)).toBeTruthy()
+    expect(backupPathProblem('volume:caddy-data', repo)).toBeUndefined()
+    expect(backupPathProblem('/srv/app/backup/x', { kind: 'sftp', location: 'nas:/srv/app/backup' })).toBeUndefined()
   })
 
   it('takes the target forms restic knows', () => {
@@ -187,6 +217,7 @@ describe('suggestions from the Quadlets', () => {
     expect(s.stop.filter((x) => x.database).map((x) => x.unit)).toEqual(['immich-db.service'])
     const d = defaultPlan(s)
     expect(d.stop).toEqual([]) // no container is stopped any more
+    expect(d.exclude.dirs).toEqual([]) // excluded folders are only the chosen ones
     expect(d.keep).toEqual({ daily: 7, weekly: 4, monthly: 12 })
     expect(d.paths).not.toContain('/mnt/storage/media')
     expect(parseBackupPlan({ ...d, repo: { kind: 'local', location: '/mnt/backup/restic' } }).error).toBeUndefined()
@@ -325,6 +356,8 @@ describe('restic output', () => {
     expect(backupAlert({ plan: plan(), runs: [{ ...ok, status: 'failed', message: 'disk gone' }, ok] }, 2, now)).toContain('disk gone')
     expect(backupAlert({ plan: plan(), runs: [{ ...ok, kind: 'check', status: 'failed' }, ok] }, 2, now)).toBeUndefined()
     expect(backupAlert({ plan: undefined, runs: [] }, 2, now)).toBeUndefined()
+    // Only the target set up: nothing runs, nothing to warn about.
+    expect(backupAlert({ plan: plan({ paths: [] }), runs: [{ ...ok, status: 'failed', message: 'old' }] }, 2, now)).toBeUndefined()
   })
 })
 
@@ -441,6 +474,31 @@ describe.skipIf(!hasRestic)('SystemBackup with restic', () => {
 
     expect((await b.runCheck()).status).toBe('ok')
   }, 120_000)
+
+  it('the target first: the repository without folders and without a timer, then the plan', async () => {
+    const { root, unitDir, calls, b, p } = setup()
+    await b.saveBackupPlan({ ...p, paths: [], exclude: { ...p.exclude, dirs: [] }, stop: [] }, {})
+    expect(existsSync(join(root, 'repo/config'))).toBe(true)
+    expect(existsSync(join(unitDir, 'quadeck-backup.timer'))).toBe(false)
+    expect(calls.filter((c) => c.includes('enable'))).toEqual([])
+    const st = await b.backupState()
+    expect(st.plan?.paths).toEqual([])
+    expect(st.next).toBeUndefined()
+    await expect(b.startBackup('backup')).rejects.toMatchObject({ status: 409 })
+    const r = await b.runBackup()
+    expect(r.status).toBe('failed')
+    expect((await b.backupState()).runs).toEqual([]) // not recorded: there was nothing to do
+    // Folders chosen: the units and the timer come.
+    calls.length = 0
+    await b.saveBackupPlan(p, {})
+    expect(readFileSync(join(unitDir, 'quadeck-backup.timer'), 'utf8')).toContain('OnCalendar=')
+    expect(calls).toContain('systemctl enable --now quadeck-backup.timer')
+    // And without them again: gone.
+    calls.length = 0
+    await b.saveBackupPlan({ ...p, paths: [] }, {})
+    expect(existsSync(join(unitDir, 'quadeck-backup.timer'))).toBe(false)
+    expect(calls).toContain('systemctl disable --now quadeck-backup.timer')
+  }, 60_000)
 
   it('never creates a new repository over one it cannot open (wrong password)', async () => {
     const { root, dir, b, p } = setup()

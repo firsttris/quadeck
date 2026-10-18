@@ -23,6 +23,7 @@ import {
   type BackupSnapshot,
   type BackupState,
   type BackupSuggestion,
+  backupActive,
   backupArgs,
   backupRunFrom,
   backupUnits,
@@ -530,7 +531,10 @@ export class SystemBackup implements BackupBackend {
 
     writePrivate(this.file('plan.json'), JSON.stringify(plan, null, 2))
     writePrivate(this.file('excludes'), excludeFile(plan))
-    for (const [name, content] of Object.entries(backupUnits(plan, this.self, this.dir))) {
+    // Without folders only the target is set up: no units and no timer until there is something to back up.
+    const active = backupActive(plan)
+    const units = active ? backupUnits(plan, this.self, this.dir) : { [BACKUP_UNIT]: null, [BACKUP_TIMER]: null, [CHECK_UNIT]: null, [CHECK_TIMER]: null }
+    for (const [name, content] of Object.entries(units)) {
       const path = join(this.unitDir, name)
       if (content === null) {
         if (existsSync(path)) {
@@ -540,6 +544,7 @@ export class SystemBackup implements BackupBackend {
       } else writeFileAtomic(path, content)
     }
     await this.systemctl('daemon-reload')
+    if (!active) return this.backupState()
     const en = await this.systemctl('enable', '--now', BACKUP_TIMER)
     if (en.code !== 0) throw new HttpError(500, en.stderr.trim())
     if (plan.check !== 'never') await this.systemctl('enable', '--now', CHECK_TIMER)
@@ -562,7 +567,8 @@ export class SystemBackup implements BackupBackend {
 
   async startBackup(kind: 'backup' | 'check') {
     const plan = this.requirePlan()
-    if (kind === 'check' && plan.check === 'never') {
+    if (kind === 'backup' && !backupActive(plan)) throw new HttpError(409, msg(m.backup_error_noFolders))
+    if (kind === 'check' && (plan.check === 'never' || !backupActive(plan))) {
       // No unit for it: a one-off run of the same command.
       const r = await this.exec(
         ['systemd-run', '--unit=quadeck-backup-check-once', '--collect', '--quiet', '--description=Quadeck: check the backup repository (restic)', '--', ...this.self, 'backup', 'check'],
@@ -858,6 +864,12 @@ export class SystemBackup implements BackupBackend {
     }
     if (!plan) return fail(msg(m.backup_error_notConfigured))
     if (!this.installed()) return fail(msg(m.backup_error_notInstalled))
+    if (!backupActive(plan)) {
+      // Only the target so far: nothing to do, and no failed run to warn about.
+      const message = msg(m.backup_error_noFolders)
+      this.log(message)
+      return { kind: 'backup', startedAt, endedAt: Date.now(), status: 'failed', errors: [], message }
+    }
     const paths: string[] = []
     for (const p of plan.paths) {
       const real = await this.resolvePath(p)
@@ -1147,8 +1159,8 @@ export class FixtureBackup implements BackupBackend {
       ...(this.plan ? { plan: structuredClone(this.plan) } : {}),
       secretsSet: [...this.secrets],
       ...(this.running ? { running: this.running } : {}),
-      next: this.plan ? new Date(new Date().setHours(26, 0, 0, 0)).getTime() : undefined,
-      nextCheck: this.plan && this.plan.check !== 'never' ? Date.now() + 21 * DAY : undefined,
+      next: this.plan && backupActive(this.plan) ? new Date(new Date().setHours(26, 0, 0, 0)).getTime() : undefined,
+      nextCheck: this.plan && backupActive(this.plan) && this.plan.check !== 'never' ? Date.now() + 21 * DAY : undefined,
       runs: this.runs.slice(0, 30),
       snapshots: this.plan ? this.snapshots : [],
       snapshotsAt: Date.now(),
@@ -1242,6 +1254,7 @@ export class FixtureBackup implements BackupBackend {
 
   async startBackup(kind: 'backup' | 'check') {
     if (!this.plan) throw new HttpError(409, msg(m.backup_error_notConfigured))
+    if (kind === 'backup' && !backupActive(this.plan)) throw new HttpError(409, msg(m.backup_error_noFolders))
     this.running = kind
     setTimeout(() => {
       this.running = undefined
