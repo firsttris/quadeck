@@ -31,6 +31,7 @@ import {
   retentionPreset,
   staleClients,
   suggestBackup,
+  targetHost,
   targetQuadlet,
 } from '~/shared/backup'
 import { defaultClientPlan } from '~/shared/backup-client'
@@ -513,6 +514,13 @@ describe('backup target for clients', () => {
     expect(targetQuadlet({ ...cfg, appendOnly: false })).toContain('Environment=OPTIONS="--private-repos"\n')
     expect(lintQuadlet(q, 'container').filter((d) => d.severity === 'error')).toEqual([])
     expect(clientRepo(cfg, 'laptop')).toBe('rest:http://nas.lan:8000/laptop/')
+  })
+
+  it('suggests the browser hostname for the client address', () => {
+    expect(targetHost('quadeck.home', 'XenonE3-6500XT')).toBe('quadeck.home')
+    expect(targetHost('192.168.1.5', 'nas')).toBe('192.168.1.5')
+    for (const bad of ['', 'localhost', '127.0.0.1', '::1', '[::1]', 'fe80::1']) expect(targetHost(bad, 'nas')).toBe('nas')
+    expect(targetHost('localhost', '')).toBe('server')
   })
 
   it('warn days and changes from the browser', () => {

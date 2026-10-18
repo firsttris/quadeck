@@ -650,6 +650,12 @@ export function parseTargetConfig(v: unknown): { config?: TargetConfig; error?: 
   return { config: { dataDir, port, appendOnly: o.appendOnly === true, url } }
 }
 
+/** Host for the suggested client address: the name the browser uses for Quadeck, else the server's hostname. Skips loopback and names the URL check above rejects (IPv6). */
+export function targetHost(browser: string, server: string): string {
+  const ok = (h: string) => /^[A-Za-z0-9.-]+$/.test(h) && h !== 'localhost' && !/^127\./.test(h)
+  return [browser, server].find(ok) ?? 'server'
+}
+
 /** The Quadlet for the rest-server: one container for all clients, a folder per client. */
 export function targetQuadlet(c: TargetConfig): string {
   const options = ['--private-repos', ...(c.appendOnly ? ['--append-only'] : [])].join(' ')
