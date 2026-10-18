@@ -136,6 +136,10 @@ export interface FolderListing {
   disk?: { mount: string; size: number; free: number }
   /** Of the paths compared with: those on the same file system as this folder. */
   sameDisk: string[]
+  /** A client's scan: the size of sub-folders, what they are (caches, dev …), and when it was taken. */
+  sizes?: Record<string, number>
+  marks?: Record<string, string[]>
+  scannedAt?: number
 }
 
 export interface BackupSizes {
@@ -612,8 +616,16 @@ export interface BackupClient {
   plan?: import('./backup-client').ClientPlan
   /** Raised with every change of the plan. */
   version?: number
-  /** The settings version the client last fetched with its script. */
+  /** The settings version the client last fetched (with its script, or by itself before a run). */
   applied?: { version: number; at: number }
+  /** The client talks to Quadeck by itself (its script is new enough): scan, settings, reports. */
+  agent?: boolean
+  /** Who changed the plan last: in Quadeck, or the client (`quadeck-backup plan set`). */
+  changed?: { by: 'quadeck' | 'client'; at: number }
+  /** The client's own reports of its last runs, newest first. */
+  runs?: BackupRun[]
+  /** When the client last sent the folders it has (`quadeck-backup scan`). */
+  scannedAt?: number
 }
 
 export interface TargetState {

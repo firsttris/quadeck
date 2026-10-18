@@ -2,6 +2,7 @@ import { existsSync } from 'node:fs'
 import { hostname, userInfo } from 'node:os'
 import { m } from '~/paraglide/messages'
 import { type BackupPlan, TARGET_QUADLET, type TargetConfig } from '~/shared/backup'
+import type { AgentKind } from '~/shared/backup-agent'
 import type { ClientPlan } from '~/shared/backup-client'
 import type { BootEntryChange } from '~/shared/boot'
 import type { CaddyChange } from '~/shared/caddy'
@@ -736,6 +737,12 @@ export class LocalPrivileged implements Privileged {
   async backupClientLink(token: string | undefined, name: string, quadeckUrl: string) {
     this.gate.check(token)
     return this.backup.clientLink(name, quadeckUrl)
+  }
+  backupAgent(name: string, token: string, kind: AgentKind, body: string) {
+    return this.backup.clientAgent(name, token, kind, body)
+  }
+  backupInventory(name: string) {
+    return this.backup.clientInventory(name)
   }
   redeemBackupClientLink(linkToken: string) {
     return this.backup.redeemClientLink(linkToken)

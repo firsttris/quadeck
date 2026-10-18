@@ -44,7 +44,7 @@ export const defaultClientPlan = (): ClientPlan => ({
 const CTRL = /[\x00-\x1f\x7f]/
 
 /** `~`, `~/a/b` or `/a/b`: no empty, `.` or `..` segments, no trailing slash, not `/` itself. */
-function folderProblem(f: unknown): string | undefined {
+export function folderProblem(f: unknown): string | undefined {
   if (typeof f !== 'string' || f.length > 1024 || CTRL.test(f)) return msg(m.backup_error_path, { path: String(f) })
   if (f === '~') return undefined
   const rest = f.startsWith('~/') ? f.slice(2) : f.startsWith('/') ? f.slice(1) : undefined
@@ -103,8 +103,10 @@ export interface ScriptInput {
   plan: ClientPlan
   /** Settings version the script carries (shown on the client and in Quadeck). */
   version: number
-  /** Where `quadeck-backup update` points to. */
+  /** Where `quadeck-backup update` points to, and where the client talks to Quadeck. */
   quadeckUrl: string
+  /** The client's token for /api/backup/agent/<name> (renewed with every script). */
+  agentToken?: string
 }
 
 /** What kind of exclusion a rule is, for the label next to it. */
@@ -285,6 +287,7 @@ function envFile(i: ScriptInput, flags: string): string {
     `QUADECK_NAME=${sq(i.name)}`,
     `QUADECK_VERSION=${i.version}`,
     `QUADECK_URL=${sq(i.quadeckUrl)}`,
+    ...(i.agentToken ? [`QUADECK_TOKEN=${sq(i.agentToken)}`] : []),
     `QUADECK_APPEND_ONLY=${i.appendOnly ? 1 : 0}`,
     `QUADECK_FLAGS=${sq(flags)}`,
     `QUADECK_FORGET=${sq(clientForgetArgs(i.plan))}`,
