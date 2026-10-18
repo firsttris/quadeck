@@ -3992,6 +3992,7 @@
   "backup_log_initialised": "Repository created: {repo}",
   "backup_log_skipped": "{path} does not exist, skipped",
   "backup_error_clientName": "Invalid name: lowercase letters, digits and dashes, at most 63 characters",
+  "backup_error_clientNoPlan": "{name} has no plan yet: choose what and when to back up first.",
   "backup_error_clientUnknown": "There is no client {name}",
   "backup_error_clientExists": "Client {name} already exists",
   "backup_error_noTarget": "The backup target for clients is not set up",

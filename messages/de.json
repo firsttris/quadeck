@@ -3992,6 +3992,7 @@
   "backup_log_initialised": "Repository angelegt: {repo}",
   "backup_log_skipped": "{path} existiert nicht, übersprungen",
   "backup_error_clientName": "Ungültiger Name: Kleinbuchstaben, Ziffern und Bindestriche, höchstens 63 Zeichen",
+  "backup_error_clientNoPlan": "{name} hat noch keinen Plan: erst festlegen, was und wann gesichert wird.",
   "backup_error_clientUnknown": "Client {name} gibt es nicht",
   "backup_error_clientExists": "Client {name} gibt es schon",
   "backup_error_noTarget": "Das Backup-Ziel für Clients ist nicht eingerichtet",

@@ -6,18 +6,17 @@ import { errorResponse, readText } from '~/server/http'
 import { localize } from '~/server/lang'
 import { privileged } from '~/server/privileged'
 import { CLIENT_NAME } from '~/shared/backup'
-import { AGENT_BODY_MAX, AGENT_KINDS, type AgentKind } from '~/shared/backup-agent'
+import { AGENT_BODY_MAX, AGENT_KINDS, AGENT_READS, type AgentKind } from '~/shared/backup-agent'
 import { msg } from '~/shared/i18n'
 
 // What a backup client's `quadeck-backup` asks by itself (no login: its token, renewed with every
-// setup script, is the authorisation; the helper checks it): ?do=settings|plan (GET),
+// setup script, is the authorisation; the helper checks it): ?do=settings|plan|poll (GET),
 // inventory|report (POST, lines), propose|preview (POST, a plan as JSON). See shared/backup-agent.ts.
-const READS: AgentKind[] = ['settings', 'plan']
 
 async function handle(request: Request, name: string, method: 'GET' | 'POST') {
   try {
     const kind = new URL(request.url).searchParams.get('do') as AgentKind
-    if (!CLIENT_NAME.test(name) || !AGENT_KINDS.includes(kind) || READS.includes(kind) !== (method === 'GET')) throw new HttpError(400, msg(m.common_errors_unknownRequest))
+    if (!CLIENT_NAME.test(name) || !AGENT_KINDS.includes(kind) || AGENT_READS.includes(kind) !== (method === 'GET')) throw new HttpError(400, msg(m.common_errors_unknownRequest))
     const auth = request.headers.get('authorization') ?? ''
     const token = auth.startsWith('Bearer ') ? auth.slice(7).trim() : ''
     if (kind === 'propose') assertWritable()

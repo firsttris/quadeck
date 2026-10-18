@@ -79,7 +79,8 @@ describe('client script', () => {
       clientScript(input({ plan: plan({ folders: ["~/Bob's files", '~/a b'], exclude: { presets: ['caches', 'nobackup'], patterns: ['*.$weird'], maxSizeGB: 2 } }) })),
     )
     writeFileSync(join(dir, 'cmd.sh'), clientCommand())
-    for (const f of ['setup.sh', 'cmd.sh']) expect((await run(['sh', '-n', join(dir, f)])).code).toBe(0)
+    writeFileSync(join(dir, 'noplan.sh'), clientScript(input({ plan: undefined, agentToken: 'a'.repeat(32) })))
+    for (const f of ['setup.sh', 'noplan.sh', 'cmd.sh']) expect((await run(['sh', '-n', join(dir, f)])).code).toBe(0)
     const text = clientScript(input())
     expect(text).toContain("RESTIC_REPOSITORY='rest:http://nas.lan:8000/laptop/'")
     expect(text).toContain("CALENDAR='*-*-* 12:00:00'")
@@ -372,6 +373,68 @@ describe.skipIf(!hasRestic)('client script on a (sandboxed) computer', () => {
       const again = await run([cmd, 'run'], { env: s.env, timeoutMs: 60_000 })
       expect(again.code).toBe(0)
       expect(again.stderr).toContain('backing up with the last ones')
+    } finally {
+      q.server.stop(true)
+    }
+  }, 180_000)
+
+  it('connects without a plan, then takes a plan and tasks from its agent timer (poll)', async () => {
+    const s = sandbox()
+    const q = await quadeck(s.root)
+    try {
+      writeFileSync(join(s.root, 'setup.sh'), clientScript(input({ repo: join(s.root, 'repo'), plan: undefined, version: 0, agentToken: q.token, quadeckUrl: q.url })))
+      const r = await run(['sh', join(s.root, 'setup.sh')], { env: s.env, timeoutMs: 60_000 })
+      expect(r.stderr).toBe('')
+      expect(r.code).toBe(0)
+      expect(r.stdout).toContain('laptop is connected to Quadeck – no backup plan yet')
+      expect(r.stdout).toContain('quadeck-backup guide')
+      const conf = join(s.home, '.config/quadeck-backup')
+      const units = join(s.home, '.config/systemd/user')
+      expect(readFileSync(join(conf, 'folders'), 'utf8')).toBe('')
+      expect(existsSync(join(s.root, 'repo/config'))).toBe(true) // the repository is there already
+      expect(s.calls()).toContain('systemctl --user disable --now quadeck-backup.timer')
+      expect(s.calls()).not.toContain('enable --now quadeck-backup.timer')
+      expect(s.calls()).toContain('systemctl --user enable --now quadeck-backup-agent.timer')
+      const agentTimer = readFileSync(join(units, 'quadeck-backup-agent.timer'), 'utf8')
+      expect(agentTimer).toContain('OnCalendar=*:0/10')
+      expect(agentTimer).toContain('RandomizedDelaySec=2min')
+      expect(agentTimer).toContain('Persistent=true')
+      expect(readFileSync(join(units, 'quadeck-backup-agent.service'), 'utf8')).toContain('quadeck-backup poll')
+      // The end of the script told Quadeck: connected, and the folder list follows.
+      let c = await laptop(q.b)
+      expect(c).toMatchObject({ applied: { version: 0 }, lastSeen: expect.any(Number) })
+      expect(c.plan).toBeUndefined()
+      await until(async () => (await q.b.clientInventory('laptop')) !== null)
+      expect((await q.b.clientInventory('laptop'))!.home).toBe(s.home)
+
+      const cmd = join(s.home, '.local/bin/quadeck-backup')
+      const nothing = await run([cmd, 'run'], { env: s.env, timeoutMs: 60_000 })
+      expect(nothing.code).not.toBe(0)
+      expect(nothing.stderr).toContain('no backup plan yet')
+      const idle = await run([cmd, 'poll'], { env: s.env, timeoutMs: 60_000 })
+      expect(idle.code).toBe(0)
+      expect(idle.stdout).toBe('')
+
+      // A plan in Quadeck and "back up now": the next poll takes the plan and starts the service.
+      await q.b.setClientPlan('laptop', plan({ folders: ['~/Bilder'], schedule: { every: 'weekly', time: '12:00' } }))
+      await q.b.clientAction('laptop', 'run')
+      const polled = await run([cmd, 'poll'], { env: s.env, timeoutMs: 60_000 })
+      expect(polled.code).toBe(0)
+      expect(polled.stdout).toContain('settings version 1')
+      expect(readFileSync(join(conf, 'folders'), 'utf8')).toBe(`${s.home}/Bilder\n`)
+      expect(readFileSync(join(units, 'quadeck-backup.timer'), 'utf8')).toContain('OnCalendar=Sun *-*-* 12:00:00')
+      expect(s.calls()).toContain('systemctl --user start --no-block quadeck-backup.service')
+      expect((await s.restic('ls', 'latest')).stdout).toContain('/Bilder/foto.jpg')
+      c = await laptop(q.b)
+      expect(c.applied?.version).toBe(1)
+      expect(c.actions).toBeUndefined()
+      expect(c.runs?.[0]).toMatchObject({ status: 'ok' })
+
+      const gone = await run([cmd, 'uninstall'], { env: s.env })
+      expect(gone.code).toBe(0)
+      expect(s.calls()).toContain('disable --now quadeck-backup.timer quadeck-backup-agent.timer')
+      expect(existsSync(join(units, 'quadeck-backup-agent.timer'))).toBe(false)
+      expect(existsSync(join(units, 'quadeck-backup.timer'))).toBe(false)
     } finally {
       q.server.stop(true)
     }

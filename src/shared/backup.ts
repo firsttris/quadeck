@@ -594,6 +594,23 @@ export const TARGET_QUADLET = 'quadeck-rest-server.container'
 export const TARGET_UNIT = 'quadeck-rest-server.service'
 export const CLIENT_NAME = /^[a-z0-9][a-z0-9-]{0,62}$/
 
+/** What Quadeck can ask a client to do (with its next poll): back up now, send its folder list, fetch the settings. */
+export type ClientAction = 'run' | 'scan' | 'sync'
+export const CLIENT_ACTIONS: ClientAction[] = ['run', 'scan', 'sync']
+export type ClientChangedBy = 'ui' | 'cli' | 'client'
+
+/** Who changed a stored plan: `quadeck` (before the CLI was told apart) is the Backups page. */
+export function clientChangedBy(v: unknown): ClientChangedBy | undefined {
+  if (v === 'quadeck') return 'ui'
+  return v === 'ui' || v === 'cli' || v === 'client' ? v : undefined
+}
+
+/** The client's agent timer polls every 10 minutes (plus up to 2 random): seen within 25 minutes is online. */
+export const CLIENT_ONLINE_MS = 25 * 60_000
+export const clientOnline = (c: Pick<BackupClient, 'lastSeen'>, now = Date.now()) => c.lastSeen !== undefined && now - c.lastSeen <= CLIENT_ONLINE_MS
+/** The client has talked to Quadeck at least once (an older script only by fetching its settings). */
+export const clientConnected = (c: Pick<BackupClient, 'lastSeen' | 'applied'>) => c.lastSeen !== undefined || c.applied !== undefined
+
 export interface TargetConfig {
   /** Where the repositories live, one folder per client. */
   dataDir: string
@@ -619,12 +636,16 @@ export interface BackupClient {
   plan?: import('./backup-client').ClientPlan
   /** Raised with every change of the plan. */
   version?: number
-  /** The settings version the client last fetched (with its script, or by itself before a run). */
+  /** The settings version the client last fetched (at the end of its setup, by itself before a run or when polled). */
   applied?: { version: number; at: number }
   /** The client talks to Quadeck by itself (its script is new enough): scan, settings, reports. */
   agent?: boolean
-  /** Who changed the plan last: in Quadeck, or the client (`quadeck-backup plan set`). */
-  changed?: { by: 'quadeck' | 'client'; at: number }
+  /** Who changed the plan last: on the Backups page, with `quadeck backup client plan set`, or on the client (`quadeck-backup plan set`). */
+  changed?: { by: ClientChangedBy; at: number }
+  /** The client's last request to Quadeck (any, with its token): its agent timer asks every 10 minutes. */
+  lastSeen?: number
+  /** Requested on the Backups page, handed to the client with its next poll. */
+  actions?: ClientAction[]
   /** The client's own reports of its last runs, newest first. */
   runs?: BackupRun[]
   /** When the client last sent the folders it has (`quadeck-backup scan`). */

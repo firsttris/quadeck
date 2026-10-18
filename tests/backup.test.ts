@@ -642,25 +642,36 @@ describe('SystemBackup: clients', () => {
   )
 })
 
-describe('one-time links for the client script', () => {
-  it('a link works once, within 30 minutes, and a new one replaces the old', () => {
-    const l = new LinkStore()
+describe('setup links for the client script', () => {
+  it('the same access on every fetch until settled or expired; unknown, replaced or malformed ones refused', async () => {
+    const links = new LinkStore()
+    const hash = async (a: string) => `h:${a}`
     const now = 1_000_000
-    const a = l.create('laptop', 'http://nas:8484', now)
-    expect(a.token).toMatch(/^[A-Za-z0-9_-]{32}$/)
-    expect(a.expires).toBe(now + 30 * 60_000)
-    expect(l.take(a.token, now + 1000)?.name).toBe('laptop')
-    expect(l.take(a.token, now + 2000)).toBeUndefined()
-    const b = l.create('laptop', 'x', now)
-    expect(l.take(b.token, now + 31 * 60_000)).toBeUndefined()
-    const c = l.create('laptop', 'x', now)
-    const d = l.create('laptop', 'x', now)
-    expect(l.take(c.token, now)).toBeUndefined() // replaced by d
-    expect(l.take(d.token, now)?.name).toBe('laptop')
-    expect(l.take('../../etc/passwd', now)).toBeUndefined()
+    const { token, expires } = links.create('laptop', 'http://nas:8484', now)
+    expect(token).toMatch(/^[A-Za-z0-9_-]{32}$/)
+    expect(expires).toBe(now + 30 * 60_000)
+    const first = links.get(token, hash, now + 1000)!
+    expect(first).toMatchObject({ name: 'laptop', url: 'http://nas:8484' })
+    expect(await first.creds.hash).toBe(`h:${first.creds.access}`)
+    // Fetched again (reviewed first, or run a second time): the same access and agent token.
+    expect(links.get(token, hash, now + 2000)!.creds).toBe(first.creds)
+    links.settle('pc', first.creds.agentToken)
+    links.settle('laptop', 'x'.repeat(32))
+    expect(links.get(token, hash, now + 3000)).toBeDefined()
+    // The computer it set up talked to Quadeck: done.
+    links.settle('laptop', first.creds.agentToken)
+    expect(links.get(token, hash, now + 3000)).toBeUndefined()
+    const late = links.create('laptop', 'x', now)
+    expect(links.get(late.token, hash, now + 31 * 60_000)).toBeUndefined()
+    const c = links.create('laptop', 'x', now)
+    const d = links.create('laptop', 'x', now)
+    expect(links.get(c.token, hash, now)).toBeUndefined() // replaced by d
+    links.drop('laptop') // the access was renewed
+    expect(links.get(d.token, hash, now)).toBeUndefined()
+    expect(links.get('../../etc/passwd', hash, now)).toBeUndefined()
   })
 
-  it('redeeming renews the access, records the version and yields the script', async () => {
+  it('redeeming renews the access and yields the script; the first call of the computer ends the link', async () => {
     const root = mkdtempSync(join(tmpdir(), 'qd-link-'))
     const dataDir = join(root, 'backups')
     const b = new SystemBackup({ dir: join(root, 'state'), unitDir: root, exec: run, log: () => {} })
@@ -681,11 +692,19 @@ describe('one-time links for the client script', () => {
     expect(await Bun.password.verify(access, hash)).toBe(true)
     expect(await Bun.password.verify(first, hash)).toBe(false)
     st = await b.targetState()
-    expect(st.clients[0]!.applied).toMatchObject({ version: 1 })
+    expect(st.clients[0]!.applied).toBeUndefined() // applied once the computer fetches its settings
     expect(JSON.stringify(st)).not.toContain(hash) // hashes never leave the helper
+    // The same link again: the same access and token, so a half-done install still works.
+    const again = (await b.redeemClientLink(token))!
+    expect(again).toContain(`RESTIC_REST_PASSWORD='${access}'`)
+    const agentToken = /QUADECK_TOKEN='([^']+)'/.exec(script)![1]!
+    expect(again).toContain(`QUADECK_TOKEN='${agentToken}'`)
+    // The end of the script fetches the settings: applied, seen, and the link is done.
+    await b.clientAgent('laptop', agentToken, 'settings', '')
+    expect((await b.targetState()).clients[0]).toMatchObject({ applied: { version: 1 }, lastSeen: expect.any(Number) })
     expect(await b.redeemClientLink(token)).toBeUndefined()
 
-    // A later change shows as not applied until the next script.
+    // A later change shows as not applied until the computer fetches it.
     await b.setClientPlan('laptop', { ...defaultClientPlan(), folders: ['~/Projekte', '~/Bilder'] })
     expect((await b.targetState()).clients[0]).toMatchObject({ version: 2, applied: { version: 1 } })
     await expect(b.clientLink('nobody', 'http://nas:8484')).rejects.toMatchObject({ status: 404 })

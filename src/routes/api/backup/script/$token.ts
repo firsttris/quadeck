@@ -4,8 +4,9 @@ import { privileged } from '~/server/privileged'
 const headers = { 'content-type': 'text/x-shellscript; charset=utf-8', 'cache-control': 'no-store', 'x-content-type-options': 'nosniff' }
 
 // The install/update script of a backup client, for `curl -fsSL <link> | sh`. No login: the
-// one-time link (30 minutes, 192 random bits) is the authorisation, and it is used up here.
-// An unknown, used or expired link answers with a script that says so, for the person at the terminal.
+// setup link (30 minutes, 192 random bits) is the authorisation. It can be fetched again (the same
+// access each time) until it expires or the client it set up has talked to Quadeck. An unknown,
+// finished or expired link answers with a script that says so, for the person at the terminal.
 export const Route = createFileRoute('/api/backup/script/$token')({
   server: {
     handlers: {
@@ -17,10 +18,13 @@ export const Route = createFileRoute('/api/backup/script/$token')({
           script = undefined
         }
         if (script) return new Response(script, { headers })
-        return new Response("#!/bin/sh\necho 'quadeck-backup: this link was already used or has expired – create a new one in Quadeck (Backups → Clients).' >&2\nexit 1\n", {
-          status: 200,
-          headers: { ...headers, 'x-quadeck-link': 'invalid' },
-        })
+        return new Response(
+          "#!/bin/sh\necho 'quadeck-backup: this link has expired or its computer is already set up – create a new one in Quadeck (Backups → Clients → Show command).' >&2\nexit 1\n",
+          {
+            status: 200,
+            headers: { ...headers, 'x-quadeck-link': 'invalid' },
+          },
+        )
       },
     },
   },

@@ -108,6 +108,14 @@ describe('quadeck backup (CLI)', () => {
     const laptop = (await d.backup.targetState()).clients.find((x) => x.name === 'laptop')!
     expect(laptop.version).toBe(5)
     expect(laptop.plan!.folders).toContain('~/Musik')
+    expect(laptop.changed?.by).toBe('cli')
+    expect(await d.run('clients')).toBe(0)
+    const list = d.out.at(-1)!
+    expect(list).toMatch(/laptop: online, plan v5 waiting for the computer \(changed in Quadeck \(cli\) /)
+    expect(list).toContain('mini-pc: online, no plan yet')
+    expect(list).toMatch(/workstation: last seen [\d-]+ [\d:]+, plan v3 waiting for the computer/)
+    expect(await d.run('client', 'plan', 'show', 'mini-pc')).toBe(0)
+    expect(d.out.at(-1)).toContain('mini-pc has no plan yet')
     expect(await d.run('client', 'plan', 'show', 'nobody', '--json')).toBe(1)
     expect(await d.run('client', 'plan', 'show', '../x')).toBe(2)
   })

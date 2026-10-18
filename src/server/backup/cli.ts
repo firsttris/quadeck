@@ -6,7 +6,7 @@ import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { homedir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { HttpError } from '~/server/auth'
-import { type BackupPlan, CLIENT_NAME, defaultPlan, parseBackupPlan, parseSecrets, REPO_SECRETS } from '~/shared/backup'
+import { type BackupClient, type BackupPlan, CLIENT_NAME, clientConnected, clientOnline, defaultPlan, parseBackupPlan, parseSecrets, REPO_SECRETS } from '~/shared/backup'
 import { type ClientPlan, parseClientPlan } from '~/shared/backup-client'
 import { localize, localizeDeep } from '~/shared/i18n'
 import type { BackupBackend } from './backend'
@@ -35,7 +35,7 @@ export const BACKUP_CLI_HELP = `quadeck backup – the server backup and the cli
                                           check a plan, show what changes; without --dry-run save it
                                           (creates or opens the repository, writes the timer)
   quadeck backup run | check              back up now / check the repository (what the timers run)
-  quadeck backup clients                  the backup target for other computers and its clients
+  quadeck backup clients                  the backup target for other computers and its clients (plan, online, waiting)
   quadeck backup client plan show <name>
   quadeck backup client plan set <name> -f <file|-> [--dry-run]
   quadeck backup guide [--skill]          how an agent goes about setting up a backup (as a SKILL.md)
@@ -91,11 +91,23 @@ The repository password is generated on the first save; the person should keep i
 
 ## Clients (other computers)
 
-\`quadeck backup clients --json\` lists them. A client's plan: \`client plan show <name> --json\`,
-\`client plan set <name> -f plan.json [--dry-run]\`. Fields: \`folders\` (\`~/Documents\` or absolute),
-\`exclude\` (\`presets\`: caches, trash, dev, temp, downloads, vms, games, nobackup; \`patterns\`;
-\`maxSizeGB\`), \`schedule\` (\`every\`: hourly, 6h, daily, weekly; \`time\`), \`keep\`, \`active\`.
-Better: on the client itself, \`quadeck-backup guide\` – it can see its own folders.
+A computer is connected first and gets its plan afterwards:
+
+1. Connect: the person adds it on the Backups page (Clients → + Add client, only a name) and runs
+   the command shown there on the computer. It installs \`quadeck-backup\`, asks for the
+   repository password and connects to Quadeck – without a plan, so nothing is backed up yet. It
+   sends its folder list right away.
+2. Set the plan: here with \`client plan set <name> -f plan.json [--dry-run]\`, or on the computer
+   with \`quadeck-backup plan set\` (better: \`quadeck-backup guide\` there – it sees its own folders).
+   The computer picks up a new plan within about 10 minutes (its agent timer asks Quadeck every 10
+   minutes) or with its next backup.
+
+\`quadeck backup clients --json\` lists them: \`plan\` (absent: none yet), \`version\` and \`applied\`
+(the version the computer runs: smaller means it is still waiting), \`lastSeen\` (online when
+within 25 minutes), \`changed\` (\`by\`: ui, cli or client). \`client plan show <name> --json\` prints
+the plan (null when there is none). Fields: \`folders\` (\`~/Documents\` or absolute), \`exclude\`
+(\`presets\`: caches, trash, dev, temp, downloads, vms, games, nobackup; \`patterns\`; \`maxSizeGB\`),
+\`schedule\` (\`every\`: hourly, 6h, daily, weekly; \`time\`), \`keep\`, \`active\`.
 `
 
 interface Args {
@@ -197,6 +209,16 @@ const human = (n?: number) => {
   return `${v >= 100 || i === 0 ? Math.round(v) : v.toFixed(1)} ${u[i]}`
 }
 const when = (t?: number) => (t ? new Date(t).toISOString().replace('T', ' ').slice(0, 16) : '–')
+
+/** A client in one line: connected or not, its plan and whether it runs it, its last backup. */
+export function clientLine(c: BackupClient, now = Date.now()): string {
+  const seen = !clientConnected(c) ? 'never connected' : clientOnline(c, now) ? 'online' : c.lastSeen ? `last seen ${when(c.lastSeen)}` : 'connected'
+  const plan = !c.plan
+    ? 'no plan yet'
+    : `plan v${c.version ?? 0} ${c.applied && c.applied.version >= (c.version ?? 0) ? 'applied' : 'waiting for the computer'}${c.changed ? ` (changed ${c.changed.by === 'client' ? 'on the computer' : `in Quadeck${c.changed.by === 'cli' ? ' (cli)' : ''}`} ${when(c.changed.at)})` : ''}: ${c.plan.folders.join(' ')}`
+  const queued = c.actions?.length ? `, asked: ${c.actions.join(' ')}` : ''
+  return `${c.name}${c.disabled ? ' (disabled)' : ''}: ${seen}, ${plan}${queued}; last backup ${when(c.lastAt)}, ${c.snapshots ?? 0} snapshots`
+}
 
 function readJsonFile(deps: BackupCliDeps, path: string | undefined): unknown {
   if (!path) throw new HttpError(400, 'a plan file is needed: -f <file> (or -f - for stdin)')
@@ -310,13 +332,7 @@ export async function backupCli(argv: string[], deps: BackupCliDeps): Promise<nu
         const t = await b.targetState()
         emit(t, () => {
           if (!t.config) return 'No backup target for clients set up (Backups page → Clients).'
-          return [
-            `rest-server ${t.config.url}, data in ${t.config.dataDir}${t.config.appendOnly ? ', append-only' : ''}`,
-            ...t.clients.map(
-              (c) =>
-                `  ${c.name}${c.disabled ? ' (disabled)' : ''}: last backup ${when(c.lastAt)}, ${c.snapshots ?? 0} snapshots, settings ${c.applied ? `v${c.applied.version} applied` : 'never applied'}${c.plan ? `, ${c.plan.folders.join(' ')}` : ''}`,
-            ),
-          ].join('\n')
+          return [`rest-server ${t.config.url}, data in ${t.config.dataDir}${t.config.appendOnly ? ', append-only' : ''}`, ...t.clients.map((c) => `  ${clientLine(c)}`)].join('\n')
         })
         return 0
       }
@@ -397,15 +413,20 @@ async function clientPlanCommand(action: string | undefined, clientName: string 
   const c = t.clients.find((x) => x.name === clientName)
   if (!c) throw new HttpError(404, `no client called ${clientName}`)
   if (action === 'show') {
-    emit(c.plan ?? null, () => (c.plan ? JSON.stringify(c.plan, null, 2) : `${clientName} has no plan yet.`))
+    emit(c.plan ?? null, () =>
+      c.plan ? JSON.stringify(c.plan, null, 2) : `${clientName} has no plan yet. Write one (fields: quadeck backup guide) and set it: quadeck backup client plan set ${clientName} -f plan.json`,
+    )
     return 0
   }
   const { plan, error } = parseClientPlan(readJsonFile(deps, a.file))
   if (!plan) throw new HttpError(400, error!)
   const changes = clientPlanChanges(c.plan, plan)
-  if (!a.dryRun && changes.length) await deps.backup.setClientPlan(clientName, plan)
+  if (!a.dryRun && changes.length) await deps.backup.setClientPlan(clientName, plan, 'cli')
   emit({ dryRun: a.dryRun, changes, plan }, () =>
-    [changes.length ? changes.join('\n') : 'No changes.', a.dryRun ? '(dry run: nothing saved)' : changes.length ? `Saved. ${clientName} picks it up with its next run.` : '']
+    [
+      changes.length ? changes.join('\n') : 'No changes.',
+      a.dryRun ? '(dry run: nothing saved)' : changes.length ? `Saved. ${clientName} picks it up within about 10 minutes (or with its next backup).` : '',
+    ]
       .filter(Boolean)
       .join('\n'),
   )

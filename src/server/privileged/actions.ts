@@ -7,7 +7,7 @@
 
 import { m } from '~/paraglide/messages'
 import type { ArchivePreview } from '~/shared/archives'
-import type { BackupPlan, BackupState, TargetConfig, TargetState } from '~/shared/backup'
+import type { BackupPlan, BackupState, ClientAction, TargetConfig, TargetState } from '~/shared/backup'
 import type { AgentKind, AgentReply, ClientInventory } from '~/shared/backup-agent'
 import type { ClientPlan } from '~/shared/backup-client'
 import type { BootEntryChange, BootState } from '~/shared/boot'
@@ -152,8 +152,10 @@ export interface Privileged
   renewBackupClient(token: string | undefined, name: string): Promise<{ password: string }>
   removeBackupClient(token: string | undefined, name: string, deleteData: boolean): Promise<TargetState>
   setBackupClientPlan(token: string | undefined, name: string, plan: ClientPlan): Promise<TargetState>
+  /** Something for the client to do with its next poll: back up now, send its folder list, fetch the settings. */
+  backupClientAction(token: string | undefined, name: string, action: ClientAction): Promise<TargetState>
   backupClientLink(token: string | undefined, name: string, quadeckUrl: string): Promise<{ token: string; expires: number }>
-  /** No unlock: the one-time link is the authorisation (it is used up here). */
+  /** No unlock: the setup link is the authorisation (good until it expires or the client has connected). */
   redeemBackupClientLink(linkToken: string): Promise<string | undefined>
   /** No unlock: the client's token is the authorisation, checked where the target file lives. */
   backupAgent(name: string, token: string, kind: AgentKind, body: string): Promise<AgentReply>

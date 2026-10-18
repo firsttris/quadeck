@@ -29,6 +29,9 @@ import {
   CHECK_TIMER,
   CHECK_UNIT,
   CLIENT_NAME,
+  type ClientAction,
+  type ClientChangedBy,
+  clientChangedBy,
   clientRepo,
   excludeFile,
   type FolderListing,
@@ -45,7 +48,7 @@ import {
   targetQuadlet,
   VOLUME_PATH,
 } from '~/shared/backup'
-import { AGENT_TOKEN, type AgentKind, type AgentReply, type ClientInventory, clientSettings, parseClientReport, parseInventory } from '~/shared/backup-agent'
+import { AGENT_TOKEN, type AgentKind, type AgentReply, type ClientInventory, clientSettings, parseClientReport, parseInventory, pollText, queueAction } from '~/shared/backup-agent'
 import { type ClientPlan, clientScript, defaultClientPlan, parseClientPlan } from '~/shared/backup-client'
 import { localize, msg } from '~/shared/i18n'
 import { writeFileAtomic } from '../atomic'
@@ -78,10 +81,16 @@ export interface BackupBackend extends BackupAdmin {
   updateClient(name: string, change: { warnDays?: number | null; disabled?: boolean }): Promise<TargetState>
   renewClient(name: string): Promise<{ password: string }>
   removeClient(name: string, deleteData: boolean): Promise<TargetState>
-  setClientPlan(name: string, plan: ClientPlan): Promise<TargetState>
-  /** A one-time link (30 minutes) for the client's install/update script. */
+  /** `by`: the Backups page (default) or `quadeck backup client plan set`. */
+  setClientPlan(name: string, plan: ClientPlan, by?: Exclude<ClientChangedBy, 'client'>): Promise<TargetState>
+  /** Something for the client to do with its next poll (within about 10 minutes). */
+  clientAction(name: string, action: ClientAction): Promise<TargetState>
+  /** A setup link (30 minutes) for the client's install/update script. */
   clientLink(name: string, quadeckUrl: string): Promise<{ token: string; expires: number }>
-  /** The script behind a link; the link is used up, the access password renewed. */
+  /**
+   * The script behind a link, with a fresh access password and agent token. The link stays good
+   * (same access and token again) until it expires or the client it set up talks to Quadeck.
+   */
   redeemClientLink(token: string): Promise<string | undefined>
   /** A request of the client's `quadeck-backup`, authorised by its token (see AgentKind). */
   clientAgent(name: string, token: string, kind: AgentKind, body: string): Promise<AgentReply>
@@ -111,9 +120,22 @@ export function clientProposal(body: string, current: ClientPlan | undefined): C
 const LINK_MINUTES = 30
 export const LINK_TOKEN = /^[A-Za-z0-9_-]{32}$/
 
-/** One-time links, in memory: a restart of the helper only invalidates links that were not used yet. */
+/** What a setup link hands out: made on its first fetch, the same on every further fetch. */
+export interface LinkCredentials {
+  access: string
+  agentToken: string
+  /** bcrypt of the access password. */
+  hash: Promise<string>
+}
+
+/**
+ * Setup links, in memory (a restart of the helper invalidates them). A link can be fetched again
+ * – reviewed first, or the script run a second time after it stopped half-way – and hands out the
+ * same access and agent token each time, so an earlier half-install keeps working. It ends when it
+ * expires, when the client it set up first talks to Quadeck (`settle`), or with a new link.
+ */
 export class LinkStore {
-  private links = new Map<string, { name: string; url: string; expires: number }>()
+  private links = new Map<string, { name: string; url: string; expires: number; creds?: LinkCredentials }>()
   create(name: string, url: string, now = Date.now()) {
     for (const [k, v] of this.links) if (v.expires < now || v.name === name) this.links.delete(k)
     const token = randomBytes(24).toString('base64url')
@@ -121,11 +143,28 @@ export class LinkStore {
     this.links.set(token, { name, url, expires })
     return { token, expires }
   }
-  take(token: string, now = Date.now()) {
+  /** The link and its credentials (made now on the first fetch), or undefined when unknown or expired. */
+  get(token: string, hash: (access: string) => Promise<string>, now = Date.now()) {
     if (!LINK_TOKEN.test(token)) return undefined
     const l = this.links.get(token)
-    this.links.delete(token)
-    return l && l.expires >= now ? l : undefined
+    if (!l || l.expires < now) {
+      this.links.delete(token)
+      return undefined
+    }
+    // Set before anything is awaited: a second fetch at the same time gets the same.
+    if (!l.creds) {
+      const access = accessPassword()
+      l.creds = { access, agentToken: randomBytes(24).toString('base64url'), hash: hash(access) }
+    }
+    return { name: l.name, url: l.url, creds: l.creds }
+  }
+  /** The client set up with this agent token has talked to Quadeck: its link is done. */
+  settle(name: string, agentToken: string) {
+    for (const [k, v] of this.links) if (v.name === name && v.creds?.agentToken === agentToken) this.links.delete(k)
+  }
+  /** The client's access changed or it is gone: no link hands out the old one any more. */
+  drop(name: string) {
+    for (const [k, v] of this.links) if (v.name === name) this.links.delete(k)
   }
 }
 
@@ -214,6 +253,50 @@ export function parseEnvFile(text: string): Record<string, string> {
     if (i > 0 && /^[A-Z0-9_]+$/.test(l.slice(0, i))) out[l.slice(0, i)] = l.slice(i + 1)
   }
   return out
+}
+
+/**
+ * A client's request on its stored record (changed in place: applied, plan, actions, scan, runs):
+ * the same for the helper and the demo. `keep` stores a scan.
+ */
+export function agentReply(c: BackupClient, kind: AgentKind, body: string, appendOnly: boolean, keep: (inventory: ClientInventory) => void): AgentReply {
+  switch (kind) {
+    case 'settings':
+      c.version ??= 0
+      c.applied = { version: c.version, at: Date.now() }
+      return { text: clientSettings(c.plan, c.version, appendOnly) }
+    case 'plan':
+      return { json: { name: c.name, version: c.version ?? 0, plan: c.plan ?? null, appendOnly } }
+    case 'poll': {
+      const actions = c.actions ?? []
+      delete c.actions
+      return { text: pollText(c.version ?? 0, actions) }
+    }
+    case 'preview':
+      return { text: clientSettings(clientProposal(body, c.plan), c.version ?? 0, appendOnly) }
+    case 'propose': {
+      const plan = clientProposal(body, c.plan)
+      if (JSON.stringify(plan) !== JSON.stringify(c.plan)) {
+        c.plan = plan
+        c.version = (c.version ?? 0) + 1
+        c.changed = { by: 'client', at: Date.now() }
+      }
+      return { json: { version: c.version ?? 0, plan } }
+    }
+    case 'inventory': {
+      const { inventory, error } = parseInventory(body)
+      if (!inventory) throw new HttpError(400, error!)
+      keep(inventory)
+      c.scannedAt = inventory.at
+      return { json: inventory }
+    }
+    case 'report': {
+      const { run, error } = parseClientReport(body)
+      if (!run) throw new HttpError(400, error!)
+      c.runs = [run, ...(c.runs ?? [])].slice(0, MAX_CLIENT_RUNS)
+      return { json: { ok: true } }
+    }
+  }
 }
 
 const NO_REPO = /Is there a repository|does not exist|no such file or directory|unable to open config|NoSuchBucket|NoSuchKey|404/i
@@ -520,7 +603,21 @@ export class SystemBackup implements BackupBackend {
   // ---------- backup target for clients ----------
 
   private target(): TargetFile {
-    return readJson<TargetFile>(this.file('target.json'), { clients: [] })
+    const t = readJson<TargetFile>(this.file('target.json'), { clients: [] })
+    // Stored before the command line was told apart from the page: `quadeck` is the page.
+    for (const c of t.clients)
+      if (c.changed) {
+        const by = clientChangedBy(c.changed.by)
+        if (by) c.changed.by = by
+        else delete c.changed
+      }
+    return t
+  }
+
+  /** Only target.json: for what the client reports (the rest-server's .htpasswd stays as it is). */
+  private saveTargetFile(t: TargetFile) {
+    this.ensureDir()
+    writePrivate(this.file('target.json'), JSON.stringify(t, null, 2))
   }
 
   private writeTarget(t: TargetFile) {
@@ -621,6 +718,7 @@ export class SystemBackup implements BackupBackend {
     const c = this.client(t, name)
     const password = accessPassword()
     c.hash = await Bun.password.hash(password, { algorithm: 'bcrypt', cost: 10 })
+    this.linkStore.drop(name)
     this.writeTarget(t)
     return { password }
   }
@@ -628,6 +726,7 @@ export class SystemBackup implements BackupBackend {
   async removeClient(name: string, deleteData: boolean) {
     const t = this.target()
     this.client(t, name)
+    this.linkStore.drop(name)
     t.clients = t.clients.filter((c) => c.name !== name)
     if (t.sizes) delete t.sizes[name]
     this.writeTarget(t)
@@ -638,13 +737,22 @@ export class SystemBackup implements BackupBackend {
 
   private linkStore = new LinkStore()
 
-  async setClientPlan(name: string, plan: ClientPlan) {
+  async setClientPlan(name: string, plan: ClientPlan, by: Exclude<ClientChangedBy, 'client'> = 'ui') {
     const t = this.target()
     const c = this.client(t, name)
     c.plan = plan
     c.version = (c.version ?? 0) + 1
-    c.changed = { by: 'quadeck', at: Date.now() }
+    c.changed = { by, at: Date.now() }
     this.writeTarget(t)
+    return this.targetState()
+  }
+
+  async clientAction(name: string, action: ClientAction) {
+    const t = this.target()
+    const c = this.client(t, name)
+    if (action === 'run' && !c.plan) throw new HttpError(409, msg(m.backup_error_clientNoPlan, { name }))
+    c.actions = queueAction(c.actions, action)
+    this.saveTargetFile(t)
     return this.targetState()
   }
 
@@ -656,34 +764,28 @@ export class SystemBackup implements BackupBackend {
   }
 
   async redeemClientLink(token: string) {
-    const link = this.linkStore.take(token)
+    const link = this.linkStore.get(token, (access) => Bun.password.hash(access, { algorithm: 'bcrypt', cost: 10 }))
     if (!link) return undefined
+    const hash = await link.creds.hash
+    // Read after bcrypt: another request may have changed the file meanwhile.
     const t = this.target()
     const c = t.clients.find((x) => x.name === link.name)
     if (!c || !t.config) return undefined
-    // A fresh access password for every script: the one it carries is the only valid one.
-    const access = accessPassword()
-    const agentToken = randomBytes(24).toString('base64url')
-    c.hash = await Bun.password.hash(access, { algorithm: 'bcrypt', cost: 10 })
-    // Read again: another request may have changed the file while bcrypt ran.
-    const fresh = this.target()
-    const fc = fresh.clients.find((x) => x.name === link.name)
-    if (!fc || !fresh.config) return undefined
-    fc.hash = c.hash
-    fc.agentHash = sha256(agentToken).toString('hex')
-    delete fc.disabled
-    fc.version ??= 0
-    fc.applied = { version: fc.version, at: Date.now() }
-    this.writeTarget(fresh)
+    // The access and token the script carries are the only valid ones from now on.
+    c.hash = hash
+    c.agentHash = sha256(link.creds.agentToken).toString('hex')
+    delete c.disabled
+    c.version ??= 0
+    this.writeTarget(t)
     return clientScript({
-      agentToken,
-      name: fc.name,
-      repo: clientRepo(fresh.config, fc.name),
-      user: fc.name,
-      access,
-      appendOnly: fresh.config.appendOnly,
-      plan: fc.plan ?? defaultClientPlan(),
-      version: fc.version,
+      agentToken: link.creds.agentToken,
+      name: c.name,
+      repo: clientRepo(t.config, c.name),
+      user: c.name,
+      access: link.creds.access,
+      appendOnly: t.config.appendOnly,
+      plan: c.plan,
+      version: c.version,
       quadeckUrl: link.url,
     })
   }
@@ -708,43 +810,15 @@ export class SystemBackup implements BackupBackend {
     const t = this.target()
     const c = this.agentClient(t, name, token)
     const appendOnly = t.config!.appendOnly
-    switch (kind) {
-      case 'settings':
-        c.version ??= 0
-        c.applied = { version: c.version, at: Date.now() }
-        this.writeTarget(t)
-        return { text: clientSettings(c.plan ?? defaultClientPlan(), c.version, appendOnly) }
-      case 'plan':
-        return { json: { name: c.name, version: c.version ?? 0, plan: c.plan ?? defaultClientPlan(), appendOnly } }
-      case 'preview':
-        return { text: clientSettings(clientProposal(body, c.plan), c.version ?? 0, appendOnly) }
-      case 'propose': {
-        const plan = clientProposal(body, c.plan)
-        if (JSON.stringify(plan) !== JSON.stringify(c.plan)) {
-          c.plan = plan
-          c.version = (c.version ?? 0) + 1
-          c.changed = { by: 'client', at: Date.now() }
-          this.writeTarget(t)
-        }
-        return { json: { version: c.version ?? 0, plan } }
-      }
-      case 'inventory': {
-        const { inventory, error } = parseInventory(body)
-        if (!inventory) throw new HttpError(400, error!)
-        mkdirSync(join(this.dir, 'inventory'), { recursive: true, mode: 0o700 })
-        writePrivate(this.inventoryFile(name), JSON.stringify(inventory))
-        c.scannedAt = inventory.at
-        this.writeTarget(t)
-        return { json: inventory }
-      }
-      case 'report': {
-        const { run, error } = parseClientReport(body)
-        if (!run) throw new HttpError(400, error!)
-        c.runs = [run, ...(c.runs ?? [])].slice(0, MAX_CLIENT_RUNS)
-        this.writeTarget(t)
-        return { json: { ok: true } }
-      }
-    }
+    // Any request with the token: the client is there, and its setup is done (the link ends).
+    c.lastSeen = Date.now()
+    this.linkStore.settle(name, token)
+    const reply = agentReply(c, kind, body, appendOnly, (inventory) => {
+      mkdirSync(join(this.dir, 'inventory'), { recursive: true, mode: 0o700 })
+      writePrivate(this.inventoryFile(name), JSON.stringify(inventory))
+    })
+    this.saveTargetFile(t)
+    return reply
   }
 
   // ---------- runs (`quadeck backup run|check`, restore jobs) ----------
@@ -990,7 +1064,9 @@ export class FixtureBackup implements BackupBackend {
         plan: { ...defaultClientPlan(), folders: ['~/Dokumente', '~/Bilder', '~/Projekte'] },
         version: 4,
         applied: { version: 4, at: ago(6) },
+        changed: { by: 'ui', at: ago(24 * 3) },
         agent: true,
+        lastSeen: ago(0.06),
         scannedAt: ago(5),
         runs: [{ kind: 'backup', startedAt: ago(6), endedAt: ago(6) + 95_000, status: 'ok', files: 18_204, bytes: 62e9, added: 140e6, filesNew: 31, filesChanged: 8, errors: [] }],
       },
@@ -1004,6 +1080,7 @@ export class FixtureBackup implements BackupBackend {
         plan: { ...defaultClientPlan(), schedule: { every: 'daily', time: '20:00' } },
         version: 2,
         applied: { version: 2, at: ago(24 * 21) },
+        lastSeen: ago(24 * 9 + 2),
       },
       {
         name: 'workstation',
@@ -1014,7 +1091,12 @@ export class FixtureBackup implements BackupBackend {
         plan: { ...defaultClientPlan(), folders: ['~/Projekte', '~/.config'], schedule: { every: '6h', time: '00:00' } },
         version: 3,
         applied: { version: 2, at: ago(24 * 5) },
+        changed: { by: 'cli', at: ago(26) },
+        agent: true,
+        lastSeen: ago(2),
       },
+      // Connected a moment ago, no plan chosen yet.
+      { name: 'mini-pc', created: ago(0.5), snapshots: 0, version: 0, applied: { version: 0, at: ago(0.4) }, agent: true, lastSeen: ago(0.1) },
     ]
     this.runs.splice(9, 0, { kind: 'check', startedAt: at(9) + 3 * 3600_000, endedAt: at(9) + 3 * 3600_000 + 840_000, status: 'ok', errors: [] })
     const keepDays = [0, 1, 2, 3, 4, 5, 6, 13, 20, 27, 33, 64, 94, 125, 155]
@@ -1187,18 +1269,47 @@ export class FixtureBackup implements BackupBackend {
   }
   async renewClient(name: string) {
     if (!this.clients.some((x) => x.name === name)) throw new HttpError(404, msg(m.backup_error_clientUnknown, { name }))
+    this.links.drop(name)
     return { password: accessPassword() }
   }
   async removeClient(name: string) {
     this.clients = this.clients.filter((c) => c.name !== name)
+    this.links.drop(name)
     return this.targetState()
   }
   private links = new LinkStore()
-  async setClientPlan(name: string, plan: ClientPlan) {
+  private client(name: string) {
     const c = this.clients.find((x) => x.name === name)
     if (!c) throw new HttpError(404, msg(m.backup_error_clientUnknown, { name }))
+    return c
+  }
+  async setClientPlan(name: string, plan: ClientPlan, by: Exclude<ClientChangedBy, 'client'> = 'ui') {
+    const c = this.client(name)
     c.plan = plan
     c.version = (c.version ?? 0) + 1
+    c.changed = { by, at: Date.now() }
+    return this.targetState()
+  }
+  /** The demo's computers do what they are asked a few seconds later, as if their agent timer had fired. */
+  async clientAction(name: string, action: ClientAction) {
+    const c = this.client(name)
+    if (action === 'run' && !c.plan) throw new HttpError(409, msg(m.backup_error_clientNoPlan, { name }))
+    c.actions = queueAction(c.actions, action)
+    if (c.lastSeen !== undefined && !c.disabled)
+      setTimeout(() => {
+        const now = Date.now()
+        const todo = c.actions ?? []
+        delete c.actions
+        c.lastSeen = now
+        if (c.plan && (c.version ?? 0) !== c.applied?.version) c.applied = { version: c.version ?? 0, at: now }
+        if (todo.includes('scan')) c.scannedAt = now
+        if (todo.includes('run')) {
+          const run: BackupRun = { kind: 'backup', startedAt: now - 60_000, endedAt: now, status: 'ok', files: 18_230, bytes: 62.1e9, added: 24e6, filesNew: 5, filesChanged: 3, errors: [] }
+          c.runs = [run, ...(c.runs ?? [])].slice(0, MAX_CLIENT_RUNS)
+          c.lastAt = now
+          c.snapshots = (c.snapshots ?? 0) + 1
+        }
+      }, 3000)
     return this.targetState()
   }
   async clientLink(name: string, quadeckUrl: string) {
@@ -1208,22 +1319,30 @@ export class FixtureBackup implements BackupBackend {
   private agentTokens = new Map<string, string>()
   private inventories = new Map<string, ClientInventory>([['laptop', DEMO_INVENTORY()]])
   async redeemClientLink(token: string) {
-    const link = this.links.take(token)
+    const link = this.links.get(token, async () => '')
     const c = link && this.clients.find((x) => x.name === link.name)
     if (!link || !c || !this.targetConfig) return undefined
     c.version ??= 0
-    c.applied = { version: c.version, at: Date.now() }
-    const agentToken = randomBytes(24).toString('base64url')
+    const { agentToken } = link.creds
     this.agentTokens.set(c.name, agentToken)
     c.agent = true
+    // As if the computer ran the script: it connects a moment later (and that ends the link).
+    setTimeout(() => {
+      if (this.agentTokens.get(c.name) !== agentToken) return
+      c.lastSeen = Date.now()
+      c.applied = { version: c.version ?? 0, at: Date.now() }
+      this.links.settle(c.name, agentToken)
+      if (!this.inventories.has(c.name)) this.inventories.set(c.name, DEMO_INVENTORY())
+      c.scannedAt = Date.now()
+    }, 2000)
     return clientScript({
       agentToken,
       name: c.name,
       repo: clientRepo(this.targetConfig, c.name),
       user: c.name,
-      access: accessPassword(),
+      access: link.creds.access,
       appendOnly: this.targetConfig.appendOnly,
-      plan: c.plan ?? defaultClientPlan(),
+      plan: c.plan,
       version: c.version,
       quadeckUrl: link.url,
     })
@@ -1234,37 +1353,8 @@ export class FixtureBackup implements BackupBackend {
   async clientAgent(name: string, token: string, kind: AgentKind, body: string): Promise<AgentReply> {
     const c = this.clients.find((x) => x.name === name)
     if (!c || this.agentTokens.get(name) !== token) throw new HttpError(401, 'unknown client or token – run the setup command from Quadeck again')
-    const appendOnly = this.targetConfig?.appendOnly ?? false
-    switch (kind) {
-      case 'settings':
-        c.applied = { version: c.version ?? 0, at: Date.now() }
-        return { text: clientSettings(c.plan ?? defaultClientPlan(), c.version ?? 0, appendOnly) }
-      case 'plan':
-        return { json: { name, version: c.version ?? 0, plan: c.plan ?? defaultClientPlan(), appendOnly } }
-      case 'preview':
-        return { text: clientSettings(clientProposal(body, c.plan), c.version ?? 0, appendOnly) }
-      case 'propose': {
-        const plan = clientProposal(body, c.plan)
-        if (JSON.stringify(plan) !== JSON.stringify(c.plan)) {
-          c.plan = plan
-          c.version = (c.version ?? 0) + 1
-          c.changed = { by: 'client', at: Date.now() }
-        }
-        return { json: { version: c.version ?? 0, plan } }
-      }
-      case 'inventory': {
-        const { inventory, error } = parseInventory(body)
-        if (!inventory) throw new HttpError(400, error!)
-        this.inventories.set(name, inventory)
-        c.scannedAt = inventory.at
-        return { json: inventory }
-      }
-      case 'report': {
-        const { run, error } = parseClientReport(body)
-        if (!run) throw new HttpError(400, error!)
-        c.runs = [run, ...(c.runs ?? [])].slice(0, MAX_CLIENT_RUNS)
-        return { json: { ok: true } }
-      }
-    }
+    c.lastSeen = Date.now()
+    this.links.settle(name, token)
+    return agentReply(c, kind, body, this.targetConfig?.appendOnly ?? false, (inventory) => this.inventories.set(name, inventory))
   }
 }

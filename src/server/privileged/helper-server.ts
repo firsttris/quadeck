@@ -4,7 +4,7 @@
 
 import { chmodSync, chownSync, existsSync, readFileSync, rmSync } from 'node:fs'
 import { m } from '~/paraglide/messages'
-import { parseBackupPlan, parseClientChange, parseSecrets, parseTargetConfig, parseWarnDays } from '~/shared/backup'
+import { CLIENT_ACTIONS, type ClientAction, parseBackupPlan, parseClientChange, parseSecrets, parseTargetConfig, parseWarnDays } from '~/shared/backup'
 import { AGENT_BODY_MAX, AGENT_KINDS, type AgentKind } from '~/shared/backup-agent'
 import { parseClientPlan, QUADECK_URL } from '~/shared/backup-client'
 import { parseBootEntryChange } from '~/shared/boot'
@@ -230,6 +230,11 @@ export const HELPER_ROUTES: Record<string, Handler> = {
     const { plan, error } = parseClientPlan(b.plan)
     if (!plan) throw new HttpError(400, error!)
     return p.setBackupClientPlan(str(b.token), str(b.name) ?? '', plan)
+  },
+  '/backup/client/action': (b, p) => {
+    const action = b.action as ClientAction
+    if (!CLIENT_ACTIONS.includes(action)) throw new HttpError(400, msg(m.common_errors_unknownRequest))
+    return p.backupClientAction(str(b.token), str(b.name) ?? '', action)
   },
   '/backup/client/link': (b, p) => {
     const url = str(b.url) ?? ''

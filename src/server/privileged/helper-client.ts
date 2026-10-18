@@ -1,6 +1,6 @@
 import { m } from '~/paraglide/messages'
 import type { ArchivePreview } from '~/shared/archives'
-import type { BackupPlan, BackupSizes, BackupState, BackupSuggestion, FolderListing, LsEntry, TargetConfig, TargetState } from '~/shared/backup'
+import type { BackupPlan, BackupSizes, BackupState, BackupSuggestion, ClientAction, FolderListing, LsEntry, TargetConfig, TargetState } from '~/shared/backup'
 import type { AgentKind, AgentReply, ClientInventory } from '~/shared/backup-agent'
 import type { ClientPlan } from '~/shared/backup-client'
 import type { BootEntryChange, BootEntryFile, BootState, EntryProblem } from '~/shared/boot'
@@ -481,6 +481,9 @@ export class HelperClient implements Privileged {
   }
   setBackupClientPlan(token: string | undefined, name: string, plan: ClientPlan) {
     return this.call<TargetState>('POST', '/backup/client/plan', { token, name, plan })
+  }
+  backupClientAction(token: string | undefined, name: string, action: ClientAction) {
+    return this.call<TargetState>('POST', '/backup/client/action', { token, name, action })
   }
   backupClientLink(token: string | undefined, name: string, quadeckUrl: string) {
     return this.call<{ token: string; expires: number }>('POST', '/backup/client/link', { token, name, url: quadeckUrl })
