@@ -183,6 +183,11 @@ on its last step.
      Desktop, `~/.ssh`, `~/.config`, the whole home) and any other folder (`~` is the home of the
      user who runs the script, or an absolute path). The script finds a standard folder under
      either language (`~/Dokumente` or `~/Documents`) or where `xdg-user-dirs` put it.
+   - **Choose a folder …** browses the computer's folders, with their size and what they are
+     (caches, development folders, Steam, a git project …). The computer sends this list itself
+     (see *How the client talks to Quadeck*); until it has, the dialog says how to get it.
+   - What the list finds inside the chosen folders that a preset would leave out is shown above
+     the exclusions, with its size and **Leave out** to switch the preset on.
    - Exclusions: presets (caches, trash, development folders like `node_modules`, `.venv`,
      `target` …, temporary files, downloads, VM images, Steam, folders with `.nobackup`) and own
      rules as a list, each labelled as folder or file, file type (`*.mkv`) or pattern (`**/build`),
@@ -223,8 +228,9 @@ The script is POSIX `sh` and is run as the normal user, not as root. It:
    `quadeck-backup.timer` (`Persistent=true`: a run missed while the computer was off is caught
    up), then enables the timer, or pauses it.
 
-When the plan changes in Quadeck, the table shows **change not run yet** until the computer runs a
-new command. Running it again changes nothing but folders, exclusions and schedule.
+When the plan changes in Quadeck, the computer takes it before its next backup by itself; until
+then the table shows **change not run yet**. A computer set up with an older script needs the new
+command once. Running the command again changes nothing but folders, exclusions and schedule.
 
 On the client:
 
@@ -233,12 +239,42 @@ On the client:
 | `quadeck-backup now` | back up right now |
 | `quadeck-backup check [--files]` | dry run: the size without and with the exclusions, how much they leave out and what the next run would upload; `--files` lists the files |
 | `quadeck-backup status` | the last backups and the next run |
+| `quadeck-backup scan [--json]` | send the folder list to Quadeck now (also once a day after a backup) |
+| `quadeck-backup sync` | fetch new settings from Quadeck now (also before every backup) |
+| `quadeck-backup plan show` / `plan set -f <plan.json>` | the plan as JSON / set a new one from the computer |
+| `quadeck-backup check --plan <draft.json> [--json]` | the dry run for a draft plan, without saving it |
+| `quadeck-backup guide` | the steps for an AI agent that sets up this backup with you |
 | `quadeck-backup mount [dir]` | the backups as folders under `~/Backup` (needs FUSE) |
 | `quadeck-backup restore <path> [dir]` | restore from the latest backup |
-| `quadeck-backup update` | where to get new settings |
 | `quadeck-backup uninstall` | remove the timer and the command (settings and password stay) |
 
 On an append-only target the clients skip `forget`; old snapshots stay.
+
+### How the client talks to Quadeck
+
+Every setup script carries a token for this computer, renewed with every script (Quadeck keeps
+only its SHA-256, in the helper). With it, `quadeck-backup` talks to
+`<Quadeck>/api/backup/agent/<name>`, the address the browser used when the command was created:
+
+- **Settings**: before every backup it fetches the plan as plain lines (`folder ~/Dokumente`,
+  `preset caches`, `keep daily 7` …). The client checks every line itself and runs none of them:
+  a wrong or cut-off answer changes nothing, and the backup runs with the last settings.
+- **Folder list**: `du` over the home (four levels), plus markers `find` reports (`node_modules`,
+  `.venv`, `.git`, `CACHEDIR.TAG`, `.nobackup`). Names and sizes only, never file contents. The
+  setup script sends the first one in the background, then once a day after a backup.
+- **Runs**: after every backup its result (restic's summary, warnings, errors). The table shows a
+  failed run or one with warnings under the last backup.
+- **A plan from the computer**: `quadeck-backup plan set` (an agent on the computer, for example)
+  sets folders, exclusions and schedule; how long backups stay is Quadeck's alone, so a computer
+  cannot shorten its own history. The table shows **changed on the computer**.
+
+A disabled client gets no answer; a wrong token is refused.
+
+### With an AI agent on the computer
+
+`quadeck-backup guide` prints the steps for an agent (Claude Code, for example) on the computer:
+look at the plan and the folders, try a draft with `check --plan`, talk it through with you, then
+`plan set`. The agent sees the folders itself and needs no access to the server.
 
 ### By hand
 

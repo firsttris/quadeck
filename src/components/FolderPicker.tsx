@@ -31,6 +31,7 @@ export function FolderPicker({
   target,
   source,
   root = '/',
+  markLabel,
 }: {
   value: string
   onChange: (path: string) => void
@@ -38,6 +39,8 @@ export function FolderPicker({
   target?: boolean
   source?: FolderSource
   root?: '/' | '~'
+  /** The label of a mark from a client's scan (caches, dev …). */
+  markLabel?: (mark: string) => string
 }) {
   const [listing, setListing] = useState<FolderListing | null>(null)
   const [error, setError] = useState('')
@@ -117,7 +120,14 @@ export function FolderPicker({
                 <span className="text-accent">
                   <Glyph name="folder" size={14} />
                 </span>
-                {d}
+                <span className="min-w-0 truncate">{d}</span>
+                <span className="grow" />
+                {listing?.marks?.[d]?.map((k) => (
+                  <span key={k} className="chip shrink-0 font-sans text-[11px]">
+                    {markLabel ? markLabel(k) : k}
+                  </span>
+                ))}
+                {listing?.sizes?.[d] !== undefined && <span className="shrink-0 text-[12px] text-muted">{bytes(listing.sizes[d])}</span>}
               </button>
             </li>
           ))}
@@ -160,6 +170,8 @@ export function FolderPickerDialog({
   start,
   source,
   root = '/',
+  markLabel,
+  note,
   onPick,
   onClose,
 }: {
@@ -167,6 +179,9 @@ export function FolderPickerDialog({
   start?: string
   source?: FolderSource
   root?: '/' | '~'
+  markLabel?: (mark: string) => string
+  /** A line below the browser (where the folders come from). */
+  note?: string
   onPick: (path: string) => void
   onClose: () => void
 }) {
@@ -177,7 +192,8 @@ export function FolderPickerDialog({
     <Modal open title={title} onClose={onClose}>
       <div className="flex flex-col gap-3">
         <input className="field font-mono" value={path} aria-label={m.folders_path()} onChange={(e) => setPath(e.target.value)} />
-        <FolderPicker value={path} onChange={setPath} source={source} root={root} />
+        <FolderPicker value={path} onChange={setPath} source={source} root={root} markLabel={markLabel} />
+        {note && <p className="m-0 text-[12px] text-muted">{note}</p>}
         <div className="flex justify-end gap-2 border-t border-line pt-3">
           <button type="button" className="btn" onClick={onClose}>
             {m.common_cancel()}
