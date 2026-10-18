@@ -10,6 +10,7 @@ import { CLIENT_PRESETS, type ClientPlan, type ClientPreset, clientCalendar, def
 import { localeOf } from '~/shared/i18n'
 import { useActions } from './Actions'
 import { BusyButton, Spinner, useBusy } from './Busy'
+import { FolderPicker } from './FolderPicker'
 import { ConfirmDialog, Modal } from './Modal'
 import { RetentionPicker } from './Retention'
 import { RowMenu } from './RowMenu'
@@ -318,6 +319,7 @@ function TargetDialog({ config, host, onClose, onSave }: { config?: TargetConfig
         {m.backup_target_dataDir()}
         <input className="field font-mono" value={c.dataDir} onChange={(e) => setC({ ...c, dataDir: e.target.value.trim() })} />
       </label>
+      <FolderPicker target value={c.dataDir} onChange={(dataDir) => setC({ ...c, dataDir })} />
       <div className="grid grid-cols-[110px_minmax(0,1fr)] gap-3">
         <label className="flex flex-col gap-1.5 text-[13px]">
           {m.backup_target_port()}

@@ -129,7 +129,9 @@ repository and its own access.
 
 **Set up backup target …** asks for:
 
-- **Data folder**: one folder per client below it. The parent folder must exist.
+- **Data folder**: one folder per client below it. The parent folder must exist. The same folder
+  browser as for the server's target walks the file system below the field, with the disk and its
+  free space.
 - **Port**: the rest-server is published on it.
 - **Address for the clients**: what the computers use, e.g. `http://nas.lan:8000`. For HTTPS, add a
   domain in the [reverse proxy](network.md#reverse-proxy) pointing at `localhost:<port>` and enter
