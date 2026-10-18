@@ -2,7 +2,9 @@ import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, 
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
+import { SystemBackup } from '~/server/backup/backend'
 import { run } from '~/server/exec'
+import type { AgentKind } from '~/shared/backup-agent'
 import { type ClientPlan, clientCalendar, clientCommand, clientExcludes, clientForgetArgs, clientScript, defaultClientPlan, parseClientPlan, ruleKind, ruleProblem, sq } from '~/shared/backup-client'
 
 const plan = (over: Partial<ClientPlan> = {}): ClientPlan => ({ ...defaultClientPlan(), ...over })
@@ -193,6 +195,121 @@ describe.skipIf(!hasRestic)('client script on a (sandboxed) computer', () => {
     expect(r.code).not.toBe(0)
     expect(r.stderr).toContain('does not open it')
   }, 60_000)
+
+  /** A Quadeck for the client: the agent endpoint of the route, on the helper's backend. */
+  const quadeck = async (root: string, override?: { settings?: string }) => {
+    mkdirSync(root, { recursive: true })
+    const b = new SystemBackup({ dir: join(root, 'state'), unitDir: join(root, 'units'), exec: run, log: () => {} })
+    await b.saveTarget({ dataDir: join(root, 'backups'), port: 8000, appendOnly: false, url: 'http://nas:8000' })
+    await b.addClient('laptop', 3)
+    const server = Bun.serve({
+      port: 0,
+      hostname: '127.0.0.1',
+      fetch: async (req) => {
+        const url = new URL(req.url)
+        const name = url.pathname.split('/').pop()!
+        const kind = url.searchParams.get('do') as AgentKind
+        if (override?.settings && kind === 'settings') return new Response(override.settings)
+        try {
+          const reply = await b.clientAgent(name, (req.headers.get('authorization') ?? '').slice(7), kind, req.method === 'POST' ? await req.text() : '')
+          return 'text' in reply ? new Response(reply.text) : Response.json(reply.json)
+        } catch (e) {
+          return new Response((e as Error).message, { status: (e as { status?: number }).status ?? 500 })
+        }
+      },
+    })
+    const token = /QUADECK_TOKEN='([^']+)'/.exec((await b.redeemClientLink((await b.clientLink('laptop', 'http://x')).token))!)![1]!
+    return { b, server, token, url: `http://127.0.0.1:${server.port}` }
+  }
+  const laptop = async (b: SystemBackup) => (await b.targetState()).clients.find((c) => c.name === 'laptop')!
+  const until = async (ok: () => Promise<boolean>) => {
+    for (let i = 0; i < 100 && !(await ok()); i++) await Bun.sleep(100)
+  }
+
+  it('talks to Quadeck: scan, new settings before a run, the run report, a plan from the client', async () => {
+    const s = sandbox()
+    const q = await quadeck(s.root)
+    try {
+      await q.b.setClientPlan('laptop', plan({ folders: ['~/Dokumente'] }))
+      writeFileSync(join(s.root, 'setup.sh'), clientScript(input({ repo: join(s.root, 'repo'), plan: plan({ folders: ['~/Dokumente'] }), version: 1, agentToken: q.token, quadeckUrl: q.url })))
+      const r = await run(['sh', join(s.root, 'setup.sh')], { env: s.env, timeoutMs: 60_000 })
+      expect(r.code).toBe(0)
+      // The setup sends the folder list in the background.
+      await until(async () => (await q.b.clientInventory('laptop')) !== null)
+      const inv = (await q.b.clientInventory('laptop'))!
+      expect(inv.home).toBe(s.home)
+      expect(inv.dirs.find((d) => d.path === '~/Dokumente/node_modules')?.marks).toEqual(['dev'])
+      expect(inv.dirs.find((d) => d.path === '~/.cache')?.marks).toEqual(['caches'])
+
+      // A change in Quadeck reaches the client before its next run, without a new script.
+      await q.b.setClientPlan('laptop', plan({ folders: ['~/Dokumente', '~/Bilder'], exclude: { presets: ['caches'], patterns: [] }, schedule: { every: '6h', time: '01:30' } }))
+      const cmd = join(s.home, '.local/bin/quadeck-backup')
+      const ran = await run([cmd, 'run'], { env: s.env, timeoutMs: 60_000 })
+      expect(ran.stderr).not.toContain('quadeck-backup:')
+      expect(ran.code).toBe(0)
+      const conf = join(s.home, '.config/quadeck-backup')
+      expect(readFileSync(join(conf, 'folders'), 'utf8')).toBe(`${s.home}/Dokumente\n${s.home}/Bilder\n`)
+      expect(readFileSync(join(conf, 'env'), 'utf8')).toContain('QUADECK_VERSION=2')
+      expect(readFileSync(join(s.home, '.config/systemd/user/quadeck-backup.timer'), 'utf8')).toContain('OnCalendar=*-*-* 1/6:30:00')
+      const ls = (await s.restic('ls', 'latest')).stdout
+      expect(ls).toContain('/Bilder/foto.jpg')
+      expect(ls).toContain('node_modules') // dev is off now
+      let c = await laptop(q.b)
+      expect(c.applied?.version).toBe(2)
+      expect(c.runs?.[0]).toMatchObject({ status: 'ok', files: 4 })
+
+      // The plan as JSON, a draft tried without saving, then set from the client.
+      const shown = JSON.parse((await run([cmd, 'plan', 'show'], { env: s.env })).stdout)
+      expect(shown.plan.folders).toEqual(['~/Dokumente', '~/Bilder'])
+      writeFileSync(join(s.root, 'draft.json'), JSON.stringify({ ...shown.plan, folders: ['~/Bilder'], keep: { daily: 1, weekly: 0, monthly: 0 } }))
+      const check = await run([cmd, 'check', '--plan', join(s.root, 'draft.json'), '--json'], { env: s.env, timeoutMs: 60_000 })
+      expect(check.code).toBe(0)
+      expect(JSON.parse(check.stdout)).toMatchObject({ files: 1 })
+      expect((await laptop(q.b)).version).toBe(2)
+      const set = await run([cmd, 'plan', 'set', '-f', join(s.root, 'draft.json')], { env: s.env, timeoutMs: 60_000 })
+      expect(set.code).toBe(0)
+      c = await laptop(q.b)
+      expect(c).toMatchObject({ version: 3, changed: { by: 'client' }, plan: { folders: ['~/Bilder'], keep: { daily: 7, weekly: 4, monthly: 12 } } }) // the retention stays Quadeck's
+      expect(readFileSync(join(conf, 'folders'), 'utf8')).toBe(`${s.home}/Bilder\n`)
+
+      // A wrong token: the client says so and backs up with what it has.
+      writeFileSync(join(conf, 'env'), readFileSync(join(conf, 'env'), 'utf8').replace(/QUADECK_TOKEN='[^']+'/, `QUADECK_TOKEN='${'x'.repeat(32)}'`))
+      const sync = await run([cmd, 'sync'], { env: s.env })
+      expect(sync.code).not.toBe(0)
+      expect(sync.stderr).toContain('401')
+      const again = await run([cmd, 'run'], { env: s.env, timeoutMs: 60_000 })
+      expect(again.code).toBe(0)
+      expect(again.stderr).toContain('backing up with the last ones')
+    } finally {
+      q.server.stop(true)
+    }
+  }, 180_000)
+
+  it('settings from Quadeck are data: lines that do not pass the checks change nothing', async () => {
+    const s = sandbox()
+    const pwned = join(s.root, 'pwned')
+    const bad = [
+      `quadeck-settings 1\nversion 9\nactive 1\ncalendar $(touch ${pwned})\nfolder ~/x\nend\n`,
+      `quadeck-settings 1\nversion 9\nactive 1\ncalendar *-*-* 12:00:00\nmaxsize 2; touch ${pwned}\nfolder ~/x\nend\n`,
+      `quadeck-settings 1\nversion 9\nactive 1\ncalendar *-*-* 12:00:00\nkeep daily 1 --password-command=touch\nfolder ~/x\nend\n`,
+      'quadeck-settings 1\nversion 9\nactive 1\ncalendar *-*-* 12:00:00\nfolder ~/x\n', // cut off: no end
+    ]
+    for (const settings of bad) {
+      const q = await quadeck(join(s.root, String(bad.indexOf(settings))), { settings })
+      try {
+        writeFileSync(join(s.root, 'setup.sh'), clientScript(input({ repo: join(s.root, 'repo'), plan: plan({ folders: ['~/Dokumente'] }), version: 1, agentToken: q.token, quadeckUrl: q.url })))
+        expect((await run(['sh', join(s.root, 'setup.sh')], { env: s.env, timeoutMs: 60_000 })).code).toBe(0)
+        const r = await run([join(s.home, '.local/bin/quadeck-backup'), 'sync'], { env: s.env })
+        expect(r.code).not.toBe(0)
+        const conf = join(s.home, '.config/quadeck-backup')
+        expect(readFileSync(join(conf, 'folders'), 'utf8')).toBe(`${s.home}/Dokumente\n`)
+        expect(readFileSync(join(conf, 'env'), 'utf8')).toContain('QUADECK_VERSION=1')
+      } finally {
+        q.server.stop(true)
+      }
+    }
+    expect(existsSync(pwned)).toBe(false)
+  }, 180_000)
 
   it('refuses to run as root', async () => {
     if (process.getuid?.() !== 0) return
