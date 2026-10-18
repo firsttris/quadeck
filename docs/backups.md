@@ -138,7 +138,7 @@ sudo quadeck backup plan draft > plan.json # a new plan from the suggestions, to
 sudo quadeck backup plan set -f plan.json --dry-run   # what changes, sizes, warnings; saves nothing
 sudo quadeck backup plan set -f plan.json  # save: opens or creates the repository, writes the timer
 sudo quadeck backup run                    # back up now
-sudo quadeck backup clients                # the clients of the backup target
+sudo quadeck backup clients                # the clients: plan, online, waiting
 sudo quadeck backup client plan set laptop -f laptop.json [--dry-run]
 ```
 
@@ -151,6 +151,9 @@ sudo quadeck backup client plan set laptop -f laptop.json [--dry-run]
   as the data.
 - Exit codes: 0 done, 1 failed, 2 a usage error or a plan that does not pass the checks. With
   `--json` an error comes as `{ "error": "…" }`.
+- `clients` shows per client whether it is connected and online, whether it has a plan and runs
+  its current version, and tasks still waiting for it. `client plan set` stores a client's plan
+  as changed with the CLI; the computer picks it up within about 10 minutes.
 
 ## Backup target for clients
 
@@ -173,66 +176,93 @@ repository and its own access.
 It writes `quadeck-rest-server.container` (image `restic/rest-server`, `--private-repos`) through the
 Quadlet editor's checks and history, and starts it.
 
-**+ Add client** opens a wizard in three steps; **Edit …** in a client's row opens the same wizard
-on its last step.
+A computer is **connected first and planned afterwards**: **+ Add client** asks only for its name,
+then shows the command for the computer. What and when it backs up is set once it is connected:
+here with **Set plan**, by an AI agent on the computer, or with the CLI on the server.
 
-### The client's plan and its command
+### Connecting a computer
 
-1. **Device & what**:
-   - The name (only when adding): lower-case letters, digits and hyphens; the backups land in
-     `<data folder>/<name>`.
-   - What to back up: the standard folders as a quick choice (Documents, Pictures, Music, Videos,
-     Desktop, `~/.ssh`, `~/.config`, the whole home) and any other folder (`~` is the home of the
-     user who runs the script, or an absolute path). The script finds a standard folder under
-     either language (`~/Dokumente` or `~/Documents`) or where `xdg-user-dirs` put it.
-   - **Choose a folder …** browses the computer's folders, with their size and what they are
-     (caches, development folders, Steam, a git project …). The computer sends this list itself
-     (see *How the client talks to Quadeck*); until it has, the dialog says how to get it.
-   - What the list finds inside the chosen folders that a preset would leave out is shown above
-     the exclusions, with its size and **Leave out** to switch the preset on.
-   - Exclusions: presets (caches, trash, development folders like `node_modules`, `.venv`,
-     `target` …, temporary files, downloads, VM images, Steam, folders with `.nobackup`) and own
-     rules as a list, each labelled as folder or file, file type (`*.mkv`) or pattern (`**/build`),
-     with examples to add in one click. A rule that would leave out everything (`/`, `~`, `*` …) is
-     refused. Plus an optional size limit per file.
-2. **When**: hourly, every 6 hours, daily or weekly; how long to keep with the same presets and
-   timeline as the server backup (1 week, 1 year, 1 year then yearly, own values); a warning after
-   N days without a backup; **active** (off pauses the timer on the client).
-3. **Set up**: the client and its plan are saved on the way into this step. A summary with a
-   change link per row, then three numbered steps: open a terminal as the normal user, paste the
-   command, choose the repository password. While the computer has not run the command yet, the
-   dialog says it is waiting and notices within seconds when it has.
-
-<img src="screenshot-client-wizard.png" alt="The client wizard's first step: the device name, the standard folders as a quick choice, the presets and own exclusions with their kind" width="760">
-
-**Create command** shows a one-liner for the client:
+The name: lower-case letters, digits and hyphens; the backups land in `<data folder>/<name>`.
+**Create** saves the client and shows a one-liner for it, with three numbered steps (open a
+terminal as the normal user, paste the command, choose the repository password):
 
 ```bash
-curl -fsSL http://nas.lan:8484/api/backup/script/<one-time link> | sh
+curl -fsSL http://nas.lan:8484/api/backup/script/<setup link> | sh
 ```
 
-- The link works **once** and for **30 minutes**. It needs no login: the link itself (192 random
-  bits) is the authorisation.
-- A used or expired link answers with a message to create a new one.
+- The link is good for **30 minutes** or **until the computer has connected**, whichever comes
+  first. It needs no login: the link itself (192 random bits) is the authorisation.
+- It can be fetched more than once until then – reviewed first, or the script run again after it
+  stopped half-way (restic missing, server not reachable). Every fetch carries the same access and
+  token, so an earlier half-done install keeps working.
+- An expired link, or one whose computer is set up, answers with a message to create a new one
+  (**Show command** in the row menu).
 - **Review first** shows the same as download, check, run.
+
+While the computer has not run the command yet, the dialog says it is waiting and notices within
+seconds when it has; then **Set plan** opens the plan.
 
 The script is POSIX `sh` and is run as the normal user, not as root. It:
 
 1. checks that restic and systemd are there (and names the install command if restic is
-   missing),
-2. writes `~/.config/quadeck-backup/` (mode 700): the access (renewed with every script, so only
-   the newest script's access works), the folders and the exclusions,
+   missing: `brew install restic` where Homebrew is, `rpm-ostree install restic` on an atomic
+   system, else the package manager), and remembers where restic is (the user units do not get
+   the login shell's `PATH`),
+2. writes `~/.config/quadeck-backup/` (mode 700): the access (renewed with every link, so only
+   the newest link's access works), the folders and the exclusions of the plan if there is one,
 3. asks **once** for the repository password and keeps it in `~/.config/quadeck-backup/password`.
    It encrypts the backups and never leaves the computer. On a later run the script only checks
    that it still opens the repository,
-4. creates the repository on the first run (`restic init`),
-5. installs `~/.local/bin/quadeck-backup` and the user units `quadeck-backup.service` and
-   `quadeck-backup.timer` (`Persistent=true`: a run missed while the computer was off is caught
-   up), then enables the timer, or pauses it.
+4. connects to the rest-server (says so, and gives up after 30 seconds with the reason when it
+   cannot reach it) and creates the repository on the first run (`restic init`),
+5. installs `~/.local/bin/quadeck-backup` and the user units: `quadeck-backup.service` and
+   `.timer` for the backups on the plan's schedule (`Persistent=true`: a run missed while the
+   computer was off is caught up; off while there is no plan or the plan is paused), and
+   `quadeck-backup-agent.service` and `.timer`, which ask Quadeck every 10 minutes (see below),
+6. tells Quadeck that it is set up (this ends the link and marks the plan as arrived) and sends
+   the folder list in the background.
 
-When the plan changes in Quadeck, the computer takes it before its next backup by itself; until
-then the table shows **change not run yet**. A computer set up with an older script needs the new
-command once. Running the command again changes nothing but folders, exclusions and schedule.
+Without a plan it ends with *connected – no backup plan yet*: nothing is backed up until a plan
+comes. The script hints at `sudo loginctl enable-linger <user>` when the user's timers only run
+while the user is logged in.
+
+### The client's plan
+
+A row without a plan says **Connected – no plan yet**, with:
+
+- **Set plan**: the plan editor, starting from the recommended plan,
+- **Use the recommended plan**: Documents and Pictures (named in the UI's language; the script
+  finds either name) weekly, with the default exclusions and retention, in one click,
+- the commands for an agent: `quadeck backup client plan set <name> -f plan.json` on the server,
+  `quadeck-backup plan set` on the computer.
+
+**Edit …** in the row menu opens the same editor with two tabs:
+
+- **What**:
+  - the standard folders as a quick choice (Documents, Pictures, Music, Videos, Desktop,
+    `~/.ssh`, `~/.config`, the whole home) and any other folder (`~` is the home of the user who
+    runs the script, or an absolute path). The script finds a standard folder under either
+    language (`~/Dokumente` or `~/Documents`) or where `xdg-user-dirs` put it.
+  - **Choose a folder …** browses the computer's folders, with their size and what they are
+    (caches, development folders, Steam, a git project …). The computer sends this list itself
+    (see *How the client talks to Quadeck*); until it has, the editor says how to get it.
+  - What the list finds inside the chosen folders that a preset would leave out is shown above
+    the exclusions, with its size and **Leave out** to switch the preset on.
+  - Exclusions: presets (caches, trash, development folders like `node_modules`, `.venv`,
+    `target` …, temporary files, downloads, VM images, Steam, folders with `.nobackup`) and own
+    rules as a list, each labelled as folder or file, file type (`*.mkv`) or pattern (`**/build`),
+    with examples to add in one click. A rule that would leave out everything (`/`, `~`, `*` …) is
+    refused. Plus an optional size limit per file.
+- **When**: hourly, every 6 hours, daily or weekly; how long to keep with the same presets and
+  timeline as the server backup (1 week, 1 year, 1 year then yearly, own values); a warning after
+  N days without a backup; **active** (off pauses the backup timer on the client).
+
+<img src="screenshot-client-wizard.png" alt="The client plan: the standard folders as a quick choice, the presets and own exclusions with their kind" width="760">
+
+**Save** stores the plan with a new version. The computer takes it within about 10 minutes (its
+agent timer) or, at the latest, before its next backup; until then the row says **waiting**, then
+**arrived ✓**. Who changed the plan last and when is shown below: in Quadeck, with the CLI, or on
+the device. Running the command again is never needed for a new plan.
 
 On the client:
 
@@ -243,35 +273,48 @@ On the client:
 | `quadeck-backup status` | the last backups and the next run |
 | `quadeck-backup scan [--json]` | send the folder list to Quadeck now (also once a day after a backup) |
 | `quadeck-backup sync` | fetch new settings from Quadeck now (also before every backup) |
-| `quadeck-backup plan show` / `plan set -f <plan.json>` | the plan as JSON / set a new one from the computer |
+| `quadeck-backup poll` | ask Quadeck for a new plan or a task (what `quadeck-backup-agent.timer` runs every 10 minutes) |
+| `quadeck-backup plan show` / `plan set -f <plan.json>` | the plan as JSON (`plan` is null without one) / set a new one from the computer |
 | `quadeck-backup check --plan <draft.json> [--json]` | the dry run for a draft plan, without saving it |
 | `quadeck-backup guide [--skill]` | the steps for an AI agent that sets up this backup with you |
 | `quadeck-backup skill install` | the same as a skill for Claude Code (`~/.claude/skills/quadeck-backup`) |
 | `quadeck-backup mount [dir]` | the backups as folders under `~/Backup` (needs FUSE) |
 | `quadeck-backup restore <path> [dir]` | restore from the latest backup |
-| `quadeck-backup uninstall` | remove the timer and the command (settings and password stay) |
+| `quadeck-backup uninstall` | remove both timers and the command (settings and password stay) |
 
 On an append-only target the clients skip `forget`; old snapshots stay.
 
 ### How the client talks to Quadeck
 
-Every setup script carries a token for this computer, renewed with every script (Quadeck keeps
+Every setup link carries a token for this computer, renewed with every new link (Quadeck keeps
 only its SHA-256, in the helper). With it, `quadeck-backup` talks to
-`<Quadeck>/api/backup/agent/<name>`, the address the browser used when the command was created:
+`<Quadeck>/api/backup/agent/<name>`, the address the browser used when the command was created.
+Quadeck never sends commands: only data, which the client checks line by line.
 
-- **Settings**: before every backup it fetches the plan as plain lines (`folder ~/Dokumente`,
-  `preset caches`, `keep daily 7` …). The client checks every line itself and runs none of them:
-  a wrong or cut-off answer changes nothing, and the backup runs with the last settings.
+- **Poll**: every 10 minutes (randomised by up to 2 minutes, caught up after the computer was
+  off) `quadeck-backup-agent.timer` asks for the plan's version and the tasks waiting for it. A
+  new version is fetched right away; the tasks are handed out once: **back up now** starts
+  `quadeck-backup.service` without waiting for it, **refresh folder list** sends a new one. Any
+  other word is ignored. The backup timer does not depend on it: backups run on schedule even when
+  Quadeck is not reachable.
+- **Settings**: before every backup, and when the poll sees a new version, it fetches the plan as
+  plain lines (`folder ~/Dokumente`, `preset caches`, `keep daily 7` …). The client checks every
+  line itself and runs none of them: a wrong or cut-off answer changes nothing, and the backup runs
+  with the last settings. Without a plan the settings say so (`active 0`, no folders) and the
+  backup timer stays off.
 - **Folder list**: `du` over the home (four levels), plus markers `find` reports (`node_modules`,
   `.venv`, `.git`, `CACHEDIR.TAG`, `.nobackup`). Names and sizes only, never file contents. The
-  setup script sends the first one in the background, then once a day after a backup.
+  setup script sends the first one in the background, then once a day after a backup, or when
+  asked.
 - **Runs**: after every backup its result (restic's summary, warnings, errors). The table shows a
   failed run or one with warnings under the last backup.
 - **A plan from the computer**: `quadeck-backup plan set` (an agent on the computer, for example)
   sets folders, exclusions and schedule; how long backups stay is Quadeck's alone, so a computer
-  cannot shorten its own history. The table shows **changed on the computer**.
+  cannot shorten its own history. The table shows **changed on the device**.
 
-A disabled client gets no answer; a wrong token is refused.
+Every request counts as a sign of life: the **Device** column shows **online** when the computer
+was seen within 25 minutes, else when it was last seen, or **never connected**. A disabled client
+gets no answer; a wrong token is refused.
 
 ### With an AI agent on the computer
 
@@ -279,7 +322,8 @@ A disabled client gets no answer; a wrong token is refused.
 look at the plan and the folders, try a draft with `check --plan`, talk it through with you, then
 `plan set`. The agent sees the folders itself and needs no access to the server. With
 `quadeck-backup skill install` Claude Code finds these steps by itself when you ask it about the
-computer's backup.
+computer's backup. A connected computer without a plan is where this is most useful: connect it,
+then let the agent work out the plan with you.
 
 ### By hand
 
@@ -293,12 +337,16 @@ address and the restic commands. Use it for a computer you set up yourself (Wind
 - On the client, `restic init` asks for the **repository password**. It encrypts the backups and
   stays on the client: the server cannot read them, and without that password nobody can.
 
-Per client the table shows the last backup, the size, the number of snapshots, when to warn, and
-whether the computer runs the current settings.
+Per client the table shows whether the computer is there (online, last seen, never connected, and
+tasks still waiting for it), the last backup, the size, the number of snapshots, when to warn, and
+the plan: its version, whether the computer runs it, who changed it and when.
 The server reads the time without any password: every backup writes a new file into the
 repository's `snapshots/` folder. **Measure sizes** runs `du` on the repositories. The row menu has:
 
-- **Edit …**: the client's plan, its warning and a new command.
+- **Back up now** and **Refresh folder list**: tasks for the computer, taken with its next poll
+  (within about 10 minutes).
+- **Edit …**: the client's plan and its warning.
+- **Show command**: a new setup link, to connect the computer (again).
 - **Renew access**: a new access password, shown once; the old one stops working.
 - **Disable**: removes the access but keeps the repository. **Enable** brings the same access back.
 - **Delete …**: removes the access; optionally deletes the client's backups too.
