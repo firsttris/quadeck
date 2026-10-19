@@ -214,7 +214,8 @@ describe('the meter', () => {
     expect(m2.now!.cpuMeasured).toBe(true)
     expect(energyHours(db(), t0, t0 + 2 * 3_600_000)[1]!.cpu).toBeGreaterThan(before)
 
-    const r = energyReport(db(), m2.now, (d) => (d === 'sdb' ? 'hdd' : undefined))
+    // at the time of the last tick: the hours above are "today" whatever time the test runs
+    const r = energyReport(db(), m2.now, (d) => (d === 'sdb' ? 'hdd' : undefined), t0 + 3_600_000 + 12 * 60_000)
     expect(r.hours.length).toBeGreaterThanOrEqual(2)
     expect(r.today).toBeGreaterThan(0)
     expect(r.standbyToday.sdb ?? 0).toBeGreaterThanOrEqual(0)
