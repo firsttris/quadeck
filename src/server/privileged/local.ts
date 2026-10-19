@@ -1,7 +1,7 @@
 import { existsSync } from 'node:fs'
 import { hostname, userInfo } from 'node:os'
 import { m } from '~/paraglide/messages'
-import { type BackupPlan, TARGET_QUADLET, type TargetConfig } from '~/shared/backup'
+import { type BackupPlan, type ClientAction, TARGET_QUADLET, type TargetConfig } from '~/shared/backup'
 import type { AgentKind } from '~/shared/backup-agent'
 import type { ClientPlan } from '~/shared/backup-client'
 import type { BootEntryChange } from '~/shared/boot'
@@ -631,6 +631,9 @@ export class LocalPrivileged implements Privileged {
   caddyRevision(id: string) {
     return this.caddy.caddyRevision(id)
   }
+  caddyCa() {
+    return this.caddy.caddyCa()
+  }
   async applyCaddy(token: string | undefined, change: CaddyChange, expected: string | undefined) {
     this.gate.check(token)
     return this.caddy.applyCaddy(change, expected)
@@ -734,9 +737,13 @@ export class LocalPrivileged implements Privileged {
     this.gate.check(token)
     return this.backup.setClientPlan(name, plan)
   }
+  async backupClientAction(token: string | undefined, name: string, action: ClientAction) {
+    this.gate.check(token)
+    return this.backup.clientAction(name, action)
+  }
   async backupClientLink(token: string | undefined, name: string, quadeckUrl: string) {
     this.gate.check(token)
-    return this.backup.clientLink(name, quadeckUrl)
+    return this.backup.clientLink(name, quadeckUrl, (url) => this.caddy.localCaFor(url))
   }
   backupAgent(name: string, token: string, kind: AgentKind, body: string) {
     return this.backup.clientAgent(name, token, kind, body)

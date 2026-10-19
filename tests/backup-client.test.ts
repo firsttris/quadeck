@@ -1,11 +1,27 @@
-import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
+import { chmodSync, existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync, statSync, symlinkSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { SystemBackup } from '~/server/backup/backend'
+import { localCa } from '~/server/caddy/backend'
 import { run } from '~/server/exec'
 import type { AgentKind } from '~/shared/backup-agent'
-import { type ClientPlan, clientCalendar, clientCommand, clientExcludes, clientForgetArgs, clientScript, defaultClientPlan, parseClientPlan, ruleKind, ruleProblem, sq } from '~/shared/backup-client'
+import {
+  CA_TMP,
+  type ClientPlan,
+  clientCalendar,
+  clientCommand,
+  clientExcludes,
+  clientForgetArgs,
+  clientScript,
+  defaultClientPlan,
+  parseClientPlan,
+  reviewCommands,
+  ruleKind,
+  ruleProblem,
+  setupCommand,
+  sq,
+} from '~/shared/backup-client'
 
 const plan = (over: Partial<ClientPlan> = {}): ClientPlan => ({ ...defaultClientPlan(), ...over })
 
@@ -79,12 +95,189 @@ describe('client script', () => {
       clientScript(input({ plan: plan({ folders: ["~/Bob's files", '~/a b'], exclude: { presets: ['caches', 'nobackup'], patterns: ['*.$weird'], maxSizeGB: 2 } }) })),
     )
     writeFileSync(join(dir, 'cmd.sh'), clientCommand())
-    for (const f of ['setup.sh', 'cmd.sh']) expect((await run(['sh', '-n', join(dir, f)])).code).toBe(0)
+    writeFileSync(join(dir, 'noplan.sh'), clientScript(input({ plan: undefined, agentToken: 'a'.repeat(32) })))
+    for (const f of ['setup.sh', 'noplan.sh', 'cmd.sh']) expect((await run(['sh', '-n', join(dir, f)])).code).toBe(0)
     const text = clientScript(input())
     expect(text).toContain("RESTIC_REPOSITORY='rest:http://nas.lan:8000/laptop/'")
     expect(text).toContain("CALENDAR='*-*-* 12:00:00'")
     expect(text).not.toContain('QUADECK_REPO_PASSWORD=') // the repository password never comes from the server
   })
+})
+
+describe('client script without restic or a reachable Quadeck', () => {
+  // A PATH with only what the script needs before the restic check, plus the given stand-ins.
+  const bare = (tools: string[]) => {
+    const root = mkdtempSync(join(tmpdir(), 'qd-bare-'))
+    const bin = join(root, 'bin')
+    mkdirSync(bin)
+    symlinkSync(Bun.which('id')!, join(bin, 'id'))
+    for (const t of tools) {
+      writeFileSync(join(bin, t), '#!/bin/sh\nexit 0\n')
+      chmodSync(join(bin, t), 0o755)
+    }
+    writeFileSync(join(root, 'setup.sh'), clientScript(input()))
+    return run(['/bin/sh', join(root, 'setup.sh')], { env: { HOME: root, PATH: bin, QUADECK_ALLOW_ROOT: '1' } })
+  }
+  it('says how to install restic: brew first, else the package manager', async () => {
+    const brew = await bare(['brew', 'apt-get'])
+    expect(brew.code).not.toBe(0)
+    expect(brew.stderr).toContain('install it first: brew install restic')
+    if (existsSync('/run/ostree-booted')) return
+    expect((await bare(['apt-get'])).stderr).toContain('install it first: sudo apt install restic')
+    expect((await bare([])).stderr).toContain('restic is not installed\n')
+  })
+
+  it("says when this computer does not trust Quadeck's certificate", async () => {
+    const root = mkdtempSync(join(tmpdir(), 'qd-tls-'))
+    const conf = join(root, '.config/quadeck-backup')
+    const bin = join(root, 'bin')
+    mkdirSync(conf, { recursive: true })
+    mkdirSync(bin)
+    writeFileSync(join(conf, 'env'), "QUADECK_NAME='laptop'\nQUADECK_VERSION=1\nQUADECK_URL='https://nas.lan'\nQUADECK_TOKEN='tok'\n")
+    writeFileSync(join(root, 'cmd.sh'), clientCommand())
+    const curl = (code: number) => {
+      writeFileSync(join(bin, 'curl'), `#!/bin/sh\nprintf '%s\\n' "$*" > "${root}/curl-args"\necho "curl: (${code}) some error" >&2\nexit ${code}\n`)
+      chmodSync(join(bin, 'curl'), 0o755)
+      return run(['sh', join(root, 'cmd.sh'), 'plan', 'show'], { env: { HOME: root, XDG_CONFIG_HOME: '', PATH: `${bin}:${process.env.PATH}` } })
+    }
+    const tls = await curl(60)
+    expect(tls.code).not.toBe(0)
+    expect(tls.stderr).toContain("does not trust Quadeck's certificate at https://nas.lan")
+    expect(tls.stderr).toContain('run the setup command from Quadeck once more (Backups → Clients → laptop → Show command)')
+    expect(readFileSync(join(root, 'curl-args'), 'utf8')).not.toContain('--cacert')
+    expect((await curl(7)).stderr).toContain('cannot reach Quadeck at https://nas.lan')
+    // With Caddy's CA from the setup: every call trusts it; a failure means the CA changed.
+    writeFileSync(join(conf, 'ca.crt'), ROOT)
+    const changed = await curl(60)
+    expect(readFileSync(join(root, 'curl-args'), 'utf8')).toMatch(new RegExp(`^--cacert ${conf}/ca.crt -sS `))
+    expect(changed.stderr).toContain(`no longer comes from the CA stored in ${conf}/ca.crt`)
+  })
+})
+
+const ROOT = readFileSync('tests/fixtures/caddy-root.crt', 'utf8')
+const hasOpenssl = !!Bun.which('openssl')
+
+/** A CA and a certificate from it for 127.0.0.1, like Caddy's `tls internal`. */
+async function testCa() {
+  const d = mkdtempSync(join(tmpdir(), 'qd-ca-'))
+  const ossl = async (...args: string[]) => expect((await run(['openssl', ...args], { timeoutMs: 30_000 })).code).toBe(0)
+  const ec = ['-newkey', 'ec', '-pkeyopt', 'ec_paramgen_curve:P-256', '-nodes']
+  await ossl('req', '-x509', ...ec, '-keyout', join(d, 'ca.key'), '-out', join(d, 'ca.crt'), '-days', '2', '-subj', '/CN=Test Local Authority')
+  await ossl('req', ...ec, '-keyout', join(d, 'leaf.key'), '-out', join(d, 'leaf.csr'), '-subj', '/CN=127.0.0.1')
+  writeFileSync(join(d, 'ext'), 'subjectAltName=IP:127.0.0.1\n')
+  await ossl(
+    'x509',
+    '-req',
+    '-in',
+    join(d, 'leaf.csr'),
+    '-CA',
+    join(d, 'ca.crt'),
+    '-CAkey',
+    join(d, 'ca.key'),
+    '-CAcreateserial',
+    '-out',
+    join(d, 'leaf.crt'),
+    '-days',
+    '2',
+    '-extfile',
+    join(d, 'ext'),
+  )
+  return { ca: readFileSync(join(d, 'ca.crt'), 'utf8'), cert: readFileSync(join(d, 'leaf.crt'), 'utf8'), key: readFileSync(join(d, 'leaf.key'), 'utf8') }
+}
+// curl straight to 127.0.0.1, not through a proxy of the test machine
+const NO_PROXY = { NO_PROXY: '127.0.0.1', no_proxy: '127.0.0.1', HTTPS_PROXY: '', https_proxy: '', HTTP_PROXY: '', http_proxy: '' }
+
+describe("setup command with Caddy's local CA", () => {
+  const sha = 'ab'.repeat(32)
+
+  it('without a CA: as before; with one: fetch, check, then trust it', () => {
+    expect(setupCommand('http://nas.lan:8484', 'tok')).toBe('curl -fsSL http://nas.lan:8484/api/backup/script/tok | sh')
+    expect(setupCommand('https://quadeck.lan', 'tok', { sha256: sha })).toBe(
+      `curl -fsSLk https://quadeck.lan/ca.crt -o /tmp/quadeck-ca.crt && echo "${sha}  /tmp/quadeck-ca.crt" | sha256sum -c && curl -fsSL --cacert /tmp/quadeck-ca.crt https://quadeck.lan/api/backup/script/tok | sh`,
+    )
+    expect(reviewCommands('http://nas.lan', 'tok')).toBe('curl -fsSL http://nas.lan/api/backup/script/tok -o quadeck-backup-setup.sh\nless quadeck-backup-setup.sh\nsh quadeck-backup-setup.sh')
+    expect(reviewCommands('https://quadeck.lan', 'tok', { sha256: sha }).split('\n')).toEqual([
+      'curl -fsSLk https://quadeck.lan/ca.crt -o /tmp/quadeck-ca.crt',
+      `echo "${sha}  /tmp/quadeck-ca.crt" | sha256sum -c`,
+      'curl -fsSL --cacert /tmp/quadeck-ca.crt https://quadeck.lan/api/backup/script/tok -o quadeck-backup-setup.sh',
+      'less quadeck-backup-setup.sh',
+      'sh quadeck-backup-setup.sh',
+    ])
+  })
+
+  it('the script brings the CA along; restic gets it only for a repository served with it', async () => {
+    const withCa = clientScript(input({ quadeckUrl: 'https://quadeck.lan', ca: ROOT }))
+    expect(withCa).toContain(`CA=${sq(ROOT)}`)
+    expect(withCa).not.toContain('RESTIC_CACERT')
+    const both = clientScript(input({ quadeckUrl: 'https://quadeck.lan', repo: 'rest:https://quadeck.lan:8000/laptop/', ca: ROOT, resticCa: true }))
+    expect(both).toContain('RESTIC_CACERT="$CONF/ca.crt"')
+    expect(clientScript(input())).toContain("CA=''")
+    const dir = mkdtempSync(join(tmpdir(), 'qd-sh-'))
+    writeFileSync(join(dir, 'ca.sh'), both)
+    expect((await run(['sh', '-n', join(dir, 'ca.sh')])).code).toBe(0)
+  })
+
+  it('a setup link carries the CA when Caddy serves its address with it, and tells restic when the repository is served so too', async () => {
+    const root = mkdtempSync(join(tmpdir(), 'qd-link-'))
+    const b = new SystemBackup({ dir: join(root, 'state'), unitDir: join(root, 'units'), exec: run, log: () => {} })
+    await b.saveTarget({ dataDir: join(root, 'backups'), port: 8000, appendOnly: false, url: 'https://quadeck.lan:8000' })
+    await b.addClient('laptop', 3)
+    const ca = localCa(ROOT)
+    const plain = await b.clientLink('laptop', 'http://nas.lan:8484', async () => undefined)
+    expect(plain.ca).toBeUndefined()
+    expect(await b.redeemClientLink(plain.token)).toContain("CA=''")
+    const link = await b.clientLink('laptop', 'https://quadeck.lan', async (u) => (u.startsWith('https://quadeck.lan') ? ca : undefined))
+    expect(link.ca).toEqual({ sha256: ca.sha256, fingerprint: ca.fingerprint })
+    const script = (await b.redeemClientLink(link.token))!
+    expect(script).toContain(`CA=${sq(ROOT)}`)
+    expect(script).toContain('RESTIC_CACERT="$CONF/ca.crt"')
+    // the repository with a public certificate: restic keeps the system's CAs
+    const onlyQuadeck = await b.clientLink('laptop', 'https://quadeck.lan', async (u) => (u === 'https://quadeck.lan' ? ca : undefined))
+    expect(await b.redeemClientLink(onlyQuadeck.token)).not.toContain('RESTIC_CACERT')
+  })
+
+  it.skipIf(!hasOpenssl)(
+    'runs in sh, bash and fish; a CA with another fingerprint stops it before anything runs',
+    async () => {
+      const t = await testCa()
+      const server = Bun.serve({
+        port: 0,
+        hostname: '127.0.0.1',
+        tls: { cert: t.cert, key: t.key },
+        fetch: (req) => {
+          const path = new URL(req.url).pathname
+          if (path === '/ca.crt') return new Response(t.ca)
+          if (path === '/api/backup/script/tok') return new Response('#!/bin/sh\necho "script ran in $0"\n')
+          return new Response('not found', { status: 404 })
+        },
+      })
+      const origin = `https://127.0.0.1:${server.port}`
+      const good = { sha256: localCa(t.ca).sha256 }
+      const dir = mkdtempSync(join(tmpdir(), 'qd-review-'))
+      try {
+        for (const shell of ['sh', 'dash', 'bash', 'fish'].filter((x) => Bun.which(x))) {
+          rmSync(CA_TMP, { force: true })
+          const ok = await run([shell, '-c', setupCommand(origin, 'tok', good)], { env: NO_PROXY, timeoutMs: 30_000 })
+          expect(ok.stdout, `${shell}: ${ok.stderr}`).toContain('script ran in sh')
+          rmSync(CA_TMP, { force: true })
+          const bad = await run([shell, '-c', setupCommand(origin, 'tok', { sha256: 'ab'.repeat(32) })], { env: NO_PROXY, timeoutMs: 30_000 })
+          expect(bad.code, shell).not.toBe(0)
+          expect(bad.stdout).not.toContain('script ran')
+          // Review first: the same steps, the script only read (cat instead of less) before it runs.
+          rmSync(join(dir, 'quadeck-backup-setup.sh'), { force: true })
+          const review = reviewCommands(origin, 'tok', good).replace('less ', 'cat ')
+          const r = await run([shell, '-c', `cd ${dir} && ${review.replace(/\n/g, ' && ')}`], { env: NO_PROXY, timeoutMs: 30_000 })
+          expect(r.stdout, `${shell}: ${r.stderr}`).toContain('script ran in quadeck-backup-setup.sh')
+        }
+        // Without the CA the script is not fetched at all.
+        expect((await run(['sh', '-c', `curl -fsSL ${origin}/api/backup/script/tok | sh`], { env: NO_PROXY, timeoutMs: 30_000 })).stdout).not.toContain('script ran')
+      } finally {
+        server.stop(true)
+        rmSync(CA_TMP, { force: true })
+      }
+    },
+    60_000,
+  )
 })
 
 const hasRestic = !!Bun.which('restic')
@@ -196,6 +389,39 @@ describe.skipIf(!hasRestic)('client script on a (sandboxed) computer', () => {
     expect(r.stderr).toContain('does not open it')
   }, 60_000)
 
+  it('says so when the backup server cannot be reached, instead of waiting', async () => {
+    const s = sandbox()
+    writeFileSync(join(s.root, 'setup.sh'), clientScript(input({ repo: 'rest:http://127.0.0.1:1/laptop/' })))
+    const r = await run(['sh', join(s.root, 'setup.sh')], { env: s.env, timeoutMs: 60_000 })
+    expect(r.code).not.toBe(0)
+    expect(r.stdout).toContain('Connecting to http://127.0.0.1:1/laptop/')
+    expect(r.stderr).toContain('cannot reach the backup server at http://127.0.0.1:1/laptop/')
+    expect(r.stderr).toContain('connection refused') // restic's own error
+    expect(r.stderr).not.toContain('Creating the repository')
+  }, 60_000)
+
+  it('runs the restic the setup found, also without it on PATH', async () => {
+    const s = sandbox()
+    // restic in a folder only the setup's PATH has (like brew's), logging its calls
+    const rbin = join(s.root, 'rbin')
+    mkdirSync(rbin)
+    writeFileSync(join(rbin, 'restic'), `#!/bin/sh\necho "$1" >> "${s.root}/restic-calls"\nexec ${Bun.which('restic')} "$@"\n`)
+    chmodSync(join(rbin, 'restic'), 0o755)
+    writeFileSync(join(s.root, 'setup.sh'), clientScript(input({ repo: join(s.root, 'repo') })))
+    expect((await run(['sh', join(s.root, 'setup.sh')], { env: { ...s.env, PATH: `${rbin}:${s.env.PATH}` }, timeoutMs: 60_000 })).code).toBe(0)
+    const conf = join(s.home, '.config/quadeck-backup')
+    expect(readFileSync(join(conf, 'env'), 'utf8')).toContain(`QUADECK_RESTIC='${join(rbin, 'restic')}'`)
+    const cmd = join(s.home, '.local/bin/quadeck-backup')
+    expect((await run([cmd, 'run'], { env: s.env, timeoutMs: 60_000 })).code).toBe(0)
+    expect(readFileSync(join(s.root, 'restic-calls'), 'utf8')).toContain('backup')
+    // The stored one gone: restic from PATH.
+    writeFileSync(join(conf, 'env'), readFileSync(join(conf, 'env'), 'utf8').replace(/QUADECK_RESTIC='[^']*'/, "QUADECK_RESTIC='/nonexistent/restic'"))
+    expect((await run([cmd, 'run'], { env: s.env, timeoutMs: 60_000 })).code).toBe(0)
+    // Running the setup again refreshes it.
+    expect((await s.script(plan(), 2)).code).toBe(0)
+    expect(readFileSync(join(conf, 'env'), 'utf8')).toContain(`QUADECK_RESTIC='${Bun.which('restic')}'`)
+  }, 120_000)
+
   /** A Quadeck for the client: the agent endpoint of the route, on the helper's backend. */
   const quadeck = async (root: string, override?: { settings?: string }) => {
     mkdirSync(root, { recursive: true })
@@ -299,6 +525,124 @@ describe.skipIf(!hasRestic)('client script on a (sandboxed) computer', () => {
       q.server.stop(true)
     }
   }, 180_000)
+
+  it('connects without a plan, then takes a plan and tasks from its agent timer (poll)', async () => {
+    const s = sandbox()
+    const q = await quadeck(s.root)
+    try {
+      writeFileSync(join(s.root, 'setup.sh'), clientScript(input({ repo: join(s.root, 'repo'), plan: undefined, version: 0, agentToken: q.token, quadeckUrl: q.url })))
+      const r = await run(['sh', join(s.root, 'setup.sh')], { env: s.env, timeoutMs: 60_000 })
+      expect(r.stderr).toBe('')
+      expect(r.code).toBe(0)
+      expect(r.stdout).toContain('laptop is connected to Quadeck – no backup plan yet')
+      expect(r.stdout).toContain('quadeck-backup guide')
+      const conf = join(s.home, '.config/quadeck-backup')
+      const units = join(s.home, '.config/systemd/user')
+      expect(readFileSync(join(conf, 'folders'), 'utf8')).toBe('')
+      expect(existsSync(join(s.root, 'repo/config'))).toBe(true) // the repository is there already
+      expect(s.calls()).toContain('systemctl --user disable --now quadeck-backup.timer')
+      expect(s.calls()).not.toContain('enable --now quadeck-backup.timer')
+      expect(s.calls()).toContain('systemctl --user enable --now quadeck-backup-agent.timer')
+      const agentTimer = readFileSync(join(units, 'quadeck-backup-agent.timer'), 'utf8')
+      expect(agentTimer).toContain('OnCalendar=*:0/10')
+      expect(agentTimer).toContain('RandomizedDelaySec=2min')
+      expect(agentTimer).toContain('Persistent=true')
+      expect(readFileSync(join(units, 'quadeck-backup-agent.service'), 'utf8')).toContain('quadeck-backup poll')
+      // The end of the script told Quadeck: connected, and the folder list follows.
+      let c = await laptop(q.b)
+      expect(c).toMatchObject({ applied: { version: 0 }, lastSeen: expect.any(Number) })
+      expect(c.plan).toBeUndefined()
+      await until(async () => (await q.b.clientInventory('laptop')) !== null)
+      expect((await q.b.clientInventory('laptop'))!.home).toBe(s.home)
+
+      const cmd = join(s.home, '.local/bin/quadeck-backup')
+      const nothing = await run([cmd, 'run'], { env: s.env, timeoutMs: 60_000 })
+      expect(nothing.code).not.toBe(0)
+      expect(nothing.stderr).toContain('no backup plan yet')
+      const idle = await run([cmd, 'poll'], { env: s.env, timeoutMs: 60_000 })
+      expect(idle.code).toBe(0)
+      expect(idle.stdout).toBe('')
+
+      // A plan in Quadeck and "back up now": the next poll takes the plan and starts the service.
+      await q.b.setClientPlan('laptop', plan({ folders: ['~/Bilder'], schedule: { every: 'weekly', time: '12:00' } }))
+      await q.b.clientAction('laptop', 'run')
+      const polled = await run([cmd, 'poll'], { env: s.env, timeoutMs: 60_000 })
+      expect(polled.code).toBe(0)
+      expect(polled.stdout).toContain('settings version 1')
+      expect(readFileSync(join(conf, 'folders'), 'utf8')).toBe(`${s.home}/Bilder\n`)
+      expect(readFileSync(join(units, 'quadeck-backup.timer'), 'utf8')).toContain('OnCalendar=Sun *-*-* 12:00:00')
+      expect(s.calls()).toContain('systemctl --user start --no-block quadeck-backup.service')
+      expect((await s.restic('ls', 'latest')).stdout).toContain('/Bilder/foto.jpg')
+      c = await laptop(q.b)
+      expect(c.applied?.version).toBe(1)
+      expect(c.actions).toBeUndefined()
+      expect(c.runs?.[0]).toMatchObject({ status: 'ok' })
+
+      const gone = await run([cmd, 'uninstall'], { env: s.env })
+      expect(gone.code).toBe(0)
+      expect(s.calls()).toContain('disable --now quadeck-backup.timer quadeck-backup-agent.timer')
+      expect(existsSync(join(units, 'quadeck-backup-agent.timer'))).toBe(false)
+      expect(existsSync(join(units, 'quadeck-backup.timer'))).toBe(false)
+    } finally {
+      q.server.stop(true)
+    }
+  }, 180_000)
+
+  it.skipIf(!hasOpenssl)(
+    "connects to a Quadeck behind Caddy's local CA: the command checks it, the script keeps it for every call",
+    async () => {
+      const s = sandbox()
+      const t = await testCa()
+      const b = new SystemBackup({ dir: join(s.root, 'state'), unitDir: join(s.root, 'units'), exec: run, log: () => {} })
+      await b.saveTarget({ dataDir: join(s.root, 'backups'), port: 8000, appendOnly: false, url: 'http://nas:8000' })
+      await b.addClient('laptop', 3)
+      const server = Bun.serve({
+        port: 0,
+        hostname: '127.0.0.1',
+        tls: { cert: t.cert, key: t.key },
+        fetch: async (req) => {
+          const url = new URL(req.url)
+          if (url.pathname === '/ca.crt') return new Response(t.ca)
+          if (url.pathname.startsWith('/api/backup/script/')) {
+            const script = (await b.redeemClientLink(url.pathname.split('/').pop()!)) ?? 'exit 1'
+            // the repository of this sandbox instead of the rest server
+            return new Response(script.replace(/^RESTIC_REPOSITORY=.*$/m, `RESTIC_REPOSITORY=${sq(join(s.root, 'repo'))}`))
+          }
+          try {
+            const kind = url.searchParams.get('do') as AgentKind
+            const reply = await b.clientAgent('laptop', (req.headers.get('authorization') ?? '').slice(7), kind, req.method === 'POST' ? await req.text() : '')
+            return 'text' in reply ? new Response(reply.text) : Response.json(reply.json)
+          } catch (e) {
+            return new Response((e as Error).message, { status: (e as { status?: number }).status ?? 500 })
+          }
+        },
+      })
+      const origin = `https://127.0.0.1:${server.port}`
+      try {
+        const link = await b.clientLink('laptop', origin, async (u) => (u === origin ? localCa(t.ca) : undefined))
+        expect(link.ca?.sha256).toBe(localCa(t.ca).sha256)
+        rmSync(CA_TMP, { force: true })
+        const r = await run(['sh', '-c', setupCommand(origin, link.token, link.ca)], { env: { ...s.env, ...NO_PROXY }, timeoutMs: 60_000 })
+        expect(r.code, r.stderr).toBe(0)
+        expect(r.stdout).toContain('laptop is connected to Quadeck')
+        const conf = join(s.home, '.config/quadeck-backup')
+        expect(readFileSync(join(conf, 'ca.crt'), 'utf8')).toBe(t.ca)
+        expect(readFileSync(join(conf, 'env'), 'utf8')).not.toContain('RESTIC_CACERT') // the repository is not behind Caddy here
+        expect(existsSync(CA_TMP)).toBe(false) // the script tidied up
+        expect((await laptop(b)).lastSeen).toBeDefined()
+        // Later calls (the agent timer) trust the stored CA, not the system's.
+        expect((await run([join(s.home, '.local/bin/quadeck-backup'), 'poll'], { env: { ...s.env, ...NO_PROXY } })).code).toBe(0)
+        writeFileSync(join(conf, 'ca.crt'), ROOT)
+        const other = await run([join(s.home, '.local/bin/quadeck-backup'), 'poll'], { env: { ...s.env, ...NO_PROXY } })
+        expect(other.code).not.toBe(0)
+        expect(other.stderr).toContain('no longer comes from the CA stored in')
+      } finally {
+        server.stop(true)
+        rmSync(CA_TMP, { force: true })
+      }
+    },
+    120_000,
+  )
 
   it('settings from Quadeck are data: lines that do not pass the checks change nothing', async () => {
     const s = sandbox()

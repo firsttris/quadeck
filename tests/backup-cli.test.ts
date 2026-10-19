@@ -64,13 +64,34 @@ describe('quadeck backup (CLI)', () => {
   })
 
   it('refuses an invalid plan with exit code 2 and the reason', async () => {
-    const c = cli({ 'p.json': JSON.stringify({ repo: { kind: 'local', location: '/srv/data/restic' }, paths: ['/srv/data'] }) })
+    const plan0 = await current(cli().backup)
+    const c = cli({ 'p.json': JSON.stringify({ ...plan0, repo: { kind: 'local', location: '/srv/data/restic' }, paths: ['/srv/data/restic/x'] }) })
     expect(await c.run('plan', 'set', '-f', 'p.json', '--json')).toBe(2)
-    expect(c.json().error).toBeTruthy()
+    expect(c.json().error).toContain('/srv/data/restic/x')
     const n = cli({ 'p.json': 'not json' })
     expect(await n.run('plan', 'set', '-f', 'p.json')).toBe(2)
     expect(n.err[0]).toMatch(/not JSON/)
     expect(await cli().run('plan', 'set')).toBe(2)
+  })
+
+  it('only the target: status says so, a plan with folders makes it active', async () => {
+    const c = cli()
+    const plan = await current(c.backup)
+    const d = cli({ 'only.json': JSON.stringify({ ...plan, paths: [] }), 'full.json': JSON.stringify({ ...plan, repo: { kind: 'local', location: '/srv/immich/upload/restic' } }) })
+    expect(await d.run('plan', 'set', '-f', 'only.json')).toBe(0)
+    expect(d.out.at(-1)).toContain('no folders: only the target is set up')
+    expect(await d.run('status', '--json')).toBe(0)
+    expect(d.json()).toMatchObject({ active: false, plan: { paths: [] } })
+    expect(d.json().next).toBeUndefined()
+    expect(await d.run('status')).toBe(0)
+    expect(d.out.at(-1)).toContain('Target set up, no folders yet → ')
+    expect(d.out.at(-1)).toContain('quadeck backup plan set -f plan.json')
+    // A target inside a chosen folder is left out by itself.
+    expect(await d.run('plan', 'set', '-f', 'full.json', '--json')).toBe(0)
+    expect(d.json().changes).toContain('+ excluded folder: /srv/immich/upload/restic')
+    expect(d.json().warnings).toContain('/srv/immich/upload holds the target: the target is left out (exclude.dirs)')
+    expect(await d.run('status', '--json')).toBe(0)
+    expect(d.json().active).toBe(true)
   })
 
   it('takes only the credentials the target uses, from a file', async () => {
@@ -88,6 +109,9 @@ describe('quadeck backup (CLI)', () => {
 
   it('a draft from the suggestions is a plan the CLI accepts once it has a target', async () => {
     const c = cli()
+    expect(await c.run('plan', 'draft', '--json')).toBe(0)
+    expect((c.json() as BackupPlan).repo.location).toBe('/mnt/backup/restic') // the target set up already
+    await c.backup.disableBackup()
     expect(await c.run('plan', 'draft', '--json')).toBe(0)
     const draft = c.json() as BackupPlan
     expect(draft.repo.location).toBe('')
@@ -108,6 +132,14 @@ describe('quadeck backup (CLI)', () => {
     const laptop = (await d.backup.targetState()).clients.find((x) => x.name === 'laptop')!
     expect(laptop.version).toBe(5)
     expect(laptop.plan!.folders).toContain('~/Musik')
+    expect(laptop.changed?.by).toBe('cli')
+    expect(await d.run('clients')).toBe(0)
+    const list = d.out.at(-1)!
+    expect(list).toMatch(/laptop: online, plan v5 waiting for the computer \(changed in Quadeck \(cli\) /)
+    expect(list).toContain('mini-pc: online, no plan yet')
+    expect(list).toMatch(/workstation: last seen [\d-]+ [\d:]+, plan v3 waiting for the computer/)
+    expect(await d.run('client', 'plan', 'show', 'mini-pc')).toBe(0)
+    expect(d.out.at(-1)).toContain('mini-pc has no plan yet')
     expect(await d.run('client', 'plan', 'show', 'nobody', '--json')).toBe(1)
     expect(await d.run('client', 'plan', 'show', '../x')).toBe(2)
   })

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { useActions } from '~/components/Actions'
 import { BackupBrowser } from '~/components/BackupBrowser'
 import { BackupClients } from '~/components/BackupClients'
-import { BackupSetup } from '~/components/BackupSetup'
+import { BackupSetup, type SetupTab } from '~/components/BackupSetup'
 import { BusyButton, useBusy } from '~/components/Busy'
 import { InstallHint } from '~/components/InstallHint'
 import { ConfirmDialog, Modal } from '~/components/Modal'
@@ -15,7 +15,7 @@ import { api } from '~/lib/api'
 import { checkLabel, kindLabel, presetLabel, repoLabel, runStatusLabel, scheduleLabel } from '~/lib/backup-labels'
 import { bytes, num, relative } from '~/lib/format'
 import { m } from '~/paraglide/messages'
-import { type BackupPlan, type BackupRun, type BackupState, retentionEstimate } from '~/shared/backup'
+import { type BackupPlan, type BackupRun, type BackupState, backupActive, retentionEstimate } from '~/shared/backup'
 import { localeOf } from '~/shared/i18n'
 
 export const Route = createFileRoute('/_app/backups')({
@@ -38,7 +38,7 @@ function BackupsPage() {
   const navigate = useNavigate()
   const [state, setState] = useState<BackupState | null>(null)
   const [error, setError] = useState('')
-  const [setup, setSetup] = useState(false)
+  const [setup, setSetup] = useState<SetupTab | null>(null)
 
   const load = useCallback(async (refresh = false) => {
     try {
@@ -100,15 +100,16 @@ function BackupsPage() {
           <InstallHint feature="restic" what={m.backup_install_what()} onInstalled={() => void load()} />
         </section>
       )}
-      {!search.tab && state?.installed && !state.plan && <Empty onSetup={() => setSetup(true)} />}
-      {!search.tab && state?.plan && <Overview state={state} onState={setState} onEdit={() => setSetup(true)} onRefresh={() => load(true)} />}
+      {!search.tab && state?.installed && !state.plan && <Empty onSetup={() => setSetup('where')} />}
+      {!search.tab && state?.plan && <Overview state={state} onState={setState} onEdit={(tab) => setSetup(tab)} onRefresh={() => load(true)} />}
       {state?.installed && setup && (
         <BackupSetup
           state={state}
-          onClose={() => setSetup(false)}
+          tab={setup}
+          onClose={() => setSetup(null)}
           onSaved={(s) => {
             setState(s)
-            setSetup(false)
+            setSetup(null)
           }}
         />
       )}
@@ -131,7 +132,7 @@ function Empty({ onSetup }: { onSetup: () => void }) {
   )
 }
 
-function Overview({ state, onState, onEdit, onRefresh }: { state: BackupState; onState: (s: BackupState) => void; onEdit: () => void; onRefresh: () => Promise<void> }) {
+function Overview({ state, onState, onEdit, onRefresh }: { state: BackupState; onState: (s: BackupState) => void; onEdit: (tab: SetupTab) => void; onRefresh: () => Promise<void> }) {
   const plan = state.plan!
   const { readonly } = useActions()
   const guarded = useGuardedApi()
@@ -141,6 +142,8 @@ function Overview({ state, onState, onEdit, onRefresh }: { state: BackupState; o
   const [disable, setDisable] = useState(false)
   const [refreshing, setRefreshing] = useState(false)
   const work = useBusy<'backup' | 'check' | 'password' | 'saved'>()
+  // Only the target so far: no folders, no timer.
+  const active = backupActive(plan)
   const backups = state.runs.filter((r) => r.kind === 'backup')
   const last = backups[0]
   const lastCheck = state.runs.find((r) => r.kind === 'check')
@@ -179,7 +182,7 @@ function Overview({ state, onState, onEdit, onRefresh }: { state: BackupState; o
 
   return (
     <>
-      {last?.status === 'failed' && (
+      {active && last?.status === 'failed' && (
         <section role="alert" className="panel alertcard flex flex-col gap-1 px-[18px] py-3 text-[13px]">
           <b>{m.backup_lastFailed({ when: relative(last.endedAt) })}</b>
           <span className="font-mono text-[12px] break-all text-[#ff8a80]">{last.message}</span>
@@ -204,41 +207,78 @@ function Overview({ state, onState, onEdit, onRefresh }: { state: BackupState; o
         </section>
       )}
 
-      <section className="panel grid grid-cols-2 gap-[18px] p-[18px] lg:grid-cols-4" aria-label={m.backup_status_label()}>
-        <Stat label={m.backup_status_last()}>
-          {state.running === 'backup' ? (
-            <span className="flex items-center gap-2">
-              <Dot tone="warn" label={m.backup_running()} />
-              {m.backup_running()}
-            </span>
-          ) : last ? (
-            <span className="flex items-center gap-2">
-              <Dot tone={runTone(last)} label={runStatusLabel(last.status)} />
-              <span suppressHydrationWarning>{relative(last.endedAt)}</span>
-            </span>
-          ) : (
-            m.backup_status_none()
+      {!active && (
+        <section className="panel flex flex-col items-start gap-3 p-[22px]" aria-label={m.backup_only_label()}>
+          <div className="flex flex-wrap items-center gap-2">
+            <h2 className="h2">{m.backup_only_title()}</h2>
+            <Pill tone="idle">{m.backup_only_inactive()}</Pill>
+          </div>
+          <p className="m-0 max-w-[70ch] text-[13px] text-muted">{m.backup_only_text()}</p>
+          <p className="m-0 flex flex-wrap items-center gap-x-2 text-[13px]">
+            <span className="text-muted">{m.backup_status_target()}:</span>
+            <span className="font-mono break-all">{repoLabel(plan.repo)}</span>
+            <span className="text-[12px] text-subtle">{state.target ? m.backup_free({ free: bytes(state.target.free), size: bytes(state.target.size) }) : kindLabel(plan.repo.kind)}</span>
+          </p>
+          {!readonly && (
+            <div className="flex w-full flex-wrap items-center gap-2">
+              <button type="button" className="btn primary" onClick={() => onEdit('what')}>
+                {m.backup_only_set()}
+              </button>
+              <button type="button" className="btn" onClick={() => onEdit('where')}>
+                {m.backup_edit()}
+              </button>
+              <BusyButton className="btn" busy={work.is('password')} busyLabel={m.common_opening()} disabled={work.busy !== null} onClick={() => void showPassword()}>
+                {m.backup_password_show()}
+              </BusyButton>
+              <span className="grow" />
+              <button type="button" className="btn danger" onClick={() => setDisable(true)}>
+                {m.backup_disable()}
+              </button>
+            </div>
           )}
-          {last && <small>{[runStatusLabel(last.status), took(last), last.added !== undefined ? m.backup_added({ size: bytes(last.added) }) : ''].filter(Boolean).join(' · ')}</small>}
-        </Stat>
-        <Stat label={m.backup_status_next()}>
-          <span suppressHydrationWarning>{state.next ? relative(state.next) : '–'}</span>
-          <small>{scheduleLabel(plan.schedule)}</small>
-        </Stat>
-        <Stat label={m.backup_status_repo()}>
-          {state.repoSize !== undefined ? bytes(state.repoSize) : '–'}
-          <small suppressHydrationWarning>
-            {m.backup_snapshotsCount({ n: state.snapshots.length })}
-            {lastCheck ? ` · ${m.backup_checked({ when: relative(lastCheck.endedAt), status: runStatusLabel(lastCheck.status) })}` : ''}
-          </small>
-        </Stat>
-        <Stat label={m.backup_status_target()}>
-          <span className="font-mono text-[14px] break-all">{repoLabel(plan.repo)}</span>
-          <small>{state.target ? m.backup_free({ free: bytes(state.target.free), size: bytes(state.target.size) }) : kindLabel(plan.repo.kind)}</small>
-        </Stat>
-      </section>
+          <span className="text-[12px] text-muted">
+            {m.backup_only_agent()} <code className="font-mono text-subtle">quadeck backup plan set -f plan.json</code>
+          </span>
+        </section>
+      )}
 
-      {!readonly && (
+      {active && (
+        <section className="panel grid grid-cols-2 gap-[18px] p-[18px] lg:grid-cols-4" aria-label={m.backup_status_label()}>
+          <Stat label={m.backup_status_last()}>
+            {state.running === 'backup' ? (
+              <span className="flex items-center gap-2">
+                <Dot tone="warn" label={m.backup_running()} />
+                {m.backup_running()}
+              </span>
+            ) : last ? (
+              <span className="flex items-center gap-2">
+                <Dot tone={runTone(last)} label={runStatusLabel(last.status)} />
+                <span suppressHydrationWarning>{relative(last.endedAt)}</span>
+              </span>
+            ) : (
+              m.backup_status_none()
+            )}
+            {last && <small>{[runStatusLabel(last.status), took(last), last.added !== undefined ? m.backup_added({ size: bytes(last.added) }) : ''].filter(Boolean).join(' · ')}</small>}
+          </Stat>
+          <Stat label={m.backup_status_next()}>
+            <span suppressHydrationWarning>{state.next ? relative(state.next) : '–'}</span>
+            <small>{scheduleLabel(plan.schedule)}</small>
+          </Stat>
+          <Stat label={m.backup_status_repo()}>
+            {state.repoSize !== undefined ? bytes(state.repoSize) : '–'}
+            <small suppressHydrationWarning>
+              {m.backup_snapshotsCount({ n: state.snapshots.length })}
+              {lastCheck ? ` · ${m.backup_checked({ when: relative(lastCheck.endedAt), status: runStatusLabel(lastCheck.status) })}` : ''}
+            </small>
+          </Stat>
+          <Stat label={m.backup_status_target()}>
+            <span className="font-mono text-[14px] break-all">{repoLabel(plan.repo)}</span>
+            <small>{state.target ? m.backup_free({ free: bytes(state.target.free), size: bytes(state.target.size) }) : kindLabel(plan.repo.kind)}</small>
+          </Stat>
+        </section>
+      )}
+
+      {active && !readonly && (
         <div className="flex flex-wrap items-center gap-2">
           <BusyButton className="btn primary" busy={work.is('backup')} busyLabel={m.common_starting()} disabled={!!state.running || work.busy !== null} onClick={() => void start('backup')}>
             {m.backup_runNow()}
@@ -246,7 +286,7 @@ function Overview({ state, onState, onEdit, onRefresh }: { state: BackupState; o
           <BusyButton className="btn" busy={work.is('check')} busyLabel={m.common_starting()} disabled={!!state.running || work.busy !== null} onClick={() => void start('check')}>
             {m.backup_checkNow()}
           </BusyButton>
-          <button type="button" className="btn" onClick={onEdit}>
+          <button type="button" className="btn" onClick={() => onEdit('what')}>
             {m.backup_edit()}
           </button>
           <BusyButton className="btn" busy={work.is('password')} busyLabel={m.common_opening()} disabled={work.busy !== null} onClick={() => void showPassword()}>
@@ -259,72 +299,76 @@ function Overview({ state, onState, onEdit, onRefresh }: { state: BackupState; o
         </div>
       )}
 
-      <div className="grid grid-cols-1 gap-[18px] xl:grid-cols-2">
-        <PlanPanel plan={plan} />
-        <RunsPanel runs={state.runs} />
-      </div>
-
-      <section className="panel flex flex-col" aria-label={m.backup_snapshots()}>
-        <div className="flex flex-wrap items-center gap-3 px-[18px] pt-4 pb-2">
-          <h2 className="h2 grow">{m.backup_snapshots()}</h2>
-          {state.snapshotsAt && (
-            <span className="text-[12px] text-muted" suppressHydrationWarning>
-              {m.backup_readAt({ when: relative(state.snapshotsAt) })}
-            </span>
-          )}
-          <button
-            type="button"
-            className="btn sm"
-            disabled={refreshing}
-            onClick={async () => {
-              setRefreshing(true)
-              await onRefresh()
-              setRefreshing(false)
-            }}
-          >
-            {refreshing ? m.backup_reading() : m.backup_readNow()}
-          </button>
+      {active && (
+        <div className="grid grid-cols-1 gap-[18px] xl:grid-cols-2">
+          <PlanPanel plan={plan} />
+          <RunsPanel runs={state.runs} />
         </div>
-        {state.snapshots.length === 0 ? (
-          <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{m.backup_noSnapshots()}</p>
-        ) : (
-          <div className="relative overflow-x-auto">
-            <table className="tbl">
-              <thead>
-                <tr>
-                  <th>{m.backup_col_time()}</th>
-                  <th>ID</th>
-                  <th>{m.backup_col_files()}</th>
-                  <th>{m.backup_col_added()}</th>
-                  <th>{m.backup_col_total()}</th>
-                  <th />
-                </tr>
-              </thead>
-              <tbody>
-                {state.snapshots.map((s) => (
-                  <tr key={s.id} data-testid="snapshot">
-                    <td suppressHydrationWarning>{dateTime(s.time)}</td>
-                    <td className="font-mono text-[12px] text-subtle">{s.short}</td>
-                    <td>{s.files !== undefined ? num(s.files) : '–'}</td>
-                    <td>{s.added !== undefined ? bytes(s.added) : '–'}</td>
-                    <td>{s.bytes !== undefined ? bytes(s.bytes) : '–'}</td>
-                    <td className="text-right">
-                      <button
-                        type="button"
-                        className="btn sm"
-                        onClick={() => void navigate({ to: '/backups', search: { snapshot: s.id } })}
-                        aria-label={m.backup_browseWith({ when: dateTime(s.time) })}
-                      >
-                        {m.backup_browse()}
-                      </button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+      )}
+
+      {(active || state.snapshots.length > 0) && (
+        <section className="panel flex flex-col" aria-label={m.backup_snapshots()}>
+          <div className="flex flex-wrap items-center gap-3 px-[18px] pt-4 pb-2">
+            <h2 className="h2 grow">{m.backup_snapshots()}</h2>
+            {state.snapshotsAt && (
+              <span className="text-[12px] text-muted" suppressHydrationWarning>
+                {m.backup_readAt({ when: relative(state.snapshotsAt) })}
+              </span>
+            )}
+            <button
+              type="button"
+              className="btn sm"
+              disabled={refreshing}
+              onClick={async () => {
+                setRefreshing(true)
+                await onRefresh()
+                setRefreshing(false)
+              }}
+            >
+              {refreshing ? m.backup_reading() : m.backup_readNow()}
+            </button>
           </div>
-        )}
-      </section>
+          {state.snapshots.length === 0 ? (
+            <p className="m-0 border-t border-line px-[18px] py-3 text-[13px] text-muted">{m.backup_noSnapshots()}</p>
+          ) : (
+            <div className="relative overflow-x-auto">
+              <table className="tbl">
+                <thead>
+                  <tr>
+                    <th>{m.backup_col_time()}</th>
+                    <th>ID</th>
+                    <th>{m.backup_col_files()}</th>
+                    <th>{m.backup_col_added()}</th>
+                    <th>{m.backup_col_total()}</th>
+                    <th />
+                  </tr>
+                </thead>
+                <tbody>
+                  {state.snapshots.map((s) => (
+                    <tr key={s.id} data-testid="snapshot">
+                      <td suppressHydrationWarning>{dateTime(s.time)}</td>
+                      <td className="font-mono text-[12px] text-subtle">{s.short}</td>
+                      <td>{s.files !== undefined ? num(s.files) : '–'}</td>
+                      <td>{s.added !== undefined ? bytes(s.added) : '–'}</td>
+                      <td>{s.bytes !== undefined ? bytes(s.bytes) : '–'}</td>
+                      <td className="text-right">
+                        <button
+                          type="button"
+                          className="btn sm"
+                          onClick={() => void navigate({ to: '/backups', search: { snapshot: s.id } })}
+                          aria-label={m.backup_browseWith({ when: dateTime(s.time) })}
+                        >
+                          {m.backup_browse()}
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </section>
+      )}
 
       <Modal open={password !== null} onClose={() => setPassword(null)} title={m.backup_password_title()} busy={work.is('saved')}>
         <p className="m-0 text-[13px] text-muted">{m.backup_password_text()}</p>

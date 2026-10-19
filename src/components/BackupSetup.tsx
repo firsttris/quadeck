@@ -1,25 +1,26 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useState } from 'react'
 import { pickMsg } from '~/i18n'
 import { api } from '~/lib/api'
-import { kindLabel, presetLabel, retentionPresetLabel, scheduleLabel, spanLabel } from '~/lib/backup-labels'
+import { kindLabel, presetLabel } from '~/lib/backup-labels'
 import { bytes, weekdayTime } from '~/lib/format'
 import { m } from '~/paraglide/messages'
 import {
   type BackupPlan,
   type BackupSizes,
   type BackupState,
-  type BackupSuggestion,
+  backupActive,
+  backupPathProblem,
   defaultPlan,
   EXCLUDE_PRESETS,
+  holdsRepo,
   nextBackupRun,
   parseBackupPlan,
   REPO_KINDS,
   REPO_SECRETS,
   type RepoKind,
   repoProblem,
-  retentionEstimate,
-  retentionPreset,
 } from '~/shared/backup'
+import { BusyButton } from './Busy'
 import { FolderPicker, FolderPickerDialog } from './FolderPicker'
 import { Modal } from './Modal'
 import { RetentionPicker } from './Retention'
@@ -35,27 +36,24 @@ const placeholder: Record<RepoKind, string> = {
 }
 
 const kindHelp = (k: RepoKind) => pickMsg({ local: m.backup_kindHelp_local, sftp: m.backup_kindHelp_sftp, s3: m.backup_kindHelp_s3, b2: m.backup_kindHelp_b2, rest: m.backup_kindHelp_rest }, k)
-const reasonLabel = (r: 'broad' | 'contains' | 'media') => pickMsg({ broad: m.backup_wizard_reason_broad, contains: m.backup_wizard_reason_contains, media: m.backup_wizard_reason_media }, r)
 
 const label = (p: string) => (p.startsWith('volume:') ? `${m.backup_volume()} ${p.slice(7)}` : p)
 
-const STEPS = ['where', 'what', 'when', 'summary'] as const
-type Step = (typeof STEPS)[number]
-const stepLabel = (s: Step) => pickMsg({ where: m.backup_setup_where, what: m.backup_setup_what, when: m.backup_wizard_stepWhen, summary: m.backup_wizard_stepSummary }, s)
-
-type Path = BackupSuggestion['paths'][number]
+export const SETUP_TABS = ['where', 'what', 'when'] as const
+export type SetupTab = (typeof SETUP_TABS)[number]
+const tabLabel = (t: SetupTab) => pickMsg({ where: m.backup_setup_where, what: m.backup_setup_what, when: m.backup_wizard_stepWhen }, t)
 
 /**
- * Set up or change the server backup as a wizard: where to, what (with exclusions), when and how
- * long to keep, then a summary. Changing an existing plan opens on the summary.
+ * The server backup, target first: without a plan only Where (the repository is created or opened,
+ * the plan has no folders yet and no timer runs). With a plan, Where, What and When as tabs, like
+ * a client's plan; `tab` is the one it opens on.
  */
-export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; onClose: () => void; onSaved: (s: BackupState) => void }) {
+export function BackupSetup({ state, tab: first = 'what', onClose, onSaved }: { state: BackupState; tab?: SetupTab; onClose: () => void; onSaved: (s: BackupState) => void }) {
   const guarded = useGuardedApi()
   const say = useToast()
   const editing = !!state.plan
-  const [step, setStep] = useState<Step>(editing ? 'summary' : 'where')
-  const [suggestion, setSuggestion] = useState<BackupSuggestion | null>(null)
-  const [plan, setPlan] = useState<BackupPlan | null>(state.plan ? structuredClone(state.plan) : null)
+  const [tab, setTab] = useState<SetupTab>(editing ? first : 'where')
+  const [plan, setPlan] = useState<BackupPlan>(() => (state.plan ? structuredClone(state.plan) : defaultPlan()))
   const [secrets, setSecrets] = useState<Record<string, string>>({})
   const [patterns, setPatterns] = useState((state.plan?.exclude.patterns ?? []).join('\n'))
   const [sizes, setSizes] = useState<BackupSizes | null>(null)
@@ -63,49 +61,9 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
   const [error, setError] = useState('')
   const [busy, setBusy] = useState(false)
   const [picking, setPicking] = useState<'path' | 'exclude' | null>(null)
-  const [open, setOpen] = useState<Set<string>>(new Set([m.backup_wizard_ownFolders()]))
+  // The first folders of a plan that had none: the first backup can start right away.
+  const firstFolders = !!state.plan && !backupActive(state.plan) && backupActive(plan)
   const [startNow, setStartNow] = useState(true)
-
-  useEffect(() => {
-    api<BackupSuggestion>('/api/backup?suggest', { method: 'GET' })
-      .then((s) => {
-        setSuggestion(s)
-        setPlan((p) => p ?? defaultPlan(s))
-      })
-      .catch((e: Error) => {
-        setSuggestion({ paths: [], excludes: [], stop: [] })
-        setPlan((p) => p ?? defaultPlan({ paths: [], excludes: [], stop: [] }))
-        setError(e.message)
-      })
-  }, [])
-
-  // Everything on offer: the suggestions plus what the plan already has (own folders).
-  const paths = useMemo(() => {
-    const list: Path[] = [...(suggestion?.paths ?? [])]
-    for (const p of plan?.paths ?? []) if (!list.some((x) => x.path === p)) list.push({ path: p, from: '', checked: true })
-    return list
-  }, [suggestion, plan?.paths])
-  const groups = useMemo(() => {
-    const own = m.backup_wizard_ownFolders()
-    const out = new Map<string, Path[]>()
-    for (const p of paths) {
-      const key = p.from || own
-      out.set(key, [...(out.get(key) ?? []), p])
-    }
-    return [...out]
-  }, [paths])
-  const excludes = useMemo(() => {
-    const list = [...(suggestion?.excludes ?? [])]
-    for (const d of plan?.exclude.dirs ?? []) if (!list.some((x) => x.path === d)) list.push({ path: d, label: '', from: '' })
-    return list
-  }, [suggestion, plan?.exclude.dirs])
-
-  if (!plan)
-    return (
-      <Modal open wide title={m.backup_setup_title()} onClose={onClose}>
-        <p className="m-0 text-muted">{m.backup_loading()}</p>
-      </Modal>
-    )
 
   const set = (p: Partial<BackupPlan>) => setPlan({ ...plan, ...p })
   const toggle = <T,>(list: T[], v: T, on: boolean) => (on ? [...list.filter((x) => x !== v), v] : list.filter((x) => x !== v))
@@ -125,40 +83,23 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
   const sizeOf = (p: string, list: 'paths' | 'excludes') => sizes?.[list].find((x) => x.path === p)?.bytes
   const total = sizes ? sizes.paths.filter((x) => plan.paths.includes(x.path)).reduce((n, x) => n + (x.bytes ?? 0), 0) : 0
   const skipped = sizes ? sizes.excludes.filter((x) => plan.exclude.dirs.includes(x.path)).reduce((n, x) => n + (x.bytes ?? 0), 0) : 0
-  const est = retentionEstimate(plan.keep)
-  const exclusions = full.exclude.presets.length + full.exclude.dirs.length + full.exclude.patterns.length + (full.exclude.maxSizeGB ? 1 : 0)
 
-  /** What keeps the wizard from going on from a step. */
-  const problem = (s: Step): string | undefined => {
-    if (s === 'where') {
-      if (!plan.repo.location) return m.backup_wizard_needLocation()
-      const rp = repoProblem(plan.repo.kind, plan.repo.location)
-      if (rp) return rp
-      const kept = state.plan?.repo.kind === plan.repo.kind ? state.secretsSet : []
-      const missing = REPO_SECRETS[plan.repo.kind].find((k) => !secrets[k] && !kept.includes(k))
-      return missing ? m.backup_wizard_needSecret({ key: missing }) : undefined
-    }
-    if (s === 'what' || s === 'when') return parseBackupPlan(full).error
-    return undefined
+  /** What is missing for the target: the location and the credentials it needs. */
+  const whereProblem = (): string | undefined => {
+    if (!plan.repo.location) return m.backup_wizard_needLocation()
+    const rp = repoProblem(plan.repo.kind, plan.repo.location)
+    if (rp) return rp
+    const kept = state.plan?.repo.kind === plan.repo.kind ? state.secretsSet : []
+    const missing = REPO_SECRETS[plan.repo.kind].find((k) => !secrets[k] && !kept.includes(k))
+    return missing ? m.backup_wizard_needSecret({ key: missing }) : undefined
   }
-  const go = (to: Step) => {
-    // Forward only past steps that are complete; back is always fine.
-    for (const s of STEPS.slice(0, STEPS.indexOf(to))) {
-      const p = problem(s)
-      if (p) {
-        setStep(s)
-        return setError(p)
-      }
-    }
-    setError('')
-    setStep(to)
-  }
-  const next = () => go(STEPS[STEPS.indexOf(step) + 1]!)
+  // Shown at the folder: a path that cannot be backed up, or one inside the target.
+  const folderProblem = (p: string) => backupPathProblem(p, plan.repo)
 
   const measure = async () => {
     setMeasuring(true)
     try {
-      setSizes(await api<BackupSizes>('/api/backup', { body: { sizes: { paths: paths.map((p) => p.path), excludes: excludes.map((e) => e.path) } } }))
+      setSizes(await api<BackupSizes>('/api/backup', { body: { sizes: { paths: plan.paths, excludes: plan.exclude.dirs } } }))
     } catch (e) {
       say((e as Error).message, 'bad')
     } finally {
@@ -167,6 +108,15 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
   }
 
   const save = async () => {
+    const wp = whereProblem()
+    if (wp) {
+      setTab('where')
+      return setError(wp)
+    }
+    if (plan.paths.some(folderProblem)) {
+      setTab('what')
+      return setError(m.backup_setup_folderProblem())
+    }
     const checked = parseBackupPlan(full)
     if (checked.error) return setError(checked.error)
     setBusy(true)
@@ -175,7 +125,7 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
       const s = await guarded<BackupState>('/api/backup', { body: { save: { plan: checked.plan, secrets } } })
       if (!s) return
       say(editing ? m.backup_setup_saved() : m.backup_setup_created())
-      if (!editing && startNow) {
+      if (firstFolders && startNow) {
         await guarded('/api/backup', { body: { start: 'backup' } })
           .then((r) => r && say(m.backup_started()))
           .catch((e: Error) => say(e.message, 'bad'))
@@ -188,142 +138,112 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
     }
   }
 
-  const selectedIn = (list: Path[]) => list.filter((p) => plan.paths.includes(p.path))
-
-  return (
-    <Modal open wide title={editing ? m.backup_setup_editTitle() : m.backup_setup_title()} onClose={onClose}>
-      <ol className="m-0 flex list-none items-center gap-1.5 p-0 text-[12.5px]" aria-label={m.backup_wizard_steps()}>
-        {STEPS.map((s, i) => {
-          const at = STEPS.indexOf(step)
-          return (
-            <li key={s} className="flex min-w-0 flex-1 items-center gap-1.5 last:flex-none">
-              <button
-                type="button"
-                aria-current={s === step ? 'step' : undefined}
-                className={`flex shrink-0 items-center gap-1.5 rounded-full border py-1 pr-2.5 pl-1 ${s === step ? 'border-accent bg-accent/12 text-fg' : 'border-rim text-muted hover:text-fg'}`}
-                onClick={() => go(s)}
-              >
-                <span className={`grid size-5 place-items-center rounded-full text-[11px] ${s === step ? 'bg-accent text-bg' : i < at ? 'bg-accent/25 text-accent-soft' : 'bg-raised text-subtle'}`}>
-                  {i < at ? '✓' : i + 1}
-                </span>
-                <span className="hidden sm:inline">{stepLabel(s)}</span>
-              </button>
-              {i < STEPS.length - 1 && <span className="h-px min-w-2 flex-1 bg-rim" aria-hidden="true" />}
-            </li>
-          )
-        })}
-      </ol>
-
-      <div className="flex min-h-[420px] flex-col gap-4">
-        {step === 'where' && (
-          <Section title={m.backup_setup_where()}>
-            <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3" role="radiogroup" aria-label={m.backup_setup_where()}>
-              {REPO_KINDS.map((k) => (
-                <label
-                  key={k}
-                  className={`flex cursor-pointer flex-col gap-1 rounded-[10px] border p-3 ${plan.repo.kind === k ? 'border-accent shadow-[inset_0_0_0_1px_var(--color-accent)]' : 'border-rim'} bg-sunken`}
-                >
-                  <span className="flex items-center gap-2 text-[13px] font-semibold">
-                    <input type="radio" name="kind" checked={plan.repo.kind === k} onChange={() => set({ repo: { kind: k, location: k === state.plan?.repo.kind ? state.plan.repo.location : '' } })} />
-                    {kindLabel(k)}
-                  </span>
-                  <span className="pl-6 text-[12px] text-muted">{kindHelp(k)}</span>
-                </label>
-              ))}
-            </div>
-            <label className="flex flex-col gap-1.5 text-[13px]">
-              {plan.repo.kind === 'local' ? m.backup_setup_folder() : m.backup_setup_location()}
+  const where = (
+    <section className="flex flex-col gap-2.5" aria-label={m.backup_setup_where()}>
+      {!editing && <h3 className="label-caps m-0 font-normal">{m.backup_setup_where()}</h3>}
+      <div className="grid grid-cols-1 gap-2 sm:grid-cols-2 lg:grid-cols-3" role="radiogroup" aria-label={m.backup_setup_where()}>
+        {REPO_KINDS.map((k) => (
+          <label
+            key={k}
+            className={`flex cursor-pointer flex-col gap-1 rounded-[10px] border p-3 ${plan.repo.kind === k ? 'border-accent shadow-[inset_0_0_0_1px_var(--color-accent)]' : 'border-rim'} bg-sunken`}
+          >
+            <span className="flex items-center gap-2 text-[13px] font-semibold">
+              <input type="radio" name="kind" checked={plan.repo.kind === k} onChange={() => set({ repo: { kind: k, location: k === state.plan?.repo.kind ? state.plan.repo.location : '' } })} />
+              {kindLabel(k)}
+            </span>
+            <span className="pl-6 text-[12px] text-muted">{kindHelp(k)}</span>
+          </label>
+        ))}
+      </div>
+      <label className="flex flex-col gap-1.5 text-[13px]">
+        {plan.repo.kind === 'local' ? m.backup_setup_folder() : m.backup_setup_location()}
+        <input className="field font-mono" value={plan.repo.location} placeholder={placeholder[plan.repo.kind]} onChange={(e) => set({ repo: { ...plan.repo, location: e.target.value.trim() } })} />
+      </label>
+      {plan.repo.kind === 'local' && <FolderPicker target value={plan.repo.location} compare={plan.paths} onChange={(location) => set({ repo: { ...plan.repo, location } })} />}
+      {plan.repo.kind === 'local' && <p className="m-0 text-[12px] text-muted">{m.backup_setup_localHint()}</p>}
+      {plan.repo.kind === 'sftp' && <p className="m-0 text-[12px] text-muted">{m.backup_setup_sftpHint()}</p>}
+      {REPO_SECRETS[plan.repo.kind].length > 0 && (
+        <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
+          {REPO_SECRETS[plan.repo.kind].map((k) => (
+            <label key={k} className="flex flex-col gap-1.5 text-[13px]">
+              <span className="font-mono text-[12px]">{k}</span>
               <input
-                className="field font-mono"
-                value={plan.repo.location}
-                placeholder={placeholder[plan.repo.kind]}
-                onChange={(e) => set({ repo: { ...plan.repo, location: e.target.value.trim() } })}
+                className="field"
+                type="password"
+                autoComplete="off"
+                value={secrets[k] ?? ''}
+                placeholder={state.plan?.repo.kind === plan.repo.kind && state.secretsSet.includes(k) ? m.backup_setup_secretKept() : ''}
+                onChange={(e) => setSecrets({ ...secrets, [k]: e.target.value })}
               />
             </label>
-            {plan.repo.kind === 'local' && <FolderPicker target value={plan.repo.location} compare={plan.paths} onChange={(location) => set({ repo: { ...plan.repo, location } })} />}
-            {plan.repo.kind === 'local' && <p className="m-0 text-[12px] text-muted">{m.backup_setup_localHint()}</p>}
-            {plan.repo.kind === 'sftp' && <p className="m-0 text-[12px] text-muted">{m.backup_setup_sftpHint()}</p>}
-            {REPO_SECRETS[plan.repo.kind].length > 0 && (
-              <div className="grid grid-cols-1 gap-2 sm:grid-cols-2">
-                {REPO_SECRETS[plan.repo.kind].map((k) => (
-                  <label key={k} className="flex flex-col gap-1.5 text-[13px]">
-                    <span className="font-mono text-[12px]">{k}</span>
-                    <input
-                      className="field"
-                      type="password"
-                      autoComplete="off"
-                      value={secrets[k] ?? ''}
-                      placeholder={state.plan?.repo.kind === plan.repo.kind && state.secretsSet.includes(k) ? m.backup_setup_secretKept() : ''}
-                      onChange={(e) => setSecrets({ ...secrets, [k]: e.target.value })}
-                    />
-                  </label>
-                ))}
-              </div>
-            )}
-            {!editing && <p className="m-0 rounded-[10px] border border-accent/35 bg-accent/7 px-3 py-2.5 text-[12.5px] text-accent-soft">{m.backup_setup_passwordNote()}</p>}
-          </Section>
-        )}
+          ))}
+        </div>
+      )}
+      {!editing && (
+        <>
+          <p className="m-0 rounded-[10px] border border-accent/35 bg-accent/7 px-3 py-2.5 text-[12.5px] text-accent-soft">{m.backup_setup_passwordNote()}</p>
+          <p className="m-0 text-[12px] text-muted">{m.backup_setup_targetFirst()}</p>
+        </>
+      )}
+    </section>
+  )
 
-        {step === 'what' && (
+  return (
+    <Modal open wide title={editing ? m.backup_setup_editTitle() : m.backup_setup_title()} onClose={onClose} busy={busy}>
+      {editing && (
+        <div role="tablist" aria-label={m.backup_clients_plan()} className="flex flex-wrap gap-1.5">
+          {SETUP_TABS.map((t) => (
+            <button key={t} type="button" role="tab" aria-selected={tab === t} className={`seg ${tab === t ? 'on' : ''}`} onClick={() => setTab(t)}>
+              {tabLabel(t)}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <div className={`flex flex-col gap-4 ${editing ? 'min-h-[380px]' : ''}`}>
+        {tab === 'where' && where}
+
+        {tab === 'what' && (
           <>
             <Section
               title={m.backup_setup_what()}
               action={
                 <button type="button" className="btn sm" onClick={() => setPicking('path')}>
-                  + {m.backup_setup_addFolder()} …
+                  {m.backup_cwiz_browse()}
                 </button>
               }
             >
               <p className="m-0 text-[12px] text-muted">{m.backup_setup_whatHelp()}</p>
+              {plan.paths.length === 0 && <p className="m-0 rounded-lg border border-dashed border-rim px-3 py-2.5 text-[13px] text-muted">{m.backup_setup_noFolders()}</p>}
               <ul className="m-0 flex list-none flex-col gap-1.5 p-0" aria-label={m.backup_setup_what()}>
-                {groups.map(([name, list]) => {
-                  const chosen = selectedIn(list)
-                  const all = chosen.length === list.length
-                  const expanded = open.has(name)
-                  const size = sizes ? list.filter((p) => plan.paths.includes(p.path)).reduce((n, p) => n + (sizeOf(p.path, 'paths') ?? 0), 0) : undefined
+                {plan.paths.map((p) => {
+                  const problem = folderProblem(p)
                   return (
-                    <li key={name} className="overflow-hidden rounded-[10px] border border-rim" data-testid="backup-group">
-                      <div className="flex items-center gap-2.5 bg-sunken px-3 py-2 text-[13px]">
-                        <input
-                          type="checkbox"
-                          aria-label={name}
-                          checked={all}
-                          ref={(el) => {
-                            if (el) el.indeterminate = chosen.length > 0 && !all
-                          }}
-                          onChange={(e) => set({ paths: e.target.checked ? [...new Set([...plan.paths, ...list.map((p) => p.path)])] : plan.paths.filter((p) => !list.some((x) => x.path === p)) })}
-                        />
+                    <li
+                      key={p}
+                      className={`flex flex-col gap-0.5 rounded-lg border bg-sunken px-2.5 py-1.5 text-[13px] ${problem ? 'border-[#f85149]/60' : 'border-edge'}`}
+                      data-testid="backup-folder"
+                    >
+                      <span className="flex items-center gap-2">
+                        <span className="min-w-0 grow truncate font-mono" title={p}>
+                          {label(p)}
+                        </span>
+                        {sizes && <span className="shrink-0 text-[12px] text-subtle">{bytes(sizeOf(p, 'paths'))}</span>}
                         <button
                           type="button"
-                          className="flex min-w-0 grow items-center gap-2 text-left"
-                          aria-expanded={expanded}
-                          aria-label={m.backup_wizard_showFolders({ name })}
-                          onClick={() => setOpen((o) => (o.has(name) ? new Set([...o].filter((x) => x !== name)) : new Set([...o, name])))}
+                          className="text-muted hover:text-fg"
+                          aria-label={m.backup_client_removeFolder({ folder: p })}
+                          onClick={() => set({ paths: plan.paths.filter((x) => x !== p) })}
                         >
-                          <span className="text-muted">{expanded ? '▾' : '▸'}</span>
-                          <b className="truncate">{name}</b>
-                          <span className="ml-auto shrink-0 text-[12px] text-muted">
-                            {m.backup_wizard_groupCount({ selected: chosen.length, total: list.length })}
-                            {size !== undefined && ` · ${bytes(size)}`}
-                          </span>
+                          ✕
                         </button>
-                      </div>
-                      {expanded && (
-                        <ul className="m-0 list-none p-0">
-                          {list.map((p) => (
-                            <li key={p.path} className="border-t border-line">
-                              <label className="flex items-center gap-2.5 py-1.5 pr-3 pl-9 text-[13px]">
-                                <input type="checkbox" checked={plan.paths.includes(p.path)} onChange={(e) => set({ paths: toggle(plan.paths, p.path, e.target.checked) })} />
-                                <span className="min-w-0 grow truncate font-mono text-[12.5px]" title={p.path}>
-                                  {label(p.path)}
-                                </span>
-                                {p.readOnly && <span className="chip">{m.backup_setup_readOnly()}</span>}
-                                {p.reason && <span className="chip bg-[rgba(210,153,34,.14)]! text-[#e3b341]">{reasonLabel(p.reason)}</span>}
-                                {sizes && <span className="w-[72px] text-right text-[12px] text-subtle">{bytes(sizeOf(p.path, 'paths'))}</span>}
-                              </label>
-                            </li>
-                          ))}
-                        </ul>
+                      </span>
+                      {problem ? (
+                        <span role="alert" className="text-[12px] text-[#ff8a80]">
+                          {problem}
+                        </span>
+                      ) : (
+                        holdsRepo(p, plan.repo) && <span className="text-[12px] text-[#e3b341]">{m.backup_setup_holdsRepo()}</span>
                       )}
                     </li>
                   )
@@ -351,22 +271,22 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
                   </label>
                 ))}
               </div>
-              {excludes.length > 0 && (
-                <ul className="m-0 flex list-none flex-col gap-1 p-0" aria-label={m.backup_setup_appExcludes()}>
-                  {excludes.map((x) => (
-                    <li key={x.path}>
-                      <label className="flex items-center gap-2.5 text-[13px]">
-                        <input
-                          type="checkbox"
-                          checked={plan.exclude.dirs.includes(x.path)}
-                          onChange={(e) => set({ exclude: { ...plan.exclude, dirs: toggle(plan.exclude.dirs, x.path, e.target.checked) } })}
-                        />
-                        <span className="min-w-0 grow">
-                          {x.label || m.backup_setup_folderExcluded()}
-                          <span className="block truncate font-mono text-[12px] text-muted">{x.path}</span>
-                        </span>
-                        {sizes && <span className="w-[72px] text-right text-[12px] text-subtle">{bytes(sizeOf(x.path, 'excludes'))}</span>}
-                      </label>
+              {plan.exclude.dirs.length > 0 && (
+                <ul className="m-0 flex list-none flex-col gap-1.5 p-0" aria-label={m.backup_setup_excludedFolders()}>
+                  {plan.exclude.dirs.map((d) => (
+                    <li key={d} className="flex items-center gap-2 rounded-lg border border-edge bg-sunken px-2.5 py-1.5 text-[13px]">
+                      <span className="min-w-0 grow truncate font-mono" title={d}>
+                        {d}
+                      </span>
+                      {sizes && <span className="shrink-0 text-[12px] text-subtle">{bytes(sizeOf(d, 'excludes'))}</span>}
+                      <button
+                        type="button"
+                        className="text-muted hover:text-fg"
+                        aria-label={m.backup_cwiz_removeRule({ rule: d })}
+                        onClick={() => set({ exclude: { ...plan.exclude, dirs: plan.exclude.dirs.filter((x) => x !== d) } })}
+                      >
+                        ✕
+                      </button>
                     </li>
                   ))}
                 </ul>
@@ -390,17 +310,23 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
                 />
                 {m.backup_setup_maxSizeAfter()}
               </label>
-              <div className="flex flex-wrap items-center gap-3 rounded-[10px] border border-edge bg-sunken px-3.5 py-3 text-[13px]">
-                {sizes ? <span className="grow">{m.backup_setup_sizes({ total: bytes(total), skipped: bytes(skipped) })}</span> : <span className="grow text-muted">{m.backup_setup_sizesHint()}</span>}
-                <button type="button" className="btn sm" disabled={measuring} onClick={() => void measure()}>
-                  {measuring ? m.backup_setup_measuring() : m.backup_setup_measure()}
-                </button>
-              </div>
+              {plan.paths.length > 0 && (
+                <div className="flex flex-wrap items-center gap-3 rounded-[10px] border border-edge bg-sunken px-3.5 py-3 text-[13px]">
+                  {sizes ? (
+                    <span className="grow">{m.backup_setup_sizes({ total: bytes(total), skipped: bytes(skipped) })}</span>
+                  ) : (
+                    <span className="grow text-muted">{m.backup_setup_sizesHint()}</span>
+                  )}
+                  <button type="button" className="btn sm" disabled={measuring} onClick={() => void measure()}>
+                    {measuring ? m.backup_setup_measuring() : m.backup_setup_measure()}
+                  </button>
+                </div>
+              )}
             </Section>
           </>
         )}
 
-        {step === 'when' && (
+        {tab === 'when' && (
           <>
             <Box title={m.backup_setup_when()}>
               <div className="flex flex-wrap items-end gap-3">
@@ -424,7 +350,13 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
                 </label>
               </div>
               <p className="m-0 text-[12px] text-muted" data-testid="next-run">
-                {m.backup_wizard_nextRun({ when: weekdayTime(nextBackupRun(plan.schedule, new Date())) })} · {m.backup_wizard_catchUp()}
+                {backupActive(plan) ? (
+                  <>
+                    {m.backup_wizard_nextRun({ when: weekdayTime(nextBackupRun(plan.schedule, new Date())) })} · {m.backup_wizard_catchUp()}
+                  </>
+                ) : (
+                  m.backup_error_noFolders()
+                )}
               </p>
             </Box>
 
@@ -434,68 +366,29 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
             <p className="m-0 text-[12px] text-muted">{m.backup_wizard_checkHint()}</p>
           </>
         )}
-
-        {step === 'summary' && (
-          <Section title={m.backup_wizard_stepSummary()}>
-            <dl className="m-0 grid grid-cols-[minmax(90px,130px)_1fr_auto] overflow-hidden rounded-[10px] border border-rim text-[13px]">
-              <Row term={stepLabel('where')} onChange={() => go('where')}>
-                {kindLabel(plan.repo.kind)} · <span className="font-mono break-all">{plan.repo.location || '–'}</span>
-              </Row>
-              <Row term={stepLabel('what')} onChange={() => go('what')}>
-                {m.backup_wizard_whatSummary({ count: plan.paths.length })}
-                {sizes && ` · ${bytes(total)}`}
-                <span className="block text-[12px] text-muted">{m.backup_wizard_excludeSummary({ count: exclusions })}</span>
-              </Row>
-              <Row term={stepLabel('when')} onChange={() => go('when')}>
-                {scheduleLabel(plan.schedule)}
-                <span className="block text-[12px] text-muted">{m.backup_wizard_nextRun({ when: weekdayTime(nextBackupRun(plan.schedule, new Date())) })}</span>
-              </Row>
-              <Row term={m.backup_wizard_keepShort()} onChange={() => go('when')}>
-                {m.backup_wizard_retentionSummary({ preset: retentionPresetLabel(retentionPreset(plan.keep)), span: spanLabel(est.days), count: est.count })}
-              </Row>
-              {!editing && (
-                <Row term={m.backup_wizard_password()} last>
-                  {m.backup_wizard_passwordValue()}
-                </Row>
-              )}
-            </dl>
-            {!editing && (
-              <>
-                <p className="m-0 rounded-[10px] border border-accent/35 bg-accent/7 px-3 py-2.5 text-[12.5px] text-accent-soft">{m.backup_wizard_firstRun()}</p>
-                <label className="flex items-center gap-2.5 text-[13px]">
-                  <input type="checkbox" checked={startNow} onChange={(e) => setStartNow(e.target.checked)} />
-                  {m.backup_wizard_startNow()}
-                </label>
-              </>
-            )}
-          </Section>
-        )}
       </div>
 
+      {firstFolders && (
+        <div className="flex flex-col gap-2">
+          <p className="m-0 rounded-[10px] border border-accent/35 bg-accent/7 px-3 py-2.5 text-[12.5px] text-accent-soft">{m.backup_wizard_firstRun()}</p>
+          <label className="flex items-center gap-2.5 text-[13px]">
+            <input type="checkbox" checked={startNow} onChange={(e) => setStartNow(e.target.checked)} />
+            {m.backup_wizard_startNow()}
+          </label>
+        </div>
+      )}
       {error && (
         <p role="alert" className="m-0 text-[13px] whitespace-pre-wrap text-[#ff8a80]">
           {error}
         </p>
       )}
-      <div className="flex justify-between gap-2 border-t border-line pt-4">
-        {step === 'where' || (editing && step === 'summary') ? (
-          <button type="button" className="btn" onClick={onClose}>
-            {m.common_cancel()}
-          </button>
-        ) : (
-          <button type="button" className="btn" onClick={() => go(STEPS[STEPS.indexOf(step) - 1]!)}>
-            ← {m.backup_wizard_back()}
-          </button>
-        )}
-        {step === 'summary' ? (
-          <button type="button" className="btn primary" disabled={busy} onClick={() => void save()}>
-            {busy ? m.backup_setup_saving() : editing ? m.common_save() : m.backup_setup_create()}
-          </button>
-        ) : (
-          <button type="button" className="btn primary" onClick={next}>
-            {m.backup_wizard_next()} →
-          </button>
-        )}
+      <div className="flex justify-end gap-2 border-t border-line pt-4">
+        <button type="button" className="btn" disabled={busy} onClick={onClose}>
+          {m.common_cancel()}
+        </button>
+        <BusyButton className="btn primary" busy={busy} busyLabel={editing ? m.common_saving() : m.backup_setup_saving()} onClick={() => void save()}>
+          {editing ? m.common_save() : m.backup_setup_create()}
+        </BusyButton>
       </div>
 
       {picking && (
@@ -506,6 +399,7 @@ export function BackupSetup({ state, onClose, onSaved }: { state: BackupState; o
             if (picking === 'path' && !plan.paths.includes(p)) set({ paths: [...plan.paths, p] })
             if (picking === 'exclude' && !plan.exclude.dirs.includes(p)) set({ exclude: { ...plan.exclude, dirs: [...plan.exclude.dirs, p] } })
             setPicking(null)
+            setError('')
           }}
         />
       )}
@@ -531,22 +425,5 @@ function Box({ title, children }: { title: string; children: React.ReactNode }) 
       <h3 className="m-0 text-[14px] font-semibold">{title}</h3>
       {children}
     </section>
-  )
-}
-
-function Row({ term, onChange, last, children }: { term: string; onChange?: () => void; last?: boolean; children: React.ReactNode }) {
-  const b = last ? '' : 'border-b border-line'
-  return (
-    <>
-      <dt className={`px-3 py-2.5 text-muted ${b}`}>{term}</dt>
-      <dd className={`m-0 px-3 py-2.5 ${b}`}>{children}</dd>
-      <div className={`px-3 py-2.5 text-right ${b}`}>
-        {onChange && (
-          <button type="button" className="text-[12.5px] text-accent hover:text-accent-soft" aria-label={m.backup_wizard_changeStep({ step: term })} onClick={onChange}>
-            {m.backup_wizard_change()}
-          </button>
-        )}
-      </div>
-    </>
   )
 }

@@ -2,8 +2,25 @@ import { mkdtempSync, readFileSync, statSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
-import { type CaddyHost, CaddyManager, FixtureCaddyHost, readOnlyMount, SystemCaddyHost } from '~/server/caddy/backend'
-import { applyCaddyChange, caddyFromQuadlet, configFromCommand, contentHash, isCaddyImage, manualPathProblem, NO_OPTIONS, parseCaddyChange, parseCaddyfile, renderSite, siteForm } from '~/shared/caddy'
+import { type CaddyHost, CaddyManager, FixtureCaddyHost, localCa, readOnlyMount, SystemCaddyHost } from '~/server/caddy/backend'
+import {
+  applyCaddyChange,
+  caddyCaFromQuadlet,
+  caddyFromQuadlet,
+  caddyLocalName,
+  configFromCommand,
+  contentHash,
+  HOST_CADDY_CA,
+  isCaddyImage,
+  manualPathProblem,
+  NO_OPTIONS,
+  parseCaddyChange,
+  parseCaddyfile,
+  pemCertificate,
+  renderSite,
+  siteForm,
+  usesLocalCa,
+} from '~/shared/caddy'
 
 const FILE = `# My proxy
 {
@@ -317,6 +334,112 @@ describe('CaddyManager', () => {
     const block = p.state.blocks.find((b) => b.addresses[0] === 'priv.home.example')!
     expect(p.state.content).not.toContain('very-secret-1')
     expect(await Bun.password.verify('very-secret-1', block.options!.auth!.hash!)).toBe(true)
+  })
+})
+
+const ROOT = readFileSync('tests/fixtures/caddy-root.crt', 'utf8')
+
+describe("Caddy's local CA", () => {
+  it('finds the data directory of the Quadlet: /data, XDG_DATA_HOME, named volumes', () => {
+    expect(caddyCaFromQuadlet('[Container]\nImage=docker.io/library/caddy:2\nVolume=/srv/caddy/data:/data:Z\n')).toEqual({
+      containerPath: '/data/caddy/pki/authorities/local/root.crt',
+      hostPath: '/srv/caddy/data/caddy/pki/authorities/local/root.crt',
+    })
+    expect(caddyCaFromQuadlet('[Container]\nImage=caddy\nEnvironment=TZ=UTC "XDG_DATA_HOME=/var/lib/caddy"\nVolume=caddy-data:/var/lib/caddy\n')).toEqual({
+      containerPath: '/var/lib/caddy/caddy/pki/authorities/local/root.crt',
+      volume: { name: 'caddy-data', rest: '/caddy/pki/authorities/local/root.crt' },
+    })
+    // not mounted: nothing to read on the host
+    expect(caddyCaFromQuadlet('[Container]\nImage=caddy\nVolume=/srv/Caddyfile:/etc/caddy/Caddyfile\n')).toBeUndefined()
+    expect(caddyCaFromQuadlet('[Container]\nImage=nginx\nVolume=/srv:/data\n')).toBeUndefined()
+  })
+
+  it('takes the first PEM certificate, nothing else', () => {
+    expect(pemCertificate(`junk\n${ROOT}more`)).toBe(ROOT)
+    expect(pemCertificate(ROOT.replace(/\n/g, '\r\n'))).toBe(ROOT)
+    expect(pemCertificate('-----BEGIN PRIVATE KEY-----\nabc\n-----END PRIVATE KEY-----\n')).toBeUndefined()
+    expect(pemCertificate("-----BEGIN CERTIFICATE-----\nab'c\n-----END CERTIFICATE-----\n")).toBeUndefined()
+  })
+
+  it('fingerprints: of the file (sha256sum) and of the certificate (as openssl and browsers show it)', () => {
+    const ca = localCa(ROOT)
+    expect(ca.sha256).toBe('5ca0bb3636c0d01e9d9f338188f1c882237c15315181fca8a40f5124a47dd3ae')
+    expect(ca.fingerprint).toBe('8B:F4:B5:DA:B1:60:7E:EF:5D:31:86:62:D5:9D:32:6A:5F:68:F5:94:55:40:B8:45:EA:4C:92:3E:CF:61:E8:96')
+  })
+
+  it('knows when Caddy serves an address with its local CA', () => {
+    const file = `{
+\temail me@example.com
+}
+
+(lan) {
+\ttls internal
+}
+
+quadeck.lan {
+\ttls internal
+\treverse_proxy localhost:3000
+}
+
+nas.home.example {
+\timport lan
+\treverse_proxy localhost:5000
+}
+
+public.example.com {
+\treverse_proxy localhost:3000
+}
+
+*.box.example:8443 {
+\ttls internal
+\treverse_proxy localhost:3000
+}
+
+quadeck.local, 192.168.1.5 {
+\treverse_proxy localhost:3000
+}
+
+http://plain.lan {
+\ttls internal
+\treverse_proxy localhost:3000
+}
+`
+    expect(usesLocalCa(file, 'https://quadeck.lan')).toBe(true)
+    expect(usesLocalCa(file, 'https://QUADECK.lan:443')).toBe(true)
+    expect(usesLocalCa(file, 'https://nas.home.example')).toBe(true) // through the snippet
+    expect(usesLocalCa(file, 'https://a.box.example:8443')).toBe(true)
+    expect(usesLocalCa(file, 'https://quadeck.local')).toBe(true) // Caddy's own choice for .local
+    expect(usesLocalCa(file, 'https://192.168.1.5')).toBe(true)
+    // a public certificate, another port, another depth, plain http, no site at all
+    expect(usesLocalCa(file, 'https://public.example.com')).toBe(false)
+    expect(usesLocalCa(file, 'https://quadeck.lan:8443')).toBe(false)
+    expect(usesLocalCa(file, 'https://a.b.box.example:8443')).toBe(false)
+    expect(usesLocalCa(file, 'http://quadeck.lan')).toBe(false)
+    expect(usesLocalCa(file, 'https://plain.lan')).toBe(false)
+    expect(usesLocalCa(file, 'https://other.lan')).toBe(false)
+    // local_certs: every site
+    expect(usesLocalCa('{\n\tlocal_certs\n}\n\npublic.example.com {\n\treverse_proxy x:1\n}\n', 'https://public.example.com')).toBe(true)
+    expect(['localhost', 'x.localhost', '10.0.0.1', '[::1]', 'nas.internal', 'nas.home.arpa'].every(caddyLocalName)).toBe(true)
+    expect(['nas.lan', 'example.com'].some(caddyLocalName)).toBe(false)
+  })
+
+  it("reads the CA from the Quadlet's data volume or caddy.service's home, and offers it only for local-CA sites", async () => {
+    const quadlet = '[Container]\nContainerName=caddy\nImage=docker.io/library/caddy:latest\nVolume=/home/t/caddy/Caddyfile:/etc/caddy/Caddyfile:ro\nVolume=/home/t/caddy/data:/data\n'
+    const host = scripted({ quadlets: () => [{ name: 'caddy.container', content: quadlet }] })
+    const m = new CaddyManager(host)
+    expect(await m.caddyCa()).toBeUndefined()
+    expect(await m.localCaFor('https://a.example.com')).toBeUndefined()
+    host.files.set('/home/t/caddy/data/caddy/pki/authorities/local/root.crt', ROOT)
+    expect((await m.caddyCa())?.sha256).toBe(localCa(ROOT).sha256)
+    // a.example.com has a public certificate: no CA for it, not even over https
+    expect(await m.localCaFor('https://a.example.com')).toBeUndefined()
+    host.files.set('/home/t/caddy/Caddyfile', 'a.example.com {\n\ttls internal\n\treverse_proxy localhost:1\n}\n')
+    expect((await m.localCaFor('https://a.example.com'))?.pem).toBe(ROOT)
+    expect(await m.localCaFor('http://a.example.com')).toBeUndefined()
+    // Caddy from the distribution package
+    const svc = scripted({ quadlets: () => [] })
+    svc.files.set(HOST_CADDY_CA, `${ROOT}`)
+    expect((await new CaddyManager(svc).caddyCa())?.fingerprint).toBe(localCa(ROOT).fingerprint)
   })
 })
 

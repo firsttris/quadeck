@@ -6,7 +6,7 @@ import { hostname, networkInterfaces } from 'node:os'
 import { join } from 'node:path'
 import { asc } from 'drizzle-orm'
 import { m } from '~/paraglide/messages'
-import { staleClients } from '~/shared/backup'
+import { backupActive, staleClients } from '~/shared/backup'
 import type { FsTrend } from '~/shared/disk-usage'
 import { dailyAverage } from '~/shared/energy'
 import { msg } from '~/shared/i18n'
@@ -419,7 +419,9 @@ export class Hub {
     try {
       const [st, target] = await Promise.all([this.priv.backupState(), this.priv.targetState()])
       const stale = target.config ? staleClients(target.clients) : []
-      if (!st.plan && !stale.length) {
+      // Only the target set up (no folders yet): nothing runs, nothing to warn about.
+      const server = !!st.plan && backupActive(st.plan)
+      if (!server && !stale.length) {
         this.backup = undefined
         return
       }
@@ -427,7 +429,7 @@ export class Hub {
       const last = backups[0]
       // Without any run yet, the clock starts when the plan was first seen.
       const since = (this.backup?.server && this.backup.since) || Date.now()
-      this.backup = st.plan
+      this.backup = server
         ? { server: true, since, lastAt: last?.endedAt, lastStatus: last?.status, lastMessage: last?.message, lastOkAt: backups.find((r) => r.status !== 'failed')?.endedAt, stale }
         : { server: false, since, stale }
     } catch {

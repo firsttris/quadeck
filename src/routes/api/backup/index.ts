@@ -5,7 +5,7 @@ import { assertWritable } from '~/server/guard'
 import { authed, readJson } from '~/server/http'
 import { privileged } from '~/server/privileged'
 import { unlockToken } from '~/server/unlock-sessions'
-import { CLIENT_NAME, parseBackupPlan, parseClientChange, parseSecrets, parseTargetConfig, parseWarnDays } from '~/shared/backup'
+import { CLIENT_ACTIONS, CLIENT_NAME, type ClientAction, parseBackupPlan, parseClientChange, parseSecrets, parseTargetConfig, parseWarnDays } from '~/shared/backup'
 import { parseClientPlan, QUADECK_URL } from '~/shared/backup-client'
 import { msg } from '~/shared/i18n'
 
@@ -15,7 +15,8 @@ import { msg } from '~/shared/i18n'
 // POST (unlock): { save: { plan, secrets } } | { disable: true } | { start: 'backup'|'check' } |
 // { password: true } | { target: { setup: config } | { remove: true } } |
 // { client: { add: { name, warnDays } } | { update: { name, change } } | { renew: name } | { remove: { name, deleteData } } |
-// { plan: { name, plan } } | { link: { name, origin } } }; the script itself: /api/backup/script/<link>;
+// { plan: { name, plan } } | { action: { name, action: 'run'|'scan'|'sync' } } (handed to the client with its next poll) |
+// { link: { name, origin } } }; the script itself: /api/backup/script/<link>;
 // restoring is a job (/api/jobs, kind backup-restore);
 // { sizes: { paths, excludes } } and { dirs: { path, compare } } (folder names for the setup) need no
 // unlock: they only read.
@@ -55,6 +56,7 @@ export const Route = createFileRoute('/api/backup/')({
             renew?: unknown
             remove?: { name?: unknown; deleteData?: unknown }
             plan?: { name?: unknown; plan?: unknown }
+            action?: { name?: unknown; action?: unknown }
             link?: { name?: unknown; origin?: unknown }
           }
         }>(request)
@@ -100,6 +102,11 @@ export const Route = createFileRoute('/api/backup/')({
           const { plan, error } = parseClientPlan(c.plan.plan)
           if (!plan) throw new HttpError(400, error!)
           return Response.json(await p.setBackupClientPlan(token, name(c.plan.name), plan))
+        }
+        if (c?.action) {
+          const action = c.action.action as ClientAction
+          if (!CLIENT_ACTIONS.includes(action)) throw new HttpError(400, msg(m.common_errors_unknownRequest))
+          return Response.json(await p.backupClientAction(token, name(c.action.name), action))
         }
         if (c?.link) {
           // The address the browser uses for Quadeck: the client fetches the script from there.

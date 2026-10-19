@@ -8,6 +8,7 @@ import { m } from '~/paraglide/messages'
 import { msg } from './i18n'
 import { getValues } from './ini'
 import type { Revision } from './quadlets'
+import { splitEnvironment } from './secrets'
 
 export type CaddyBlockKind = 'proxy' | 'site' | 'global' | 'snippet' | 'import'
 
@@ -439,8 +440,12 @@ export function caddyFromQuadlet(name: string, content: string): QuadletCaddy | 
   const containerPath = fromExec.path ?? DEFAULT_CADDYFILE
   const container = getValues(content, 'Container', 'ContainerName').at(-1) || `systemd-${name.replace(/\.container$/, '')}`
   const volumes = getValues(content, 'Container', 'Volume')
-  const out: QuadletCaddy = { quadlet: name, image, container, containerPath, volumes, json: fromExec.json }
-  // The most specific mount wins (a file mount over a directory mount).
+  return { quadlet: name, image, container, containerPath, volumes, json: fromExec.json, ...toHost(volumes, containerPath) }
+}
+
+/** A path inside the container on the host, through the Volume= lines: the most specific mount wins (a file mount over a directory mount). */
+function toHost(volumes: string[], containerPath: string): { hostPath?: string; volume?: { name: string; rest: string } } {
+  let out: { hostPath?: string; volume?: { name: string; rest: string } } = { hostPath: undefined, volume: undefined }
   let best = -1
   for (const v of volumes) {
     const s = splitVolume(v)
@@ -449,16 +454,99 @@ export function caddyFromQuadlet(name: string, content: string): QuadletCaddy | 
     const rest = containerPath === dst ? '' : containerPath.startsWith(`${dst}/`) ? containerPath.slice(dst.length) : undefined
     if (rest === undefined || dst.length <= best) continue
     best = dst.length
-    if (s.src.startsWith('/')) {
-      out.hostPath = s.src.replace(/\/+$/, '') + rest
-      out.volume = undefined
-    } else {
-      out.hostPath = undefined
-      out.volume = { name: s.src, rest }
-    }
+    out = s.src.startsWith('/') ? { hostPath: s.src.replace(/\/+$/, '') + rest, volume: undefined } : { hostPath: undefined, volume: { name: s.src, rest } }
   }
   return out
 }
+
+// ---------- Caddy's local CA (`tls internal`) ----------
+
+/** Root certificate of Caddy's local CA, below Caddy's data directory. */
+export const CA_ROOT = 'caddy/pki/authorities/local/root.crt'
+/** caddy.service of the distribution packages: user caddy, home /var/lib/caddy. */
+export const HOST_CADDY_CA = `/var/lib/caddy/.local/share/${CA_ROOT}`
+
+/**
+ * Where a Caddy Quadlet keeps its local CA: the data directory is $XDG_DATA_HOME/caddy (the official
+ * image sets XDG_DATA_HOME=/data), mapped to the host through Volume=. Not mounted: undefined (the
+ * CA is lost with the container anyway).
+ */
+export function caddyCaFromQuadlet(content: string): { containerPath: string; hostPath?: string; volume?: { name: string; rest: string } } | undefined {
+  const image = getValues(content, 'Container', 'Image').at(-1)
+  if (!image || !isCaddyImage(image)) return undefined
+  const env = new Map(getValues(content, 'Container', 'Environment').flatMap((v) => splitEnvironment(v).map((e) => [e.key, e.value] as const)))
+  const data = (env.get('XDG_DATA_HOME') || '/data').replace(/\/+$/, '')
+  if (!data.startsWith('/')) return undefined
+  const containerPath = `${data}/${CA_ROOT}`
+  const host = toHost(getValues(content, 'Container', 'Volume'), containerPath)
+  return host.hostPath || host.volume ? { containerPath, ...host } : undefined
+}
+
+/** Caddy's local root CA as Quadeck hands it out. */
+export interface LocalCa {
+  pem: string
+  /** SHA-256 of `pem` (hex), checked by the setup command. */
+  sha256: string
+  /** SHA-256 of the certificate (DER), as browsers show it: AB:CD:… */
+  fingerprint: string
+}
+
+/** The first PEM certificate in a file, as written; undefined when there is none. */
+export function pemCertificate(text: string): string | undefined {
+  const m = /-----BEGIN CERTIFICATE-----\r?\n(?:[A-Za-z0-9+/=]+\r?\n)+-----END CERTIFICATE-----/.exec(text)
+  return m ? `${m[0].replace(/\r/g, '')}\n` : undefined
+}
+
+/** Names Caddy gives a certificate of its local CA without being told (no public CA would sign them). */
+export function caddyLocalName(host: string): boolean {
+  const h = host.toLowerCase().replace(/^\[|\]$/g, '')
+  return /^\d{1,3}(\.\d{1,3}){3}$/.test(h) || h.includes(':') || h === 'localhost' || /\.(localhost|local|internal|home\.arpa)$/.test(h)
+}
+
+/**
+ * Does Caddy answer `url` with a certificate of its local CA? Only for https, and only when a site
+ * of the Caddyfile serves that host and port and it is internal: `tls internal` in the site, the
+ * global `local_certs`, or a name Caddy never asks a public CA for (localhost, IPs, .local, .internal,
+ * .home.arpa). A site with a public certificate must not get the local CA as the only one to trust.
+ */
+export function usesLocalCa(caddyfile: string, url: string): boolean {
+  let u: URL
+  try {
+    u = new URL(url)
+  } catch {
+    return false
+  }
+  if (u.protocol !== 'https:') return false
+  const host = u.hostname.toLowerCase().replace(/^\[|\]$/g, '')
+  const port = u.port || '443'
+  const blocks = parseCaddyfile(caddyfile).blocks
+  const allLocal = blocks.some((b) => b.kind === 'global' && /^\s*local_certs\s*$/m.test(innerText(b.text)))
+  const TLS_INTERNAL = /^\s*tls\s+internal\b/m
+  // `import <snippet>` of a snippet with `tls internal` counts as written in the site.
+  const snippets = blocks.filter((b) => b.kind === 'snippet' && TLS_INTERNAL.test(innerText(b.text))).map((b) => b.addresses[0]!.replace(/^&?\(|\)$/g, ''))
+  const internal = (text: string) =>
+    TLS_INTERNAL.test(innerText(text)) ||
+    innerText(text)
+      .split('\n')
+      .some((l) => {
+        const t = l.trim().split(/\s+/)
+        return t[0] === 'import' && snippets.includes(t[1] ?? '')
+      })
+  return blocks.some((b) => {
+    if (b.kind !== 'site' && b.kind !== 'proxy') return false
+    const served = b.addresses.some((a) => {
+      const m = /^(?:(https?):\/\/)?(\[[^\]]*\]|[^:/]*)(?::(\d+))?(?:\/.*)?$/.exec(a.toLowerCase())
+      if (!m || m[1] === 'http') return false
+      const aHost = m[2]!.replace(/^\[|\]$/g, '')
+      if ((m[3] ?? '443') !== port) return false
+      if (!aHost) return true
+      return aHost === host || (aHost.startsWith('*.') && host.endsWith(aHost.slice(1)) && !host.slice(0, -aHost.length + 1).includes('.'))
+    })
+    return served && (allLocal || internal(b.text) || caddyLocalName(host))
+  })
+}
+
+const innerText = (block: string) => block.slice(block.indexOf('{') + 1, block.lastIndexOf('}'))
 
 /** A path picked by hand: absolute, plausible as a Caddyfile, not in a system directory. */
 export function manualPathProblem(path: string): string | undefined {

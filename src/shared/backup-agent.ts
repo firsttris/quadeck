@@ -3,17 +3,20 @@
 // its settings as plain lines (data, never a script), and the result of a run.
 // Line formats, because the client is POSIX sh. No I/O here.
 
-import type { BackupRun, FolderListing } from './backup'
-import { backupRunFrom, sizeArg } from './backup'
+import type { BackupRun, ClientAction, FolderListing } from './backup'
+import { backupRunFrom, CLIENT_ACTIONS, sizeArg } from './backup'
 import { type ClientPlan, type ClientPreset, clientCalendar, clientExcludes, folderProblem } from './backup-client'
 
 /**
  * settings: the plan as lines for the client (and it counts as applied) · plan: the plan as JSON ·
+ * poll: the plan's version and the actions waiting for the client (handed out once) ·
  * inventory: the scan (answered with what Quadeck made of it) · report: a run · propose: a new plan
  * from the client (the retention stays Quadeck's) · preview: a draft as settings lines, not saved.
  */
-export type AgentKind = 'settings' | 'plan' | 'inventory' | 'report' | 'propose' | 'preview'
-export const AGENT_KINDS: AgentKind[] = ['settings', 'plan', 'inventory', 'report', 'propose', 'preview']
+export type AgentKind = 'settings' | 'plan' | 'poll' | 'inventory' | 'report' | 'propose' | 'preview'
+export const AGENT_KINDS: AgentKind[] = ['settings', 'plan', 'poll', 'inventory', 'report', 'propose', 'preview']
+/** The kinds the client asks with GET; the others carry a body. */
+export const AGENT_READS: AgentKind[] = ['settings', 'plan', 'poll']
 export type AgentReply = { text: string } | { json: unknown }
 
 export const AGENT_TOKEN = /^[A-Za-z0-9_-]{32}$/
@@ -156,9 +159,11 @@ export function inventoryHints(inv: ClientInventory, plan: Pick<ClientPlan, 'fol
 
 /**
  * A client's settings as lines the client reads with `read key value` and checks itself: no
- * line is run as shell code. Ends with `end`, so a cut-off answer is noticed.
+ * line is run as shell code. Ends with `end`, so a cut-off answer is noticed. Without a plan
+ * (connected, nothing chosen yet): only the version, `active 0` and no folders.
  */
-export function clientSettings(plan: ClientPlan, version: number, appendOnly: boolean): string {
+export function clientSettings(plan: ClientPlan | undefined, version: number, appendOnly: boolean): string {
+  if (!plan) return ['quadeck-settings 1', `version ${version}`, 'active 0', `appendonly ${appendOnly ? 1 : 0}`, 'end', ''].join('\n')
   const k = plan.keep
   return [
     'quadeck-settings 1',
@@ -177,6 +182,32 @@ export function clientSettings(plan: ClientPlan, version: number, appendOnly: bo
     '',
   ].join('\n')
 }
+
+/**
+ * The answer to the client's poll (its agent timer, every 10 minutes): `version=<n>` and
+ * `actions=<space-separated list>`, read by `quadeck-backup poll` with a `case` per line.
+ */
+export function pollText(version: number, actions: ClientAction[]): string {
+  return `version=${version}\nactions=${actions.filter((a) => CLIENT_ACTIONS.includes(a)).join(' ')}\n`
+}
+
+/** The poll answer as the client reads it: a version that is not a number is none, unknown actions are left out. */
+export function parsePoll(text: string): { version?: number; actions: ClientAction[] } {
+  let version: number | undefined
+  let actions: ClientAction[] = []
+  for (const line of text.split('\n')) {
+    if (/^version=\d{1,12}$/.test(line)) version = Number(line.slice(8))
+    else if (line.startsWith('actions='))
+      actions = line
+        .slice(8)
+        .split(' ')
+        .filter((a): a is ClientAction => CLIENT_ACTIONS.includes(a as ClientAction))
+  }
+  return { ...(version !== undefined ? { version } : {}), actions }
+}
+
+/** Adds an action to the client's queue: each once, in the order asked. */
+export const queueAction = (actions: ClientAction[] | undefined, a: ClientAction): ClientAction[] => [...(actions ?? []).filter((x) => x !== a), a]
 
 /**
  * A run as the client reports it: `code`, `start`, `end` (seconds), `version`, then restic's

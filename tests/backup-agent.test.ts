@@ -1,11 +1,12 @@
-import { mkdtempSync, readFileSync } from 'node:fs'
+import { mkdtempSync, readFileSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import { clientProposal, SystemBackup } from '~/server/backup/backend'
 import { run } from '~/server/exec'
-import { clientSettings, inventoryHints, inventoryListing, parseClientReport, parseInventory } from '~/shared/backup-agent'
-import { defaultClientPlan } from '~/shared/backup-client'
+import { clientChangedBy, clientConnected, clientOnline } from '~/shared/backup'
+import { clientSettings, inventoryHints, inventoryListing, parseClientReport, parseInventory, parsePoll, pollText, queueAction } from '~/shared/backup-agent'
+import { defaultClientPlan, recommendedClientPlan } from '~/shared/backup-client'
 
 const H = '/home/tris'
 const scan = [
@@ -92,6 +93,35 @@ describe('client settings and reports', () => {
     ])
   })
 
+  it('without a plan: version, active 0, no folders and no schedule', () => {
+    expect(clientSettings(undefined, 0, true)).toBe('quadeck-settings 1\nversion 0\nactive 0\nappendonly 1\nend\n')
+  })
+
+  it('the poll answer: version and actions as lines, unknown words left out', () => {
+    expect(pollText(3, ['run', 'scan'])).toBe('version=3\nactions=run scan\n')
+    expect(pollText(0, [])).toBe('version=0\nactions=\n')
+    expect(parsePoll(pollText(7, ['scan', 'sync']))).toEqual({ version: 7, actions: ['scan', 'sync'] })
+    expect(parsePoll('version=x; rm -rf ~\nactions=run $(reboot) ../scan sync\n')).toEqual({ actions: ['run', 'sync'] })
+    expect(parsePoll('')).toEqual({ actions: [] })
+    // Each action once, in the order asked.
+    expect(queueAction(undefined, 'run')).toEqual(['run'])
+    expect(queueAction(['run', 'scan'], 'run')).toEqual(['scan', 'run'])
+  })
+
+  it('who changed the plan (older records say quadeck), online and connected', () => {
+    expect(clientChangedBy('quadeck')).toBe('ui')
+    expect(['ui', 'cli', 'client'].map(clientChangedBy)).toEqual(['ui', 'cli', 'client'])
+    expect(clientChangedBy('mallory')).toBeUndefined()
+    const now = 10_000_000
+    expect(clientOnline({ lastSeen: now - 24 * 60_000 }, now)).toBe(true)
+    expect(clientOnline({ lastSeen: now - 26 * 60_000 }, now)).toBe(false)
+    expect(clientOnline({}, now)).toBe(false)
+    expect(clientConnected({})).toBe(false)
+    expect(clientConnected({ applied: { version: 0, at: 1 } })).toBe(true) // an older script, before the agent timer
+    expect(recommendedClientPlan(false)).toMatchObject({ folders: ['~/Documents', '~/Pictures'], schedule: { every: 'weekly' } })
+    expect(recommendedClientPlan(true).folders).toEqual(['~/Dokumente', '~/Bilder'])
+  })
+
   it('a report becomes a run record', () => {
     const now = 1_800_000_000_000
     const text = [
@@ -170,7 +200,7 @@ describe('the client channel in the helper', () => {
     expect(s.text).toContain('folder ~/a\n')
     let c = (await b.targetState()).clients.find((x) => x.name === 'laptop')!
     expect(c.applied?.version).toBe(1)
-    expect(c.changed?.by).toBe('quadeck')
+    expect(c.changed?.by).toBe('ui')
 
     const preview = (await b.clientAgent('laptop', token, 'preview', JSON.stringify({ ...defaultClientPlan(), folders: ['~/b'] }))) as { text: string }
     expect(preview.text).toContain('folder ~/b\n')
@@ -197,5 +227,37 @@ describe('the client channel in the helper', () => {
 
     await b.removeClient('laptop', false)
     expect(await b.clientInventory('laptop')).toBeNull()
+  })
+
+  it('connected without a plan: settings without folders, actions handed out once by the poll, seen with every call', async () => {
+    const { b, token, root } = await setup()
+    const laptop = async () => (await b.targetState()).clients.find((x) => x.name === 'laptop')!
+    expect((await laptop()).lastSeen).toBeUndefined() // fetching the script is not a call of the computer
+    expect(((await b.clientAgent('laptop', token, 'settings', '')) as { text: string }).text).toBe('quadeck-settings 1\nversion 0\nactive 0\nappendonly 0\nend\n')
+    expect(await b.clientAgent('laptop', token, 'plan', '')).toMatchObject({ json: { plan: null } })
+    const seen = (await laptop()).lastSeen!
+    expect(seen).toBeGreaterThan(Date.now() - 5000)
+
+    // Nothing to back up yet: "back up now" is refused; a scan can be asked for.
+    await expect(b.clientAction('laptop', 'run')).rejects.toMatchObject({ status: 409 })
+    await b.clientAction('laptop', 'scan')
+    await b.clientAction('laptop', 'scan')
+    expect((await laptop()).actions).toEqual(['scan'])
+    expect(await b.clientAgent('laptop', token, 'poll', '')).toEqual({ text: 'version=0\nactions=scan\n' })
+    expect(await b.clientAgent('laptop', token, 'poll', '')).toEqual({ text: 'version=0\nactions=\n' }) // handed out once
+    expect((await laptop()).actions).toBeUndefined()
+    await expect(b.clientAction('nobody', 'scan')).rejects.toMatchObject({ status: 404 })
+
+    // A plan set with the CLI: a new version for the poll, then run can be asked for.
+    await b.setClientPlan('laptop', defaultClientPlan(), 'cli')
+    await b.clientAction('laptop', 'run')
+    expect(await b.clientAgent('laptop', token, 'poll', '')).toEqual({ text: 'version=1\nactions=run\n' })
+    expect((await laptop()).changed?.by).toBe('cli')
+    expect(readFileSync(join(root, 'state/target.json'), 'utf8')).not.toContain(token)
+
+    // A record written before `ui` and `cli` were told apart.
+    const file = join(root, 'state/target.json')
+    writeFileSync(file, readFileSync(file, 'utf8').replace('"by": "cli"', '"by": "quadeck"'))
+    expect((await laptop()).changed?.by).toBe('ui')
   })
 })

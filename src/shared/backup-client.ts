@@ -1,6 +1,7 @@
-// The backup plan of a client computer, set in Quadeck and carried to the client by a shell script
-// (one-time link): what to back up, exclusions, schedule, retention. The script installs restic's
-// configuration, a systemd user timer and the `quadeck-backup` command. No I/O here.
+// The backup plan of a client computer and the shell script that connects the client (setup link):
+// it installs restic's configuration, the `quadeck-backup` command, the backup timer and an agent
+// timer that asks Quadeck every 10 minutes for a new plan or something to do. The plan (what to back
+// up, exclusions, schedule, retention) can come later, set in Quadeck or on the client. No I/O here.
 
 import { m } from '~/paraglide/messages'
 import { sizeArg } from './backup'
@@ -40,6 +41,13 @@ export const defaultClientPlan = (): ClientPlan => ({
   schedule: { every: 'daily', time: '12:00' },
   keep: { daily: 7, weekly: 4, monthly: 12 },
   active: true,
+})
+
+/** The plan offered for a connected client: Documents and Pictures under the UI language's names, weekly. */
+export const recommendedClientPlan = (de: boolean): ClientPlan => ({
+  ...defaultClientPlan(),
+  folders: de ? ['~/Dokumente', '~/Bilder'] : ['~/Documents', '~/Pictures'],
+  schedule: { every: 'weekly', time: '12:00' },
 })
 
 const CTRL = /[\x00-\x1f\x7f]/
@@ -101,13 +109,54 @@ export interface ScriptInput {
   /** The access password, renewed for every script. */
   access: string
   appendOnly: boolean
-  plan: ClientPlan
+  /** None yet: the client connects, its backup timer stays off until a plan comes. */
+  plan?: ClientPlan
   /** Settings version the script carries (shown on the client and in Quadeck). */
   version: number
   /** Where `quadeck-backup update` points to, and where the client talks to Quadeck. */
   quadeckUrl: string
   /** The client's token for /api/backup/agent/<name> (renewed with every script). */
   agentToken?: string
+  /**
+   * Caddy's local root CA (PEM) when Quadeck's address is served with a certificate of it: stored as
+   * ca.crt and given to every curl to Quadeck. Safe to embed: the script itself came over a TLS
+   * connection checked against this CA, whose fingerprint was in the command.
+   */
+  ca?: string
+  /** The repository (rest:https://…) is served with that CA too: restic gets RESTIC_CACERT. */
+  resticCa?: boolean
+}
+
+/** A setup link for the UI; `ca` when the command fetches and checks Caddy's local CA first. */
+export interface ClientLink {
+  token: string
+  expires: number
+  ca?: { sha256: string; fingerprint: string }
+}
+
+/** Where the setup command puts the CA before checking it (the script removes it again). */
+export const CA_TMP = '/tmp/quadeck-ca.crt'
+
+/**
+ * The command that sets up a client: `curl … | sh`. With Caddy's local CA it first fetches the CA
+ * without checking (-k), compares its SHA-256 with the one in the command and only then fetches the
+ * script with it as the CA to trust: nothing that runs comes unchecked. Works in sh, bash and fish.
+ */
+export function setupCommand(origin: string, token: string, ca?: { sha256: string }): string {
+  const url = `${origin}/api/backup/script/${token}`
+  if (!ca) return `curl -fsSL ${url} | sh`
+  return `curl -fsSLk ${origin}/ca.crt -o ${CA_TMP} && echo "${ca.sha256}  ${CA_TMP}" | sha256sum -c && curl -fsSL --cacert ${CA_TMP} ${url} | sh`
+}
+
+/** The same in steps, to read the script before it runs. */
+export function reviewCommands(origin: string, token: string, ca?: { sha256: string }): string {
+  const url = `${origin}/api/backup/script/${token}`
+  return [
+    ...(ca ? [`curl -fsSLk ${origin}/ca.crt -o ${CA_TMP}`, `echo "${ca.sha256}  ${CA_TMP}" | sha256sum -c`] : []),
+    `curl -fsSL${ca ? ` --cacert ${CA_TMP}` : ''} ${url} -o quadeck-backup-setup.sh`,
+    'less quadeck-backup-setup.sh',
+    'sh quadeck-backup-setup.sh',
+  ].join('\n')
 }
 
 /** What kind of exclusion a rule is, for the label next to it. */
@@ -123,7 +172,8 @@ export function clientExcludes(plan: ClientPlan): string[] {
   return [...plan.exclude.presets.flatMap((p) => CLIENT_PRESET_PATTERNS[p]), ...plan.exclude.patterns]
 }
 
-export function clientForgetArgs(plan: ClientPlan): string {
+export function clientForgetArgs(plan: ClientPlan | undefined): string {
+  if (!plan) return ''
   const k = plan.keep
   return [
     ...(k.daily ? ['--keep-daily', k.daily] : []),
@@ -136,24 +186,29 @@ export function clientForgetArgs(plan: ClientPlan): string {
 /** The install/update script the client runs with `curl … | sh`. POSIX sh, systemd user units. */
 export function clientScript(i: ScriptInput): string {
   const p = i.plan
-  const flags = [
-    ...(p.exclude.presets.includes('caches') ? ['--exclude-caches'] : []),
-    ...(p.exclude.presets.includes('nobackup') ? ['--exclude-if-present .nobackup'] : []),
-    ...(p.exclude.maxSizeGB ? [`--exclude-larger-than ${sizeArg(p.exclude.maxSizeGB)}`] : []),
-  ].join(' ')
+  const flags = p
+    ? [
+        ...(p.exclude.presets.includes('caches') ? ['--exclude-caches'] : []),
+        ...(p.exclude.presets.includes('nobackup') ? ['--exclude-if-present .nobackup'] : []),
+        ...(p.exclude.maxSizeGB ? [`--exclude-larger-than ${sizeArg(p.exclude.maxSizeGB)}`] : []),
+      ].join(' ')
+    : ''
   return `#!/bin/sh
-# Quadeck backup client "${i.name}" – settings version ${i.version}.
-# Installs or updates: ~/.config/quadeck-backup, ~/.local/bin/quadeck-backup and the systemd user
-# timer quadeck-backup.timer. Run it again whenever Quadeck shows a new command; it only changes
-# folders, exclusions and schedule. The repository password stays on this computer.
+# Quadeck backup client "${i.name}" – settings version ${i.version}${p ? '' : ' (no plan yet)'}.
+# Installs or updates: ~/.config/quadeck-backup, ~/.local/bin/quadeck-backup, the systemd user
+# timer quadeck-backup.timer (the backups, on the plan's schedule) and quadeck-backup-agent.timer
+# (asks Quadeck every 10 minutes for a new plan or something to do). Running it again only renews
+# the access and changes folders, exclusions and schedule. The repository password stays here.
 set -eu
 
 NAME=${sq(i.name)}
 VERSION=${i.version}
-ACTIVE=${p.active ? 1 : 0}
-CALENDAR=${sq(clientCalendar(p.schedule))}
-FOLDERS=${sq(p.folders.join('\n'))}
-EXCLUDES=${sq(clientExcludes(p).join('\n'))}
+PLAN=${p ? 1 : 0}
+ACTIVE=${p?.active ? 1 : 0}
+CALENDAR=${sq(clientCalendar(p?.schedule ?? defaultClientPlan().schedule))}
+FOLDERS=${sq(p?.folders.join('\n') ?? '')}
+EXCLUDES=${sq(p ? clientExcludes(p).join('\n') : '')}
+CA=${sq(i.ca ?? '')}
 
 CONF="\${XDG_CONFIG_HOME:-$HOME/.config}/quadeck-backup"
 UNITS="\${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
@@ -162,32 +217,48 @@ say() { printf '%s\\n' "$*"; }
 die() { printf 'quadeck-backup: %s\\n' "$*" >&2; exit 1; }
 
 [ "$(id -u)" -ne 0 ] || [ "\${QUADECK_ALLOW_ROOT:-}" = 1 ] || die "please run this as the user whose files are backed up, not as root (QUADECK_ALLOW_ROOT=1 to do it anyway)"
-if ! command -v restic >/dev/null 2>&1; then
-  for pm in pacman apt-get dnf zypper apk; do
-    if command -v "$pm" >/dev/null 2>&1; then
-      case "$pm" in
-        pacman) hint="sudo pacman -S restic" ;; apt-get) hint="sudo apt install restic" ;; dnf) hint="sudo dnf install restic" ;;
-        zypper) hint="sudo zypper install restic" ;; apk) hint="sudo apk add restic" ;;
-      esac
-      die "restic is not installed – install it first: $hint"
-    fi
-  done
+# restic where it is now: the units run without the login shell's PATH (brew, ~/.local/bin).
+if ! RESTIC=$(command -v restic 2>/dev/null); then
+  hint=""
+  if command -v brew >/dev/null 2>&1; then
+    hint="brew install restic"
+  elif [ -e /run/ostree-booted ]; then
+    hint="rpm-ostree install restic, then reboot"
+  else
+    for pm in pacman apt-get dnf zypper apk; do
+      if command -v "$pm" >/dev/null 2>&1; then
+        case "$pm" in
+          pacman) hint="sudo pacman -S restic" ;; apt-get) hint="sudo apt install restic" ;; dnf) hint="sudo dnf install restic" ;;
+          zypper) hint="sudo zypper install restic" ;; apk) hint="sudo apk add restic" ;;
+        esac
+        break
+      fi
+    done
+  fi
+  [ -z "$hint" ] || die "restic is not installed – install it first: $hint"
   die "restic is not installed"
 fi
+case "$RESTIC" in /*) ;; *) RESTIC=restic ;; esac
 command -v systemctl >/dev/null 2>&1 || die "systemd is needed for the schedule"
 
 umask 077
 mkdir -p "$CONF" "$UNITS" "$BIN"
 chmod 700 "$CONF"
 
+# Caddy's local CA, which Quadeck's certificate comes from: every call to Quadeck trusts it (this
+# script came over a connection checked against it). Without one the system's CAs are enough.
+if [ -n "$CA" ]; then printf '%s' "$CA" > "$CONF/ca.crt"; else rm -f "$CONF/ca.crt"; fi
+if [ -f ${CA_TMP} ] && [ -O ${CA_TMP} ]; then rm -f ${CA_TMP}; fi
+
 # Access to the server (renewed with every script) and where restic finds everything.
 # Read with \`. env\` (CONF set before): every value quoted.
 cat > "$CONF/env" <<'QUADECK_ENV'
 ${envFile(i, flags)}
 QUADECK_ENV
+printf "QUADECK_RESTIC='%s'\\n" "$(printf '%s' "$RESTIC" | sed "s/'/'\\\\''/g")" >> "$CONF/env"
 
 # Folders and exclusions, ~ as this user's home.
-printf '%s\\n' "$FOLDERS" | sed "s|^~|$HOME|" > "$CONF/folders"
+printf '%s\\n' "$FOLDERS" | sed "s|^~|$HOME|" | grep -v '^$' > "$CONF/folders" || true
 printf '%s\\n' "$EXCLUDES" | sed "s|^~|$HOME|" | grep -v '^$' > "$CONF/excludes" || true
 
 set -a
@@ -214,17 +285,31 @@ if [ ! -s "$CONF/password" ]; then
   chmod 600 "$CONF/password"
 fi
 
-# The repository: open it, or create it on the first run.
-if ! out=$(restic cat config --no-lock 2>&1 >/dev/null); then
-  case "$out" in
+# The repository: open it, or create it on the first run. Bounded: restic retries an unreachable
+# server for minutes (0.17 and later) and says nothing meanwhile.
+url=\${RESTIC_REPOSITORY#rest:}
+say "Connecting to $url …"
+code=0
+if timeout 1 true >/dev/null 2>&1; then
+  out=$(timeout 30 "$RESTIC" cat config --no-lock 2>&1 >/dev/null) || code=$?
+else
+  out=$("$RESTIC" cat config --no-lock 2>&1 >/dev/null) || code=$?
+fi
+if [ "$code" != 0 ]; then
+  last=$(printf '%s\\n' "$out" | grep -iE 'fatal|error|refused|timeout' | tail -n 1 || true)
+  [ -n "$last" ] || last=$(printf '%s\\n' "$out" | grep -v '^ *$' | tail -n 1 || true)
+  [ "$code" != 124 ] || last="no answer within 30 s\${last:+ ($last)}"
+  unreachable="cannot reach the backup server at $url – is the address right (Quadeck → Backups → Clients → Edit …) and the port open? restic: $last"
+  case "$code:$out" in
+    124:*) die "$unreachable" ;;
     *"wrong password"*|*"no key found"*) die "the repository exists but the password in $CONF/password does not open it" ;;
+    *"connection refused"*|*"no such host"*|*"dial tcp"*|*"i/o timeout"*|*"network is unreachable"*|*"no route to host"*|*"deadline exceeded"*|*"connection reset"*|*"x509"*|*"tls:"*) die "$unreachable" ;;
     *"Is there a repository"*|*"does not exist"*|*"no such file"*|*"unable to open config"*|*"404"*)
       say "Creating the repository on the server …"
-      restic init >/dev/null ;;
-    *) die "cannot reach the repository: $out" ;;
+      "$RESTIC" init >/dev/null ;;
+    *) die "$unreachable" ;;
   esac
 fi
-
 cat > "$BIN/quadeck-backup" <<'QUADECK_BIN'
 ${clientCommand()}
 QUADECK_BIN
@@ -258,29 +343,78 @@ RandomizedDelaySec=5min
 WantedBy=timers.target
 QUADECK_TIMER
 
+# The agent: asks Quadeck every 10 minutes for a new plan or something to do (back up now, send
+# the folder list). It only fetches data; nothing from Quadeck is run as a command.
+cat > "$UNITS/quadeck-backup-agent.service" <<QUADECK_AGENT_SERVICE
+# Written by the Quadeck backup script – changes are overwritten
+[Unit]
+Description=Quadeck: ask the home server for a new backup plan or a task
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=$BIN/quadeck-backup poll
+QUADECK_AGENT_SERVICE
+
+cat > "$UNITS/quadeck-backup-agent.timer" <<QUADECK_AGENT_TIMER
+# Written by the Quadeck backup script – changes are overwritten
+[Unit]
+Description=Quadeck: ask the home server every 10 minutes
+
+[Timer]
+OnCalendar=*:0/10
+Persistent=true
+RandomizedDelaySec=2min
+
+[Install]
+WantedBy=timers.target
+QUADECK_AGENT_TIMER
+
 systemctl --user daemon-reload
 if [ "$ACTIVE" = 1 ]; then
   systemctl --user enable --now quadeck-backup.timer >/dev/null || die "could not start the timer – is this a normal login session? (systemctl --user)"
-  state="$CALENDAR"
+  state="schedule $CALENDAR"
+elif [ "$PLAN" = 1 ]; then
+  systemctl --user disable --now quadeck-backup.timer >/dev/null 2>&1 || true
+  state="schedule paused"
 else
   systemctl --user disable --now quadeck-backup.timer >/dev/null 2>&1 || true
-  state="paused"
+  state="no plan yet"
 fi
 
-# The folder list for Quadeck's folder browser, in the background (du over the home takes a while).
+connected=0
 if grep -q '^QUADECK_TOKEN=' "$CONF/env"; then
+  # Tell Quadeck the setup is done (that also ends the setup link) and take its settings once more.
+  if err=$("$BIN/quadeck-backup" sync 2>&1 >/dev/null); then
+    connected=1
+  else
+    say "Note: could not talk to Quadeck at $QUADECK_URL – ${'$'}{err#quadeck-backup: }"
+    say "      The backups work without it; changes made in Quadeck arrive once this computer reaches it."
+  fi
+  systemctl --user enable --now quadeck-backup-agent.timer >/dev/null 2>&1 || say "Note: could not start quadeck-backup-agent.timer – new plans arrive only with the next backup."
+  # The folder list for Quadeck's folder browser, in the background (du over the home takes a while).
   (nohup "$BIN/quadeck-backup" scan >/dev/null 2>&1 &)
 fi
 
 say ""
-say "Quadeck backup for $NAME is set up (settings version $VERSION, schedule $state)."
-say "  quadeck-backup check    what would be backed up"
-say "  quadeck-backup now      back up right now"
-say "  quadeck-backup status   last backups and the next run"
-say "  quadeck-backup guide    how an AI agent can set up this backup with you"
+if [ "$PLAN" = 1 ]; then
+  say "Quadeck backup for $NAME is set up (settings version $VERSION, $state)."
+  say "  quadeck-backup check    what would be backed up"
+  say "  quadeck-backup now      back up right now"
+  say "  quadeck-backup status   last backups and the next run"
+  say "  quadeck-backup guide    how an AI agent can change this backup with you"
+elif [ "$connected" = 1 ]; then
+  say "$NAME is connected to Quadeck – no backup plan yet, so nothing is backed up so far."
+  say "Choose what and when in Quadeck (Backups → Clients → $NAME → Set plan), or let an AI agent on"
+  say "this computer do it with you: quadeck-backup guide. This computer takes the plan within about 10 minutes."
+else
+  say "$NAME is set up, but has no backup plan yet. Once it reaches Quadeck, set one there (Backups → Clients)."
+fi
 case ":$PATH:" in *":$BIN:"*) ;; *) say "(add $BIN to your PATH, or call $BIN/quadeck-backup)" ;; esac
-if command -v loginctl >/dev/null 2>&1 && [ "$(loginctl show-user "$(id -un)" -p Linger --value 2>/dev/null || true)" = no ]; then
-  say "The timer runs while you are logged in. For a computer that runs without anyone logged in: sudo loginctl enable-linger $(id -un)"
+# Without lingering the user's timers only run while the user is logged in: a hint, never a stop.
+if command -v loginctl >/dev/null 2>&1 && [ "$(loginctl show-user "$(id -un)" -p Linger 2>/dev/null || true)" = Linger=no ]; then
+  say "Note: the timers only run while you are logged in. To back up without anyone logged in: sudo loginctl enable-linger $(id -un)"
 fi
 `
 }
@@ -291,6 +425,7 @@ function envFile(i: ScriptInput, flags: string): string {
     `RESTIC_REST_USERNAME=${sq(i.user)}`,
     `RESTIC_REST_PASSWORD=${sq(i.access)}`,
     'RESTIC_PASSWORD_FILE="$CONF/password"',
+    ...(i.ca && i.resticCa ? ['RESTIC_CACERT="$CONF/ca.crt"'] : []),
     `QUADECK_NAME=${sq(i.name)}`,
     `QUADECK_VERSION=${i.version}`,
     `QUADECK_URL=${sq(i.quadeckUrl)}`,
@@ -312,6 +447,11 @@ UNITS="\${XDG_CONFIG_HOME:-$HOME/.config}/systemd/user"
 set -a
 . "$CONF/env"
 set +a
+
+# restic as found by the setup script (systemd user units have no brew or ~/.local/bin in PATH),
+# else whatever PATH has.
+if [ -n "\${QUADECK_RESTIC:-}" ] && [ -x "$QUADECK_RESTIC" ]; then RESTIC=$QUADECK_RESTIC; else RESTIC=restic; fi
+restic() { command "$RESTIC" "$@"; }
 
 # A standard folder under its name in the other language, or where xdg-user-dirs puts it
 # (~/Dokumente on a German desktop, ~/Documents on an English one).
@@ -336,6 +476,7 @@ resolve() {
 SET="$CONF"
 
 folders() {
+  [ -s "$SET/folders" ] || { echo "quadeck-backup: no backup plan yet – choose what and when in Quadeck (Backups → Clients → $QUADECK_NAME), or see quadeck-backup guide" >&2; exit 1; }
   n=0
   while IFS= read -r f; do
     [ -n "$f" ] || continue
@@ -359,7 +500,26 @@ EOF
 
 human() { numfmt --to=iec --suffix=B "$1" 2>/dev/null || echo "$1 bytes"; }
 field() { printf '%s' "$2" | sed -n 's/.*"'"$1"'":\\([0-9]*\\).*/\\1/p'; }
-no_token() { echo "quadeck-backup: this computer was set up with an older script – run the setup command from Quadeck once more (Backups → Clients → $QUADECK_NAME → Edit)" >&2; return 1; }
+no_token() { echo "quadeck-backup: this computer was set up with an older script – run the setup command from Quadeck once more (Backups → Clients → $QUADECK_NAME → Show command)" >&2; return 1; }
+
+# curl could not talk to Quadeck: why, for curl's exit code $1.
+unreachable() {
+  case "$1" in
+    60|77)
+      if [ -f "$CONF/ca.crt" ]; then
+        echo "quadeck-backup: Quadeck's certificate at $QUADECK_URL no longer comes from the CA stored in $CONF/ca.crt – run the setup command from Quadeck once more (Backups → Clients → $QUADECK_NAME → Show command); it brings the current CA along" >&2
+      else
+        echo "quadeck-backup: this computer does not trust Quadeck's certificate at $QUADECK_URL – run the setup command from Quadeck once more (Backups → Clients → $QUADECK_NAME → Show command): when the certificate comes from Caddy's local CA, the command brings that CA along" >&2
+      fi ;;
+    *) echo "quadeck-backup: cannot reach Quadeck at $QUADECK_URL" >&2 ;;
+  esac
+  return 1
+}
+
+# curl for Quadeck: with the CA the setup script stored (Caddy's local CA), else the system's.
+qcurl() {
+  if [ -f "$CONF/ca.crt" ]; then curl --cacert "$CONF/ca.crt" "$@"; else curl "$@"; fi
+}
 
 # Quadeck's endpoint for this client: api GET|POST <what> [content type] (a POST body comes on stdin).
 # Prints the answer; on an error prints Quadeck's message and fails.
@@ -371,9 +531,9 @@ api() {
   auth="$CONF/.auth"
   (umask 077 && printf 'Authorization: Bearer %s\\n' "$QUADECK_TOKEN" > "$auth")
   if [ "$1" = GET ]; then
-    resp=$(curl -sS --max-time 30 -H @"$auth" -w '\\n%{http_code}' "$QUADECK_URL/api/backup/agent/$QUADECK_NAME?do=$what") || { echo "quadeck-backup: cannot reach Quadeck at $QUADECK_URL" >&2; return 1; }
+    resp=$(qcurl -sS --max-time 30 -H @"$auth" -w '\\n%{http_code}' "$QUADECK_URL/api/backup/agent/$QUADECK_NAME?do=$what") || { unreachable $?; return 1; }
   else
-    resp=$(curl -sS --max-time 300 -X POST -H @"$auth" -H "content-type: \${3:-text/plain}" --data-binary @- -w '\\n%{http_code}' "$QUADECK_URL/api/backup/agent/$QUADECK_NAME?do=$what") || { echo "quadeck-backup: cannot reach Quadeck at $QUADECK_URL" >&2; return 1; }
+    resp=$(qcurl -sS --max-time 300 -X POST -H @"$auth" -H "content-type: \${3:-text/plain}" --data-binary @- -w '\\n%{http_code}' "$QUADECK_URL/api/backup/agent/$QUADECK_NAME?do=$what") || { unreachable $?; return 1; }
   fi
   http=$(printf '%s\\n' "$resp" | tail -n 1)
   body=$(printf '%s\\n' "$resp" | sed '$d')
@@ -384,7 +544,8 @@ api() {
 }
 
 # Settings lines from Quadeck (stdin) into the folder $1: folders, excludes, and the values in \`vars\`.
-# Every line is data and checked here: nothing from the server is run as shell code.
+# Every line is data and checked here: nothing from the server is run as shell code. Without a plan
+# (active 0, no folders, no calendar) the folder list is empty and the backup timer stays off.
 parse_settings() {
   d=$1
   : > "$d/folders.new"
@@ -423,8 +584,11 @@ parse_settings() {
       *) ;; # newer keys: ignored
     esac
   done
-  [ "$ended" = 1 ] && [ -n "$version" ] && [ -n "$active" ] && [ -n "$calendar" ] || { echo "quadeck-backup: incomplete settings from Quadeck" >&2; return 1; }
-  [ -s "$d/folders.new" ] || { echo "quadeck-backup: no folders in the settings" >&2; return 1; }
+  [ "$ended" = 1 ] && [ -n "$version" ] && [ -n "$active" ] || { echo "quadeck-backup: incomplete settings from Quadeck" >&2; return 1; }
+  if [ "$active" = 1 ]; then
+    [ -n "$calendar" ] || { echo "quadeck-backup: incomplete settings from Quadeck" >&2; return 1; }
+    [ -s "$d/folders.new" ] || { echo "quadeck-backup: no folders in the settings" >&2; return 1; }
+  fi
   sed "s|^~|$HOME|" "$d/folders.new" > "$d/folders"
   sed "s|^~|$HOME|" "$d/excludes.new" > "$d/excludes"
   rm -f "$d/folders.new" "$d/excludes.new"
@@ -454,10 +618,12 @@ sync() {
   chmod 600 "$tmp/env"
   mv "$tmp/env" "$CONF/env"
   if [ -f "$UNITS/quadeck-backup.timer" ]; then
-    sed "s|^OnCalendar=.*|OnCalendar=$calendar|" "$UNITS/quadeck-backup.timer" > "$tmp/timer"
-    if ! cmp -s "$tmp/timer" "$UNITS/quadeck-backup.timer"; then
-      mv "$tmp/timer" "$UNITS/quadeck-backup.timer"
-      systemctl --user daemon-reload >/dev/null 2>&1 || true
+    if [ -n "$calendar" ]; then
+      sed "s|^OnCalendar=.*|OnCalendar=$calendar|" "$UNITS/quadeck-backup.timer" > "$tmp/timer"
+      if ! cmp -s "$tmp/timer" "$UNITS/quadeck-backup.timer"; then
+        mv "$tmp/timer" "$UNITS/quadeck-backup.timer"
+        systemctl --user daemon-reload >/dev/null 2>&1 || true
+      fi
     fi
     if [ "$active" = 1 ]; then
       systemctl --user is-enabled quadeck-backup.timer >/dev/null 2>&1 || systemctl --user enable --now quadeck-backup.timer >/dev/null 2>&1 || true
@@ -469,7 +635,36 @@ sync() {
   set -a
   . "$CONF/env"
   set +a
-  echo "settings version $version"
+  if [ -s "$CONF/folders" ]; then echo "settings version $version"; else echo "settings version $version (no backup plan yet)"; fi
+}
+
+# The agent timer's call: is there a new plan (version), and what Quadeck asks for (actions).
+# Only these words are acted on; anything else in the answer is ignored.
+poll() {
+  answer=$(api GET poll) || return 1
+  want='' todo=''
+  while IFS= read -r line; do
+    case "$line" in
+      version=*) want=\${line#version=}; case "$want" in ''|*[!0-9]*) want='' ;; esac ;;
+      actions=*) todo=\${line#actions=} ;;
+    esac
+  done <<EOF
+$answer
+EOF
+  synced=0
+  if [ -n "$want" ] && [ "$want" != "$QUADECK_VERSION" ]; then
+    if sync; then synced=1; fi
+  fi
+  set -f
+  for a in $todo; do
+    case "$a" in
+      run) systemctl --user start --no-block quadeck-backup.service || echo "quadeck-backup: could not start quadeck-backup.service" >&2 ;;
+      scan) scan >/dev/null || true ;;
+      sync) if [ "$synced" = 0 ] && sync; then synced=1; fi ;;
+      *) ;; # newer actions: ignored
+    esac
+  done
+  set +f
 }
 
 # The folders of the home with their size (du, 4 levels) and what marks them (caches, projects,
@@ -535,7 +730,8 @@ This computer backs up to a Quadeck server with restic. You can look at its fold
 to back up and what to leave out, and set the plan. Talk it through with the person before you set
 anything: what goes in, what stays out and why, and how big it is.
 
-1. \`quadeck-backup plan show\` – the current plan as JSON:
+1. \`quadeck-backup plan show\` – the current plan as JSON. \`plan\` is null while this computer is
+   connected without a plan yet: then write one from the fields below.
    - \`folders\`: \`~/Documents\` or absolute paths (a standard folder is found under either language).
    - \`exclude.presets\`: caches, trash, dev (node_modules, .venv, __pycache__, target …), temp,
      downloads, vms (disk images), games (Steam), nobackup (folders with a .nobackup file).
@@ -549,8 +745,9 @@ anything: what goes in, what stays out and why, and how big it is.
 3. Write a draft (the JSON of \`plan show\`, changed) and try it:
    \`quadeck-backup check --plan draft.json --json\` – the size without and with the exclusions and
    what the first run would upload. \`check --plan draft.json --files\` lists the files.
-4. When the person agrees: \`quadeck-backup plan set -f draft.json\`. Quadeck stores it (the person
-   sees it there) and this computer takes it right away.
+4. When the person agrees: \`quadeck-backup plan set -f draft.json\` (a draft from scratch needs
+   folders, exclude, schedule and active). Quadeck stores it (the person sees it there) and this
+   computer takes it right away; a plan set in Quadeck arrives here within about 10 minutes.
 5. \`quadeck-backup now\` backs up right away; \`quadeck-backup status\` shows the snapshots.
 
 Never print or copy ~/.config/quadeck-backup/password: it is the key to the backups.
@@ -640,6 +837,7 @@ EOF
       echo "Sent $(grep -c '^d' "$CONF/scan") folders to Quadeck: choose from them in Backups → Clients → $QUADECK_NAME."
     fi
     ;;
+  poll) poll ;;
   sync|update)
     if [ -n "\${QUADECK_TOKEN:-}" ]; then sync; else
       echo "Change the settings in Quadeck (Backups → Clients → $QUADECK_NAME), then run the new command it shows:"
@@ -677,10 +875,10 @@ EOF
     echo "restored into $target"
     ;;
   uninstall)
-    systemctl --user disable --now quadeck-backup.timer 2>/dev/null || true
-    rm -f "$UNITS/quadeck-backup.service" "$UNITS/quadeck-backup.timer"
+    systemctl --user disable --now quadeck-backup.timer quadeck-backup-agent.timer 2>/dev/null || true
+    rm -f "$UNITS/quadeck-backup.service" "$UNITS/quadeck-backup.timer" "$UNITS/quadeck-backup-agent.service" "$UNITS/quadeck-backup-agent.timer"
     systemctl --user daemon-reload 2>/dev/null || true
-    echo "Timer removed. Settings and the repository password stay in $CONF – delete them yourself if you are sure."
+    echo "Timers removed. Settings and the repository password stay in $CONF – delete them yourself if you are sure."
     rm -f "$0"
     ;;
   guide)
@@ -703,11 +901,12 @@ EOF
     echo "  scan [--json]         send the folder list to Quadeck (for its folder browser)"
     echo "  plan show | plan set -f <plan.json>   the plan as JSON / set a new one"
     echo "  sync       fetch new settings from Quadeck now (also done before every backup)"
+    echo "  poll       ask Quadeck for a new plan or a task (what quadeck-backup-agent.timer runs every 10 minutes)"
     echo "  mount [dir]           the backups as folders (needs fuse)"
     echo "  restore <path> [dir]  restore from the latest backup"
     echo "  guide [--skill]       how an agent goes about setting up this backup (as a SKILL.md)"
     echo "  skill install         that guide as a skill for Claude Code (~/.claude/skills)"
-    echo "  uninstall  remove the timer and this command"
+    echo "  uninstall  remove the timers and this command"
     ;;
 esac`
 }
