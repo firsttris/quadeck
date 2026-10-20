@@ -298,7 +298,12 @@ fi
 if [ "$code" != 0 ]; then
   last=$(printf '%s\\n' "$out" | grep -iE 'fatal|error|refused|timeout' | tail -n 1 || true)
   [ -n "$last" ] || last=$(printf '%s\\n' "$out" | grep -v '^ *$' | tail -n 1 || true)
-  [ "$code" != 124 ] || last="no answer within 30 s\${last:+ ($last)}"
+  # Cut off: restic 0.17+ only says why in its retry lines ("… retrying after 1s: <why>"), then "context canceled".
+  if [ "$code" = 124 ]; then
+    why=$(printf '%s\\n' "$out" | sed -n 's/.* returned error, retrying after [^:]*: //p' | tail -n 1)
+    if [ -n "$why" ]; then last=$why; fi
+    last="no answer within 30 s\${last:+ ($last)}"
+  fi
   unreachable="cannot reach the backup server at $url – is the address right (Quadeck → Backups → Clients → Edit …) and the port open? restic: $last"
   case "$code:$out" in
     124:*) die "$unreachable" ;;
