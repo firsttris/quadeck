@@ -528,8 +528,10 @@ api() {
   command -v curl >/dev/null 2>&1 || { echo "quadeck-backup: curl is needed to talk to Quadeck" >&2; return 1; }
   what=$2
   # The token goes to curl in a file, never on its command line (other users see that in ps).
+  # Written aside and renamed: another call at the same time (the scan after the setup, the agent
+  # timer during a backup) must never hand its curl a file that is empty for a moment.
   auth="$CONF/.auth"
-  (umask 077 && printf 'Authorization: Bearer %s\\n' "$QUADECK_TOKEN" > "$auth")
+  (umask 077 && printf 'Authorization: Bearer %s\\n' "$QUADECK_TOKEN" > "$auth.$$" && mv -f "$auth.$$" "$auth")
   if [ "$1" = GET ]; then
     resp=$(qcurl -sS --max-time 30 -H @"$auth" -w '\\n%{http_code}' "$QUADECK_URL/api/backup/agent/$QUADECK_NAME?do=$what") || { unreachable $?; return 1; }
   else
