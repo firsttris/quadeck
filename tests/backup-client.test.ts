@@ -631,7 +631,8 @@ describe.skipIf(!hasRestic)('client script on a (sandboxed) computer', () => {
         expect(existsSync(CA_TMP)).toBe(false) // the script tidied up
         expect((await laptop(b)).lastSeen).toBeDefined()
         // Later calls (the agent timer) trust the stored CA, not the system's.
-        expect((await run([join(s.home, '.local/bin/quadeck-backup'), 'poll'], { env: { ...s.env, ...NO_PROXY } })).code).toBe(0)
+        const stored = await run([join(s.home, '.local/bin/quadeck-backup'), 'poll'], { env: { ...s.env, ...NO_PROXY } })
+        expect(stored.code, stored.stderr).toBe(0)
         writeFileSync(join(conf, 'ca.crt'), ROOT)
         const other = await run([join(s.home, '.local/bin/quadeck-backup'), 'poll'], { env: { ...s.env, ...NO_PROXY } })
         expect(other.code).not.toBe(0)

@@ -193,7 +193,9 @@ export class SystemPower implements PowerBackend {
   readRapl(): RaplZone[] {
     let names: string[] = []
     try {
-      names = readdirSync(this.powercap).filter((n) => /^intel-rapl:\d+(:\d+)?$/.test(n))
+      names = readdirSync(this.powercap)
+        .filter((n) => /^intel-rapl:\d+(:\d+)?$/.test(n))
+        .sort() // readdir order depends on the file system: a package before its parts
     } catch {
       return []
     }

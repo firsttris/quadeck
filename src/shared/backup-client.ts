@@ -298,7 +298,12 @@ fi
 if [ "$code" != 0 ]; then
   last=$(printf '%s\\n' "$out" | grep -iE 'fatal|error|refused|timeout' | tail -n 1 || true)
   [ -n "$last" ] || last=$(printf '%s\\n' "$out" | grep -v '^ *$' | tail -n 1 || true)
-  [ "$code" != 124 ] || last="no answer within 30 s\${last:+ ($last)}"
+  # Cut off: restic 0.17+ only says why in its retry lines ("… retrying after 1s: <why>"), then "context canceled".
+  if [ "$code" = 124 ]; then
+    why=$(printf '%s\\n' "$out" | sed -n 's/.* returned error, retrying after [^:]*: //p' | tail -n 1)
+    if [ -n "$why" ]; then last=$why; fi
+    last="no answer within 30 s\${last:+ ($last)}"
+  fi
   unreachable="cannot reach the backup server at $url – is the address right (Quadeck → Backups → Clients → Edit …) and the port open? restic: $last"
   case "$code:$out" in
     124:*) die "$unreachable" ;;
@@ -528,8 +533,10 @@ api() {
   command -v curl >/dev/null 2>&1 || { echo "quadeck-backup: curl is needed to talk to Quadeck" >&2; return 1; }
   what=$2
   # The token goes to curl in a file, never on its command line (other users see that in ps).
+  # Written aside and renamed: another call at the same time (the scan after the setup, the agent
+  # timer during a backup) must never hand its curl a file that is empty for a moment.
   auth="$CONF/.auth"
-  (umask 077 && printf 'Authorization: Bearer %s\\n' "$QUADECK_TOKEN" > "$auth")
+  (umask 077 && printf 'Authorization: Bearer %s\\n' "$QUADECK_TOKEN" > "$auth.$$" && mv -f "$auth.$$" "$auth")
   if [ "$1" = GET ]; then
     resp=$(qcurl -sS --max-time 30 -H @"$auth" -w '\\n%{http_code}' "$QUADECK_URL/api/backup/agent/$QUADECK_NAME?do=$what") || { unreachable $?; return 1; }
   else
