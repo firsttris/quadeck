@@ -123,7 +123,7 @@ jobs:
           - { name: Rocky Linux 9, image: 'rockylinux/rockylinux:9', id: rhel, pm: dnf }
           # MicroOS: read-only root with transactional-update (a stand-in script; only detection is tested)
           - { name: openSUSE MicroOS (simulated), image: 'opensuse/tumbleweed:latest', id: opensuse, pm: transactional-update, args: '--read-only --tmpfs /tmp -v /tmp/fakebin:/opt/fake:ro -e PATH=/opt/fake:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin' }
-          - { name: Alpine (musl), image: 'alpine:3.20', id: alpine, pm: apk, musl: true, prep: 'apk add --no-cache libstdc++ libgcc' }
+          - { name: Alpine (musl), image: 'alpine:3.24', id: alpine, pm: apk, musl: true, prep: 'apk add --no-cache libstdc++ libgcc' }
     name: Runs on ${{ matrix.name }}
     steps:
       - uses: actions/checkout@v4
