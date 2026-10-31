@@ -35,6 +35,9 @@ jobs:
     steps:
       - uses: actions/checkout@v4
       - uses: oven-sh/setup-bun@v2
+        with:
+          # The Bun the release binaries are compiled with (Renovate, .github/renovate.json5)
+          bun-version: 1.4.4
       - run: bun install --frozen-lockfile
       # tests/backup.test.ts runs against the real restic
       - uses: firsttris/workflows/actions/apt-install@ccr-161f105b-9ns022
