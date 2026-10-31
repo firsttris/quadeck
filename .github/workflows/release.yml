@@ -21,7 +21,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
           # The Bun the release binaries are compiled with (Renovate, .github/renovate.json5)
@@ -30,7 +30,7 @@ jobs:
       - run: bun scripts/compile.ts bun-linux-x64-baseline bun-linux-arm64 bun-linux-x64-musl bun-linux-arm64-musl
       - name: Checksums
         run: cd release && sha256sum quadeck-linux-* > SHA256SUMS && cat SHA256SUMS
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release
           path: |

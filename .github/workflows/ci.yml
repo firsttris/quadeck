@@ -33,7 +33,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
           # The Bun the release binaries are compiled with (Renovate, .github/renovate.json5)
@@ -51,7 +51,7 @@ jobs:
         run: bun scripts/compile.ts bun-linux-x64-baseline bun-linux-arm64 bun-linux-x64-musl bun-linux-arm64-musl
       - name: Smoke test (glibc)
         run: ./release/quadeck-linux-x64-baseline version
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: release-x64
           path: |
@@ -92,12 +92,12 @@ jobs:
       matrix:
         shard: [1, 2, 3, 4]
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - run: npm install --global bun
       - run: bun install --frozen-lockfile
       - name: E2E (production build against fixtures)
         run: bunx playwright test --shard=${{ matrix.shard }}/4
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         if: failure()
         with:
           name: playwright-traces-${{ matrix.shard }}
@@ -126,8 +126,8 @@ jobs:
           - { name: Alpine (musl), image: 'alpine:3.24', id: alpine, pm: apk, musl: true, prep: 'apk add --no-cache libstdc++ libgcc' }
     name: Runs on ${{ matrix.name }}
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with:
           name: release-x64
           path: release
