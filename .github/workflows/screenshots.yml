@@ -10,6 +10,7 @@ jobs:
     uses: firsttris/workflows/.github/workflows/screenshots.yml@v1
     with:
       bun: true
+      bun-version: 1.4.4
       install: bun install --frozen-lockfile
       lockfile: bun.lock
       command: bun run screenshots
