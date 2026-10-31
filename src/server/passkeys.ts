@@ -9,7 +9,7 @@
 
 import {
   type AuthenticationResponseJSON,
-  type AuthenticatorTransportFuture,
+  type AuthenticatorTransport,
   generateAuthenticationOptions,
   generateRegistrationOptions,
   type PublicKeyCredentialCreationOptionsJSON,
@@ -156,7 +156,7 @@ export async function registrationOptions(request: Request, sessionId: string): 
     userDisplayName: `Quadeck (${rpId})`,
     attestationType: 'none',
     // The same authenticator twice makes no sense: the browser says it already has one
-    excludeCredentials: existing.map((p) => ({ id: p.id, transports: (p.transports ?? undefined) as AuthenticatorTransportFuture[] | undefined })),
+    excludeCredentials: existing.map((p) => ({ id: p.id, transports: (p.transports ?? undefined) as AuthenticatorTransport[] | undefined })),
     authenticatorSelection: { residentKey: 'required', userVerification: 'required' },
   })
   rememberChallenge(options.challenge, { purpose: 'register', sessionId, rpId })
@@ -220,7 +220,7 @@ export async function verifyLogin(request: Request, response: AuthenticationResp
         id: passkey.id,
         publicKey: Uint8Array.from(Buffer.from(passkey.publicKey, 'base64url')),
         counter: passkey.counter,
-        transports: (passkey.transports ?? undefined) as AuthenticatorTransportFuture[] | undefined,
+        transports: (passkey.transports ?? undefined) as AuthenticatorTransport[] | undefined,
       },
     })
   } catch {
