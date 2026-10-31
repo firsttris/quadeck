@@ -1,18 +1,14 @@
 // Renovate (GitHub App, https://github.com/apps/renovate): a pull request for each new release of
-// what Quadeck builds on, plus the "Dependency Dashboard" issue listing what is open.
-// Only those: Bun, which is compiled into every release binary (bun build --compile), with its
-// types, and the Alpine of the distro CI (the one musl distribution it tests). The other
-// distributions of that matrix are chosen by hand (an old and a new release each), the other
-// packages and the actions are not tracked here.
+// what Quadeck builds on, plus the "Dependency Dashboard" issue listing what is open. Their own
+// pull requests: Bun, which is compiled into every release binary (bun build --compile), with its
+// types, and the Alpine of the distro CI (the one musl distribution it tests).
+// Everything else (the other packages, the actions, the images) comes with the shared settings of
+// firsttris/workflows (renovate/default.json5): minor and patch updates once a month in one pull
+// request that merges itself when CI is green, majors on request in the dashboard.
 // Check with `npx --package renovate renovate-config-validator .github/renovate.json5`.
 {
   $schema: "https://docs.renovatebot.com/renovate-schema.json",
-  extends: ["config:recommended"],
-  enabledManagers: ["bun", "custom.regex"],
-  timezone: "Europe/Berlin",
-  labels: ["dependencies"],
-  // Nothing merges itself: each of these needs the checks in its pull request read by a person
-  automerge: false,
+  extends: ["github>firsttris/workflows//renovate/default.json5"],
   customManagers: [
     {
       // bun-version in CI, the release and the screenshots
@@ -34,11 +30,6 @@
   ],
   packageRules: [
     {
-      // From the packages only @types/bun (with Bun, below)
-      matchManagers: ["bun"],
-      enabled: false,
-    },
-    {
       // Bun: CI, release and screenshots, and the types, in one PR
       matchPackageNames: ["oven-sh/bun", "@types/bun"],
       enabled: true,
@@ -47,6 +38,9 @@
       prBodyNotes: [
         "The release binaries carry this Bun as their runtime (`scripts/compile.ts`, targets `bun-linux-x64-baseline`, `-arm64`, `-x64-musl`, `-arm64-musl`), so a Bun update reaches every installation with the next release. Before merging: read the release notes for `bun build --compile`, `Bun.serve`, `bun:sqlite`, `Bun.spawn` and the musl builds; the distros job of this PR starts the new binary on every distribution of the matrix. On real hardware, check `quadeck doctor` and the self-update (`src/server/update.ts`) once with a binary from this branch.",
       ],
+      schedule: ["at any time"],
+      automerge: false,
+      dependencyDashboardApproval: false,
     },
     {
       matchPackageNames: ["docker.io/library/alpine"],
@@ -54,6 +48,10 @@
       prBodyNotes: [
         "Only the distros job uses it (the musl binary with `libstdc++ libgcc`). If it fails, the musl binary does not start on current Alpine: that is a finding for the README's \"Runs on\" table, not a reason to stay on the old image.",
       ],
+      groupName: "alpine",
+      schedule: ["at any time"],
+      automerge: false,
+      dependencyDashboardApproval: false,
     },
   ],
 }
