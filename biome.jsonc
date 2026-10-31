@@ -60,5 +60,8 @@
         "noLabelWithoutControl": { "level": "error", "options": { "inputComponents": ["DraftInput"] } }
       }
     }
-  }
+  },
+  // Biome 2.6 formats Markdown and YAML by default; these files keep their own layout.
+  "markdown": { "formatter": { "enabled": false } },
+  "yaml": { "formatter": { "enabled": false } }
 }
