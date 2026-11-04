@@ -4,6 +4,7 @@ import { brotliCompressSync, constants, gzipSync } from 'node:zlib'
 import { paraglideVitePlugin } from '@inlang/paraglide-js'
 import tailwindcss from '@tailwindcss/vite'
 import { tanstackStart } from '@tanstack/react-start/plugin/vite'
+import { redact } from '@tanstack/redact/vite'
 import viteReact from '@vitejs/plugin-react'
 import { defineConfig, type Plugin } from 'vite'
 
@@ -33,7 +34,7 @@ function precompress(): Plugin {
   }
 }
 
-export default defineConfig({
+export default defineConfig(({ command }) => ({
   define: { __APP_VERSION__: JSON.stringify(pkg.version) },
   server: { port: 3000 },
   resolve: { tsconfigPaths: true },
@@ -52,8 +53,17 @@ export default defineConfig({
     tailwindcss(),
     tanstackStart(),
     viteReact(),
+    // TanStack Redact: a smaller runtime with the React 19 API. The code keeps importing from
+    // 'react'; the plugin points those imports at Redact. Remove this line to go back to React.
+    redact(),
     precompress(),
   ],
-  ssr: { external: ['bun:sqlite'] },
+  ssr: {
+    external: ['bun:sqlite'],
+    // Redact (see plugins) wants every dependency bundled into the server build. Only for the build:
+    // in `vite dev` that breaks CommonJS dependencies such as tslib and every page answers 500.
+    // Dependencies listed in `external` stay external either way.
+    ...(command === 'build' ? { noExternal: true as const } : {}),
+  },
   build: { rollupOptions: { external: [/^bun:/] } },
-})
+}))

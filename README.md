@@ -176,8 +176,9 @@ bun install
 QUADECK_DATA_DIR=.data QUADECK_FIXTURES=fixtures/demo bun run dev   # http://localhost:3000 with demo data
 ```
 
-Bun, TanStack Start (React), Tailwind, SQLite with Drizzle, Vitest and Playwright; one binary per
-platform through `bun build --compile`. Architecture, tests and releases:
+Bun, TanStack Start (React API, rendered by [TanStack Redact](https://github.com/TanStack/redact)),
+Tailwind, SQLite with Drizzle, Vitest and Playwright; one binary per platform through
+`bun build --compile`. Architecture, tests and releases:
 [Development](https://firsttris.github.io/quadeck/development.html).
 
 ## 🤝 Contributing

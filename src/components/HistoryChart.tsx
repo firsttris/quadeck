@@ -184,8 +184,8 @@ export function HistoryChart({ series, span, now, format, yMin, yMax, height = 4
             <defs>
               {paths.map((p, i) => (
                 <linearGradient key={p.label} id={`${uid}-g${i}`} x1="0" x2="0" y1="0" y2="1">
-                  <stop offset="0%" stopColor={p.color} stopOpacity={detailed ? 0.28 : 0.22} />
-                  <stop offset="100%" stopColor={p.color} stopOpacity={0} />
+                  <stop offset="0%" style={{ stopColor: p.color, stopOpacity: detailed ? 0.28 : 0.22 }} />
+                  <stop offset="100%" style={{ stopColor: p.color, stopOpacity: 0 }} />
                 </linearGradient>
               ))}
             </defs>

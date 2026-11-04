@@ -132,8 +132,8 @@ function Gauge({ live, idle }: { live: Live | null; idle?: SpeedResult }) {
     <svg viewBox="0 0 220 200" className="w-full max-w-[340px]" role="img" aria-label={m.speed_gauge()}>
       <defs>
         <linearGradient id={gid} x1="0" x2="1" y1="0" y2="0">
-          <stop offset="0" stopColor={c1} />
-          <stop offset="1" stopColor={c2} />
+          <stop offset="0" style={{ stopColor: c1 }} />
+          <stop offset="1" style={{ stopColor: c2 }} />
         </linearGradient>
         <filter id="glow" x="-50%" y="-50%" width="200%" height="200%">
           <feGaussianBlur stdDeviation="3" result="b" />
@@ -162,7 +162,7 @@ function Gauge({ live, idle }: { live: Live | null; idle?: SpeedResult }) {
         return (
           <g key={t}>
             <line x1={x1} y1={y1} x2={x2} y2={y2} stroke="rgba(255,255,255,.25)" strokeWidth="1.5" />
-            <text x={tx} y={ty + 3} textAnchor="middle" fontSize="8" fill="#8b949e" fontFamily="ui-monospace, monospace">
+            <text x={tx} y={ty + 3} fill="#8b949e" style={{ textAnchor: 'middle', fontSize: 8, fontFamily: 'ui-monospace, monospace' }}>
               {t >= 1000 ? `${t / 1000}G` : t}
             </text>
           </g>
@@ -172,10 +172,10 @@ function Gauge({ live, idle }: { live: Live | null; idle?: SpeedResult }) {
         <line x1="110" y1="110" x2={110 + R - 24} y2="110" stroke={c2} strokeWidth="3" strokeLinecap="round" />
       </g>
       <circle cx="110" cy="110" r="6" fill="var(--color-bg)" stroke={c2} strokeWidth="2" />
-      <text x="110" y="172" textAnchor="middle" fontSize="24" fontWeight="600" fill="#e6edf3" fontFamily="ui-monospace, monospace" data-testid="gauge-value">
+      <text x="110" y="172" fill="#e6edf3" style={{ textAnchor: 'middle', fontSize: 24, fontWeight: 600, fontFamily: 'ui-monospace, monospace' }} data-testid="gauge-value">
         {live?.phase === 'ping' ? `${num(live.value)}` : num(value)}
       </text>
-      <text x="110" y="187" textAnchor="middle" fontSize="9" fill="#8b949e">
+      <text x="110" y="187" fill="#8b949e" style={{ textAnchor: 'middle', fontSize: 9 }}>
         {live?.phase === 'ping' ? 'ms' : `Mbit/s · ${num(mbyte(value))} MB/s`}
       </text>
     </svg>
