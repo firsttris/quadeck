@@ -15,4 +15,4 @@ for i in $(seq 120); do
   (( i == 120 )) && { echo "The server did not start" >&2; exit 1; }
   sleep 1
 done
-node scripts/screenshots.mjs docs
+bun scripts/screenshots.mjs docs

@@ -24,8 +24,8 @@ jobs:
       - uses: actions/checkout@v7
       - uses: oven-sh/setup-bun@v2
         with:
-          # The Bun the release binaries are compiled with (Renovate, .github/renovate.json5)
-          bun-version: 1.4.4
+          # The Bun the release binaries are compiled with: packageManager in package.json
+          bun-version-file: package.json
       - run: bun install --frozen-lockfile
       - run: bun scripts/compile.ts bun-linux-x64-baseline bun-linux-arm64 bun-linux-x64-musl bun-linux-arm64-musl
       - name: Checksums
