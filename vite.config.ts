@@ -39,7 +39,7 @@ export default defineConfig({
   resolve: { tsconfigPaths: true },
   plugins: [
     // messages/{de,en}.json → src/paraglide (typed message functions)
-    paraglideVitePlugin({ project: './project.inlang', outdir: './src/paraglide', strategy: ['cookie', 'baseLocale'], cookieName: 'qd_lang' }),
+    paraglideVitePlugin({ project: './project.inlang', outdir: './src/paraglide', strategy: ['cookie', 'baseLocale'], cookieName: 'qd_lang', outputStructure: 'message-modules' }),
     tailwindcss(),
     tanstackStart(),
     viteReact(),
