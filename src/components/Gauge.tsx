@@ -35,7 +35,7 @@ export function Gauge({ id, label, value, sub, p, bare }: { id: string; label: s
           transform="rotate(-90 42 42)"
           filter={`url(#glow-${id})`}
         />
-        <text x="42" y="47" textAnchor="middle" fill="#e6e8eb" fontFamily="IBM Plex Sans Condensed, sans-serif" fontSize="17" fontWeight="600">
+        <text x="42" y="47" fill="#e6e8eb" style={{ textAnchor: 'middle', fontFamily: 'IBM Plex Sans Condensed, sans-serif', fontSize: 17, fontWeight: 600 }}>
           {Math.round(clamped * 100)}%
         </text>
       </svg>
