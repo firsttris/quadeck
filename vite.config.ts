@@ -39,7 +39,16 @@ export default defineConfig({
   resolve: { tsconfigPaths: true },
   plugins: [
     // messages/{de,en}.json → src/paraglide (typed message functions)
-    paraglideVitePlugin({ project: './project.inlang', outdir: './src/paraglide', strategy: ['cookie', 'baseLocale'], cookieName: 'qd_lang', outputStructure: 'message-modules' }),
+    paraglideVitePlugin({
+      project: './project.inlang',
+      outdir: './src/paraglide',
+      strategy: ['cookie', 'baseLocale'],
+      cookieName: 'qd_lang',
+      // Paraglide 2's default: one module per locale in the dev server and tests (a few requests),
+      // one per message in production builds (tree shaking). v3 would serve virtual modules only Vite
+      // can resolve.
+      outputStructure: process.env.NODE_ENV === 'production' ? 'message-modules' : 'locale-modules',
+    }),
     tailwindcss(),
     tanstackStart(),
     viteReact(),
